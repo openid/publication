@@ -1,0 +1,59 @@
+name: OIDF Publish
+on:
+  pull_request_review:
+    types: 
+    - submitted
+  workflow_dispatch:
+
+jobs:
+  publish_to_specs:
+    name: list_remote_ssh
+    runs-on: ubuntu-latest
+    environment: openid.net/specs/
+    steps:
+      - uses: actions/checkout@v4
+        with: 
+          fetch-depth: 0
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: openid/publication-checks
+          path: publication-checks
+          ssh-key: ${{ secrets.OPENID_PUBLICATION_DEPLOY_KEY }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Python requirements
+        run: |
+          cd ./publication-checks
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          echo "::set-output name=path::$(which python)"
+
+      - name: list remote /specs via ssh
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.OIDF_SPECS_HOST }}
+          username: ${{ secrets.OIDF_USERID }}
+          key: ${{ secrets.OIDF_USERID_KEY }}
+          port: ${{ secrets.OIDF_SPECS_PORT }}
+          script: |
+              whoami
+              pwd
+              ls
+              ls /var/www/openid.net/htdocs/specs/
+
+      - name: Run OpenID publication
+        run : |
+          cd ./publication-checks
+          chmod +x ./process.sh
+          ./publish.sh
+          ls ../publishing/
+
+  
+
+
