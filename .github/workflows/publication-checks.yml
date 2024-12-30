@@ -1,0 +1,45 @@
+name: Publication Checks
+on:
+  push:
+    branches: 
+    - 'propose/**'
+  workflow_dispatch:
+
+jobs:
+  Check:
+    name: Run automated checks on proposed OIDF specs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: 
+          fetch-depth: 0
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: considrd/openid-workflow
+          path: openid-workflow
+          ssh-key: ${{ secrets.OPENID_PUBLICATION_DEPLOY_KEY }}
+
+      - name: Run 'tree' tool
+        run: |
+          sudo apt-get install tree -y
+          tree
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Python requirements
+        run: |
+          cd ./openid-workflow
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          echo "::set-output name=path::$(which python)"
+
+      - name: Run OpenID pre-publication checks
+        run : |
+          cd ./openid-workflow
+          chmod +x ./process.sh
+          ./process.sh
