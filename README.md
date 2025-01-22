@@ -13,6 +13,6 @@ Once the checks have run the output can be reviewed under https://github.com/ope
 
 Once there is either a fully successful run of the document checks or a co-chair feels the documents are ready for the Secretary or team to review (even with failures reported) then they should convert the branch to a PR and request a review and optionally publication.
 
-The Secretary or their team can then review, feedback and potentially publish in circumstances when it is s technical failure rather than a policy failure.
+The Secretary or their team can then review, feedback and potentially publish in circumstances when it is a technical failure rather than a policy failure.
 
 
