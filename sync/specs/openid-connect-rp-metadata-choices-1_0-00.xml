@@ -1,0 +1,833 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type='text/xsl' href='http://xml2rfc.tools.ietf.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN"
+"http://xml2rfc.tools.ietf.org/authoring/rfc2629.dtd">
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="openid-connect-rp-metadata-choices-1_0" ipr="none"
+     xmlns:xi="http://www.w3.org/2001/XInclude">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="5" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="yes" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title abbrev="OpenID Connect RP Metadata Choices">OpenID Connect
+    Relying Party Metadata Choices 1.0 - draft 00</title>
+
+    <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      <organization abbrev="Self-Issued Consulting">Self-Issued Consulting</organization>
+      <address>
+        <email>michael_b_jones@hotmail.com</email>
+	<uri>https://self-issued.info/</uri>
+      </address>
+    </author>
+
+    <author fullname="Roland Hedberg" initials="R." surname="Hedberg">
+      <organization>independent</organization>
+      <address>
+        <email>roland@catalogix.se</email>
+      </address>
+    </author>
+
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization abbrev="Yubico">Yubico</organization>
+      <address>
+        <email>ve7jtb@ve7jtb.com</email>
+        <uri>http://www.thread-safe.com/</uri>
+      </address>
+    </author>
+
+    <date day="29" month="September" year="2024" />
+
+    <workgroup>OpenID Connect Working Group</workgroup>
+
+    <abstract>
+      <t>OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+      protocol. It enables Clients to verify the identity of the End-User based
+      on the authentication performed by an Authorization Server, as well as to
+      obtain basic profile information about the End-User in an interoperable and 
+      REST-like manner.</t>
+
+      <t>
+	This specification extends the OpenID Connect Dynamic Client Registration 1.0
+	specification to enable RPs to express a set of supported values
+	for some RP metadata parameters, rather than just single values.
+	This functionality is particularly useful when Automatic Registration,
+	as defined in OpenID Federation 1.0,
+	is used, since there is no registration response from the OP
+	to tell the RP what choices were made by the OP.
+      </t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+
+      <t>
+	OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+	<xref target="RFC6749"/>
+	protocol. It enables Clients to verify the identity of the End-User based
+	on the authentication performed by an Authorization Server, as well as to
+	obtain basic profile information about the End-User in an interoperable and 
+	REST-like manner.
+      </t>
+      <t>
+	In order for an OpenID Connect Relying Party to utilize OpenID Connect services for
+	an End-User, the RP needs to register with the OpenID Provider
+	to provide the OP information about itself.
+	This specification extends the OpenID Connect Dynamic Client Registration 1.0
+	specification <xref target="OpenID.Registration"/>
+	to enable RPs to express a set of supported values
+	for some RP metadata parameters, rather than just single values.
+	This extension enables expression of multiple choices for parameters
+	including supported algorithms and token endpoint authentication methods.
+	This functionality is particularly useful when Automatic Registration
+	<xref target="OpenID.Federation"/>
+	is used, since there is no registration response from the OP
+	to tell the RP what choices were made by the OP.
+      </t>
+
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+        <t>
+          The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
+          document are to be interpreted as described in
+          BCP 14 <xref target="RFC2119"/> <xref target="RFC8174"/>.
+        </t>
+
+	<t>
+	  All uses of <xref target="JWS">JSON Web Signature (JWS)</xref>
+	  and <xref target="JWE">JSON Web Encryption (JWE)</xref>
+	  data structures in this specification utilize
+	  the JWS Compact Serialization or the JWE Compact Serialization;
+	  the JWS JSON Serialization and the JWE JSON Serialization are not used.
+	</t>
+      </section>
+
+      <section anchor="Terminology" title="Terminology">
+	<t>
+	  This specification uses the terms
+	  "Authorization Server",
+	  "Client", "Client Authentication", "Client Identifier",
+	  and "Token Endpoint"
+	  defined by <xref target="RFC6749">OAuth 2.0</xref>,
+	  the term "JSON Web Token (JWT)"
+	  defined by <xref target="JWT">JSON Web Token (JWT)</xref>,
+	  and the terms defined by
+	  <xref target="OpenID.Core">OpenID Connect Core 1.0</xref> and
+	  <xref target="OpenID.Registration">OpenID Connect Dynamic Client Registration 1.0</xref>.
+	</t>
+      </section>
+    </section>
+
+    <section anchor="ClientMetadata" title="Client Metadata">
+      <t>Clients have metadata associated with their
+      unique Client Identifier at the Authorization Server. These can range
+      from human-facing display strings, such as a Client name, to items that
+      impact the security of the protocol, such as the set of supported algorithms.
+      </t>
+      <t>The Client Metadata values are used in two ways:</t>
+      <t>
+	<list style="symbols">
+	  <t>
+	    as input values to registration requests, and
+	  </t>
+	  <t>
+	    as output values in registration responses and read responses.
+	  </t>
+	</list>
+      </t>
+      <t>
+	Enabling the RP to express all the choices that it supports
+	for metadata parameters is particularly important when using
+	Automatic Registration, as defined in
+	Section 12.1 of OpenID Federation 1.0 <xref target="OpenID.Federation"/>,
+	since it gives the OP the best opportunity to make good choices
+	of what parameters to use when interacting with the RP.
+	This specification is intended to faciliate such interactions.
+      </t>
+      <t>
+	These Client Metadata values are defined by this specification:
+
+	<list style="hanging">
+
+	  <t hangText="subject_types_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the
+	    <spanx style="verb">subject_type</spanx>
+	    values supported by the RP.
+	    If a <spanx style="verb">subject_type</spanx>
+	    metadata parameter is also present, its value MUST be in the list.
+	  </t>
+
+	  <t hangText="id_token_signing_alg_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the
+	    <xref target="JWS">JWS</xref> <spanx style="verb">alg</spanx> values
+	    supported by the RP when validating the ID Token signature.
+	    If a <spanx style="verb">id_token_signed_response_alg</spanx>
+	    metadata parameter is also present, its value MUST be in the list.
+	  </t>
+	  
+	  <t hangText="id_token_encryption_alg_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the
+	    <xref target="JWE">JWE</xref> <spanx style="verb">alg</spanx> values
+	    supported by the RP when decrypting the ID Token.
+	    If a <spanx style="verb">id_token_encrypted_response_alg</spanx>
+	    metadata parameter is also present, its value MUST be in the list.
+	  </t>
+
+	  <t hangText="id_token_encryption_enc_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the
+	    JWE <spanx style="verb">enc</spanx> values
+	    supported by the RP when decrypting the ID Token.
+	    If a <spanx style="verb">id_token_encrypted_response_enc</spanx>
+	    metadata parameter is also present, its value MUST be in the list.
+	  </t>
+
+	  <t hangText="userinfo_signing_alg_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the
+	    JWS <spanx style="verb">alg</spanx> values
+	    supported by the RP when validating the UserInfo Response signature.
+	    If a <spanx style="verb">userinfo_signed_response_alg</spanx>
+	    metadata parameter is also present, its value MUST be in the list.
+	  </t>
+
+	  <t hangText="userinfo_encryption_alg_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the
+	    JWE <spanx style="verb">alg</spanx> values
+	    supported by the RP when decrypting the UserInfo Response. 
+	    If a <spanx style="verb">userinfo_encrypted_response_alg</spanx>
+	    metadata parameter is also present, its value MUST be in the list.
+	  </t>
+	  
+	  <t hangText="userinfo_encryption_enc_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the
+	    JWE <spanx style="verb">enc</spanx> values
+	    supported by the RP when decrypting the UserInfo Response. 
+	    If a <spanx style="verb">userinfo_encrypted_response_enc</spanx>
+	    metadata parameter is also present, its value MUST be in the list.
+	  </t>
+
+	  <t hangText="request_object_signing_alg_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the
+	    JWS <spanx style="verb">alg</spanx> values
+	    supported by the Client when signing Request Objects.
+	    If a <spanx style="verb">request_object_signing_alg</spanx>
+	    metadata parameter is also present, its value MUST be in the list.
+	  </t>
+
+	  <t hangText="request_object_encryption_alg_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the
+	    JWE <spanx style="verb">alg</spanx> values
+	    supported by the Client when encrypting Request Objects.
+	    If a <spanx style="verb">request_object_encryption_alg</spanx>
+	    metadata parameter is also present, its value MUST be in the list.
+	  </t>
+
+	  <t hangText="request_object_encryption_enc_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the
+	    JWE <spanx style="verb">enc</spanx> values
+	    supported by the Client when encrypting Request Objects.
+	    If a <spanx style="verb">request_object_encryption_enc</spanx>
+	    metadata parameter is also present, its value MUST be in the list.
+	  </t>
+
+	  <t hangText="token_endpoint_auth_methods_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the
+	    Client Authentication methods supported by the Client.
+	    If a <spanx style="verb">token_endpoint_auth_method</spanx>
+	    metadata parameter is also present, its value MUST be in the list.
+	  </t>
+
+	  <t hangText="token_endpoint_auth_signing_alg_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the
+	    JWS <spanx style="verb">alg</spanx> values
+	    supported by the Client when signing the JWT
+	    used to authenticate the Client at the Token Endpoint
+	    for the <spanx style="verb">private_key_jwt</spanx>
+	    and <spanx style="verb">client_secret_jwt</spanx> authentication methods.
+	    If a <spanx style="verb">token_endpoint_auth_signing_alg</spanx>
+	    metadata parameter is also present, its value MUST be in the list.
+	  </t>
+	</list>
+      </t>
+      <t>
+	Additional Client Metadata parameters MAY be defined and used,
+	as described in <xref target="RFC7591"/>.
+      </t>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>
+	The security considerations when using these metadata parameters
+	are the same as those when using the correspoding metadata parameters in
+	<xref target="OpenID.Registration"/> and <xref target="OpenID.Discovery"/>.
+      </t>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <section anchor="DynRegRegistrations" title="OAuth Dynamic Client Registration Metadata Registry">
+	<t>
+	  This specification registers the following client metadata definitions
+	  in the IANA "OAuth Dynamic Client Registration Metadata" registry
+	  <xref target="IANA.OAuth.Parameters"/>
+	  established by <xref target="RFC7591"/>.
+	</t>
+
+	<section anchor="DynRegContents" title="Registry Contents">
+	  <t> <?rfc subcompact="yes"?>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">subject_types_supported</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		JSON array containing a list of the
+		<spanx style="verb">subject_type</spanx>
+		values supported by the RP
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="ClientMetadata"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">id_token_signing_alg_values_supported</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		JSON array containing a list of the
+		<xref target="JWS">JWS</xref> <spanx style="verb">alg</spanx> values
+		supported by the RP when validating the ID Token signature
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="ClientMetadata"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">id_token_encryption_alg_values_supported</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		JSON array containing a list of the
+		<xref target="JWE">JWE</xref> <spanx style="verb">alg</spanx> values
+		supported by the RP when decrypting the ID Token
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="ClientMetadata"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">id_token_encryption_enc_values_supported</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		JSON array containing a list of the
+		JWE <spanx style="verb">enc</spanx> values
+		supported by the RP when decrypting the ID Token
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="ClientMetadata"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">userinfo_signing_alg_values_supported</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		JSON array containing a list of the
+		JWS <spanx style="verb">alg</spanx> values
+		supported by the RP when validating the UserInfo Response signature
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="ClientMetadata"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">userinfo_encryption_alg_values_supported</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		JSON array containing a list of the
+		JWE <spanx style="verb">alg</spanx> values
+		supported by the RP when decrypting the UserInfo Response
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="ClientMetadata"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">userinfo_encryption_enc_values_supported</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		JSON array containing a list of the
+		JWE <spanx style="verb">enc</spanx> values
+		supported by the RP when decrypting the UserInfo Response
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="ClientMetadata"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">request_object_signing_alg_values_supported</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		JSON array containing a list of the
+		JWS <spanx style="verb">alg</spanx> values
+		supported by the Client when signing Request Objects
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="ClientMetadata"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">request_object_encryption_alg_values_supported</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		JSON array containing a list of the
+		JWE <spanx style="verb">alg</spanx> values
+		supported by the Client when encrypting Request Objects
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="ClientMetadata"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">request_object_encryption_enc_values_supported</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		JSON array containing a list of the
+		JWE <spanx style="verb">enc</spanx> values
+		supported by the Client when encrypting Request Objects
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="ClientMetadata"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">token_endpoint_auth_methods_supported</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		JSON array containing a list of the
+		Client Authentication methods supported by the Client
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="ClientMetadata"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">token_endpoint_auth_signing_alg_values_supported</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		JSON array containing a list of the
+		JWS <spanx style="verb">alg</spanx> values
+		supported by the Client when signing the JWT
+		used to authenticate the Client at the Token Endpoint
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="ClientMetadata"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	</section>
+	<?rfc subcompact="no"?>
+      </section>
+
+    </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml"/>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.6749.xml"/>
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8174.xml"/>
+
+      <reference anchor="OpenID.Core" target="https://openid.net/specs/openid-connect-core-1_0.html">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NAT.Consulting (was at NRI)">NAT.Consulting</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Yubico (was at Ping Identity)">Yubico</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Self-Issued Consulting (was at Microsoft)">Self-Issued Consulting</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+	  <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+	    <organization abbrev="Disney (was at Salesforce)">Disney</organization>
+	  </author>
+
+          <date day="15" month="December" year="2023"/>
+        </front>
+      </reference>
+
+      <reference anchor="OpenID.Discovery" target="https://openid.net/specs/openid-connect-discovery-1_0.html">
+	<front>
+	  <title>OpenID Connect Discovery 1.0</title>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NAT.Consulting (was at NRI)">NAT.Consulting</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Yubico (was at Ping Identity)">Yubico</organization>
+	  </author>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Self-Issued Consulting (was at Microsoft)">Self-Issued Consulting</organization>
+	  </author>
+
+	  <author fullname="Edmund Jay" initials="E." surname="Jay">
+	    <organization abbrev="Illumila">Illumila</organization>
+	  </author>
+
+          <date day="15" month="December" year="2023"/>
+	</front>
+      </reference>
+
+      <reference anchor="OpenID.Registration" target="https://openid.net/specs/openid-connect-registration-1_0.html">
+	<front>
+	  <title>OpenID Connect Dynamic Client Registration 1.0</title>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NAT.Consulting (was at NRI)">NAT.Consulting</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Yubico (was at Ping Identity)">Yubico</organization>
+	  </author>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Self-Issued Consulting (was at Microsoft)">Self-Issued Consulting</organization>
+	  </author>
+
+          <date day="15" month="December" year="2023"/>
+	</front>
+      </reference>
+
+      <reference anchor="OpenID.Federation" target="https://openid.net/specs/openid-federation-1_0.html">
+        <front>
+          <title>OpenID Federation 1.0</title>
+
+	  <author fullname="Roland Hedberg" initials="R." role="editor"
+		  surname="Hedberg">
+	    <organization>independent</organization>
+	    <address>
+	      <email>roland@catalogix.se</email>
+	    </address>
+	  </author>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Self-Issued Consulting">Self-Issued Consulting</organization>
+	    <address>
+	      <email>michael_b_jones@hotmail.com</email>
+	      <uri>https://self-issued.info/</uri>
+	    </address>
+	  </author>
+
+	  <author fullname="Andreas Åkre Solberg" initials="A.Å."
+		  surname="Solberg">
+	    <organization>Sikt</organization>
+	    <address>
+	      <email>Andreas.Solberg@sikt.no</email>
+	      <uri>https://www.linkedin.com/in/andreassolberg/</uri>
+	    </address>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Yubico">Yubico</organization>
+	    <address>
+	      <email>ve7jtb@ve7jtb.com</email>
+	      <uri>http://www.thread-safe.com/</uri>
+	    </address>
+	  </author>
+
+	  <author fullname="Giuseppe De Marco" initials="G." surname="De Marco">
+	    <organization>independent</organization>
+	    <address>
+	      <email>demarcog83@gmail.com</email>
+	      <uri>https://www.linkedin.com/in/giuseppe-de-marco-bb054245/</uri>
+	    </address>
+	  </author>
+
+	  <author fullname="Vladimir Dzhuvinov" initials="V." surname="Dzhuvinov">
+	    <organization>Connect2id</organization>
+	    <address>
+	      <email>vladimir@connect2id.com</email>
+	      <uri>https://twitter.com/dzhuvi</uri>
+	    </address>
+	  </author>
+
+          <date day="15" month="September" year="2024"/>
+        </front>
+      </reference>
+
+      <reference anchor="JWT" target="https://tools.ietf.org/html/rfc7519">
+        <front>
+          <title>JSON Web Token (JWT)</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization>Ping Identity</organization>
+          </author>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <date month="May" year="2015" />
+        </front>
+
+	<seriesInfo name="RFC" value="7519"/>
+	<seriesInfo name="DOI" value="10.17487/RFC7519"/>
+      </reference>
+
+      <reference anchor="JWS" target="https://tools.ietf.org/html/rfc7515">
+        <front>
+          <title>JSON Web Signature (JWS)</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization>Ping Identity</organization>
+          </author>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <date month="May" year="2015" />
+        </front>
+
+	<seriesInfo name="RFC" value="7515"/>
+	<seriesInfo name="DOI" value="10.17487/RFC7515"/>
+      </reference>
+
+      <reference anchor="JWE" target="https://tools.ietf.org/html/rfc7516">
+        <front>
+          <title>JSON Web Encryption (JWE)</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization>Microsoft</organization>
+	  </author>
+
+	  <author fullname="Joe Hildebrand" initials="J." surname="Hildebrand">
+	    <organization>Cisco Systems, Inc.</organization>
+	  </author>
+
+	  <date month="May" year="2015" />
+        </front>
+
+	<seriesInfo name="RFC" value="7516"/>
+	<seriesInfo name="DOI" value="10.17487/RFC7516"/>
+      </reference>
+
+      <reference anchor="IANA.OAuth.Parameters" target="https://www.iana.org/assignments/oauth-parameters">
+        <front>
+          <title>OAuth Parameters</title>
+          <author>
+            <organization>IANA</organization>
+          </author>
+	  <date/>
+        </front>
+      </reference>
+
+    </references>
+
+    <references title="Informative References">
+
+      <xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7591.xml"/>
+
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>
+        The authors wish to acknowledge the contributions of the following
+        people to this specification:
+        Stefan Santesson.
+      </t>
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2024 The OpenID Foundation.</t>
+      <t>
+	The OpenID Foundation (OIDF) grants to any Contributor, developer, 
+	implementer, or other interested party a non-exclusive, royalty free, 
+	worldwide copyright license to reproduce, prepare derivative works from, 
+	distribute, perform and display, this Implementers Draft or 
+	Final Specification solely for the purposes of (i) developing 
+	specifications, and (ii) implementing Implementers Drafts and 
+	Final Specifications based on such documents, provided that attribution 
+	be made to the OIDF as the source of the material, but that such attribution 
+	does not indicate an endorsement by the OIDF.
+      </t>
+      <t>
+	The technology described in this specification was 
+	made available from contributions from various sources, 
+	including members of the OpenID Foundation and others.  
+	Although the OpenID Foundation has taken steps to help ensure 
+	that the technology is available for distribution, it takes 
+	no position regarding the validity or scope of any intellectual 
+	property or other rights that might be claimed to pertain to 
+	the implementation or use of the technology described in 
+	this specification or the extent to which any license under 
+	such rights might or might not be available; neither does it 
+	represent that it has made any independent effort to identify 
+	any such rights.  The OpenID Foundation and the contributors 
+	to this specification make no (and hereby expressly disclaim any) 
+	warranties (express, implied, or otherwise), including implied 
+	warranties of merchantability, non-infringement, fitness for 
+	a particular purpose, or title, related to this specification, 
+	and the entire risk as to implementing this specification is 
+	assumed by the implementer.  The OpenID Intellectual 
+	Property Rights policy requires contributors to offer 
+	a patent promise not to assert certain patent claims against 
+	other contributors and against implementers.  The OpenID Foundation invites 
+	any interested party to bring to its attention any copyrights, 
+	patents, patent applications, or other proprietary rights 
+	that may cover technology that may be required to practice 
+	this specification.
+      </t>
+    </section>
+
+    <section anchor="History" title="Document History">
+      <t>[[ To be removed from the approved Final Specification ]]</t>
+
+      <t>
+	-00
+        <list style="symbols">
+	  <t>
+	    Initial version.
+	  </t>
+	</list>
+      </t>
+
+    </section>
+
+  </back>
+</rfc>

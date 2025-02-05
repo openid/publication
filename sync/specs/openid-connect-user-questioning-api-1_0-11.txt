@@ -1,0 +1,1624 @@
+
+
+
+
+                                                              N. Aillery
+                                                               C. Marais
+                                                                  Orange
+                                                               J. Manger
+                                                                 Telstra
+                                                           July 15, 2020
+
+
+                OpenID Connect User Questioning API 1.0
+                openid-connect-user-questioning-api-1_0
+
+Abstract
+
+   This specification defines an API offered by an OpenID Provider (OP)
+   that can be used by an application to send a question to a user of
+   the OP.  The user does not need to be interacting with the
+   application when the question is asked.  The user's answer is
+   returned asynchronously, digitally-signed by the OP.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Notation and Conventions . . . . . . . . . .   3
+     1.2.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   3
+     1.3.  Overview  . . . . . . . . . . . . . . . . . . . . . . . .   3
+     1.4.  User Questioning flows  . . . . . . . . . . . . . . . . .   4
+       1.4.1.  Pulled-By-Client Flow . . . . . . . . . . . . . . . .   4
+       1.4.2.  Pushed-To-Client Flow . . . . . . . . . . . . . . . .   5
+     1.5.  Example of use cases involving the User Questioning API .   5
+     1.6.  When to use the User Questioning API  . . . . . . . . . .   6
+   2.  User Statement Token  . . . . . . . . . . . . . . . . . . . .   6
+     2.1.  User Statement Token Validation . . . . . . . . . . . . .  10
+   3.  OP Discovery and Client registration  . . . . . . . . . . . .  11
+     3.1.  OP Discovery  . . . . . . . . . . . . . . . . . . . . . .  11
+     3.2.  Client registration . . . . . . . . . . . . . . . . . . .  11
+   4.  Endpoints . . . . . . . . . . . . . . . . . . . . . . . . . .  12
+     4.1.  User Questioning Request Endpoint . . . . . . . . . . . .  12
+       4.1.1.  User Questioning Request  . . . . . . . . . . . . . .  12
+       4.1.2.  Processing the User Questioning Request . . . . . . .  14
+         4.1.2.1.  Processing the Authorization  . . . . . . . . . .  14
+         4.1.2.2.  Processing user_id  . . . . . . . . . . . . . . .  14
+         4.1.2.3.  Processing wished_amr . . . . . . . . . . . . . .  15
+         4.1.2.4.  Allowing the user to explicitly refuse to answer   15
+       4.1.3.  Successful Response . . . . . . . . . . . . . . . . .  15
+       4.1.4.  Error Response  . . . . . . . . . . . . . . . . . . .  16
+     4.2.  User Questioning Polling Endpoint . . . . . . . . . . . .  17
+       4.2.1.  Polling Request . . . . . . . . . . . . . . . . . . .  17
+       4.2.2.  Processing the Polling Request  . . . . . . . . . . .  18
+
+
+
+Aillery, et al.         Expires January 16, 2021                [Page 1]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+         4.2.2.1.  Processing the Authorization  . . . . . . . . . .  18
+       4.2.3.  Pending Response  . . . . . . . . . . . . . . . . . .  18
+       4.2.4.  Successful Response . . . . . . . . . . . . . . . . .  18
+       4.2.5.  Error Response  . . . . . . . . . . . . . . . . . . .  19
+     4.3.  Client Notification Endpoint  . . . . . . . . . . . . . .  20
+       4.3.1.  Successful Response . . . . . . . . . . . . . . . . .  21
+       4.3.2.  Error Response  . . . . . . . . . . . . . . . . . . .  22
+       4.3.3.  Processing the Response . . . . . . . . . . . . . . .  22
+         4.3.3.1.  Processing the Authorization  . . . . . . . . . .  23
+         4.3.3.2.  Processing the User Statement Token . . . . . . .  23
+       4.3.4.  Acknowledgement . . . . . . . . . . . . . . . . . . .  23
+   5.  Error Object  . . . . . . . . . . . . . . . . . . . . . . . .  23
+   6.  Implementation Considerations . . . . . . . . . . . . . . . .  25
+     6.1.  Implementation of Questioning Methods . . . . . . . . . .  25
+   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  26
+     7.1.  Non Repudiation . . . . . . . . . . . . . . . . . . . . .  26
+     7.2.  Signatures and Encryption . . . . . . . . . . . . . . . .  26
+     7.3.  Signing and Encryption Order  . . . . . . . . . . . . . .  26
+   8.  Privacy Considerations  . . . . . . . . . . . . . . . . . . .  26
+     8.1.  Personal Information  . . . . . . . . . . . . . . . . . .  26
+   9.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  27
+   10. Normative References  . . . . . . . . . . . . . . . . . . . .  27
+   Appendix A.  Acknowledgements . . . . . . . . . . . . . . . . . .  28
+   Appendix B.  Notices  . . . . . . . . . . . . . . . . . . . . . .  28
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  29
+
+1.  Introduction
+
+   This specification defines a specific API used by a Client (i.e.
+   Service Provider) in order to question an End-User and get his
+   Statement (i.e. his answer).  The question is a short interrogative
+   sentence (e.g.  "Which product do you want to order ?") and the
+   statement (e.g. "the blue one") is selected amongst proposed
+   statements (e.g. "none", "the blue one", "the red one") that are also
+   short texts.
+
+   This API is specified as an OAuth 2.0-protected Resource Server
+   accessible with an Access Token.
+
+   The Client can use the API defined in this specification whether the
+   End-User is currently using the Client or not.
+
+   The User Questioning API is an asynchronous API.  There are 2 main
+   ways to get the End-User's Statement: the first one requires some
+   polling of the API and the second requires the Client to expose a
+   callback endpoint.
+
+
+
+
+
+Aillery, et al.         Expires January 16, 2021                [Page 2]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119].
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+   All uses of JSON Web Signature (JWS) [JWS] and JSON Web Encryption
+   (JWE) [JWE] data structures in this specification utilize the JWS
+   Compact Serialization or the JWE Compact Serialization; the JWS JSON
+   Serialization and the JWE JSON Serialization are not used.
+
+1.2.  Terminology
+
+   This specification uses the terms "Access Token", "Resource Server",
+   and "Client" defined by OAuth 2.0 [RFC6749], the terms "JSON Web
+   Token (JWT)", "JWT Claims Set", and "Nested JWT" defined by JSON Web
+   Token (JWT) [JWT], and the terms "Header Parameter" and "JOSE Header"
+   defined by JSON Web Signature (JWS) [JWS].  This specification also
+   defines the following terms:
+
+   Questioned User  ** End-User receiving the question and requested to
+      make a statement.
+
+1.3.  Overview
+
+   The User Questioning API enables a Client to address a question to an
+   end-user and to get his response, called User Statement Token,
+   digitally-signed by the OP.  The Client addresses the question thanks
+   to a "User Questioning Request" sent on the "User Questioning Request
+   Endpoint".  The "User Statement Token" is contained in a "User
+   Questioning Response".
+
+   In order to retrieve the "User Questioning Response", two flows are
+   offered to the Client: a Pulled-By-Client flow and a Pushed-To-Client
+   flow.  In the Pulled-By-Client flow, the Client regularly calls the
+   "User Questioning Polling Endpoint".  In the Pushed-To-Client flow,
+   the Client is notified on the "Client Notification Endpoint".
+
+   The User Questioning protocol, in abstract, follows the following
+   steps.
+
+   1.  The Client sends a User Questioning Request to the OpenID
+       Provider (OP).
+
+
+
+
+Aillery, et al.         Expires January 16, 2021                [Page 3]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   2.  The OP interacts with the Questioned User and obtains his
+       Statement.
+
+   3.  The OP responds to the Client with a User Questioning Response.
+
+   These steps are illustrated in the following diagram:
+
+   +--------+                                               +--------+
+   |        |                                               |        |
+   |        |----(1) User Questioning Request-------------->|        |
+   |        |                                               |        |
+   |        |  +--------+                                   |        |
+   |        |  |        |                                   |        |
+   | Client |  |  End-  |<--(2) User interactions to get--->|   OP   |
+   |        |  |  User  |  the Questioned User's Statement  |        |
+   |        |  |        |                                   |        |
+   |        |  +--------+                                   |        |
+   |        |                                               |        |
+   |        |<----(3) User Questioning Response-------------|        |
+   |        |                                               |        |
+   +--------+                                               +--------+
+
+   About the "(2) User interactions to get the Questioned User's
+   Statement" step, note that the way the OP obtains the Questioned
+   User's Statement is out of the scope of this specification.
+
+1.4.  User Questioning flows
+
+   This document specifies two User Questioning flows:
+
+   Pulled-By-Client flow:  In this flow, after the User Questioning
+         Request, the Client must call the OP in order to get the User
+         Questioning Response.  Refer to Section 1.4.1 for more details.
+
+   Pushed-To-Client  flow:  In this flow, after the User Questioning
+         Request, the OP calls the Client to deliver the User
+         Questioning Response.  Refer to Section 1.4.2 for more details.
+
+   At registration, a Client is configured with the flow it will use.
+   Refer to Section 3.2 for more details.
+
+1.4.1.  Pulled-By-Client Flow
+
+   In this flow, the Client will poll the OP to get the User Questioning
+   Response.
+
+
+
+
+
+
+Aillery, et al.         Expires January 16, 2021                [Page 4]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   +--------+                                               +--------+
+   |        |---(1a) User Questioning Request-------------->|        |
+   |        |                                               |        |
+   |        |<--(1b) Question Created-----------------------|        |
+   |        |                                               |        |
+   |        |  +--------+                                   |        |
+   | Client |  |  End-  |<--(2a) User interactions to get-->|   OP   |
+   |        |  |  User  |  the Questioned User's Statement  |        |
+   |        |  +--------+                                   |        |
+   |        |                                               |        |
+   |        |--(3a) Get User Questioning Response---------->|        |
+   |        |                                               |        |
+   |        |<---(3b) User Questioning Response-------------|        |
+   +--------+                                               +--------+
+
+1.4.2.  Pushed-To-Client Flow
+
+   In this flow, the OP will send the User Questioning Response to the
+   client_notification_endpoint registered by the Client.
+
+   +--------+                                               +--------+
+   |        |---(1a) User Questioning Request-------------->|        |
+   |        |                                               |        |
+   |        |<--(1b) Question Created-----------------------|        |
+   |        |                                               |        |
+   |        |  +--------+                                   |        |
+   | Client |  |  End-  |<--(2a) User interactions to get-->|   OP   |
+   |        |  |  User  |  the Questioned User's Statement  |        |
+   |        |  +--------+                                   |        |
+   |        |                                               |        |
+   |        |<---(3a) User Questioning Response-------------|        |
+   |        |                                               |        |
+   |        |---(3b) Acknowledgement----------------------->|        |
+   +--------+                                               +--------+
+
+1.5.  Example of use cases involving the User Questioning API
+
+   The following use cases are non-normative examples to illustrate the
+   usage of the User Questioning API by a Client.
+
+   1.  The Client can be a bank and the User Questioning API can be used
+       to challenge the End-User when he wants to pay on Internet in
+       order to secure the transaction.  This is similar to 3D-Secure.
+       The question could be: "Do you allow a payment of x euros to
+       party y?  (Yes) (No)".
+
+   2.  The Client can be a bank and the User Questioning API can be used
+       to challenge the End-User when he wants to add a new payee for a
+
+
+
+Aillery, et al.         Expires January 16, 2021                [Page 5]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+       bank transfer.  The question could be: "Do you allow party y to
+       be added to your payees?  (I accept) (I refuse)".
+
+   3.  The Client can be a drive-in food market and the User Questioning
+       API can be used to ask the End-User if he accepts the exchange of
+       one missing product by another.  The question could be: "Do you
+       agree to get product x instead of product y?  (I agree) (I
+       disagree)".
+
+   4.  The Client can be a ticketing platform and the User Questioning
+       API can be used to prevent transactions by bots.  The question
+       could be: "Do you confirm that you are currently booking a
+       ticket?  (I confirm) (I deny)".
+
+   5.  The Client can be an airline company and the User Questioning API
+       can be used to be sure that the End-User is notified of a delay.
+       The question could be: "Your flight is postponed.  Can you
+       confirm that you are aware?  (I read this)".
+
+   6.  The Client can be a survey company and the User Questioning API
+       can be used to get the End-User's choice.  The question could be:
+       "Which is your favorite brand? (brand_A) (brand_B) (brand_C)".
+
+1.6.  When to use the User Questioning API
+
+   The User Questioning API should be used when the following
+   constraints must be fulfilled:
+
+   1.  The Client needs to have a real-time interaction with an End-User
+       that may not be currently using the Client.
+
+   2.  The Client needs to have the End-User's statement on a given
+       question.
+
+   3.  The Client needs to be sure that the responding End-User has been
+       authenticated before responding.
+
+   4.  The Client needs to have a non-repudiable proof of the End-User's
+       statement.
+
+   5.  The Client needs the End-User's statement to enforce a policy
+       (i.e. take a decision).
+
+2.  User Statement Token
+
+   The User Statement Token is a security token that contains Claims
+   about the statement made by the Questioned User.  The User Statement
+   Token is represented as a JSON Web Token (JWT) [JWT].
+
+
+
+Aillery, et al.         Expires January 16, 2021                [Page 6]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   The following Claims are used within the User Statement Token in all
+   Questioning API flows.
+
+   question_id  MANDATORY.  The "question_id" is a unique identifier of
+      the Question.  This identifier is created by the OP.  The
+      "question_id" value is a case sensitive string.
+
+   iss  MANDATORY.  Issuer Identifier for the Issuer of the response.
+      The issuer is the OP.  "iss" is defined in chapter 2 of
+      [OpenID.Core].  The "iss" value is a case sensitive URL using the
+      "https" scheme that contains scheme, host, and optionally, port
+      number and path components and no query or fragment components.
+
+   sub  MANDATORY.  Subject Identifier.  A locally unique and never
+      reassigned identifier within the Issuer for the End-User, which is
+      intended to be consumed by the Client.  "sub" is defined in
+      chapter 2 of [OpenID.Core].  The "sub" value MUST NOT exceed 255
+      ASCII characters in length.  The "sub" value is a case sensitive
+      string.
+
+      *  If the Access Token is tied with an End-User, the "sub" is
+         RECOMMENDED to be "pairwise" with a value based on the Sector
+         Identifier of the Client.  It is assumed that the Sector
+         Identifier has been verified during the Access Token issuance
+         process.  The "sub" MAY also be "public".
+
+      *  If the Access Token is not tied with an End-User, the "sub" is
+         RECOMMENDED to be "public" with a value based on the "user_id"
+         and "user_id_type".  A pairwise "sub" MAY be used in this case,
+         but the OP MUST take special care to ensure the Client is
+         entitled to use the associated Sector Identifier as the
+         Client's "redirect_uri" that is usually used for this check is
+         not involved in the flow.  Either "public" or "pairwise", with
+         such an Access Token, the "sub" is less valuable for the Client
+         than the couple "user_id" and "user_id_type".
+
+   aud  MANDATORY.  Audience(s) that this User Statement Token is
+      intended for.  "aud" is defined in chapter 2 of [OpenID.Core].
+      The "aud" value is an array of case sensitive strings.
+
+   user_id  OPTIONAL.  The "user_id" is a unique identifier provided in
+      the User Questioning Request and allowing to identify the
+      Questioned User (e.g.  Mobile phone, sub, ...).  The "user_id"
+      MUST be present in the User Statement Token if, and only if, the
+      "user_id" and "user_id_type" were present in the User Questioning
+      Request.  When present, this is the identifier actually used to
+      reach the Questioned User.  The "user_id" value is a case
+      sensitive string.
+
+
+
+Aillery, et al.         Expires January 16, 2021                [Page 7]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   user_id_type  OPTIONAL.  The "user_id_type" MUST be present in the
+      User Statement Token if, and only if, the "user_id" and
+      "user_id_type" were present in the User Questioning Request.  The
+      "user_id_type" indicates the type of the End-User's identifier
+      used for User Questioning.  The "user_id_type" value is a case
+      sensitive string.
+
+   question_displayed  MANDATORY.  The "question_displayed" is the
+      question displayed to the Questioned User.  If the
+      "question_to_display" (described in Section 4.1.1) has not been
+      displayed as is, the "question_displayed" MUST be the exact
+      message displayed to Questioned User.  The "question_displayed"
+      value is a case sensitive string.
+
+   displayed_statements  MANDATORY.  List of possible statements
+      displayed to the Questioned User.  The "displayed_statements" MUST
+      be the list of the exact statements displayed to the Questioned
+      User.  The "displayed_statements" value is a JSON array of case
+      sensitive strings.
+
+   statement  MANDATORY.  Statement made by the Questioned User.  The
+      "statement" MUST be the exact statement made by the Questioned
+      User.  The "statement" value is a case sensitive string.
+
+   statement_date  MANDATORY.  Date indicating when the End-User gave
+      his Statement on the Question.  The "statement_date" value is a
+      JSON number representing the number of seconds from
+      1970-01-01T0:0:0Z as measured in UTC.
+
+   used_amr  MANDATORY.  Authentication Method References.  These are
+      the authentication methods used by the OP to authenticate the
+      Questioned User before he made his statement.  Authentication
+      Method References are defined in chapter 2 of [OpenID.Core], where
+      they are named "amr".  The "used_amr" value is an array of case
+      sensitive strings.
+
+   used_acr  MANDATORY.  Authentication Context Class Reference.
+      Authentication Context Class Reference value that identifies the
+      Authentication Context Class used by the OP to authenticate the
+      Questioned User before he made his statement.  Authentication
+      Context Class Reference is defined in chapter 2 of [OpenID.Core],
+      where it is named "acr".  The "used_acr" value is a case sensitive
+      string.
+
+   User Statement Tokens MUST be signed by the OP using a digital
+   signature as defined in JWS [JWS] providing authentication, integrity
+   and non-repudiation.  Message Authentication Codes (MACs) MUST NOT be
+   used as they do not provide non-repudiation.  User Statement Tokens
+
+
+
+Aillery, et al.         Expires January 16, 2021                [Page 8]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   CAN optionally be both signed and then encrypted using JWS [JWS] and
+   JWE [JWE] respectively, thereby providing authentication, integrity,
+   non-repudiation, and confidentiality, per Section 7.3.  If the User
+   Statement Token is encrypted, it MUST be signed then encrypted, with
+   the result being a Nested JWT, as defined in [JWT].  User Statement
+   Tokens MUST NOT use "none", "HS256", "HS384" and "HS512" as the "alg"
+   value.
+
+   User Statement Tokens SHOULD NOT use the JWS or JWE "x5u", "x5c",
+   "jku", or "jwk" Header Parameter fields.  Instead, references to keys
+   used are communicated in advance using Discovery and Registration
+   parameters, per Section 7.2.
+
+   The signature MUST be verified by the Client.
+
+   The following is a non-normative example of the set of Claims (the
+   JWT Claims Set) in a User Statement Token:
+
+   {
+       "question_id":"984dcc7d3d4d4b0f9f8022e344f9",
+       "iss":"https://server.example.com",
+       "aud":["s8V3wm8IXMW6TboazXZX"],
+       "sub":"g117YBtCZO3mAKPQKP8o",
+       "user_id":"+33612345678",
+       "user_id_type":"msisdn",
+       "question_displayed":"Which is ...?",
+       "displayed_statements":["blue","red","yellow"],
+       "statement":"red",
+       "statement_date":1311282975,
+       "used_acr":"2",
+       "used_amr":["CLICK_OK"]
+   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Aillery, et al.         Expires January 16, 2021                [Page 9]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   Signing the User Statement Token with the "RS256" algorithm results
+   in this Object value (with line wraps within values for display
+   purposes only):
+
+   eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsyYmRjIn0.eyJxdWVzdG
+   lvbl9pZCI6Ijk4NGRjYzdkM2Q0ZDRiMGY5ZjgwMjJlMzQ0ZjkiLCJpc3MiOiJodHRw
+   czovL3NlcnZlci5leGFtcGxlLmNvbSIsImF1ZCI6WyJzOFYzd204SVhNVzZUYm9hel
+   haWCJdLCJzdWIiOiJnMTE3WUJ0Q1pPM21BS1BRS1A4byIsInVzZXJfaWQiOiIrMzM2
+   MTIzNDU2NzgiLCJ1c2VyX2lkX3R5cGUiOiJtc2lzZG4iLCJxdWVzdGlvbl9kaXNwbG
+   F5ZWQiOiJXaGljaCBpcyAuLi4_IiwiZGlzcGxheWVkX3N0YXRlbWVudHMiOlsiYmx1
+   ZSIsInJlZCIsInllbGxvdyJdLCJzdGF0ZW1lbnQiOiJyZWQiLCJzdGF0ZW1lbnRfZG
+   F0ZSI6MTMxMTI4Mjk3NSwidXNlZF9hY3IiOiIyIiwidXNlZF9hbXIiOlsiQ0xJQ0tf
+   T0siXX0.bbDeU13rouABOOGrvIdQ4BN6GZtHvf1_oZEtGMrMoF9y2l66Dnyv_LL0ei
+   p2eCT56N7nH8iACNoJawCG_O2nYfUfJTU8t-tu-MNLe9p69PtUQkxShFzvWXPQfri_
+   OXQSs1zdtZ5NNVUX0ulPLm7QOniNFvY4sHwAkci4V1Czj72FGsxcUsUS6KUJRY7B2z
+   nP5ykl7m75iCp0Ydx72NshWCWzQxDfXPdQpuJoB96OXDuuukYIrOY1yZOqkUGE6AqP
+   cmMUJEWmT7OCHNi0Acsr0jU-fwxoAfYxQ641pW203PfVHXVRd06Ly0xHT3b50FM1jn
+   JM4tq98j78zu1cxVc2ww
+
+   The following RSA public key, represented in JWK format, can be used
+   to validate the Object signature in this example (with line wraps
+   within values for display purposes only):
+
+   {
+   "kty":"RSA",
+   "kid":"k2bdc",
+   "n":"y9Lqv4fCp6Ei-u2-ZCKq83YvbFEk6JMs_pSj76eMkddWRuWX2aBKGHAtKlE5P
+   7_vn__PCKZWePt3vGkB6ePgzAFu08NmKemwE5bQI0e6kIChtt_6KzT5OaaXDF
+   I6qCLJmk51Cc4VYFaxgqevMncYrzaW_50mZ1yGSFIQzLYP8bijAHGVjdEFgZa
+   ZEN9lsn_GdWLaJpHrB3ROlS50E45wxrlg9xMncVb8qDPuXZarvghLL0HzOuYR
+   adBJVoWZowDNTpKpk2RklZ7QaBO7XDv3uR7s_sf2g-bAjSYxYUGsqkNA9b3xV
+   W53am_UZZ3tZbFTIh557JICWKHlWj5uzeJXaw",
+   "e":"AQAB"
+   }
+
+2.1.  User Statement Token Validation
+
+   In order to validate the User Statement Token, the Client MUST verify
+   the signature, using Section 7.2.
+
+   Then, the Client MUST verify the "used_amr", "used_acr" and
+   "statement_date".  The Client is responsible to use the
+   "statement_date" to prevent replay.  The Client is responsible to
+   check that the "used_amr" and "used_acr" fit with its security
+   policy.
+
+
+
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 10]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   Then, the Client MUST verify the "displayed_question" value and the
+   "statement" value, regarding the "question_to_display" value and the
+   "statements_to_display" value sent in the User Questioning Request.
+
+   The Client is responsible of its decision to consider the Questioned
+   User's "statement" regarding the "displayed_question".  The Client is
+   also responsible of any decision it would take based on this
+   "statement".
+
+3.  OP Discovery and Client registration
+
+3.1.  OP Discovery
+
+   The OpenID Connect User Questioning API can be discovered within the
+   OpenID Provider Metadata thanks to [OpenID.Discovery].
+
+   scopes_supported  The scope "question" MUST be present in the
+      "scopes_supported" array.
+
+   user_questioning_request_endpoint  The URL of User Questioning
+      Request Endpoint MUST be configured as the value of
+      "user_questioning_request_endpoint".
+
+   user_questioning_polling_endpoint  The URL of User Questioning
+      Polling Endpoint MUST be configured as the value of
+      "user_questioning_polling_endpoint".  The
+      "user_questioning_polling_endpoint" MAY contain query parameters,
+      but MUST NOT contain a fragment.
+
+   amr_list  The array of supported authentication methods (i.e.  "AMR")
+      MUST be configured as the value of "amr_list".
+
+   acr_list  The array of supported levels of assurance (i.e.  "ACR")
+      MUST be configured as the value of "acr_list".
+
+3.2.  Client registration
+
+   In order to use the User Questioning API, the Client MUST have the
+   right to access the User Questioning API.  The right for a Client to
+   access the User Questioning API is the right to use the User
+   Questioning API's scope.  This scope value is "question".
+
+   If the Client wants to be notified of the User Questioning Response
+   (cf.  Section 1.4.2), it MUST register its
+   "client_notification_endpoint".  The "client_notification_endpoint"
+   is a callback URL on the Client.  If the client does not use the
+   client notification, it MUST obtain the result by using the user
+   questioning polling endpoint.  Both mechanisms are mutual exclusive,
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 11]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   i.e. a particular "client_id" can only be used with one of these
+   mechanisms.
+
+4.  Endpoints
+
+4.1.  User Questioning Request Endpoint
+
+   In order to send a question to a Questioned User, the Client MUST
+   send a User Questioning Request to the User Questioning Request
+   Endpoint.
+
+   Communication with the User Questioning Request Endpoint MUST utilize
+   TLS.  See Section 16.17 in [OpenID.Core] for more information on
+   using TLS.
+
+4.1.1.  User Questioning Request
+
+   The Client sends the User Questioning Request using an HTTP POST
+   Request.
+
+   The Client MUST have a valid OAuth 2.0 Access Token for the scope
+   "question".  The Access Token MAY refer to the Questioned User, as
+   explained in Section 4.1.2.2.  The way the Access Token has been
+   obtained by the Client is out of scope of this specification.
+
+   The HTTP POST request MUST contain the following header:
+
+   Authorization  MANDATORY.  The "Authorization" value contains an
+      Access Token obtained from an OAuth 2.0 Authorization request and
+      used as a [RFC6750] Bearer Token.  The "Authorization" value is a
+      case sensitive string.
+
+   The User Questioning Request MUST contain a JSON structure in the
+   body of the HTTP POST, with the following attributes:
+
+   client_notification_token  MANDATORY if the Client uses the Pushed-
+      To-Client Flow described in Section 1.4.2.  MUST NOT be used
+      otherwise.  The "client_notification_token" is an opaque token
+      issued by the Client.  The Client SHOULD use a random value with a
+      level of entropy high enough to cover its security requirements.
+      The "client_notification_token" is a Bearer Token used by the
+      Client to authorize the OP when the OP sends the User Questioning
+      Response to the Client Notification Endpoint.  The
+      "client_notification_token" value is a case sensitive string.
+
+   user_id  MUST NOT be used if the Access Token is tied with an End-
+      User, MANDATORY if the Access Token is not tied with an End-User.
+      The "user_id" is a unique identifier allowing to identify the
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 12]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+      Questioned User (e.g.  Mobile phone, sub, ...).  The "user_id"
+      value is a case sensitive string.
+
+   user_id_type  MUST NOT be used if the Access Token is tied with an
+      End-User, MANDATORY if the Access Token is not tied with an End-
+      User.  The "user_id_type" indicates the type of the End-User's
+      identifier used for User Questioning.  The "user_id_type" value is
+      a case sensitive string amongst the values defined in
+      Section 4.1.2.2.
+
+   question_to_display  MANDATORY.  The "question_to_display" is the
+      question to be displayed to the Questioned User.  The
+      "question_to_display" SHOULD NOT be modified when displayed to
+      Questioned User, the only exception being restrictions imposed by
+      the Questioning Method.  The "question_to_display" value is a case
+      sensitive string.
+
+   statements_to_display  MANDATORY.  The "statements_to_display" is the
+      list of possible statements to be displayed to the Questioned
+      User.  The "statements_to_display" SHOULD NOT be modified when
+      displayed to Questioned User, the only exception being
+      restrictions imposed by the Questioning Method.  The
+      "statements_to_display" value is a JSON array of case sensitive
+      strings.
+
+   wished_amr  OPTIONAL.  Authentication Method Reference.  The
+      "wished_amr" is the authentication methods to be used by the OP to
+      authenticate the Questioned User before he made his statement.
+      Authentication Method References are defined in chapter 2 of
+      [OpenID.Core], where they are named "amr".  The "wished_amr" value
+      is an array of case sensitive strings.
+
+   wished_acr  MANDATORY.  Authentication Context Class Reference.  The
+      "wished_acr" is Authentication Context Class Reference value that
+      identifies the Authentication Context Class to be used by the OP
+      to authenticate the Questioned User before he made his statement.
+      Authentication Context Class Reference is defined in chapter 2 of
+      [OpenID.Core], where it is named "acr".  The "wished_acr" value is
+      a case sensitive string.
+
+   As defined by [RFC4627], the parameters are included in the entity-
+   body of the HTTP POST using the "application/json" media type.  The
+   parameters are serialized into a JavaScript Object Notation (JSON)
+   structure by adding each parameter at the highest structure level.
+   Parameter names and string values are included as JSON strings.
+   Numerical values are included as JSON numbers.  The order of
+   parameters does not matter and can vary.
+
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 13]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   The following is a non-normative example of the JSON structure.
+
+   POST /questions HTTP/1.1
+   Host: server.example.com
+   Accept: application/json
+   Authorization: Bearer SlAV32hkKG
+   Content-Type: application/json
+   Content-Length: xxx
+
+   {
+       "client_notification_token":"vO4n2DAeRrcWE0VAlo4I",
+       "user_id":"+33612345678",
+       "user_id_type":"msisdn",
+       "question_to_display":"Do you allow ...?",
+       "statements_to_display":["Yes","No"],
+       "wished_acr":"3",
+       "wished_amr":["PIN_OK"]
+   }
+
+4.1.2.  Processing the User Questioning Request
+
+4.1.2.1.  Processing the Authorization
+
+   The "Authorization" value contains an Access Token.  The "client_id"
+   associated with the Access Token MUST be associated with the
+   question.  It will be used for the "aud" attribute of the User
+   Statement Token.  If the Access Token is associated with a End-User,
+   the OP MUST use the Access Token to identify the End-User and
+   determine a reachability mean for the End-User.
+
+4.1.2.2.  Processing user_id
+
+   The "user_id" is an identifier used to identify the Questioned User
+   and to retrieve a reachability mean.
+
+   The "user_id" is determined from the User Questioning Request, either
+   from the "user_id" attribute or from the Access Token.  If the
+   "user_id" is present in the User Questioning Request and the Access
+   Token is associated to a End-User, an error is raised.  If the
+   "user_id" is absent of both the User Questioning Request and the
+   Access Token, an error is also raised.
+
+   If the "user_id" is a reachability identifier (e.g.  MSISDN, email
+   address, ...), it SHOULD be used as reachability mean.  Otherwise,
+   the OP must use the "user_id" to determine a suitable reachability
+   identifier, i.e. an identifier enabling a direct communication with
+   the Questioned User.
+
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 14]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   "user_id_type" member can take the following values:
+
+   msisdn  If the "user_id_type" value is "msisdn", the "user_id" value
+      is the mobile phone number corresponding to the Questioned User.
+      E.164 [E.164] is RECOMMENDED as the format of this Claim, with no
+      bracket, space, or hyphen, for example, "+5626872400".
+
+   email  If the "user_id_type" value is "email", the "user_id" value is
+      the email address corresponding to the Questioned User.  Its value
+      MUST conform to the RFC 5322 [RFC5322] addr-spec syntax.
+
+   sub  If the "user_id_type" value is "sub", the "user_id" value is the
+      "sub" corresponding to the Questioned User for the requesting
+      "client_id" at the OP.
+
+   Other "user_id_type" can be specified for specific use cases.
+
+4.1.2.3.  Processing wished_amr
+
+   In the User Questioning Request, the "wished_amr" value is a list of
+   authentication methods.  The OP SHOULD choose some of these
+   authentication methods in order to achieve the "wished_acr".  The OP
+   SHOULD consider the first authentication methods of the "wished_amr"
+   list as the more prioritary.  The OP CAN also decide to either use
+   other authentication methods or achieve another Authentication
+   Context Class Reference as the one specified in "wished_acr".  The
+   authentication methods used MUST be stated in "used_amr" and the
+   achieved Authentication Context Class Reference MUST be stated in
+   "used_acr" of the User Statement Token.
+
+4.1.2.4.  Allowing the user to explicitly refuse to answer
+
+   The user MAY refuse to answer.  To do so, the user can ignore the
+   question and wait for the timeout.  In order to offer a better
+   experience, it is RECOMMENDED that the OP gives the user the
+   opportunity to explicit state this refusal.  A
+   "user_refused_to_answer" error is then returned.
+
+4.1.3.  Successful Response
+
+   A successful response to the User Questioning Request is a HTTP 200
+   OK response.  The response body contains JSON structure, with the
+   following attribute.
+
+   question_id  MANDATORY.  The "question_id" attribute contains the
+      "question_id" value.  The "question_id" value is a case sensitive
+      string.
+
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 15]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   As defined by [RFC4627], the parameters are included in the entity-
+   body of the HTTP 200 OK using the "application/json" media type.  The
+   parameters are serialized into a JavaScript Object Notation (JSON)
+   structure by adding each parameter at the highest structure level.
+   Parameter names and string values are included as JSON strings.
+   Numerical values are included as JSON numbers.  The order of
+   parameters does not matter and can vary.
+
+   The following is a non-normative example of the JSON structure.
+
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+   Content-Length: xxx
+
+   {
+       "question_id": "984dcc7d3d4d4b0f9f8022e344f9"
+   }
+
+4.1.4.  Error Response
+
+   The Client receives the error in a HTTP 400 Bad Request.
+
+   The HTTP body contains the error object, a JSON structure defined in
+   Section 5.  The error object contains one of the following error
+   codes, defined in Section 5:
+
+   o  server_error
+
+   o  invalid_request
+
+   o  no_suitable_method
+
+   o  unauthorized
+
+   o  unknown_user
+
+   o  unreachable_user
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 16]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   The following is a non-normative example of error in a HTTP 400 Bad
+   Request.  This example can occur in the Pulled-By-Client flow (cf.
+   Section 1.4.1) and Pushed-To-Client flow (cf.  Section 1.4.2).
+
+   HTTP/1.1 400 Bad Request
+   Content-Type: application/json
+   Content-Length: xxx
+
+   {
+       "error":"invalid_request",
+       "error_description":"user_id MUST NOT be used
+           if the Access Token is tied with an End-User",
+       "error_uri":"https://server.example.com/errors/invalid_request"
+   }
+
+4.2.  User Questioning Polling Endpoint
+
+   In order to detect that the User Questioning Response is ready, the
+   Client MUST request the User Questioning Polling Endpoint.  If the
+   User Questioning Response is ready, it will be returned in the
+   response.  Else, the OP responds with HTTP 304 Not Modified.
+
+   Communication with the User Questioning Polling Endpoint MUST utilize
+   TLS.  See Section 16.17 in [OpenID.Core] for more information on
+   using TLS.
+
+   A Client configured with a "client_notification_endpoint" MUST NOT
+   send a request to the User Questioning Polling Endpoint.
+
+4.2.1.  Polling Request
+
+   The Client gets the User Questioning Response using HTTP GET on the
+   "polling_uri".
+
+   The "polling_uri" is the combination of the
+   "user_questioning_polling_endpoint" and the "question_id" as a query
+   string parameter.
+
+   The "polling_uri" MUST contain the following query string parameter:
+
+   question_id  MANDATORY.  The "question_id" value contains the
+      "question_id" received from the User Questioning Request endpoint.
+      The "question_id" value is a case sensitive string.
+
+   The HTTP GET request MUST contain the following headers:
+
+   Authorization  MANDATORY.  The "Authorization" value contains an
+      Access Token obtained from an OAuth 2.0 Authorization request and
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 17]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+      used as a [RFC6750] Bearer Token.  The "Authorization" value is a
+      case sensitive string.
+
+   Client-Timeout  OPTIONAL.  The "Client-Timeout" indicates how much
+      time, in seconds, the Client will wait for a HTTP response.  This
+      header can be used with OP that support long polling.  As long
+      polling is an optional feature for OP, the Client must be prepared
+      that the OP ignores this header and responds right away.  The
+      "Client-Timeout" value is a number.
+
+   The following is a non-normative example.
+
+GET /questions_polling?question_id=984dcc7d3d4d4b0f9f8022e344f9 HTTP/1.1
+Host: server.example.com
+Accept: application/json
+Authorization: Bearer SlAV32hkKG
+Client-Timeout: 10
+
+4.2.2.  Processing the Polling Request
+
+4.2.2.1.  Processing the Authorization
+
+   The "Authorization" value contains an Access Token.  The "client_id"
+   associated with the Access Token MUST be equal to the "client_id"
+   associated with the question.
+
+4.2.3.  Pending Response
+
+   If the User Questioning Response is not ready, the Client will get a
+   HTTP 304 Not Modified.  The Client MUST repeat the polling request,
+   until it receives either a successful response or an error.  The
+   Client MUST NOT repeat polling requests too rapidly.  A waiting time
+   of at least 1 second after the previous polling request was initiated
+   is RECOMMENDED.
+
+   The following is a non-normative example.
+
+   HTTP/1.1 304 Not Modified
+
+4.2.4.  Successful Response
+
+   The Client receives the successful User Questioning Response in a
+   HTTP 200 OK response.
+
+   The successful User Questioning Response is a JSON object, with the
+   following attribute.
+
+
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 18]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   user_statement_token  MANDATORY.  The "user_statement_token" is a
+      User Statement Token as defined in Section 2.  The User Statement
+      Token MUST be validated, as described in Section 2.1.
+
+   As defined by [RFC4627], the parameters are included in the entity-
+   body of the HTTP 200 OK using the "application/json" media type.  The
+   parameters are serialized into a JavaScript Object Notation (JSON)
+   structure by adding each parameter at the highest structure level.
+   Parameter names and string values are included as JSON strings.
+   Numerical values are included as JSON numbers.  The order of
+   parameters does not matter and can vary.
+
+   The Client SHOULD check that the "question_id" in the User
+   Questioning Response is the same as the "question_id" in the
+   "user_statement_token".
+
+   The following is a non-normative example.
+
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+   Content-Length: xxx
+
+   {
+       "user_statement_token":"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtp
+       ZCI6ImsyYmRjIn0.eyJxdWVzdGlvbl9pZCI6Ijk4NGRjYzdkM2Q0ZDRiMGY5Zjgw
+       MjJlMzQ0ZjkiLCJpc3MiOiJodHRwczovL3NlcnZlci5leGFtcGxlLmNvbSIsImF1
+       ZCI6WyJzOFYzd204SVhNVzZUYm9helhaWCJdLCJzdWIiOiJnMTE3WUJ0Q1pPM21B
+       S1BRS1A4byIsInVzZXJfaWQiOiIrMzM2MTIzNDU2NzgiLCJ1c2VyX2lkX3R5cGUi
+       OiJtc2lzZG4iLCJxdWVzdGlvbl9kaXNwbGF5ZWQiOiJXaGljaCBpcyAuLi4_Iiwi
+       ZGlzcGxheWVkX3N0YXRlbWVudHMiOlsiYmx1ZSIsInJlZCIsInllbGxvdyJdLCJz
+       dGF0ZW1lbnQiOiJyZWQiLCJzdGF0ZW1lbnRfZGF0ZSI6MTMxMTI4Mjk3NSwidXNl
+       ZF9hY3IiOiIyIiwidXNlZF9hbXIiOlsiQ0xJQ0tfT0siXX0.bbDeU13rouABOOGr
+       vIdQ4BN6GZtHvf1_oZEtGMrMoF9y2l66Dnyv_LL0eip2eCT56N7nH8iACNoJawCG
+       _O2nYfUfJTU8t-tu-MNLe9p69PtUQkxShFzvWXPQfri_OXQSs1zdtZ5NNVUX0ulP
+       Lm7QOniNFvY4sHwAkci4V1Czj72FGsxcUsUS6KUJRY7B2znP5ykl7m75iCp0Ydx7
+       2NshWCWzQxDfXPdQpuJoB96OXDuuukYIrOY1yZOqkUGE6AqPcmMUJEWmT7OCHNi0
+       Acsr0jU-fwxoAfYxQ641pW203PfVHXVRd06Ly0xHT3b50FM1jnJM4tq98j78zu1c
+       xVc2ww"
+   }
+
+4.2.5.  Error Response
+
+   The Client receives the error in a HTTP 400 Bad Request.
+
+   The HTTP body contains the error object, a JSON structure defined in
+   Section 5.  The error object contains one of the following error
+   codes, defined in Section 5:
+
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 19]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   o  duplicate_requests
+
+   o  forbidden
+
+   o  high_rate_client
+
+   o  high_rate_question
+
+   o  server_error
+
+   o  invalid_question_id
+
+   o  invalid_request
+
+   o  timeout
+
+   o  unauthorized
+
+   o  unreachable_user
+
+   o  user_refused_to_answer
+
+   The following is a non-normative example of error in a HTTP 400 Bad
+   Request.
+
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+Content-Length: xxx
+
+{
+    "error":"duplicate_requests",
+    "error_description":"A newer request was sent for this question_id",
+    "error_uri":"https://server.example.com/errors/duplicate_requests"
+}
+
+4.3.  Client Notification Endpoint
+
+   If the Client registered a client_notification_endpoint, the OP MUST
+   send the User Questioning Response to the Client, using a HTTP POST
+   on the Client Notification Endpoint.  The User Questioning Response
+   is a JSON object.
+
+   Communication with the Client Notification Endpoint MUST utilize TLS.
+   See Section 16.17 in [OpenID.Core] for more information on using TLS.
+
+
+
+
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 20]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+4.3.1.  Successful Response
+
+   The OP sends the User Questioning Response to the Client using HTTP
+   POST.
+
+   The HTTP POST request MUST contain the following header:
+
+   Authorization  MANDATORY.  The "Authorization" value contains the
+      "client_notification_token" specified in the User Questioning
+      Request and used as a [RFC6750] Bearer Token.  The "Authorization"
+      value is a case sensitive string.
+
+   A successful User Questioning Response is a JSON object, with the
+   following attribute.
+
+   user_statement_token  MANDATORY.  The "user_statement_token" is a
+      User Statement Token as defined in Section 2.  The User Statement
+      Token MUST be validated, as described in Section 2.1.
+
+   The Client can retrieve the "question_id" in the
+   "user_statement_token".
+
+   The following is a non-normative example.
+
+POST /notification HTTP/1.1
+Host: client.example.com
+Content-Type: application/json
+Authorization: Bearer vO4n2DAeRrcWE0VAlo4I
+Content-Length: xxx
+
+{
+        "user_statement_token":"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtp
+    ZCI6ImsyYmRjIn0.eyJxdWVzdGlvbl9pZCI6Ijk4NGRjYzdkM2Q0ZDRiMGY5Zjgw
+    MjJlMzQ0ZjkiLCJpc3MiOiJodHRwczovL3NlcnZlci5leGFtcGxlLmNvbSIsImF1
+    ZCI6WyJzOFYzd204SVhNVzZUYm9helhaWCJdLCJzdWIiOiJnMTE3WUJ0Q1pPM21B
+    S1BRS1A4byIsInVzZXJfaWQiOiIrMzM2MTIzNDU2NzgiLCJ1c2VyX2lkX3R5cGUi
+    OiJtc2lzZG4iLCJxdWVzdGlvbl9kaXNwbGF5ZWQiOiJXaGljaCBpcyAuLi4_Iiwi
+    ZGlzcGxheWVkX3N0YXRlbWVudHMiOlsiYmx1ZSIsInJlZCIsInllbGxvdyJdLCJz
+    dGF0ZW1lbnQiOiJyZWQiLCJzdGF0ZW1lbnRfZGF0ZSI6MTMxMTI4Mjk3NSwidXNl
+    ZF9hY3IiOiIyIiwidXNlZF9hbXIiOlsiQ0xJQ0tfT0siXX0.bbDeU13rouABOOGr
+    vIdQ4BN6GZtHvf1_oZEtGMrMoF9y2l66Dnyv_LL0eip2eCT56N7nH8iACNoJawCG
+    _O2nYfUfJTU8t-tu-MNLe9p69PtUQkxShFzvWXPQfri_OXQSs1zdtZ5NNVUX0ulP
+    Lm7QOniNFvY4sHwAkci4V1Czj72FGsxcUsUS6KUJRY7B2znP5ykl7m75iCp0Ydx7
+    2NshWCWzQxDfXPdQpuJoB96OXDuuukYIrOY1yZOqkUGE6AqPcmMUJEWmT7OCHNi0
+    Acsr0jU-fwxoAfYxQ641pW203PfVHXVRd06Ly0xHT3b50FM1jnJM4tq98j78zu1c
+    xVc2ww"
+
+}
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 21]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+4.3.2.  Error Response
+
+   The OP sends the erroneous User Questioning Response to the Client
+   using HTTP POST.
+
+   The HTTP POST request MUST contain the following header:
+
+   Authorization  MANDATORY.  The "Authorization" value is the
+      "client_notification_token" specified in the User Questioning
+      Request and used as a [RFC6750] Bearer Token.  The "Authorization"
+      value is a case sensitive string.
+
+   The HTTP body contains the error object, a JSON structure defined in
+   Section 5.  The error object contains one of the following error
+   codes, defined in Section 5:
+
+   o  timeout
+
+   o  unreachable_user
+
+   o  user_refused_to_answer
+
+   In addition, the error object contains the following attribute:
+
+   question_id  MANDATORY.  The "question_id" is a unique identifier of
+      the Question.  The "question_id" value is a case sensitive string.
+
+   The following is a non-normative example.
+
+   POST /notification HTTP/1.1
+   Host: client.example.com
+   Content-Type: application/json
+   Authorization: Bearer vO4n2DAeRrcWE0VAlo4I
+   Content-Length: xxx
+
+   {
+       "question_id":"984dcc7d3d4d4b0f9f8022e344f9",
+       "error":"unknown_user",
+       "error_description":"The user is unknown",
+       "error_uri":"https://server.example.com/errors/unknown_user"
+   }
+
+4.3.3.  Processing the Response
+
+
+
+
+
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 22]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+4.3.3.1.  Processing the Authorization
+
+   The "Authorization" value contains a Client Notification Token.  The
+   "question_id" associated with the Client Notification Token MUST
+   match with the "question_id" received from the User Questioning
+   Request Endpoint.
+
+4.3.3.2.  Processing the User Statement Token
+
+   The signature of the User Statement Token MUST be valid, as defined
+   in Section 2.1.
+
+   The "aud" attributes contained in the User Statement Token MUST match
+   with the "client_id" of the Client.
+
+4.3.4.  Acknowledgement
+
+   The acknowledgement MUST be a HTTP 200 OK.  This HTTP response SHOULD
+   be ignored by the OP.  If the response is not a HTTP 200 OK, the
+   processing is up to the OP's implementer.
+
+   The following is a non-normative example.
+
+   HTTP/1.1 200 OK
+
+5.  Error Object
+
+   As defined in section 5.2 of OAuth 2.0 [RFC6749], an error object is
+   a JSON structure which contains the following properties:
+
+   error  MANDATORY.  A single ASCII error code from the following:
+
+      duplicate_requests  The Client sent simultaneous requests to the
+         User Questioning Polling Endpoint for the same "question_id".
+         This error is responded to newer requests.  The oldest request
+         is processed normally.
+
+      forbidden  The Client sent a request to the User Questioning
+         Polling Endpoint whereas it is configured with a
+         "client_notification_endpoint".
+
+      high_rate_client  The Client sent requests at a too high rate,
+         amongst all "question_id".  Information about the allowed and
+         recommended rates can be included in the "error_description".
+
+      high_rate_question  The Client sent requests at a too high rate
+         for a given "question_id".  Information about the allowed and
+         recommended rates can be included in the "error_description".
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 23]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+      server_error  The OP encountered an unexpected condition that
+         prevented it from fulfilling its task.
+
+      invalid_question_id  The Client sent a request to the User
+         Questioning Polling Endpoint for a "question_id" that does not
+         exist or is not valid for the requesting Client.
+
+      invalid_request  The User Questioning Request is not valid.  The
+         request is missing a required parameter, includes an
+         unsupported parameter value, repeats a parameter or is
+         otherwise malformed.
+
+      no_suitable_method  There is no Questioning Method suitable with
+         the User Questioning Request.  The OP can use this error code
+         when it does not implement mechanisms suitable for the wished
+         AMR or ACR.
+
+      timeout  The Questioned User did not answer in the allowed period
+         of time.
+
+      unauthorized  The Client is not authorized to use the User
+         Questioning API or did not send a valid Access Token.
+
+      unknown_user  The Questioned User mentioned in the "user_id"
+         attribute of the User Questioning Request is unknown.
+
+      unreachable_user  The Questioned User mentioned in the User
+         Questioning Request (either in the Access Token or in the
+         "user_id" attribute) is unreachable.  The OP can use this error
+         when it does not have a reachability identifier (e.g.  MSISDN)
+         for the Question User, when the reachability identifier is not
+         operational (e.g. unsubscribed MSISDN or blocked account).
+
+      user_refused_to_answer  The Questioned User refused to make a
+         statement to the question.
+
+   error_description  OPTIONAL.  Human-readable ASCII encoded text
+      description of the error.  Human-readable ASCII [RFC20] text
+      providing additional information, used to assist the client
+      developer in understanding the error that occurred.  Values for
+      the "error_description" parameter MUST NOT include characters
+      outside the set %x20-21 / %x23-5B / %x5D-7E.
+
+   error_uri  OPTIONAL.  A URI identifying a human-readable web page
+      with information about the error, used to provide the client
+      developer with additional information about the error.  Values for
+      the "error_uri" parameter MUST conform to the URI-reference syntax
+
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 24]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+      and thus MUST NOT include characters outside the set %x21 /
+      %x23-5B / %x5D-7E.
+
+   The parameters are serialized into a JavaScript Object Notation
+   (JSON) structure by adding each parameter at the highest structure
+   level.  Parameter names and string values are included as JSON
+   strings.  Numerical values are included as JSON numbers.  The order
+   of parameters does not matter and can vary.
+
+   The following is a non-normative example.
+
+   {
+       "error":"unknown_user",
+       "error_description":"The user is unknown",
+       "error_uri":"https://server.example.com/errors/unknown_user"
+   }
+
+   The error object SHOULD be conveyed as a HTTP body, either in a HTTP
+   POST request or in a HTTP 400 response.
+
+6.  Implementation Considerations
+
+6.1.  Implementation of Questioning Methods
+
+   In order to interact with the Questioned User, the OP has to
+   implement at least one questioning method.  A questioning method has
+   three purposes: authenticating the Questioned User, displaying the
+   question and collecting the Question User's statement.
+
+   The authentication method and the associated level of assurance are
+   referred by the "AMR" and "ACR" attributes.
+
+   There is no specific attribute to describe how the question was
+   displayed and how the statement was saved.  However, the OP is
+   responsible to display the question as it is.  If the question has
+   been modified, the displayed question MUST be returned to the Client
+   as it was displayed, in the "displayed_question" attribute of the
+   User Statement Token.  In the same logic, the Questioned User's
+   statement MUST be returned to the Client as it was displayed, in the
+   "statement" attribute of the User Statement Token.
+
+   The fact that a User Questioning Request and an Authentication
+   Request (as defined in [OpenID.Core]) are handled using the same
+   "AMR" means that the user authentication is enforced using the same
+   authentication method.  However, as a Questioning Method uses an
+   authentication method in combination with questioning mechanisms,
+   having the same "AMR" does not mean that the OP has to use the same
+   component to handle User Questioning Requests and Authentication
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 25]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   Requests.  For instance, if the "AMR" value is "SMS_URL", the user is
+   authenticated thanks to his mobile phone (using a SMS) but the URL
+   contained in the SMS can refer to two different components, one
+   component for the Authentication Request and another for the User
+   Questioning Request .
+
+   If an OP cannot display a question or the statements, it MUST return
+   an error.  To prevent these errors, it can inform the Clients of its
+   limitation and limit the possible questions or statements.  For
+   instance, if the mechanism used for User Questioning can only display
+   a question of limited size with only two predefined statements, the
+   Client SHOULD send a User Questioning Request with a
+   "question_to_display" limited in size and the two predefined
+   statements as "statements_to_display" values.
+
+7.  Security Considerations
+
+7.1.  Non Repudiation
+
+   Non-repudiation is an important feature of User Statement Token.  To
+   enable this feature, the asymmetric signatures are the only allowed
+   signatures for User Statement Tokens.  This way, the Client can store
+   the User Statement Token and use it as a proof of the statement made
+   by Questioned User.  This proof engages the signer's responsibility,
+   i.e. the OP's responsibility.
+
+7.2.  Signatures and Encryption
+
+   Signatures and Encryption should respect the requirements defined in
+   chapter 10 of [OpenID.Core] with one restriction: symmetric
+   signatures MUST not be used.
+
+7.3.  Signing and Encryption Order
+
+   Signing and Encryption Order should respect the requirements defined
+   in chapter 16.14 of [OpenID.Core].
+
+8.  Privacy Considerations
+
+8.1.  Personal Information
+
+   The User Statement Token contains the Questioned User's statement on
+   a question.  This information is personal.  If the "user_id" is
+   present in the User Questioning Request, it will also be present in
+   the User Statement Token, therefore Questioned User is directly
+   identifiable.  In order to protect the Questioned User's privacy,
+   Client SHOULD only store encrypted User Statement Tokens.  The
+
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 26]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   encryption can be computed either by the OP or by the Client, using
+   Section 7.2.
+
+9.  IANA Considerations
+
+   This document makes no requests of IANA.
+
+10.  Normative References
+
+   [E.164]    Union, I. T., "E.164: The international public
+              telecommunication numbering plan", 2010,
+              <http://www.itu.int/rec/T-REC-E.164-201011-I/en>.
+
+   [JWE]      Jones, M., Rescorla, E., and J. Hildebrand, "JSON Web
+              Encryption (JWE)", RFC 7516, DOI 10.17487/RFC7516, May
+              2015, <http://tools.ietf.org/html/rfc7516>.
+
+   [JWS]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web
+              Signature (JWS)", RFC 7515, DOI 10.17487/RFC7515, May
+              2015, <http://tools.ietf.org/html/rfc7515>.
+
+   [JWT]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token
+              (JWT)", draft-ietf-oauth-json-web-token (work in
+              progress), May 2013.
+
+   [OpenID.Core]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B.,
+              Mortimore, C., and E. Jay, "OpenID Connect Standard 1.0",
+              December 2013.
+
+   [OpenID.Discovery]
+              Sakimura, N., Bradley, J., Jones, M., and E. Jay, "OpenID
+              Connect Discovery 1.0", September 2014.
+
+   [OpenID.Registration]
+              Sakimura, N., Bradley, J., and M. Jones, "OpenID Connect
+              Dynamic Client Registration 1.0", December 2013.
+
+   [RFC20]    Cerf, V., "ASCII format for Network Interchange", STD 80,
+              RFC 20, DOI 10.17487/RFC0020, October 1969,
+              <http://www.rfc-editor.org/info/rfc20>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 27]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   [RFC4627]  Crockford, D., "The application/json Media Type for
+              JavaScript Object Notation (JSON)", RFC 4627,
+              DOI 10.17487/RFC4627, July 2006,
+              <https://www.rfc-editor.org/info/rfc4627>.
+
+   [RFC5322]  Resnick, P., Ed., "Internet Message Format", RFC 5322,
+              DOI 10.17487/RFC5322, October 2008,
+              <https://www.rfc-editor.org/info/rfc5322>.
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <https://www.rfc-editor.org/info/rfc6749>.
+
+   [RFC6750]  Jones, M. and D. Hardt, "The OAuth 2.0 Authorization
+              Framework: Bearer Token Usage", RFC 6750,
+              DOI 10.17487/RFC6750, October 2012,
+              <https://www.rfc-editor.org/info/rfc6750>.
+
+Appendix A.  Acknowledgements
+
+   The following have contributed to the development of this
+   specification.
+
+
+
+Appendix B.  Notices
+
+   Copyright (c) 2020 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 28]
+
+                      OIDC User Questioning API 1.0            July 2020
+
+
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+Authors' Addresses
+
+   Nicolas Aillery
+   Orange
+
+   Email: nicolas.aillery@orange.com
+
+
+   Charles Marais
+   Orange
+
+   Email: charles.marais@orange.com
+
+
+   James Manger
+   Telstra
+
+   Email: james.h.manger@team.telstra.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Aillery, et al.         Expires January 16, 2021               [Page 29]

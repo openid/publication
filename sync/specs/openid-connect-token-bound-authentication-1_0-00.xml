@@ -1,0 +1,700 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml2rfc.tools.ietf.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN" "http://xml2rfc.tools.ietf.org/authoring/rfc2629.dtd">
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="openid-connect-token-bound-authentication-1_0" ipr="none">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="5" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="yes" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title abbrev="OpenID Connect Token Bound Authentication 1.0">OpenID Connect
+    Token Bound Authentication 1.0 - draft 00</title>
+
+    <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      <organization abbrev="Microsoft">Microsoft</organization>
+      <address>
+        <email>mbj@microsoft.com</email>
+	<uri>http://self-issued.info/</uri>
+      </address>
+    </author>
+
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization>Ping Identity</organization>
+      <address>
+	<email>ve7jtb@ve7jtb.com</email>
+	<uri>http://www.thread-safe.com/</uri>
+      </address>
+    </author>
+
+    <author fullname="Brian Campbell" initials="B." surname="Campbell">
+      <organization>Ping Identity</organization>
+      <address>
+	<email>brian.d.campbell@gmail.com</email>
+	<uri>https://twitter.com/__b_c</uri>
+      </address>
+    </author>
+
+    <date day="4" month="July" year="2016" />
+
+    <workgroup>OpenID Extended Authentication Profile (EAP) Working Group</workgroup>
+
+    <abstract>
+      <t>OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+      protocol. It enables Clients to verify the identity of the End-User based
+      on the authentication performed by an Authorization Server, as well as to
+      obtain basic profile information about the End-User in an interoperable and
+      REST-like manner.</t>
+
+      <t>
+	This specification enables OpenID Connect implementations to apply
+	Token Binding to the OpenID Connect ID Token.
+	This cryptographically binds the ID Token to the TLS connections
+	over which the authentication occurred.
+	This use of Token Binding protects the authentication flow
+	from man-in-the-middle and token export and replay attacks.
+      </t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+
+      <t>
+	OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+	<xref target="RFC6749"/>
+	protocol. It enables Clients to verify the identity of the End-User based
+	on the authentication performed by an Authorization Server, as well as to
+	obtain basic profile information about the End-User in an interoperable and
+	REST-like manner.
+      </t>
+      <t>
+	This specification enables OpenID Connect implementations to apply
+	Token Binding
+	<xref target="I-D.ietf-tokbind-protocol">The Token Binding Protocol Version 1.0</xref>
+	<xref target="I-D.ietf-tokbind-https">Token Binding over HTTP</xref>
+	to the OpenID Connect ID Token
+	defined by <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	This cryptographically binds the ID Token to the TLS connections
+	over which the authentication occurred.
+	Token Binding is applied to OpenID Connect in the manner described in
+	Section 3 (Federation Use Cases) of 
+	<xref target="I-D.ietf-tokbind-https">Token Binding over HTTP</xref>.
+	As described in Section 4.4 (Securing Federated Sign-On Protocols) of
+	<xref target="I-D.ietf-tokbind-https">Token Binding over HTTP</xref>,
+	this use of Token Binding protects the authentication flow
+	from man-in-the-middle and token export and replay attacks.
+      </t>
+
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+        "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
+        document are to be interpreted as described in <xref
+        target="RFC2119">RFC 2119</xref>.</t>
+
+	<t>
+	  In the .txt version of this specification,
+	  values are quoted to indicate that they are to be taken literally.
+	  When using these values in protocol messages,
+	  the quotes MUST NOT be used as part of the value.
+	  In the HTML version of this specification,
+	  values to be taken literally are indicated by
+	  the use of <spanx style="verb">this fixed-width font</spanx>.
+	</t>
+      </section>
+
+      <section anchor="Terminology" title="Terminology">
+        <t>
+	  This specification uses the terms 
+	  "Authorization Endpoint", "Authorization Server",
+	  "Client", "Response Type", and "Token Endpoint"
+	  defined by <xref target="RFC6749">OAuth 2.0</xref>,
+	  the terms "Claim", "JSON Web Token (JWT)",
+	  and "JWT Claims Set"
+	  defined by <xref target="JWT">JSON Web Token (JWT)</xref>,
+	  the term "User Agent" defined by <xref target="RFC7230">RFC 7230</xref>,
+	  the terms "Provided", "Referred", "Token Binding" and "Token Binding ID"
+	  defined by <xref target="I-D.ietf-tokbind-https">Token Binding over HTTP</xref>,
+	  and the terms defined by
+	  <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	</t>
+      </section>
+    </section>
+
+    <section anchor="Representation" title="OpenID Connect Token Binding Representation">
+      <t>
+	Section 3 (Federation Use Cases) of 
+	<xref target="I-D.ietf-tokbind-https">Token Binding over HTTP</xref>
+	outlines how Token Binding is used with federation protocols in the abstract.
+	This section defines the concrete data structures for using Token Binding
+	with OpenID Connect.
+      </t>
+      <t>
+	Section 3.2 of
+	<xref target="I-D.ietf-tokbind-https">Token Binding over HTTP</xref>
+	suggests placing the public key of the Token Binding
+	used to communicate with the Relying Party in the ID Token.
+	A representation of this key is communicated to the OpenID Provider
+	in its Referred Token Binding ID.
+	This specification utilizes a variant of this approach in which
+	a cryptographic hash of the Token Binding ID
+	using the SHA-256 hash function <xref target="SHS"/>
+	is instead added to the ID Token.
+	This has the benefit of significantly reducing the size of the information
+	added to the ID Token from what it would otherwise have been were the
+	Token Binding ID to be included directly - particularly in the RSA key case.
+      </t>
+      <t>
+	The recipient MUST verify that the SHA-256 hash
+	of the Provided Token Binding ID
+	matches the SHA-256 hash contained in the ID Token.
+      </t>
+      <t>
+	This specification defines the new JWT Confirmation Method
+	<xref target="RFC7800">RFC 7800</xref>
+	member <spanx style="verb">tbh</spanx> (token binding hash) 
+	to represent the SHA-256 hash of a Token Binding ID
+	in an ID Token.
+	The value of the <spanx style="verb">tbh</spanx> member is the
+	base64url encoding of the SHA-256 hash of the Token Binding ID.
+      </t>
+      <t>
+	The following example demonstrates the JWT Claims Set of an ID Token
+	containing the base64url encoding of the SHA-256 hash of a Token Binding ID
+	as the value of the <spanx style="verb">tbh</spanx> (token binding hash)
+	element in the <spanx style="verb">cnf</spanx> (confirmation) claim:
+      </t>
+      <figure>
+	<!-- TBD Generate an actual "tbh" value from an actual Token Binding ID -->
+	<artwork><![CDATA[
+  {
+   "iss": "https://server.example.com",
+   "sub": "0f6LkoE3KsPyxQ",
+   "aud": "0d8f597e-bc45-46b2-97cf-043c88aa5ecc",
+   "iat": 1467151051,
+   "exp": 1467151651,
+   "nonce": "1KjVsFnQRd4V2XC6",
+   "cnf":{
+     "tbh": "l1X0aVlpikNqDhaH92VwGgrFdAY0tSackYis1r_-fPo"
+    }
+  }
+]]></artwork>
+      </figure>
+    </section>
+
+    <section anchor="Actions" title="OpenID Connect Token Binding Actions">
+      <t>
+	This specification maps the abstract Token Binding actions specified in
+	Section 3 (Federation Use Cases) of 
+	<xref target="I-D.ietf-tokbind-https">Token Binding over HTTP</xref>
+	into concrete actions added to the authentication steps specified in
+	Section 3 (Authentication) of
+	<xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	Mapping the terminologies used in the two specifications,
+	the Relying Party is the Token Consumer and
+	the OpenID Provider is the Token Provider.
+      </t>
+      <t>
+	For OpenID Connect flows returning the ID Token directly from the Authorization Endpoint --
+	the Implicit Flow defined in Section 3.2 of
+	<xref target="OpenID.Core">OpenID Connect Core 1.0</xref>
+	and the Hybrid Flow defined in Section 3.3 of OpenID Connect Core 1.0 when using the
+	<spanx style="verb">code&nbsp;id_token</spanx> or
+	<spanx style="verb">code&nbsp;id_token&nbsp;token</spanx> Response Types --
+	the actions described in Section 3.5 of
+	<xref target="I-D.ietf-tokbind-https">Token Binding over HTTP</xref>
+	are performed as described.
+	The one difference, as previously described, is that
+	a cryptographic hash
+	using the SHA-256 hash function <xref target="SHS"/>
+	of the Token Binding ID is instead added to the ID Token,
+	rather than the Token Binding ID itself.
+      </t>
+      <t>
+	For OpenID Connect flows returning the ID Token from the Token Endpoint --
+	the Authorization Code Flow defined in Section 3.1 of
+	<xref target="OpenID.Core">OpenID Connect Core 1.0</xref>
+	and the Hybrid Flow defined in Section 3.3 of OpenID Connect Core 1.0 --
+	an additional step is necessary beyond those in the previous case.
+	That step is for the RP to record the Token Binding ID
+	used when communicating between the User Agent and the RP,
+	saving it for later use after the Token Response containing the ID Token
+	returned from the Token Endpoint is received.
+	This is needed because the ID Token will contain Token Binding information
+	from the TLS connection between the User Agent and the Relying Party --
+	not information from the TLS connection between the RP and the Token Endpoint.
+	In this case, even though the ID Token is returned from the Token Endpoint,
+	the Token Binding validation steps are performed using
+	the saved Token Binding ID,
+	rather than the Token Binding ID
+	used when communicating with the Token Endpoint.
+      </t>
+    </section>
+
+    <section anchor="Phasing" title="Phasing in Token Binding and Preventing Downgrade Attacks">
+      <t>
+	Many OpenID Connect implementations will be deployed in situations in which
+	not all participants support Token Binding.
+	Any of combination of the Relying Party, the OpenID Provider,
+	and the User Agent may not yet support Token Binding,
+	in which case it will not work end-to-end.
+      </t>
+      <t>
+	It is a context-dependent deployment choice whether to allow
+	authentications to proceed in which Token Binding is not supported
+	or whether to treat Token Binding failures at any step as fatal errors.
+	In dynamic deployment environments in which End Users have choices
+	of Relying Parties, the OpenID Providers, and/or User Agents,
+	it is RECOMMENDED that authentications using one or more components
+	that do not implement Token Binding be allowed to successfully proceed.
+	This enables different components to be upgraded to supporting Token Binding
+	at different times, providing a smooth transition path for
+	phasing in Token Binding.
+	However, when Token Binding has been performed,
+	any Token Binding key mismatches MUST be treated as fatal errors.
+      </t>
+      <t>
+	If all the participants in an OpenID Connect authentication
+	support Token Binding and yet one or more of them does not use it,
+	this is likely evidence of a downgrade attack.
+	In this case, the authentication SHOULD be aborted with an error.
+	For instance, if the RP knows that the OP and the User Agent both
+	support Token Binding and yet the ID Token received does not contain
+	Token Binding information, this is almost certainly a sign of an attack.
+      </t>
+      <t>
+	The OP and RP can determine whether the other supports Token Binding
+	using the metadata values defined in the next section.
+	They can determine whether the User Agent supports Token Binding
+	by whether it negotiated Token Binding for the TLS connection.
+      </t>
+    </section>
+
+    <section anchor="Metadata" title="Token Binding Metadata">
+      <section anchor="RPMetadata" title="Token Binding RP Metadata">
+	<t>
+	  Relying Parties supporting Token Binding that also support
+	  <xref target="OpenID.Registration">OpenID Connect Dynamic Client Registration 1.0</xref>
+	  use this metadata value to register their support for Token Binding:
+	</t>
+	<t>
+	  <list style="hanging">
+	    <t hangText="rp_id_token_token_binding_supported">
+	      <vspace/>
+	      OPTIONAL.
+	      Boolean value specifying whether the Relying Party supports Token Binding of ID Tokens.
+	      If omitted, the default value is <spanx style="verb">false</spanx>.
+	    </t>
+	  </list>
+	</t>
+      </section>
+
+      <section anchor="OPMetadata" title="Token Binding OP Metadata">
+	<t>
+	  OpenID Providers supporting Token Binding that also support
+	  <xref target="OpenID.Discovery">OpenID Connect Discovery 1.0</xref>
+	  use this metadata value to register their support for Token Binding:
+	</t>
+	<t>
+	  <list style="hanging">
+	    <t hangText="op_id_token_token_binding_supported">
+	      <vspace/>
+	      OPTIONAL.
+	      Boolean value specifying whether the OpenID Provider supports Token Binding of ID Tokens.
+	      If omitted, the default value is <spanx style="verb">false</spanx>.
+	    </t>
+	  </list>
+	</t>
+      </section>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>
+	OpenID Connect implementations employing Token Binding benefit from the protections
+	described in Section 8 (Security Considerations) of
+	<xref target="I-D.ietf-tokbind-protocol">The Token Binding Protocol Version 1.0</xref>.
+	Obtaining these protections requires performing the proofs of possession
+	described in Section 4.4 (Securing Federated Sign-On Protocols) of
+	<xref target="I-D.ietf-tokbind-https">Token Binding over HTTP</xref>.
+      </t>
+      <t>
+	It is largely the RP's responsibility to detect attempted man-in-the-middle attacks.
+	This is possible after the RP first determines that all parties support Token Binding.
+	When all parties support Token Binding and there is either a Token Binding mismatch
+	or if Token Binding information should be present but is missing,
+	either in the TLS information or in the ID Token,
+	then the RP SHOULD reject the authentication.
+      </t>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+
+      <section title="JWT Confirmation Methods Registration" anchor="CnfReg">
+	<t>
+	  This specification registers the following confirmation method member
+	  in the IANA "JWT Confirmation Methods" registry
+	  <xref target="IANA.JWT.Claims"/>
+	  for JWT <spanx style="verb">cnf</spanx> member values
+	  established by <xref target="RFC7800"/>:
+	</t>
+
+	<section anchor='ClaimsContents' title='Registry Contents'>
+	  <t> <?rfc subcompact="yes"?>
+	    <list style='symbols'>
+	      <t>
+		Confirmation Method Value: <spanx style="verb">tbh</spanx>
+	      </t>
+	      <t>
+		Confirmation Method Description: Token Binding Hash
+	      </t>
+	      <t>
+		Change Controller: IESG
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="Representation"/> of [[ this specification ]]
+	      </t>
+	    </list>
+	  </t>
+	</section>
+	<?rfc subcompact="no"?>
+      </section>
+
+      <section anchor="DynRegRegistration" title="OAuth Dynamic Client Registration Metadata Registration">
+	<t>
+	  This specification registers the following client metadata definition
+	  in the IANA "OAuth Dynamic Client Registration Metadata" registry
+	  <xref target="IANA.OAuth.Parameters"/>
+	  established by <xref target="RFC7591"/>:
+	</t>
+
+	<section anchor="DynRegContents" title="Registry Contents">
+	  <t> <?rfc subcompact="yes"?>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">rp_id_token_token_binding_supported</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		Boolean value specifying whether the Relying Party supports Token Binding of ID Tokens
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Extended Authentication Profile (EAP) Working Group
+		- openid-specs-eap@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="RPMetadata"/> of [[ this specification ]]
+	      </t>
+	    </list>
+	  </t>
+	</section>
+	<?rfc subcompact="no"?>
+      </section>
+
+      <section anchor="DiscRegistration" title="OAuth Authorization Server Discovery Metadata Registration">
+	<t>
+	  This specification registers the following discovery metadata definition
+	  in the IANA "OAuth Authorization Server Discovery Metadata" registry
+	  <!-- <xref target="IANA.OAuth.Parameters"/> TBD Uncomment once registry has been established -->
+	  established by <xref target="OAuth.Discovery"/>:
+	</t>
+
+	<section anchor="DiscContents" title="Registry Contents">
+	  <t> <?rfc subcompact="yes"?>
+	    <list style="symbols">
+	      <t>
+		Discovery Metadata Name: <spanx style="verb">op_id_token_token_binding_supported</spanx>
+	      </t>
+	      <t>
+		Discovery Metadata Description:
+		Boolean value specifying whether the OpenID Provider supports Token Binding of ID Tokens
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Extended Authentication Profile (EAP) Working Group
+		- openid-specs-eap@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="OPMetadata"/> of [[ this specification ]]
+	      </t>
+	    </list>
+	  </t>
+	</section>
+	<?rfc subcompact="no"?>
+      </section>
+
+    </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.2119"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6749"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7230"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7800"?>
+
+      <?rfc include='http://xml2rfc.tools.ietf.org/public/rfc/bibxml3/reference.I-D.draft-ietf-tokbind-protocol-06.xml' ?>
+      <?rfc include='http://xml2rfc.tools.ietf.org/public/rfc/bibxml3/reference.I-D.draft-ietf-tokbind-https-03.xml' ?>
+
+      <reference anchor="OpenID.Core" target="http://openid.net/specs/openid-connect-core-1_0.html">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+	  <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+	    <organization abbrev="Salesforce">Salesforce</organization>
+	  </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+      <reference anchor="OpenID.Discovery" target="http://openid.net/specs/openid-connect-discovery-1_0.html">
+        <front>
+          <title>OpenID Connect Discovery 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="Illumila">Illumila</organization>
+          </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+      <reference anchor="OpenID.Registration" target="http://openid.net/specs/openid-connect-registration-1_0.html">
+        <front>
+          <title>OpenID Connect Dynamic Client Registration 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+      <reference anchor="JWT" target="http://tools.ietf.org/html/rfc7519">
+	<front>
+	  <title>JSON Web Token (JWT)</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Ping Identity">Ping Identity</organization>
+	  </author>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+	  </author>
+
+	  <date month="May" year="2015" />
+	</front>
+
+	<seriesInfo name="RFC" value="7519"/>
+	<seriesInfo name="DOI" value="10.17487/RFC7519"/>
+      </reference>
+
+      <reference anchor="SHS" target="http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf">
+        <front>
+          <title>Secure Hash Standard (SHS)</title>
+
+          <author>
+            <organization>National Institute of Standards and
+            Technology</organization>
+          </author>
+
+          <date month="March" year="2012" />
+        </front>
+        <seriesInfo name="FIPS" value="PUB 180-4" />
+        <format target="http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf" type="PDF" />
+      </reference>
+
+      <reference anchor="IANA.JWT.Claims" target="http://www.iana.org/assignments/jwt">
+        <front>
+          <title>JSON Web Token Claims</title>
+          <author>
+            <organization>IANA</organization>
+          </author>
+	  <date/>
+        </front>
+      </reference>
+
+      <reference anchor="IANA.OAuth.Parameters" target="http://www.iana.org/assignments/oauth-parameters">
+        <front>
+          <title>OAuth Parameters</title>
+          <author>
+            <organization>IANA</organization>
+          </author>
+	  <date/>
+        </front>
+      </reference>
+
+    </references>
+
+    <references title="Informative References">
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7591"?>
+
+      <reference anchor="OAuth.Discovery" target="http://tools.ietf.org/html/draft-ietf-oauth-discovery-02">
+        <front>
+	  <title abbrev="OAuth 2.0 Discovery">OAuth 2.0 Discovery</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	    <address>
+	      <email>mbj@microsoft.com</email>
+	      <uri>http://self-issued.info/</uri>
+	    </address>
+	  </author>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+	    <address>
+	      <email>n-sakimura@nri.co.jp</email>
+	      <uri>http://nat.sakimura.org/</uri>
+	    </address>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Ping Identity">Ping Identity</organization>
+	    <address>
+	      <email>ve7jtb@ve7jtb.com</email>
+	      <uri>http://www.thread-safe.com/</uri>
+	    </address>
+	  </author>
+
+	  <date day="21" month="March" year="2016" />
+        </front>
+	<seriesInfo name="Internet-Draft" value="draft-ietf-oauth-discovery-02"/>
+      </reference>
+
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>
+	The OpenID Community would like to thank the following people for
+	their contributions to this specification:
+      </t>
+      <t>
+        <list style="empty">
+	  <t>Dirk Balfanz (balfanz@google.com), Google</t>
+          <t>John Bradley (ve7jtb@ve7jtb.com), Ping Identity</t>
+	  <t>Brian Campbell (bcampbell@pingidentity.com), Ping Identity</t>
+	  <t>William Denniss (wdenniss@google.com), Google</t>
+          <t>Michael B. Jones (mbj@microsoft.com), Microsoft</t>
+	  <t>Andrei Popov (Andrei.Popov@microsoft.com), Microsoft</t>
+	  <t>Nat Sakimura (n-sakimura@nri.co.jp), Nomura Research Institute, Ltd.</t>
+        </list>
+      </t>
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2016 The OpenID Foundation.</t>
+
+      <t>The OpenID Foundation (OIDF) grants to any Contributor, developer,
+      implementer, or other interested party a non-exclusive, royalty free,
+      worldwide copyright license to reproduce, prepare derivative works from,
+      distribute, perform and display, this Implementers Draft or Final
+      Specification solely for the purposes of (i) developing specifications,
+      and (ii) implementing Implementers Drafts and Final Specifications based
+      on such documents, provided that attribution be made to the OIDF as the
+      source of the material, but that such attribution does not indicate an
+      endorsement by the OIDF.</t>
+
+      <t>The technology described in this specification was made available
+      from contributions from various sources, including members of the OpenID
+      Foundation and others. Although the OpenID Foundation has taken steps to
+      help ensure that the technology is available for distribution, it takes
+      no position regarding the validity or scope of any intellectual property
+      or other rights that might be claimed to pertain to the implementation
+      or use of the technology described in this specification or the extent
+      to which any license under such rights might or might not be available;
+      neither does it represent that it has made any independent effort to
+      identify any such rights. The OpenID Foundation and the contributors to
+      this specification make no (and hereby expressly disclaim any)
+      warranties (express, implied, or otherwise), including implied
+      warranties of merchantability, non-infringement, fitness for a
+      particular purpose, or title, related to this specification, and the
+      entire risk as to implementing this specification is assumed by the
+      implementer. The OpenID Intellectual Property Rights policy requires
+      contributors to offer a patent promise not to assert certain patent
+      claims against other contributors and against implementers. The OpenID
+      Foundation invites any interested party to bring to its attention any
+      copyrights, patents, patent applications, or other proprietary rights
+      that may cover technology that may be required to practice this
+      specification.</t>
+    </section>
+
+    <section anchor="TBD" title="Open Issues">
+      <t>
+	<list style="symbols">
+          <t>
+	    How should we support crypto agility for the hash function?
+	  </t>
+        </list>
+      </t>
+    </section>
+
+    <section anchor="History" title="Document History">
+      <t>[[ To be removed from the final specification ]]</t>
+
+      <t>
+	-00
+	<list style="symbols">
+          <t>
+	    Created initial version.
+	  </t>
+        </list>
+      </t>
+    </section>
+  </back>
+</rfc>

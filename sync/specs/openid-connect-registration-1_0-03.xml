@@ -1,0 +1,348 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml.resource.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<rfc category="exp" docName="draft-openid-connect-registration-1_0" ipr="trust200902">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="3" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="no" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title abbrev="Abbreviated-Title">OpenID Connect Dynamic Client Registration 1.0 - draft 03</title>
+
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization abbrev="NRI">Nomura Research Institute,
+      Ltd.</organization>
+
+      <address>
+        <email>n-sakimura@nri.co.jp</email>
+      </address>
+    </author>
+
+    <author fullname="John Bradley" initials="J." role="editor"
+            surname="Bradley">
+      <organization abbrev="Protiviti">Protiviti
+      Government Services</organization>
+
+      <address>
+        <email>jbradley@mac.com</email>
+      </address>
+    </author>
+
+    <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      <organization abbrev="Microsoft">Microsoft Corporation</organization>
+
+      <address>
+        <email>mbj@microsoft.com</email>
+      </address>
+    </author>
+
+    <date day="6" month="July" year="2011" />
+
+    <abstract>
+      <t>OpenID Connect is an identity framework that provides authentication,
+      authorization, and attribute transmission capability. It allows third
+      party attested claims from distributed sources. The specification suite
+      party attested claims from distributed sources. The specification suite
+      consists of Core, UserInfo, Protocol Bindings, Discovery,
+      Dynamic Client Registration, Session Management, and Framework.
+      This specification is the "Dynamic Client Registration" part of
+      the suite that defines how clients register with OpenID Providers.</t>
+    </abstract>
+
+    <note title="Requirements Language">
+      <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+      "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+      document are to be interpreted as described in <xref
+      target="RFC2119">RFC 2119</xref>.</t>
+    </note>
+  </front>
+
+  <middle>
+    <section title="Introduction">
+      <t>In order for an OpenID Connect <xref target="OpenID.Core"></xref>
+      client to utilize OpenID services for a user,
+      the client needs to register with the OpenID Provider to acquire a
+      client ID and shared secret. This document describes how a new client
+      can register with the provider, and how a client already in possession
+      of a client_id can retrieve updated registration information.</t>
+
+      <t>The Client Registration endpoint may be co-resident with the token
+      endpoint as an optimization in some deployments.</t>
+    </section>
+
+    <section anchor="terminology" title="Terminology">
+      <t><list style="hanging">
+          <t hangText="Client">An application obtaining authorization and
+          making protected resource requests.</t>
+
+          <t hangText="End-user">A human resource owner.</t>
+
+          <t hangText="Principal">A human resource owner that is the target of
+          a request in Simple Web Discovery.</t>
+
+          <t hangText="OpenID Provider (OP)">Authorization Servers that are
+          able to support OpenID Connect Messages.</t>
+
+          <t hangText="Relying Party (RP)">Client and Resource Servers.</t>
+
+          <t hangText="End-User Authorization Endpoint">The Authorization
+          Server's endpoint capable of authenticating the End-User and
+          obtaining authorization.</t>
+
+          <t hangText="Client Identifier">A unique identifier that the client
+          uses to identify itself to the OP.</t>
+
+          <t hangText="Token Endpoint">The Authorization Server's HTTP
+          endpoint capable of issuing tokens.</t>
+
+          <t hangText="OP Endpoints">End-User Authentication, Authorization,
+          and Token Endpoint.</t>
+
+          <t hangText="RP Endpoints">The endpoint to which the OP responses
+          are returned through redirect.</t>
+
+          <t hangText="UserInfo Endpoint">A protected resource that when
+          presented with a token by the client returns authorized information
+          about the current user.</t>
+
+          <t hangText="Identifier">An Identifier is either an "http" or
+          "https" URI, (commonly referred to as a "URL" within this document),
+          or an account URI. This document defines various kinds of
+          Identifiers, designed for use in different contexts.</t>
+        </list></t>
+    </section>
+
+    <section title="Discovery">
+      <t>OpenID Connect uses the registration_endpoint from the Provider
+      Configuration Response <xref target="OpenID.Discovery">Sec 4.2</xref>.</t>
+    </section>
+
+    <section title="Client Registration Endpoint">
+      <t>The Client Registration Endpoint returns registration information for
+      the client to configure itself for the OpenID Provider.</t>
+
+      <section title="Request">
+        <t>Clients MAY send POST requests with the following encoded as top
+        level elements of a JSON object</t>
+
+        <t><list style="hanging">
+            <t hangText="type">REQUIRED. Values "client_associate",
+            "client_update"</t>
+
+            <t hangText="client_id">OPTIONAL. Used with "client_update"</t>
+
+            <t hangText="client_secret">OPTIONAL. Used with
+            "client_update"</t>
+
+            <t hangText="contact">OPTIONAL. JSON Array of e-mail addresses for
+            people allowed to administer the application.</t>
+
+            <t hangText="application_type">OPTIONAL. "native" or "web"</t>
+
+            <t hangText="application_name">OPTIONAL. Name of the application
+            to be presented to the user.</t>
+
+            <t hangText="logo_url">OPTIONAL. URL that a logo for the
+            application can be retrieved from.</t>
+
+            <t hangText="redirect_url">OPTIONAL. JSON Array of redirect
+            URL</t>
+
+            <t hangText="js_origin_url">OPTIONAL. JSON Array of Java Script
+            Origins (used for Post Message flow)</t>
+
+            <t hangText="jwk_url">OPTIONAL. URL for the RP's <xref
+            target="JWK">JSON Web Key</xref></t>
+
+            <t hangText="sector_identifier">OPTIONAL URL to be used in
+            calculating Pseudonymous Identifiers by the OP. The URL contains a
+            file with an array of redirect_url</t>
+          </list><figure>
+            <artwork><![CDATA[POST /connect/register HTTP/1.1
+Accept: application/json
+Host: server.example.com
+
+{ "type": "client_associate",
+   "redirect_uri": ["https://client.example.com/callback", "https://client.example.com/callback2"],
+   "logo_url" : "https://client.example.com/logo.png"
+}
+]]></artwork>
+          </figure></t>
+      </section>
+
+      <section title="Response">
+        <t>The response is returned as a JSON object with all the parameters
+        as top level elements.</t>
+
+        <t><list style="hanging">
+            <t hangText="client_id">REQUIRED. The unique client identifier</t>
+
+            <t hangText="client_secret">REQUIRED. The client secret. This
+            should change with each response.</t>
+
+            <t hangText="expires_in">REQUIRED. The number of seconds that this
+            id and secret are good for or "0" if it does not expire.</t>
+          </list></t>
+
+        <t>The following is an example response.</t>
+
+        <t><figure>
+            <artwork><![CDATA[HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+
+     {
+       "client_id":"SlAV32hkKG",
+       "client_secret":"cf136dc3c1fd9153029bb9c6cc9ecead918bad9887fce6c93f31185e5885805d",
+       "expires_in":3600
+     }]]></artwork>
+          </figure></t>
+      </section>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>This document makes no request of IANA.</t>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>Since requests to the client registration endpoint result in the
+      transmission of clear-text credentials (in the HTTP request and
+      response), the server MUST require the use of a transport-layer security
+      mechanism when sending requests to the token endpoint. The server MUST
+      support TLS 1.2 as defined in [RFC5246], and MAY support additional
+      transport-layer mechanisms meeting its security requirements.</t>
+    </section>
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml"?>
+
+      <reference anchor="OpenID.Core">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="David Recordon" initials="D." surname="Recordon">
+            <organization abbrev="Facebook">Facebook</organization>
+          </author>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Protiviti">Protiviti Government
+            Service</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B."
+                  surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="MGI1">MGI1</organization>
+          </author>
+
+          <date day="6" month="July" year="2011" />
+        </front>
+
+        <format target="http://openid.net/specs/openid-connect-core-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.Discovery">
+        <front>
+          <title>OpenID Connect Discovery 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Protiviti">Protiviti Government
+            Services</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="MGI1">MGI1</organization>
+          </author>
+
+          <date day="6" month="July" year="2011" />
+        </front>
+
+        <format target="http://openid.net/specs/openid-connect-discovery-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="JWK">
+        <front>
+          <title>JSON Web Key (JWK)</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <date day="29" month="April" year="2011" />
+        </front>
+
+        <format target="http://self-issued.info/docs/draft-jones-json-web-key.html"
+                type="HTML" />
+      </reference>
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t></t>
+    </section>
+
+    <section title="Document History">
+      <t>
+        [[ To be removed from the final specification ]]
+      </t>
+
+      <t>
+	-03
+	<list style='symbols'>
+          <t>
+	    Incorporate working group decisions from 5-Jul-11 spec call.
+	  </t>
+	  <t>
+	    Consistency and cleanup pass, including removing unused references.
+	  </t>
+	</list>
+      </t>
+      <t>
+	-02
+	<list style='symbols'>
+          <t>
+	    Incorporate working group decisions from 23-Jun-11 spec call.
+	  </t>
+	</list>
+      </t>
+      <t>
+	-01
+	<list style='symbols'>
+          <t>
+	    Initial version.
+	  </t>
+        </list>
+      </t>
+    </section>
+
+  </back>
+</rfc>

@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml2rfc.tools.ietf.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN" "http://xml2rfc.tools.ietf.org/authoring/rfc2629.dtd">
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+
+<rfc category="std" docName="openid-connect-prompt-create-1_0" ipr="none">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="5" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="yes" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title abbrev="OIDC Prompt Create">Initiating User Registration via OpenID Connect - draft 02</title>
+
+    <author fullname="George Fletcher" initials="G" surname="Fletcher">
+      <organization>Verizon Media</organization>
+      <address><email>gffletch@aol.com</email></address>
+    </author>
+
+    <date day="1" month="August" year="2019" />
+
+    <workgroup>OpenID Connect Working Group</workgroup>
+
+    <keyword>OpenID Connect</keyword>
+    <keyword>Prompt</keyword>
+    <keyword>Create</keyword>
+
+    <abstract>
+      <t>
+        An extension to the OpenID Connect Authentication Framework
+        defining a new value for the <spanx style="verb">prompt</spanx>
+        parameter that instructs the OpenID Provider to start the user flow with
+        user registration and after the user account has been created return an
+        authorization code to the client to complete the authentication flow.
+      </t>
+    </abstract>
+
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+      <t>
+        Several years of deployment and implementation experience with <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>
+        has uncovered a need, in some circumstances, for the client to explicitly signal to the OpenID Provider that the user
+        desires to create a new account rather than authenticate an existing identity.
+      </t>
+      <t>
+        This allows the client to indicate to the OpenID Provider that the user desires to create an account.
+        This improves the user experience because the user doesn't have to first see the login form and then find
+        the sign-up link on the form and select it before getting to the user's desired action.
+      </t>
+      <t>
+        This specification defines a new parameter value for the <spanx style="verb">prompt</spanx> parameter.
+      </t>
+    </section>
+
+    <section anchor="rnc" title="Requirements Notation and Conventions">
+      <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+        "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
+        document are to be interpreted as described in <xref
+        target="RFC2119">RFC 2119</xref>.</t>
+
+        <t>
+          In the .txt version of this specification,
+          values are quoted to indicate that they are to be taken literally.
+          When using these values in protocol messages,
+          the quotes MUST NOT be used as part of the value.
+          In the HTML version of this specification,
+          values to be taken literally are indicated by
+          the use of <spanx style="verb">this fixed-width font</spanx>.
+        </t>
+    </section>
+
+    <section anchor="Terminology" title="Terminology">
+      <t>
+        This specification uses the terms
+        "authorization endpoint",
+        "authorization request",
+        "authorization response",
+        and "client"
+        defined by <xref target="RFC6749">The OAuth 2.0 Authorization Framework</xref>.
+      </t>
+    </section>
+
+    <section anchor="PromptParameter" title="Prompt Parameter">
+      <t>
+        In requests to the OpenID Provider, a client MAY indicate that the desired user experience is for the
+        user to immediately see the user account creation UI instead of the login behavior.
+
+      <list style="hanging">
+
+      <t hangText="prompt">
+        <vspace/>
+        A value of <spanx style="verb">create</spanx> indicates to the OpenID Provider that
+        the client desires that the user be shown the account creation UX rather than the
+        login flow. Care must be taken if combining this value with other <spanx style="verb">prompt</spanx> values.
+        Mututally exclusive conditions can arise so it is RECOMMENDED that <spanx style="verb">create</spanx>
+        not be present with any other values.
+      </t>
+      </list>
+
+      </t>
+
+      <section anchor="authz-req" title="Authorization Request">
+      <t>
+        When the <spanx style="verb">prompt</spanx> parameter is used in an authorization request to the authorization endpoint
+        with the value of <spanx style="verb">create</spanx>, it indicates that client desires the user be shown the account creation
+        experience rather than the login experience. This behavior is the same for both the
+        implicit flow (Section 3.2 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>), and the authorization
+        code flow (Section 3.1 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>).
+      </t>
+      <t>
+        For authorization requests sent as a JWTs, such as when using
+        <xref target="I-D.ietf-oauth-jwsreq">JWT Secured Authorization Request</xref>,
+        a single <spanx style="verb">prompt</spanx> parameter value
+        is represented as a JSON string while multiple values are represented as an array of strings.
+      </t>
+      <t>
+        If the OpenID Provider fails to parse the provided value(s) it should ignore the
+        <spanx style="verb">prompt</spanx> parameter value and proceed as if the <spanx style="verb">prompt</spanx> parameter
+        was not specified.
+      </t>
+      <t>
+        An example of an authorization request where the client tells the OpenID Provider that it wants the user to
+        start from the account creation user experience is shown in <xref target="authz-endpoint-example-token"/> below
+        (extra line breaks and indentation are for display purposes only).
+
+<figure title="Implicit Flow Authorization Request" anchor="authz-endpoint-example-token">
+<artwork><![CDATA[
+  GET /as/authorization.oauth2?response_type=token
+     &client_id=example-client
+     &state=XzZaJlcwYew1u0QBrRv_Gw
+     &redirect_uri=https%3A%2F%2Fclient%2Eexample%2Eorg%2Fcb
+     &prompt=create HTTP/1.1
+  Host: authorization-server.example.com
+]]></artwork>
+</figure>
+      </t>
+        <t>
+          Below in <xref target="authz-endpoint-example-code"/> is an example of an authorization request
+          using the <spanx style="verb">code</spanx> response type
+          where the the client tells the OpenID Provider that it wants the user to
+          start from the account creation user experience
+          (extra line breaks and indentation are for display purposes only).
+
+        <figure title="Code Flow Authorization Request" anchor="authz-endpoint-example-code">
+          <artwork><![CDATA[
+  GET /as/authorization.oauth2?response_type=code
+     &client_id=s6BhdRkqt3
+     &state=tNwzQ87pC6llebpmac_IDeeq-mCR2wLDYljHUZUAWuI
+     &redirect_uri=https%3A%2F%2Fclient%2Eexample%2Eorg%2Fcb
+     &scope=calendar%20contacts
+     &prompt=create HTTP/1.1
+  Host: authorization-server.example.com
+]]></artwork>
+        </figure>
+        </t>
+    </section>
+
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>
+        Placeholder for now
+      </t>
+    </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include='http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml' ?>
+      <?rfc include='http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.3986.xml' ?>
+      <?rfc include='http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6749.xml' ?>
+      <?rfc include='http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.8174.xml' ?>
+
+      <reference anchor="OpenID.Core" target="http://openid.net/specs/openid-connect-core-1_0.html">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+          <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+            <organization abbrev="Salesforce">Salesforce</organization>
+          </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+    </references>
+
+    <references title="Informative References">
+      <?rfc include='http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7662.xml' ?>
+      <?rfc include='http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7519.xml' ?>
+      <?rfc include='http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6750.xml' ?>
+      <?rfc include='http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7644.xml' ?>
+      <?rfc include='http://xml2rfc.tools.ietf.org/public/rfc/bibxml3/reference.I-D.draft-ietf-oauth-jwsreq-16.xml'?>
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>
+        This specification was developed within OpenID connect
+        Working Group of the OpenID Foundation.  Additionally, the following
+        individuals contributed ideas, feedback, and wording
+        that helped shape this specification:</t>
+      <t>
+        William Dennis
+      </t>
+    </section>
+
+    <section anchor="History" title="Document History">
+      <?rfc subcompact="yes"?>
+      <t>
+        [[ to be removed by the RFC Editor before publication as an RFC ]]
+      </t>
+      <t>
+        <list style="hanging">
+          <t hangText="2019-02-01">
+            <vspace/>
+            Removed "MUST" normative text and replacec with concept that
+            prompt=create is more of a hint to the OpenID Provider.
+            <vspace/>
+          </t>
+        </list>
+      </t>
+      <?rfc subcompact="no"?>
+    </section>
+
+  </back>
+</rfc>

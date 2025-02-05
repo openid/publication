@@ -1,0 +1,1094 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml.resource.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN"
+                           "http://xml.resource.org/authoring/rfc2629.dtd">
+<rfc category="exp" docName="openid-connect-session-1_0" ipr="trust200902">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="4" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="no" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title abbrev="OpenID Connect Session Management 1.0">OpenID Connect Session Management 1.0 - draft 07</title>
+
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization abbrev="NRI">Nomura Research Institute,
+      Ltd.</organization>
+
+      <address>
+        <email>n-sakimura@nri.co.jp</email>
+      </address>
+    </author>
+
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization abbrev="Ping Identity">Ping Identity</organization>
+
+      <address>
+        <email>ve7jtb@ve7jtb.com</email>
+      </address>
+    </author>
+
+    <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      <organization abbrev="Microsoft">Microsoft</organization>
+
+      <address>
+        <email>mbj@microsoft.com</email>
+      </address>
+    </author>
+
+    <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+      <organization>Google</organization>
+
+      <address>
+        <email>breno@google.com</email>
+      </address>
+    </author>
+
+    <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+      <organization abbrev="Salesforce">Salesforce</organization>
+
+      <address>
+        <email>cmortimore@salesforce.com</email>
+      </address>
+    </author>
+
+    <author fullname="Edmund Jay" initials="E." surname="Jay">
+      <organization abbrev="Illumila">Illumila</organization>
+
+      <address>
+        <email>ejay@mgi1.com</email>
+      </address>
+    </author>
+
+    <date day="25" month="May" year="2012" />
+
+    <abstract>
+      <t>NOTE: Significant revisions are planned to the functionality
+      described in this specification.  Until then, developers should
+      expect that any implementations based upon this specification
+      will need to be changed as a result of the upcoming revisions.</t>
+
+      <t>OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+      protocol. It allows Clients to verify the identity of the End-User based
+      on the authentication performed by an Authorization Server, as well as to
+      obtain basic profile information about the End-User in an interoperable and 
+      RESTful manner.</t>
+
+      <t>This document describes how to manage sessions for OpenID
+      Connect.</t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section title="Introduction">
+      <t>NOTE: Significant revisions are planned to the functionality
+      described in this specification.  Until then, developers should
+      expect that any implementations based upon this specification
+      will need to be changed as a result of the upcoming revisions.</t>
+
+      <t>Sessions are used to keep track of information and interactions for
+      users across multiple pages. This creates a sense of continuity,
+      customization, and a more pleasant experience for the users. Visitors to
+      an OpenID Relying Party site accessing Protected Resources will be asked
+      for authentication and authorization. Upon user authorization, the user
+      will be granted access to the requested resources. The site may perform
+      other background tasks for the user using the same authenticated
+      session. This allows the user to have a simplified experience without
+      being asked for authorization each time and may even allow the user to
+      go off-line while the tasks are being performed. This specification
+      describes how OpenID Connect sessions can be created, used, and
+      terminated.</t>
+
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+	<t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+	"SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+	document are to be interpreted as described in <xref
+	target="RFC2119">RFC 2119</xref>.</t>
+
+	<t>Throughout this document, values are quoted to indicate that they are
+	to be taken literally. When using these values in protocol messages, the
+	quotes MUST NOT be used as part of the value.</t>
+      </section>
+
+      <section anchor="terminology" title="Terminology">
+	<t>This specification uses the terms "Access Token", "Refresh Token",
+	"Authorization Code", "Authorization Grant", "Authorization Server",
+	"Authorization Endpoint", "Client", "Client Identifier", "Client
+	Secret", "Protected Resource", "Resource Owner", "Resource Server", and
+	"Token Endpoint" defined by
+	<xref target="OAuth2.0">OAuth 2.0</xref>,
+	and the terms defined by
+	<xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>.
+	This specification also defines the following terms:
+	  <list style="hanging">
+	    <t hangText="Client">An application obtaining authorization and
+	    making Protected Resource requests.</t>
+
+	    <t hangText="Client Identifier">A unique identifier that the Client
+	    uses to identify itself to the OP.</t>
+
+	    <t hangText="Identifier">An Identifier is either an
+	    <spanx style="verb">http</spanx> or <spanx style="verb">https</spanx>
+	    URI (commonly referred to as a "URL" within this document),
+	    or an account URI. This document defines various kinds of
+	    Identifiers, designed for use in different contexts.</t>
+
+	    <t hangText="Base64url">Base 64 Encoding <xref target="RFC3548" />
+	    with URL and Filename Safe Alphabet without padding.</t>
+
+	    <t hangText="Client Servlet">A web application that is also an OAuth
+	    2.0 Client.</t>
+	  </list></t>
+      </section>
+    </section>
+
+    <section title="Session Management">
+      <t>OpenID Connect supports life-cycle session management and
+      synchronization for third parties that support authentication with an
+      Authorization Server. In addition, session management for fourth parties
+      such as desktop, native or mobile applications that utilize
+      Authorization Server credentials at fourth party web sites is also
+      supported.</t>
+
+      <section title="Creating Sessions">
+        <t>To create a session, the Client sends an authorization request to
+        the Authorization Server with <spanx style="verb">id_token</spanx> as
+        one of the <spanx style="verb">response_type</spanx> values.</t>
+
+        <t>If the <spanx style="verb">response_type</spanx> includes the value
+        <spanx style="verb">code</spanx>, then an <xref target="IDToken">ID
+        token</xref> is returned in the response of the Token Endpoint when
+        the Access Token is retrieved.</t>
+
+        <t>If the <spanx style="verb">response_type</spanx> includes the value
+        <spanx style="verb">token</spanx>, then an ID Token is returned as a
+        fragment parameter in the <spanx style="verb">redirect_uri</spanx>
+        specified in the request.</t>
+
+        <t>In either case, an ID Token will also be returned along with the
+        Access Token when submitting a Refresh Token to the Token Endpoint
+	if the initial authorization request included <spanx
+        style="verb">id_token</spanx> in the <spanx style="verb">response_type</spanx>
+        parameter.</t>
+
+        <t>The ID Token serves as a key to an authenticated user session and
+        contains Claims for the user.</t>
+
+        <section anchor="IDToken" title="ID Token">
+          <t>This specification defines an ID Token as a signed <xref
+          target="JWT">JWT</xref> that minimally contains the
+          following Claims:</t>
+
+          <t><list style="hanging">
+              <t hangText="iss">REQUIRED. The Issuer Identifier for the Issuer
+              of the response.</t>
+
+             <t hangText="aud">REQUIRED. This member identifies the audience
+              that this ID Token is intended for. It MUST be the OAuth 2.0 <spanx style="verb">client_id</spanx>
+              of the Client.</t>
+              
+              <t hangText="user_id">REQUIRED. A locally unique and never
+              reassigned identifier within the Issuer for the End-User
+              that is intended to be
+              consumed by the Client. e.g. <spanx style="verb">24400320</spanx>
+              or <spanx style="verb">AItOawmwtWwcT0k51BayewNvutrJUqsvl6qs7A4</spanx>.
+              It MUST NOT exceed 255 ASCII characters in length.</t>
+
+              <t hangText="aud">REQUIRED. This member identifies the audience
+              that this ID Token is intended for. It MUST be the OAuth 2.0 <spanx style="verb">client_id</spanx>
+              of the Client.</t>
+              
+              <t hangText="exp">REQUIRED. Type Integer. Identifies the
+              expiration time on or after which the ID Token MUST NOT be
+              accepted for processing. The processing of this parameter
+              requires that the current date/time MUST be before the
+              expiration date/time listed in the value. Implementers MAY
+              provide for some small leeway, usually no more than a few
+              minutes, to account for clock skew. The value is number of
+              seconds from 1970-01-01T0:0:0Z as measured in UTC until the
+              desired date/time. See <xref target="RFC3339">RFC 3339</xref>
+              for details regarding date/times in general and UTC in
+              particular.</t>
+
+              <t hangText="acr">OPTIONAL. (Authentication Context Class Reference):
+              Specifies an Authentication Context Class Reference of the ID Token.
+              The values "1", "2", "3", and "4" map to the
+              <xref target="ISO29115">ITU-T X.1254 | ISO/IEC 29115</xref>
+              entity authentication assurance level of the authentication performed.
+              The value "0" indicates the End User authentication
+              did not meet the requirements of ISO/IEC 29115 level 1.
+              Authentication using a long-lived browser cookie, for instance, is one 
+              example where the use of "level 0" is appropriate. Authentications with 
+              level 0 should never be used to authorize access to any resource of any 
+              monetary value.  
+              (This corresponds to the OpenID 2.0
+              PAPE <spanx style="verb">nist_auth_level</spanx> 0.)
+              An absolute URI or a <xref target="LoA.Registry">registered short 
+              name</xref> MAY be used as an <spanx style="verb">acr</spanx> value.
+              </t>
+
+              
+              <t hangText="nonce">REQUIRED. Clients MUST verify that
+              the <spanx style="verb">nonce</spanx> value is equal to
+              the value of the <spanx style="verb">nonce</spanx>
+              parameter in the Authorization Request.</t>
+              
+            </list></t>
+
+          <t>The ID Token MAY contain other Claims. The ID Token can be used
+          to access session information from an authenticated session or to
+          pass a session to other applications.</t>
+        </section>
+
+        <section anchor="auth_req" title="Authorization Request">
+          <t>Sections 4.1.1 and 4.2.1 of <xref target="OAuth2.0">OAuth
+          2.0</xref> defines OAuth Authorization Request parameters. In this
+          specification, the values to the parameters are defined as
+          follows.</t>
+
+          <t><list style="hanging">
+              <t hangText="response_type">A space delimited, case sensitive
+              list of string values (Pending OAuth 2.0 changes). The value
+              MUST include <spanx style="verb">id_token</spanx> for requesting
+              an ID Token from a session.</t>
+            </list>In addition, this specification defines the following
+          extension parameters.</t>
+
+          <t><list style="hanging">
+              <t hangText="nonce">OPTIONAL. A random, unique string. The <spanx style="verb">nonce</spanx>
+              value is returned in the ID Token.</t>
+
+              <t hangText="id_token_audience">OPTIONAL. The Identifier of the
+              target audience for an ID Token.</t>
+            </list></t>
+
+          <figure>
+            <preamble>Following is a non-normative example when they are sent
+            in the query parameters serialization:</preamble>
+
+            <artwork><![CDATA[GET /authorize?scope=openid&response_type=token%20id_token
+&client_id=s6BhdRkqt3
+&redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+Host: server.example.com]]></artwork>
+          </figure>
+        </section>
+
+        <section title="Token Endpoint">
+          <t>The Token Endpoint MUST return an ID Token if <spanx
+          style="verb">id_token</spanx> is included in the <spanx
+          style="verb">response_type</spanx> parameter of the authorization
+          request.</t>
+
+          <section anchor="access_token_response"
+                   title="Access Token Response">
+            <t>After receiving and verifying a valid and authorized Access
+            Token Request from the Client, the Authorization Server returns a
+            successful response that includes an Access Token. The parameters
+            in the successful response are defined in Section 4.2.2 of <xref
+            target="OAuth2.0">OAuth 2.0</xref>.</t>
+
+            <t>In addition, this specification defines the following
+            additional return parameters:</t>
+
+            <t><list style="hanging">
+                <t hangText="id_token">REQUIRED if it was requested in the
+                authorization request.</t>
+              </list></t>
+
+            <figure>
+              <preamble>Following is a non-normative example:</preamble>
+
+              <artwork><![CDATA[{
+    "access_token": "SlAV32hkKG",
+    "token_type": "JWT",
+    "refresh_token": "8xLOxBtZp8",
+    "expires_in": 3600,
+    "id_token":"jwt_header.jwt_part2.jwt_part3"
+}]]></artwork>
+            </figure>
+
+            <t>As in the <xref target="OAuth2.0">OAuth 2.0</xref>, Clients
+            SHOULD ignore unrecognized response parameters.</t>
+          </section>
+        </section>
+
+        <section title="Implicit (User-Agent) Flow">
+          <t>User-Agents can use the OAuth 2.0 implicit grant flow by including
+          <spanx style="verb">token</spanx> and <spanx style="verb">id_token</spanx>
+          in the <spanx style="verb">response_type</spanx> of the
+          authorization request to get an ID Token.</t>
+
+          <t><list style="numbers">
+              <t>The User-Agent makes an authorization request to the
+              Authorization Endpoint.</t>
+
+              <t>The Authorization Server authenticates the user</t>
+
+              <t>The Authorization Server returns an access and ID Token.</t>
+
+              <t>The User-Agent and Client servlet can then use the session
+              management endpoints by presenting the ID Token to the
+              endpoints.</t>
+            </list></t>
+
+          <t><figure>
+              <artwork><![CDATA[                                 +----------------------------------+ 
++----------+                     |                                  | 
+|          |                     |      +----------------------+    | 
+|          |                     |      |    Authorization     |    | 
+|          |                     |      |         server       |    | 
+|User-Agent|                     |      +----------------------+    | 
+|          |                     |      |   +---------------+  |    | 
+|          |>----(1)-------------|------|-->| Authorization |  |    | 
+|          |<----(3)-------------|------|--<| Endpoint  (2) |  |    | 
++----------+                     |      |   +---------------+  |    | 
+    ^                 +----------|------|-->| Check_Session |  |    | 
+    |                 | +--------|------|--<| Endpoint      |  |    | 
+    |                 | |        |      |   +---------------+  |    | 
+    v                 | |        |      +----------------------+    | 
++----------+       (4)| |        |                                  | 
+|          |          | |        |                                  | 
+|Client    |>---------+ |        |      +----------------------+    | 
+|Servlet   |<-----------+        |      |                      |    | 
+|          |                     |      | UserInfo Endpoint    |    | 
+|          |                     |      |                      |    | 
+|          |>--------------------|----->|                      |    | 
+|          |<--------------------|-----<|                      |    | 
+|          |                     |      |                      |    | 
+|          |                     |      |                      |    | 
++----------+                     |      +----------------------+    | 
+                                 |                                  | 
+                                 |                                  | 
+                                 +----------------------------------+ ]]></artwork>
+            </figure></t>
+
+          <t><figure>
+              <artwork><![CDATA[                             +-----------------------------+
+                             |                             |
+                             |      Authorization          |
+                             |         Server              |
++-------------+              |                             |
+|             |              |     +--------------------+  |
+| User-Agent  |              |     |  Refresh Session   |  |
+|             |    (4)       |     |    Endpoint        |  |
+|             |>-------------|---->|                    |  |
+|             |<-------------|----<|                    |  |
+|             |              |     |                    |  |
+|             |              |     +--------------------+  |
+|             |    (4)       |     |  End Session       |  |
+|             |>-------------|---->|    Endpoint        |  |
+|             |<-------------|----<|                    |  |
+|             |              |     |                    |  |
+|             |              |     +--------------------+  |
++-------------+              +-----------------------------+]]></artwork>
+            </figure></t>
+
+          <section anchor="implicit_req" title="Implicit Flow Request">
+            <t>The authorization request parameter values are constrained as
+            follows.</t>
+
+            <t><list style="hanging">
+                <t hangText="response_type">A space delimited, case sensitive
+                list of string values (Pending OAuth 2.0 changes). The value
+                MUST include <spanx style="verb">token</spanx> and <spanx
+                style="verb">id_token</spanx> and to request an access and ID
+                Token from the session.</t>
+              </list></t>
+
+            <figure>
+              <preamble>Following is a non-normative example of a request
+              using query parameters serialization:</preamble>
+
+              <artwork><![CDATA[GET /authorize?scope=openid&response_type=token%20id_token
+&client_id=s6BhdRkqt3
+&redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+Host: server.example.com]]></artwork>
+            </figure>
+          </section>
+
+          <section title="Implicit Flow Response">
+            <t>When the <spanx style="verb">response_type</spanx> in the
+            request includes <spanx style="verb">token</spanx>, the
+            Authorization Response MUST return the parameters defined in
+            Section 4.2.2 of <xref target="OAuth2.0">OAuth 2.0</xref> in the
+            query fragment of the response.</t>
+
+            <t>In addition, when <spanx style="verb">response_type</spanx>
+            includes <spanx style="verb">id_token</spanx>, an ID Token MUST be
+            returned in the query fragment of the response.</t>
+
+            <t><figure>
+                <preamble>Following is a non-normative example of a
+                response:</preamble>
+
+                <artwork><![CDATA[HTTP/1.1 302 Found
+Location: https://client.example.org/cb#access_token=i1WsRn1uB1&token_type=JWT&id_token=jwt_header.jwt_part2.jwt_part3]]></artwork>
+              </figure></t>
+          </section>
+        </section>
+
+        <section title="Authorization Code (Web Server) Flow">
+          <t>Web server Clients can use the OAuth 2.0 Authorization Code flow by
+          including <spanx style="verb">code</spanx> and <spanx style="verb">id_token</spanx>
+          in the <spanx style="verb">response_type</spanx> parameter of the
+          authorization request to obtain an ID Token. The ID Token is
+          returned along with the Access Token after the Client submits the
+          Authorization Code to the Access Token Endpoint.</t>
+
+          <t><list style="numbers">
+              <t>The User-Agent makes an authorization request to the
+              Authorization Endpoint.</t>
+
+              <t>The Authorization Server authenticates the End-User.</t>
+
+              <t>The Authorization Server returns an Authorization Code.</t>
+
+              <t>The Client sends Authorization Code to the Token Endpoint.</t>
+
+              <t>The Authorization Server verifies the authorization token and
+              returns an access and ID Token.</t>
+
+              <t>The User-Agent and Client servlet can then use the session
+              management endpoints by presenting the ID Token to the
+              endpoints.</t>
+            </list></t>
+
+          <t><figure>
+              <artwork><![CDATA[                                 +----------------------------------+
++----------+                     |                                  |
+|          |                     |      +----------------------+    |
+|          |                     |      |    Authorization     |    |
+|          |                     |      |         server       |    |
+|User-Agent|                     |      +----------------------+    |
+|          |                     |      |   +---------------+  |    |
+|          |>-----(1)------------|------|-->| Authorization |  |    |
+|          |<-----(3)------------|------|--<| Endpoint (2)  |  |    |
++----------+                     |      |   +---------------+  |    |
+    ^                 +----------|------|-->| Access Token  |  |    |
+    |                 | +--------|------|--<| Endpoint      |  |    |
+    |                 | |        |      |   +---------------+  |    |
+    v                 | |        |      |   | Session       |  |    |
++----------+          | |        |      |   | Management    |  |    |
+|          |          | |        |      |   | Endpoints     |  +    |
+|Client    |>-----(4)-+ |        |      |   +---------------+  |    |
+|Servlet   |<-----(5)---+        |      +----------------------+    |
+|          |                     |                                  |
+|          |                     |      +----------------------+    |
+|          |                     |      |                      |    |
+|          |                     |      | UserInfo Endpoint    |    |
+|          |>--------------------|----->|                      |    |
+|          |<--------------------|-----<|                      |    |
++----------+                     |      +----------------------+    |
+                                 |                                  |
+                                 |                                  |
+                                 +----------------------------------+]]></artwork>
+            </figure></t>
+
+          <section anchor="auth_code_req"
+                   title="Authorization Code Flow Request">
+            <t>The authorization request parameter values are constrained as
+            follows.</t>
+
+            <t><list style="hanging">
+                <t hangText="response_type">A space delimited, case sensitive
+                list of string values (Pending OAuth 2.0 changes). The value
+                MUST include <spanx style="verb">code</spanx> and <spanx
+                style="verb">id_token</spanx> and to request an access and ID
+                Token from the session.</t>
+              </list></t>
+
+            <figure>
+              <preamble>Following is a non-normative example of a request
+              using query parameters serialization:</preamble>
+
+              <artwork><![CDATA[GET /authorize?scope=openid&response_type=code%20id_token
+&client_id=s6BhdRkqt3
+&redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+Host: server.example.com]]></artwork>
+            </figure>
+          </section>
+
+          <section title="Authorization Code Flow Response">
+            <t>When the <spanx style="verb">response_type</spanx> in the
+            request includes <spanx style="verb">code</spanx>, the
+            Authorization Response MUST return the parameters defined in
+            Section 4.1.2 of <xref target="OAuth2.0">OAuth 2.0</xref> in the
+            query of the response.</t>
+
+            <t>In addition, when <spanx style="verb">response_type</spanx>
+            includes <spanx style="verb">id_token</spanx>, the ID Token is
+            retrieved from the Token Endpoint.</t>
+
+            <t><figure>
+                <preamble>Following is a non-normative example of a
+                response:</preamble>
+
+                <artwork><![CDATA[HTTP/1.1 302 Found
+Location: https://client.example.org/cb?code=i1WsRn1uB1]]></artwork>
+              </figure></t>
+          </section>
+
+          <section title="Token Access Request">
+            <t>The Client uses the Authorization Code to make a request to the
+            Token Endpoint to retrieve an access and ID Token.</t>
+
+            <t>The request format is defined in Section 4.1.3 of the <xref
+            target="OAuth2.0">OAuth 2.0</xref> specification.</t>
+
+            <t><figure>
+                <preamble>Following is a non-normative example of a token
+                access endpoint request:</preamble>
+
+                <artwork><![CDATA[POST /token HTTP/1.1
+Host: server.example.com
+Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&client_id=s6BhdRkqt3&
+code=i1WsRn1uB1&redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb]]></artwork>
+              </figure></t>
+          </section>
+
+          <section title="Token Access Response">
+            <t>The access and ID Token is returned in the response.</t>
+
+            <t>The response format is defined in Section 4.1.4 of the <xref
+            target="OAuth2.0">OAuth 2.0</xref> specification.</t>
+
+            <t><figure>
+                <preamble>Following is a non-normative example of a token
+                access endpoint response:</preamble>
+
+                <artwork><![CDATA[HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+{
+  "access_token":"SlAV32hkKG",
+  "token_type":"JWT",
+  "expires_in":3600,
+  "refresh_token":"8xLOxBtZp8",
+  "id_token":"jwt_header.jwt_part2.jwt_part3"
+}]]></artwork>
+              </figure></t>
+          </section>
+        </section>
+
+        <section title="Fourth Party Native Applications">
+          <t>Fourth party native applications involve four parties: 1) the
+          user, 2) the native (desktop) application, 3) the authorization
+          server, and 4) the Client servlet web application. The native
+          application uses Protected Resources from a Client servlet but it
+          integrates with authentication services from the authorization
+          server directly. The native application directs the user to perform
+          authentication at the Authorization Server to obtain access and ID
+          tokens. The tokens can then be used to access Protected Resources at
+          the web servlet Client. The process of obtaining an ID Token for the
+          native application is very similar to that of using the <spanx style="verb">code</spanx>
+          authorization (web server) flow method. However, the target audience
+          of the ID Token is not the native application, but that of the
+          Client servlet. The Client needs to indicate the target audience for
+          the ID Token by setting the <spanx style="verb">id_token_audience</spanx>
+          parameter in the authorization request to that of the Identifier of
+          the Client servlet.</t>
+
+          <figure>
+            <artwork><![CDATA[                                     +-----------------------------+
++----------------+                   |                             |
+|                |                   |   Authorization             |
+|   Native App   |                   |      Server                 |
+|                |                   |                             |
+|                |                   |      +--------------------+ |
+|                |>------------------|----->| Authorization      | |
+|                |<------------------|-----<|   Endpoint         | |
+|                |                   |      |                    | |
+|                |                   |      |                    | |
+|                |                   |      +--------------------+ |
+|                |                   |      | Access Token       | |
+|                |>------------------|----->|   Endpoint         | |
+|                |<------------------|-----<|                    | |
+|                |                   |      |                    | |
+|                |                   |      +--------------------+ |
+|                |>------------------|----->| Session Management | |
+|                |<------------------|-----<|   Endpoints        | |
+|                |                   |      |                    | |
++----------------+                   |      |                    | |
+        ^                            |      |                    | |
+        |                            |      +--------------------+ |
+        v                            |                             |
++----------------+                   |                             |
+| Client         |                   +-----------------------------+
+| Servlet        |                                                  
+|                |                                                  
++----------------+                                                  ]]></artwork>
+          </figure>
+
+          <t>When accessing Protected Resources at the Client servlet,
+          the native application sends the ID Token as an Authorization HTTP
+          header in the request. The Client servlet can check the
+          validity of the ID Token by verifying the cryptographic
+          information or by sending the ID Token to the Check ID
+          Endpoint <xref target="OpenID.Messages">OpenID Connect
+          Messages 1.0</xref>.</t>
+
+          <t><figure>
+              <artwork><![CDATA[GET /resource1
+Auth: jwt_header.jwt_part2.jwt_part3
+Host: servlet.example.com]]></artwork>
+            </figure></t>
+
+          <section title="Browser Load">
+            <t>Some native applications may wish to start an authenticated
+            browser session for the same user. The native application starts a
+            browser with the location of the Client servlet and passing an ID
+            Token as a query parameter. The Client servlet immediately
+            initiates a request to the Refresh Session Endpoint with the ID
+            Token. The user may need to reauthenticate at the authorization
+            server. The Client servlet then gets an ID Token that is <xref
+            target="SessionSync">session synchronized</xref> with the
+            Authorization Server.</t>
+
+            <t><figure>
+                <artwork><![CDATA[                                        +--------------------------+
++------------+      +-----------+       |                          |
+|            |      |           |       |   Authorization Server   |
+| Native App |>---->|User-Agent |       |                          |
+|            |      |           |       |    +------------------+  |
+|            |      |           |>------|--->| Session Refresh  |  |
+|            |      |           |<------|---<|    Endpoint      |  |
++------------+      +-----------+       |    |                  |  |
+      ^                   ^             |    +------------------+  |
+      |                   |             |                          |
+      v                   v             |                          |
++--------------------------------+      |                          |
+|                                |      |                          |
+|       Client Servlet           |      |                          |
+|                                |      |                          |
++--------------------------------+      +--------------------------+
+
+
+
+GET
+/refesh_token?state=bar&redirect_uri=https://foo.com/oauth2callback&id_token=$id_token // never uses immediate mode here, to allow login
+Host: www.example.com
+
+Response:
+
+HTTP/1.1 302 Found
+Location: https://foo.com/oauth2callback?state=bar&session=$new_id_token]]></artwork>
+              </figure></t>
+          </section>
+        </section>
+      </section>
+
+      <section title="Session Management Endpoints">
+        <t>To manage a session, the Client sends a request to the session
+        management endpoints at the Authorization Server. The session
+        management endpoints at the Authorization Server are:</t>
+
+        <t><list style="hanging">
+            <t hangText="Refresh Session">Refreshes an expired ID Token</t>
+
+            <t hangText="End Session">Ends a session</t>
+          </list></t>
+
+        <t>Authorization Servers MUST support the use of the HTTP "GET" method
+        as define in <xref target="RFC2616">RFC 2616</xref> and MAY support
+        the "POST" method for all session management endpoints.</t>
+
+        <section title="Refresh Session">
+          <t>To refresh an ID Token that has expired, the Client sends a
+          request to the Refresh Session Endpoint with an ID Token. A new ID
+          Token is returned.</t>
+
+          <t>Request Parameters:<list style="hanging">
+              <t hangText="id_token">REQUIRED. A previously issued ID Token
+              from an authorization request. The ID Token MAY be expired.</t>
+
+              <t hangText="redirect_uri">REQUIRED. An absolute URI to which
+              the Authorization Server will redirect the User-Agent to with
+              the new ID Token.</t>
+
+              <t hangText="state">REQUIRED. An opaque value used by the Client
+              to maintain state between the request and callback. If provided,
+              the Authorization Server MUST include this value when
+              redirecting the User-Agent back to the Client. Clients are
+              strongly advised to use this variable to relate the request and
+              response.</t>
+            </list></t>
+
+          <t>Response:</t>
+
+          <t>The Authorization Server returns the following parameters in the
+          query of the <spanx style="verb">redirect_uri</spanx> URI specified
+          in the request:</t>
+
+          <t><list style="hanging">
+              <t hangText="id_token">REQUIRED.A new ID Token.</t>
+
+              <t hangText="state">REQUIRED. The value of the <spanx
+              style="verb">state</spanx> parameter in the request.</t>
+            </list></t>
+
+          <t>In a typical HTTP binding, an HTTP 302 is returned to redirect
+          the User-Agent to the specified <spanx style="verb">redirect_uri</spanx>
+	  in the request with a
+          new ID Token in the query fragment.</t>
+
+          <t>The following is a non-normative session refresh request:</t>
+
+          <t><figure width="">
+              <artwork><![CDATA[Request:
+
+GET /op/refresh_session?id_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6
+ImNsaWVudC5leGFtcGxlLmNvbSJ9.eyJpc3N1ZXIiOiJodHRwOlwvXC9zZXJ2ZXIuZXhhbXBs
+ZS5jb20iLCJjbGllbnRfaWQiOiJjbGllbnQuZXhhbXBsZS5jb20iLCJhdWRpZW5jZSI6ImNsa
+WVudC5leGFtcGxlLmNvbSIsImlkIjoidXNlcl8yMzQyMzQiLCJleHAiOjEzMDM4NTI4ODB9.a
+JwagC6501Da-zK-X8Az9B-Y625aSEfxVuBpFEDjOxQ
+&state=bar&redirect_uri=https%3A%2F%2Fclient.example.org%2Fidtoken_cb
+Host: server.example.com
+
+Response:
+
+HTTP/1.1 302 OK
+Location: http://client.example.org/idtoken_cb#id_token=eyJ0eXAiOiJKV1QiLCJh
+bGciOiJIUzI1NiIsImtpZCI6ImNsaWVudC5leGFtcGxlLmNvbSJ9.eyJpc3N1ZXIiOiJodHRwO
+lwvXC9zZXJ2ZXIuZXhhbXBsZS5jb20iLCJjbGllbnRfaWQiOiJjbGllbnQuZXhhbXBsZS5jb20
+iLCJhdWRpZW5jZSI6ImNsaWVudC5leGFtcGxlLmNvbSIsImlkIjoidXNlcl8yMzQyMzQiLCJle
+HAiOjEzMDM4NTI4ODB9.aJwagC6501Da-zK-X8Az9B-Y625aSEfxVuBpFEDjOxQ&state=bar&
+expires_in=3600]]></artwork>
+            </figure></t>
+        </section>
+
+        <section title="End Session">
+          <t>To end the session, the Client sends an ID Token to the End
+          Session Endpoint. Upon receiving the request, the authorization
+          server performs the logout flow for the user and then redirects the
+          User-Agent to the specified <spanx style="verb">redirect_uri</spanx>.</t>
+
+          <t>Request Parameters:<list style="hanging">
+              <t hangText="id_token">REQUIRED. A previously issued ID
+              Token</t>
+
+              <t hangText="state">REQUIRED. An opaque value used by the Client
+              to maintain state between the request and callback. If provided,
+              the Authorization Server MUST include this value when
+              redirecting the User-Agent back to the Client. Clients are
+              strongly advised to use this variable to relate the request and
+              response.</t>
+
+              <t hangText="redirect_uri">REQUIRED. An absolute URI to which
+              the Authorization Server will redirect the User-Agent.</t>
+            </list></t>
+
+          <t>Response:</t>
+
+          <t>The Authorization Server returns the following parameters in the
+          query of the <spanx style="verb">redirect_uri</spanx> URI specified
+          in the request:</t>
+
+          <t><list style="hanging">
+              <t hangText="state">REQUIRED. The value of the <spanx
+              style="verb">state</spanx> parameter in the request.</t>
+            </list>In HTTP binding, the response is a HTTP 302 redirect
+          response to the <spanx style="verb">redirect_uri</spanx> specified
+          in the request.</t>
+
+          <t>The following is a non-normative session refresh request:</t>
+
+          <t><figure>
+              <artwork><![CDATA[Request:
+
+GET /op/end_session?id_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6
+ImNsaWVudC5leGFtcGxlLmNvbSJ9.eyJpc3N1ZXIiOiJodHRwOlwvXC9zZXJ2ZXIuZXhhbX
+BsZS5jb20iLCJjbGllbnRfaWQiOiJjbGllbnQuZXhhbXBsZS5jb20iLCJhdWRpZW5jZSI6I
+mNsaWVudC5leGFtcGxlLmNvbSIsImlkIjoidXNlcl8yMzQyMzQiLCJleHAiOjEzMDM4NTI4
+ODB9.aJwagC6501Da-zK-X8Az9B-Y625aSEfxVuBpFEDjOxQ
+&state=bar
+&redirect_uri=https%3A%2F%2Fclient.example.org%2Fendtoken_cb
+Host: server.example.com
+
+...
+   Authorization Server performs logout flow
+...
+
+Response:
+
+HTTP/1.1 302 OK
+Location: http://client.example.org/endtoken_cb?state=bar]]></artwork>
+            </figure></t>
+        </section>
+      </section>
+
+      <section anchor="SessionSync" title="Session Synchronization">
+        <t>An ID Token is usually bound to a user's sign in session at the
+        Authorization Server, but in some cases, such as offline access by a
+        web server or native application, it may not be. ID Tokens obtained in
+        the following scenarios are bound to a user's signed-in state at the
+        Authorization Server:</t>
+
+        <t><list style="symbols">
+            <t>Redeeming a <spanx style="verb">code</spanx> for an Access Token and ID Token by way of indirect
+            communication through the browser</t>
+
+            <t>Obtaining an Access Token and ID Token in the authorization response
+            through the browser</t>
+
+            <t>Obtaining an ID Token at the Refresh Session Endpoint by
+            submitting a previously issued ID Token</t>
+          </list>ID Tokens obtained in the above manner are session
+        synchronized.</t>
+
+        <t>If an ID Token is obtained by submitting a Refresh Token at the
+        Access Token Endpoint, then the resulting ID Token is not bound to a
+        user's sign in state at the Authorization Server. The Client may be in
+        offline mode or the user has logged out from the Authorization Server.
+        If a session bound ID Token is desired, the Client should obtain a new
+        ID Token by sending a request to the Refresh Session Endpoint.</t>
+      </section>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>This document makes no requests of IANA.</t>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>TBD</t>
+    </section>
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2616"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.3339"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.3548"?>
+
+      <reference anchor="OpenID.Messages">
+        <front>
+          <title>OpenID Connect Messages 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+	  <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+	    <organization abbrev="Salesforce">Salesforce</organization>
+	  </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="Illumila">Illumila</organization>
+          </author>
+
+          <date day="25" month="May" year="2012" />
+        </front>
+
+        <format target="http://openid.net/specs/openid-connect-messages-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="JWT">
+        <front>
+          <title>JSON Web Token</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <date day="22" month="May" year="2012" />
+        </front>
+
+        <format target="http://tools.ietf.org/html/draft-ietf-oauth-json-web-token"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OAuth2.0">
+        <front>
+          <title>OAuth 2.0 Authorization Protocol</title>
+
+          <author fullname="Eran Hammer" initials="E." role="editor"
+                  surname="Hammer">
+            <organization></organization>
+          </author>
+
+          <author fullname="David Recordon" initials="D." surname="Recordon">
+            <organization abbrev="Facebook">Facebook</organization>
+          </author>
+
+          <author fullname="Dick Hardt" initials="D." surname="Hardt">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <date day="1" month="May" year="2012" />
+        </front>
+
+        <format target="http://tools.ietf.org/html/draft-ietf-oauth-v2"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="ISO29115">
+        <front>
+          <title>ITU-T Recommendation X.1254 | ISO/IEC DIS 29115 --
+          Information technology - Security techniques - Entity authentication
+          assurance framework</title>
+
+          <author fullname="International Telecommunication Union and International Organization for Standardization"
+		  initials="" surname="">
+            <organization abbrev="ITU-T and ISO">International Telecommunication Union and International Organization for Standardization</organization>
+          </author>
+
+          <date day="23" month="November" year="2011" />
+        </front>
+        <seriesInfo name="ISO/IEC" value="29115" />
+        <format target="http://www.iso.org/iso/iso_catalogue/catalogue_tc/catalogue_detail.htm?csnumber=45138"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="LoA.Registry">
+        <front>
+          <title abbrev="SAML 2.0 LoA Registry">An IANA registry for SAML 2.0 Level
+           of Assurance Context Classes</title>
+
+	  <author fullname="Leif Johansson" initials="L." surname="Johansson">
+	    <organization>NORDUNet</organization>
+	    <address>
+	      <postal>
+		<street>Tulegatan 11</street>
+		<city>Stockholm</city>
+		<country>Sweden</country>
+	      </postal>
+	      <email>leifj@nordu.net</email>
+	    </address>
+	  </author>
+
+	  <date day="18" month="February" year="2012" />
+	</front>
+        <format target="http://tools.ietf.org/html/draft-johansson-loa-registry" type="HTML" />
+      </reference>
+
+    </references>
+
+    <!-- <references title="Informative References"> -->
+
+    <!-- </references> -->
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t></t>
+    </section>
+
+    <section title="Notices">
+      <t>Copyright (c) 2012 The OpenID Foundation.</t>
+      <t>
+	The OpenID Foundation (OIDF) grants to any Contributor, developer, 
+	implementer, or other interested party a non-exclusive, royalty free, 
+	worldwide copyright license to reproduce, prepare derivative works from, 
+	distribute, perform and display, this Implementers Draft or 
+	Final Specification solely for the purposes of (i) developing 
+	specifications, and (ii) implementing Implementers Drafts and 
+	Final Specifications based on such documents, provided that attribution 
+	be made to the OIDF as the source of the material, but that such attribution 
+	does not indicate an endorsement by the OIDF.
+      </t>
+      <t>
+	The technology described in this specification was 
+	made available from contributions from various sources, 
+	including members of the OpenID Foundation and others.  
+	Although the OpenID Foundation has taken steps to help ensure 
+	that the technology is available for distribution, it takes 
+	no position regarding the validity or scope of any intellectual 
+	property or other rights that might be claimed to pertain to 
+	the implementation or use of the technology described in 
+	this specification or the extent to which any license under 
+	such rights might or might not be available; neither does it 
+	represent that it has made any independent effort to identify 
+	any such rights.  The OpenID Foundation and the contributors 
+	to this specification make no (and hereby expressly disclaim any) 
+	warranties (express, implied, or otherwise), including implied 
+	warranties of merchantability, non-infringement, fitness for 
+	a particular purpose, or title, related to this specification, 
+	and the entire risk as to implementing this specification is 
+	assumed by the implementer.  The OpenID Intellectual 
+	Property Rights policy requires contributors to offer 
+	a patent promise not to assert certain patent claims against 
+	other contributors and against implementers.  The OpenID Foundation invites 
+	any interested party to bring to its attention any copyrights, 
+	patents, patent applications, or other proprietary rights 
+	that may cover technology that may be required to practice 
+	this specification.
+      </t>
+    </section>
+
+    <section title="Document History">
+      <t>[[ To be removed from the final specification ]]</t>
+
+      <t>-07 <list style="symbols">
+	  <t>Added warning about the significant revisions planned to
+	  session management to the abstract and introduction.</t>
+          <t>Changed client.example.com to client.example.org, per issue #251</t>
+	  <t>Listed author of ISO29115 as "International Telecommunication Union and
+	  International Organization for Standardization", per issue #589</t>
+	  <t>Use standards track version of JSON Web Token spec
+	  (draft-ietf-oauth-json-web-token)</t>
+	</list></t>
+
+      <t>-06 <list style="symbols">
+ 	  <t>Updated Notices</t>
+	  <t>Updated References</t>
+        </list></t>
+
+      <t>-05 <list style="symbols">
+ 	  <t>Removed Check Session Endpoint</t>
+	  <t>Updated ID Token claims to reflect changes in Messages</t>
+        </list></t>
+
+      <t>-04 <list style="symbols">
+          <t>Changes associated with renaming "Lite" to "Basic Client"
+          and replacing "Core" and "Framework" with "Messages" and
+          "Standard".</t>
+
+          <t>Numerous cleanups, including updating references.</t>
+        </list></t>
+
+      <t>-03 <list style="symbols">
+          <t>Corrected examples.</t>
+        </list></t>
+
+      <t>-02 <list style="symbols">
+          <t>Correct issues raised by Johnny Bufu and discussed on the
+          7-Jul-11 working group call.</t>
+        </list></t>
+
+      <t>-01 <list style="symbols">
+          <t>Consistency and cleanup pass, including removing unused
+          references.</t>
+        </list></t>
+
+      <t>-00 <list style="symbols">
+          <t>Split from core when all optional features were removed.</t>
+        </list></t>
+    </section>
+  </back>
+</rfc>

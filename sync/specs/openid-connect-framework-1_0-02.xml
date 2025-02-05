@@ -1,0 +1,1213 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml.resource.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<rfc category="exp" docName="openid-connect-framework-1_0" ipr="trust200902">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="3" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="no" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title abbrev="Abbreviated-Title">OpenID Connect Framework 1.0 - draft 02</title>
+
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization abbrev="NRI">Nomura Research Institute,
+      Ltd.</organization>
+
+      <address>
+        <email>n-sakimura@nri.co.jp</email>
+      </address>
+    </author>
+
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization abbrev="Protiviti">Protiviti
+      Government Services</organization>
+
+      <address>
+        <email>jbradley@mac.com</email>
+      </address>
+    </author>
+
+    <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      <organization abbrev="Microsoft">Microsoft Corporation</organization>
+
+      <address>
+        <email>mbj@microsoft.com</email>
+      </address>
+    </author>
+
+    <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+      <organization abbrev="">Google</organization>
+
+      <address>
+        <email>breno@google.com</email>
+      </address>
+    </author>
+
+    <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+      <organization abbrev="Salesforce">Salesforce</organization>
+
+      <address>
+        <email>cmortimore@salesforce.com</email>
+      </address>
+    </author>
+
+    <author fullname="Edmund Jay" initials="E." surname="Jay">
+      <organization abbrev="MGI1">MGI1</organization>
+
+      <address>
+        <email>ejay@mgi1.com</email>
+      </address>
+    </author>
+
+    <date day="6" month="July" year="2011" />
+
+    <abstract>
+      <t>This document describes the more advanced request and response
+      formats for OpenID Connect.</t>
+    </abstract>
+
+    <note title="Requirements Language">
+      <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+      "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+      document are to be interpreted as described in <xref
+      target="RFC2119">RFC 2119</xref>.</t>
+    </note>
+  </front>
+
+  <middle>
+    <section title="Introduction">
+      <t>The <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.0
+      specification defines the basic requests and responses in allow
+      easy and simple implementations and conformance. This specification
+      defines various optional parts of OpenID Connect that use more complex
+      requests and responses.</t>
+    </section>
+
+    <section anchor="terminology" title="Terminology">
+      <t>
+	The terms used in this specification are defined in <xref
+	target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+      </t>
+    </section>
+
+    <section title="Authorization Endpoint">
+      <t>This specification introduces some new parameters to the <xref
+      target="OpenID.Core">OpenID Connect Core</xref> Authorization Request.</t>
+
+      <section anchor="auth_req" title="Authorization Request">
+        <t>Section 4.1.1 and 4.2.1 of <xref target="OAuth.2.0">OAuth 2.0</xref>
+        defines OAuth Authorization Request parameters.</t>
+
+        <t>The following extension parameters are defined:</t>
+
+        <t><list style="hanging">
+            <t hangText="request">OPTIONAL. A <xref target="JWT">JWT</xref>
+            encoded <xref target="OpenIDReq">OpenID Request Object</xref>.</t>
+
+            <t hangText="request_uri">OPTIONAL. A URL that points to the
+            OpenID Request Object.</t>
+          </list></t>
+
+        <figure>
+          <preamble>Following is a non-normative example when they are sent in
+          the query parameters serialization:</preamble>
+
+          <artwork><![CDATA[GET /authorize?scope=openid&response_type=code
+&client_id=s6BhdRkqt3
+&redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb
+&request=HeADeR.pAyl0rd.cRypT0
+&prompt=login
+&display=popup
+HTTP/1.1
+Host: server.example.com]]></artwork>
+        </figure>
+
+        <section anchor="OpenIDReq" title="OpenID Request Object">
+          <t>The OpenID Request object is used to provide OpenID request
+          parameters that MAY differ from the default ones. Implementing
+          support for the OpenID Request object is OPTIONAL. Supporting it is
+          necessary for implementations that need to request or provide sets
+          of claims other than the default UserInfo claim set, as defined in
+          the <xref target="OpenID.UserInfo">OpenID UserInfo 1.0</xref>
+          specification.</t>
+
+          <t>If present, the OpenID Request object is passed as the value of a
+          "request" OAuth 2.0 parameter and is represented as a <xref target="JWT">JWT</xref>.
+          Parameters that affect the information returned from the UserInfo
+          endpoint are in the "inf" member. Parameters that affect the
+          information returned in an ID Token are in the "idt" member. If the
+          same parameters are available both as query strings and in the
+          OpenID Request Object, the later takes the precedence.</t>
+
+          <t><figure>
+              <preamble>An example an OpenID request object is as
+              follows:</preamble>
+
+              <artwork><![CDATA[{
+ "inf":
+   {
+     "clm":
+       {
+         "name": null,
+         "nickname": {"opt": true},
+         "email": null,
+         "verified": null,
+         "picture": {"opt": true},
+       },
+     "fmt": "sig"
+   }
+ "idt":
+   {
+     "clm":
+       {
+        "aat": null
+       }
+     "mxa": 86400,
+     "eaa": "2"
+   }
+}]]></artwork>
+            </figure></t>
+
+          <t>The OpenID Request object is a <xref target="JWT">JWT</xref> that
+          MAY contain a set of members defined by this specification and MAY
+          contain other members that are not defined by this specification.
+          The JWT MAY be signed or unsigned. When it is unsigned, it will be
+          indicated by the JWT <spanx style="verb">"sig":"none"</spanx>
+          convention in the JWT header.</t>
+
+          <t>The members defined by this specification are:</t>
+
+          <t><list style="hanging">
+              <t hangText="inf">OPTIONAL. (UserInfo request):
+              Requests affecting the values to be returned from the UserInfo
+              endpoint. If not present, the UserInfo endpoint behaves in the
+              default manner.</t>
+
+              <t hangText="idt">OPTIONAL. (ID request): Requests affecting the
+              values to be included in the Session Token. If not present, the
+              default ID Token contents are used. If present, these parameters
+              are used to request deltas to the default contents of the
+              Session Token.</t>
+            </list>If signed, the OpenID Request object SHOULD contain the
+          standard JWT "iss" and "aud" claims.</t>
+
+          <t>The structure of the "inf" (UserInfo request) member is
+          a JSON object that MAY contain the following members:</t>
+
+          <t><list style="hanging">
+              <t hangText="clm">OPTIONAL. (Requested Claims): Set of requested
+              claims from the UserInfo endpoint. If not present, the default
+              UserInfo claims held by the IdP are returned.</t>
+
+              <t hangText="fmt">OPTIONAL. (Format): The requested format for
+              the UserInfo endpoint information. If not present, the format is
+              an unsigned JSON object.</t>
+
+              <t hangText="loc">OPTIONAL. (Locale): The default
+              languages and scripts of the entire claim request,
+              represented as a space-separated list of <xref
+              target="RFC5646">BCP47</xref> language tags.</t>
+            </list>
+	    The "clm" member is a JSON object with a member for each
+          requested claim. The member names are the requested claim names. The
+          member values may be either:</t>
+
+          <t><list style="hanging">
+              <t hangText="null">This indicates that this claim is being
+              requested in the default manner. In particular, this is a
+              required claim. OR</t>
+
+              <t hangText="A JSON Object">This is used to provide additional
+              information about the claim being requested.</t>
+            </list></t>
+
+          <t>
+	    The claims MAY be represented in multiple languages and
+	    scripts.  To specify languages and scripts for the claim
+	    request, <xref target="RFC5646">BCP47</xref> language tags
+	    delimited by a "#" MUST be added to each requested claim
+	    name for which a particular language and script is
+	    requested. For example, the claim <spanx
+	    style="verb">family_name#ja-Kana-JP</spanx> is used for
+	    expressing Family Name in Katakana in Japanese, which is
+	    commonly used to index and represent the phonetics of the
+	    Kanji representation of the same value represented as
+	    <spanx style="verb">family_name#ja-Hani-JP</spanx>.
+          </t>
+
+          <t>All members of the "clm" object are OPTIONAL.</t>
+
+          <t>The members of the JSON object value following a claim name
+          defined by this specification are:</t>
+
+          <t><list style="hanging">
+              <t hangText="opt">If this is an optional claim, this member's
+              value MUST be <spanx style="verb">true</spanx>, else, if
+              present, its value MUST be <spanx style="verb">false</spanx>,
+              which indicates that it is a required claim. If it is not
+              present, it is a required claim.</t>
+            </list>
+	    Other members MAY be defined to provide additional
+          information about the requested claim. If the "clm" member is
+          present in the "inf" object, the claims requested within it override
+          the default claim set that would otherwise be returned from the
+          UserInfo endpoint.</t>
+
+          <t>The "fmt" member of the "inf" object is used to specify the
+          requested format of the UserInfo endpoint contents. Values defined
+          are:</t>
+
+          <t><list style="hanging">
+              <t hangText="nor">(normal) - in which case the contents are an
+              unsigned JSON object</t>
+
+              <t hangText="sig">(signed) - in which case the contents are a
+              signed JWT</t>
+
+              <t hangText="enc">(encrypted) - in which case the contents are
+              an signed and encrypted JWT</t>
+            </list>All members of the "inf" object are OPTIONAL. Other members
+          MAY be present and if so, SHOULD understood by both parties.</t>
+
+          <t>The structure and function of the "idt" (ID Token request) member
+          of the OpenID Request object is similar to that of the "inf" member.
+          It also contains an optional "clm" member, with the same structure
+          as that for the "inf" member. If the "clm" member is present in the
+          "idt" object, the claims requested within it modify the default
+          claim set that would otherwise be returned in the ID Token. Unlike
+          for the "inf" member, typically these claims will augment, rather
+          than override the default set.</t>
+
+          <t>Following claim MAY be requested in the ID Token by specifying it
+          in the "clm" member:</t>
+
+          <t><list style="hanging">
+              <t hangText="aat">OPTIONAL. (authenticated at): Requests that
+              the "aat" claim be present. The claim value is the number of
+              seconds from 1970-01-01T0:0:0Z as measured in UTC until the
+              date/time that the user authentication occurred. (The "aat"
+              claim semantically corresponds to the openid.pape.auth_time
+              response parameter.)</t>
+            </list>In addition to the "clm" member, this additional member is
+          defined within the "idt" member of the OpenID Request object:</t>
+
+          <t><list style="hanging">
+              <t hangText="mxa">OPTIONAL. (max authentication age): Specifies
+              that the user must be actively authenticated if any present
+              authentication is older than the specified number of seconds.
+              (The "mxa" request parameter corresponds to the OpenID 2.0
+              openid.pape.max_auth_age request parameter.)</t>
+
+              <t hangText="eaa">OPTIONAL. (entity authentication assurance):
+              Specifies the X.eaa / <xref
+              target="ISO29115">ISO/IEC29115</xref> entity authentication
+              assurance level that is requested by the client.</t>
+            </list>It is anticipated that additional "idt" parameters MAY be
+          defined to request that additional properties hold for the
+          authentication - for instance, that certain authentication policies
+          be applied (in the same spirit of the OpenID 2.0
+          openid.pape.auth_policies values), or that the authentication
+          conform to the policies defined by a specified trust framework.
+          These parameters MAY be defined by extension specifications.</t>
+
+          <t>All members of the "idt" object are OPTIONAL. Other members MAY
+          be present and if so, SHOULD understood by both parties.</t>
+
+          <t>All members of the OpenID Request object are OPTIONAL. Other
+          members MAY be present and if so, SHOULD be understood by both
+          parties.</t>
+        </section>
+      </section>
+
+      <section title="Authorization Response">
+        <t>Authorization responses are defined in section 4.1.2 of the <xref
+        target="OpenID.Core">OpenID Connect Core</xref> specification.</t>
+      </section>
+
+      <section title="Authorization Error Response">
+        <t>If the end-user denies the access request or if the request fails,
+        the authorization server informs the client by returning parameters
+        defined in section 4.1.2.1 of <xref target="OAuth.2.0">OAuth 2.0</xref>
+        .</t>
+
+        <section title="Error Codes">
+          <t>In addition to the error codes defined in section 4.1.2.1 of
+          <xref target="OAuth.2.0">OAuth 2.0</xref>, this specification defines
+          the following additional error codes:</t>
+
+          <t><list style="hanging">
+              <t hangText="login_required">The authorization server requires
+              user authentication.</t>
+
+              <t hangText="session_selection_required">The user is required to
+              select a session at the authorization server.</t>
+
+              <t hangText="approval_required">The authorization server
+              requires user approval.</t>
+
+              <t hangText="user_mismatched">The current logged in user at the
+              authorization server does not match the requested user.</t>
+            </list></t>
+
+        </section>
+      </section>
+    </section>
+
+    <section title="UserInfo Endpoint">
+      <t>The UserInfo endpoint returns claims for the authenticated user.
+      There are three different types of claims.</t>
+
+      <t><list style="hanging">
+          <t hangText="Normal Claims">Claims that are directly asserted by the
+          OpenID Provider.</t>
+
+          <t hangText="Aggregated Claims">Claims that are asserted by a claims
+          provider other than the OpenID Provider but are returned by
+          OpenID Provider.</t>
+
+          <t hangText="Distributed Claims">Claims that are asserted by a
+          claims provider other than the OpenID Provider but are returned as
+          references by the OpenID Provider.</t>
+        </list>The UserInfo endpoint MUST support normal claims.</t>
+
+      <t>Aggregated and distributed claims support is OPTIONAL.</t>
+
+      <t>Claim objects contain members and member values which are the
+      individual claims and claims values. A claim object is represented by a
+      JSON object which contains a collection of name/value pairs for the
+      claims.</t>
+
+      <section title="Normal Claims">
+        <t>Normal claims are represented as members in a claims object. The
+        claim name is the member name and the claim value is the member
+        value.</t>
+      </section>
+
+      <section title="Aggregated and Distributed Claims">
+        <t>Aggregated and distributed claims are represented within the
+        "_claim_names" and "_claim_sources" members of the claims object.</t>
+
+        <t><list style="hanging">
+            <t hangText="_claim_names">This is a JSON object whose member
+            names are the claims names for the aggregated and distributed
+            claims. The member values are references to the member names in
+            the "_claim_sources" member of the claim object from which the
+            actual value can be retrieved.</t>
+
+            <t hangText="__claim_sources">This is a JSON object whose member
+            names are referenced by the member values of the "_claim_names"
+            member of the claim object. The member values contain sets of
+            aggregated claims or reference locations for distributed claims.
+            The member values can have one of the following formats depending
+            on whether they're storing aggregated claims or distributed
+            claims: <list style="hanging">
+                <t hangText="Aggregated Claims">A JSON object which MUST
+                contain the "JWT" member whose value is a <xref
+                target="JWT">JWT</xref> which MUST contain all the claims in
+                the "_claim_names" object which references the corresponding
+                "_claim_sources" member. Other members MAY be present if they
+                are understood by both parties.<list style="hanging">
+                    <t hangText="JWT">REQUIRED. JWT Value</t>
+                  </list></t>
+
+                <t hangText="Distributed Claims">A JSON object which contains
+                the following members and values:<list style="hanging">
+                    <t hangText="endpoint">REQUIRED. The value is the OAuth
+                    2.0 resource endpoint from which the associated claim can
+                    be retrieved. The endpoint URL MUST return the claim as a
+                    JWT.</t>
+
+                    <t hangText="access_token">OPTIONAL. Access token enabling
+                    retrieval of the claims from the endpoint URL by using the
+                    <xref target="OAuth.2.0.Bearer">OAuth 2.0 BEARER</xref>
+                    scheme. Claims SHOULD be requested using the Authorization
+                    request header field and claims sources MUST support this
+                    method.</t>
+                  </list></t>
+              </list> Other members MAY be present, if understood by both
+            parties</t>
+          </list></t>
+
+      </section>
+
+      <section title="Requests">
+        <t>Clients MAY send requests with the following parameters to the
+        UserInfo endpoint to obtain further information about the user.</t>
+
+        <t><list style="hanging">
+            <t hangText="access_token">REQUIRED. The access_token obtained
+            from an OpenID Connect authorization request.</t>
+
+            <t hangText="schema">OPTIONAL. The schema in which the data is to
+            be returned. The only predefined value is <spanx style="verb">openid</spanx>.
+            If this parameter is not included, the response may be a
+            proprietary format to support backwards compatibility. A URL may
+            be passed to define custom schemes not specified by short names.
+            Custom scheme names and responses are out of scope for this
+            specification.</t>
+
+            <t hangText="id">RESERVED. This is reserved for backwards
+            compatibility. It MUST be ignored by the endpoint if the "openid"
+            schema is used.</t>
+          </list></t>
+      </section>
+
+      <section title="Responses">
+        <t>If the requested schema is <spanx style="verb">openid</spanx>, the
+        response MUST return a plain text JSON object which contains a set of
+        requested claims. Following the Portable Contacts draft specification,
+        claim values can be simple strings, boolean values containing the
+        strings "true" or "false", or complex values which contain child
+        attributes and their values. In addition, claims can be singular or
+        plural values. Plural values contain multiple complex values which
+        contain the "value" and optional "type" and "primary" attributes.</t>
+
+        <t>The UserInfo endpoint MUST return claims in JSON format unless a
+        request for a different format is made by the client in the
+        Authorization request. The UserInfo endpoint MAY return claims in JWT
+        format which can be signed or encrypted via <xref
+        target="JWS">JWS</xref> and <xref target="JWE">JWE</xref>
+        respectively. See the <xref target="OpenID.Core">OpenID Connect
+        Core</xref> specification on how to request a different format. The
+        UserInfo endpoint MUST return a content-type header to indicate which
+        format is being returned. The following are accepted content
+        types:</t>
+
+        <texttable style="all">
+          <ttcol>Content-Type</ttcol>
+
+          <ttcol>Format Returned</ttcol>
+
+          <c>application/json</c>
+
+          <c>plain text JSON object</c>
+
+          <c>application/jwt</c>
+
+          <c>A JWT</c>
+        </texttable>
+
+        <section title="Example Responses">
+          <t>The following is a non-normative normal claims responses:</t>
+
+          <t><figure>
+              <artwork><![CDATA[{
+ "name": "Jane Doe"
+ "given_name": "Jane",
+ "family_name": "Doe",
+ "email": "janedoe@example.com",
+ "picture": "http://example.com/janedoe/me.jpg"
+}]]></artwork>
+            </figure></t>
+
+          <t>The following is a non-normative claims response containing
+          aggregated and distributed claims:</t>
+
+          <t><figure>
+              <artwork><![CDATA[{
+ "name": "Jane Doe"
+ "given_name": "Jane",
+ "family_name": "Doe",
+ "email": "janedoe@example.com",
+ "picture": "http://example.com/janedoe/me.jpg"
+ "_claim_names": {
+   "birthday": "src1",
+   "eye_color": "src1",
+   "payment_info": "src2",
+   "shipping_address": "src2",
+   "credit_score": "src3"
+  },
+ "_claim_sources": {
+   "src1": {"JWT": "JWT_hdr.JWT_claims.JWT_crypto"},
+   "src2": {"endpoint": "https://merchant.example.com/claimsource"},
+   "src3": {"endpoint": "https://creditagency.example.com/claimshere", "access_token": "ksj3n283dke"}
+  }
+}]]></artwork>
+            </figure></t>
+        </section>
+      </section>
+
+      <section title="Errors">
+        <t>In addition to the error codes defined in section 4.1.2.1 of <xref
+        target="OAuth.2.0">OAuth 2.0</xref>, this specification defines the
+        following additional error codes:</t>
+
+        <t><list style="hanging">
+            <t hangText="invalid_access_token">The access token is not valid
+            for the requested resource, malformed, is in an incorrect format,
+            outside the valid scope, or expired.</t>
+
+            <t hangText="invalid_schema">The requested schema is invalid or
+            unsupported.</t>
+          </list></t>
+      </section>
+    </section>
+
+    <section title="Introspection Endpoint">
+      <t>The introspection endpoint returns a text JSON object which contains
+      information about the end user associated with supplied access or ID
+      token. It is for use by clients that cannot or do not wish to handle
+      signed tokens.</t>
+
+      <t>Request Parameters: One of the following parameters</t>
+
+      <t><list style="hanging">
+          <t hangText="access_token">OPTIONAL. A token obtained from the token
+          endpoint.</t>
+
+          <t hangText="id_token">OPTIONAL. An ID token obtained from the
+          authorization request.</t>
+        </list></t>
+
+      <t>Both parameters are optional, but at least one parameter MUST be
+      supplied.</t>
+
+      <t>Response:</t>
+
+      <t>The response is a text JSON object of an ID token using the
+      "application/json" media type. If the request contains <spanx
+      style="verb">access token</spanx>, the authorization server creates a
+      version of an ID token and returns it as a JSON object. However, a
+      session is not created. If the request contains <spanx style="verb"> id_token</spanx>,
+      then the server returns the text JSON object of the ID token.</t>
+
+      <t>The following is a non-normative example of a request to the
+      introspection endpoint:</t>
+
+      <t><figure>
+          <artwork><![CDATA[Request:
+
+GET /op/introspection?access_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6
+ImNsaWVudC5leGFtcGxlLmNvbSJ9.eyJpc3N1ZXIiOiJodHRwOlwvXC9zZXJ2ZXIuZXhhbXBs
+ZS5jb20iLCJjbGllbnRfaWQiOiJjbGllbnQuZXhhbXBsZS5jb20iLCJhdWRpZW5jZSI6ImNsa
+WVudC5leGFtcGxlLmNvbSIsImlkIjoidXNlcl8yMzQyMzQiLCJleHAiOjEzMDM4NTI4ODB9.a
+JwagC6501Da-zK-X8Az9B-Y625aSEfxVuBpFEDjOxQ
+Host: server.example.com
+
+Response:
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+"issuer": "http://server.example.com",
+"client_id": "http://client.example.net",
+"user_id": "Jane Doe",
+"aud": "http://client.example.net",
+"exp": "1236485123"
+}
+]]></artwork>
+        </figure></t>
+
+      <section title="Error Codes">
+        <t>In addition to the error codes defined in Section 5.2 of <xref
+        target="OAuth.2.0">OAuth 2.0</xref>, this specification defines the
+        following error codes.</t>
+
+        <t><list style="hanging">
+            <t hangText="invalid_access_token">The access token is not valid
+            for the requested resource, malformed, is in an incorrect format,
+            outside the valid scope, or expired.</t>
+
+            <t hangText="invalid_id_token">The ID token is not valid for the
+            requested resource, malformed, is in an incorrect format, or
+            expired.</t>
+          </list></t>
+      </section>
+    </section>
+
+    <section anchor="sigs" title="Signatures">
+      <t>Depending on the transport through which the messages are sent, the
+      integrity of the message may not be guaranteed and the originator of the
+      message may not be authenticated. To mitigate these risks, OpenID
+      Connect utilizes <xref target="JWS">JSON Web Signatures
+      (JWS)</xref>.</t>
+
+      <t>Following is the parameters for JWT.</t>
+
+      <t><list style="hanging">
+          <t hangText="typ">OPTIONAL. One of <spanx style="verb">"JWT"</spanx>,
+          <spanx style="verb">"openid2json+sig"</spanx>.</t>
+
+          <t hangText="alg">REQUIRED. One of the algorithm values specified in
+          Table 3 of <xref target="JWS">JWS</xref></t>
+        </list>Compact Serialization SHOULD BE used when passing it through
+      query parameters, while JSON serialization SHOULD BE used when returning
+      it in HTTP Body.</t>
+
+      <figure>
+        <preamble>Following is a non-normative example of such signature in
+        Compact serialization, where HS256 algorithm was used (with line
+        breaks for display purposes only):</preamble>
+
+        <artwork><![CDATA[eyJ0eXAiOiJKV1QiLA0KICJhbGciOiJIUzI1NiJ9
+.
+eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlfQ
+.
+dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk]]></artwork>
+      </figure>
+
+    </section>
+
+    <section anchor="encryption" title="Encryption">
+      <t>To achieve message confidentiality and audience restriction, OpenID
+      Connect uses <xref target="JWE">JSON Web Encryption (JWE)</xref>.</t>
+    </section>
+
+    <section title="Verification">
+
+      <section title="Authorization Request Verification">
+        <t>If the request was signed, the Server MUST verify the signature as
+        in JWT.</t>
+      </section>
+
+      <section title="Authorization Response Verification">
+        <t>To verify the validity of the Authorization Response, the client
+        MUST to the following:</t>
+
+        <t><list style="numbers">
+            <t>If the response was signed, the Client SHOULD verify the
+            signature as in JWT as the first step.</t>
+
+            <t>Check that OP that it connected was really the intended OP
+            through TLS/SSL server certificate check if the endpoint is
+            TLS/SSL endpoint.</t>
+
+            <t>Check that current time is within the validity period.</t>
+          </list></t>
+
+        <t>If the client does not verify the signature, it MUST make a User
+        Info API request.</t>
+      </section>
+
+      <section title="UserInfo Request Verification">
+        <t>If the request was signed, the Server MUST verify the signature as
+        in <xref target="JWS">JWS</xref>.</t>
+      </section>
+
+      <section title="UserInfo Response Verification">
+        <t>To verify the validity of the UserInfo response, the client MUST to
+        the following:</t>
+
+        <t><list style="numbers">
+            <t>If the response was signed, the Client SHOULD verify the
+            signature as in JWT as the first step.</t>
+
+            <t>Check that the OP that it connected was really the intended OP
+            through TLS/SSL server certificate and check if the endpoint is
+            TLS/SSL endpoint.</t>
+
+            <t>Check if the current time is within the validity period.</t>
+          </list></t>
+
+      </section>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>This document makes no request of IANA.</t>
+    </section>
+
+    <section anchor="security_considerations" title="Security Considerations">
+      <t>This specification references the security considerations defined in
+      <xref target="OAuth.2.0.SC">OAuth 2.0 Security
+      Considerations</xref>.</t>
+
+      <t>Followings are the list of attack vectors and remedies that were
+      considered for this specification.</t>
+
+      <t>For details of the attack vector, see <xref
+      target="SP800-63"></xref>.</t>
+
+      <section anchor="assertion_manufacture"
+               title="Assertion Manufacture/Modification">
+        <t>To mitigate this attack, there are two ways to mitigate it.</t>
+
+        <t><list style="numbers">
+            <t>The assertion may be digitally signed by the OP. The Relying
+            Party SHOULD check the digital signature to verify that it was
+            issued by a legitimate OP.</t>
+
+            <t>The assertion may be sent over a protected channel such as
+            TLS/SSL. In order to protect the integrity of assertions from
+            malicious attack, the OP MUST be authenticated. In this
+            specification, the assertion is always sent over TLS/SSL protected
+            channel.</t>
+          </list></t>
+      </section>
+
+      <section anchor="assertion_disclosure" title="Assertion Disclosure">
+        <t>The Assertion disclosure can be mitigated in the following two
+        ways.</t>
+
+        <t><list style="numbers">
+            <t>Assertion is sent over TLS/SSL protected channel, where RP is
+            authenticated by "client_id" and "client_secret".</t>
+
+            <t>Signed Assertion is encrypted by the RP's public key.</t>
+          </list></t>
+      </section>
+
+      <section anchor="assertion_repudiation" title="Assertion Repudiation">
+        <t>To mitigate this threat, the assertion may be digitally signed by
+        the OP using a key that supports non-repudiation. The RP SHOULD check
+        the digital signature to verify that it was issued by a legitimate
+        OP.</t>
+      </section>
+
+      <section anchor="assertion_redirect" title="Assertion Redirect">
+        <t>To mitigate this threat, the assertion includes the identity of the
+        RP for whom it was generated as "client_id". The RP verifies that
+        incoming assertions include its identity as the recipient of the
+        assertion.</t>
+      </section>
+
+      <section anchor="assertion_reuse" title="Assertion Reuse">
+        <t>The assertion includes a timestamp and a short lifetime of
+        validity. The Relying Party checks the timestamp and lifetime values
+        to ensure that the assertion is currently valid.</t>
+      </section>
+
+      <section anchor="artifact_manufacture"
+               title="Secondary Authenticator Manufacture">
+        <t>Due to the large entropy requirement of the Artifact ("code") and
+        short life nature of its validity, the success probability of this
+        attack is extremely low.</t>
+      </section>
+
+      <section anchor="artifact_capture"
+               title="Secondary Authenticator Capture">
+        <t>Secondary authenticator (="code") is transmitted only through
+        HTTPS, thus it is protected between the OP and the User-Agent, and
+        User-Agent and the RP.</t>
+
+        <t>Only the place it can be captured is the User-Agent where the TLS
+        session is terminated, and is possible if the User-Agent is infested
+        by malwares. However, it renders no usefulness as long as the profile
+        in use either RP authentication or assertion encryption.</t>
+      </section>
+
+      <section anchor="assertion_substitution" title="Assertion Substitution">
+        <t>Responses to assertion requests is bound to the corresponding
+        requests by message order in HTTP, as both assertions and requests are
+        protected by TLS that can detect and disallow malicious reordering of
+        packets.</t>
+      </section>
+
+      <section anchor="auth_req_disclosure"
+               title="Authentication Request Disclosure">
+        <t>If the authentication request is POSTed directly through a
+        protected channel, it is not possible to disclose the authentication
+        request.</t>
+
+        <t>If the Request File is encrypted by the OP's public key, the
+        authentication request will not be disclosed unless OP's private key
+        gets compromised or the encryption algorithm becomes vulnerable.</t>
+      </section>
+
+      <section title="Timing Attack">
+        <t>Timing attack can be used to reduce the effective key length of the
+        signature if the time required to return the response in case of a
+        signature error and a correct signature differs. Care should be taken
+        in the implementation to avoid this attack.</t>
+      </section>
+
+      <section anchor="authn_proc_threats"
+               title="Authentication Process Threats">
+        <t>In the category of Authentication Process Threats, following
+        threats exists.</t>
+
+        <t><list style="symbols">
+            <t>Online guessing</t>
+
+            <t>Phishing</t>
+
+            <t>Pharming</t>
+
+            <t>Eavesdropping</t>
+
+            <t>Replay</t>
+
+            <t>Session hijack</t>
+
+            <t>Man-in-the-middle</t>
+          </list>Authentication process per se as described in NIST
+        SP800-63-rev1 is out of scope for this protocol, but care SHOULD be
+        taken to achieve appropriate protection.</t>
+      </section>
+    </section>
+
+    <section title="Open Issues and Things To Be Done (TBD)">
+      <t>[[ To be removed from the final specification ]]</t>
+
+      <t>Following items remain to be done in this draft:</t>
+
+      <t>
+        <list style="symbols">
+          <t>Finish the security consideration section.</t>
+
+          <t>Properly capitalize the Defined Words.</t>
+
+          <t>Provide more structure to the OpenID Request Object section.</t>
+        </list>
+      </t>
+    </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.5646"?>
+
+      <reference anchor="OpenID.Core">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="David Recordon" initials="D." surname="Recordon">
+            <organization abbrev="">Facebook</organization>
+          </author>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Protiviti">Protiviti Government
+            Services</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B."
+                  surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft Corporation</organization>
+          </author>
+
+          <author fullname="Edmund" initials="E." surname="Jay">
+            <organization abbrev="">MGI1</organization>
+          </author>
+
+          <date day="6" month="July" year="2011" />
+        </front>
+
+        <format target="http://openid.net/specs/openid-connect-core-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.UserInfo">
+        <front>
+          <title>OpenID Connect UserInfo 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Protiviti">Protiviti Government
+            Services</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B."
+                  surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft Corporation</organization>
+          </author>
+
+          <date day="6" month="July" year="2011" />
+        </front>
+
+        <format target="http://openid.net/specs/openid-connect-userinfo-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="JWT">
+        <front>
+          <title>JSON Web Token</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft Corporation</organization>
+          </author>
+
+          <author fullname="Dirk Balfanz" initials="D." surname="Balfanz">
+            <organization abbrev="goog">Google</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="pgs">rotivity Government
+            Service</organization>
+          </author>
+
+          <author fullname="Yaron Goland" initials="Y." surname="Goland">
+            <organization abbrev="msft">Microsoft</organization>
+          </author>
+
+          <author fullname="John Panzer" initials="J." surname="Panzer">
+            <organization abbrev="goog">Google</organization>
+          </author>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="nri">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="Paul Tarjan" initials="P." surname="Tarjan">
+            <organization abbrev="fb">Facebook</organization>
+          </author>
+
+          <date day="30" month="March" year="2011" />
+        </front>
+
+        <format target="http://tools.ietf.org/html/draft-jones-json-web-token"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="JWS">
+        <front>
+          <title>JSON Web Signatures</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft Corporation</organization>
+          </author>
+
+          <author fullname="Dirk Balfanz" initials="D." surname="Balfanz">
+            <organization abbrev="goog">Google</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="pgs">rotivity Government
+            Service</organization>
+          </author>
+
+          <author fullname="Yaron Goland" initials="Y." surname="Goland">
+            <organization abbrev="msft">Microsoft</organization>
+          </author>
+
+          <author fullname="John Panzer" initials="J." surname="Panzer">
+            <organization abbrev="goog">Google</organization>
+          </author>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="nri">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="Paul Tarjan" initials="P." surname="Tarjan">
+            <organization abbrev="fb">Facebook</organization>
+          </author>
+
+          <date day="29" month="April" year="2011" />
+        </front>
+
+        <format target="http://tools.ietf.org/html/draft-jones-json-web-signature"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="JWE">
+        <front>
+          <title>JSON Web Encryption</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft Corporation</organization>
+          </author>
+
+          <author fullname="Dirk Balfanz" initials="D." surname="Balfanz">
+            <organization abbrev="goog">Google</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="pgs">rotivity Government
+            Service</organization>
+          </author>
+
+          <author fullname="Yaron Goland" initials="Y." surname="Goland">
+            <organization abbrev="msft">Microsoft</organization>
+          </author>
+
+          <author fullname="John Panzer" initials="J." surname="Panzer">
+            <organization abbrev="goog">Google</organization>
+          </author>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="nri">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="Paul Tarjan" initials="P." surname="Tarjan">
+            <organization abbrev="fb">Facebook</organization>
+          </author>
+
+          <date day="28" month="March" year="2011" />
+        </front>
+
+        <format target="http://self-issued.info/docs/draft-jones-json-web-encryption.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OAuth.2.0">
+        <front>
+          <title>OAuth 2.0 Authorization Protocol</title>
+
+          <author fullname="Eran Hammer-Lahav" initials="E." role="editor"
+                  surname="Hammer-Lahav">
+            <organization abbrev="">Yahoo</organization>
+          </author>
+
+          <author fullname="David Recordon" initials="D." surname="Recordon">
+            <organization abbrev="">Facebook</organization>
+          </author>
+
+          <author fullname="Dick Hardt" initials="D." surname="Hardt">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <date day="19" month="May" year="2011" />
+        </front>
+
+        <format target="http://tools.ietf.org/html/draft-ietf-oauth-v2"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OAuth.2.0.SC">
+        <front>
+          <title>OAuth 2.0 Security Considerations</title>
+
+          <author fullname="Torsten Lodderstedt" initials="T." role="editor"
+                  surname="Lodderstedt">
+            <organization abbrev="">Deutsche Telekom AG</organization>
+          </author>
+
+          <author fullname="Mark McGloin" initials="M." surname="McGloin">
+            <organization abbrev="">IBM</organization>
+          </author>
+
+          <author fullname="Phil Hunt" initials="P." surname="Hunt">
+            <organization abbrev="">Oracle Corporation</organization>
+          </author>
+
+          <author fullname="Anthony Nadalin" initials="A." surname="Nadalin">
+            <organization abbrev="">Microsoft Corporation</organization>
+          </author>
+
+          <date day="7" month="April" year="2011" />
+        </front>
+
+        <format target="http://tools.ietf.org/html/draft-lodderstedt-oauth-securityconsiderations"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OAuth.2.0.Bearer">
+        <front>
+          <title>OAuth 2.0 Protocol: Bearer Tokens</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft Corporation</organization>
+          </author>
+
+          <author fullname="Dick Hardt" initials="D." surname="Hardt">
+            <organization abbrev="">Independent</organization>
+          </author>
+
+          <author fullname="David Recordon" initials="D." surname="Recordon">
+            <organization abbrev="">Facebook</organization>
+          </author>
+
+          <date day="21" month="June" year="2011" />
+        </front>
+
+        <format target="http://tools.ietf.org/html/draft-ietf-oauth-v2-bearer"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="ISO29115">
+        <front>
+          <title>ITU-T Recommendation X.eaa | ISO/IEC 2nd CD 29115 --
+          Information technology &ndash; Security techniques &ndash; Entity
+          authentication assurance framework</title>
+
+          <author fullname="Erika McCallister et al." initials="E"
+                  surname="McCallister">
+            <organization>National Institute of Standards and
+            Technology</organization>
+          </author>
+        </front>
+
+        <seriesInfo name="ISO/IEC" value="29115" />
+
+        <!-- <annotation>Defines LoA</annotation> -->
+      </reference>
+
+      <reference anchor="SP800-63">
+        <front>
+          <title>NIST SP800-63rev.1: Electronic Authentication
+          Guideline</title>
+
+          <author>
+            <organization>National Institute of Standards and
+            Technology</organization>
+          </author>
+        </front>
+
+        <seriesInfo name="NIST" value="SP800-63" />
+
+        <format target="http://csrc.nist.gov/publications/drafts/800-63-rev1/SP800-63-Rev1_Dec2008.pdf"
+                type="PDF" />
+
+        <!-- <annotation>Defines LoA</annotation> -->
+      </reference>
+    </references>
+
+    <!-- <references title="Informative References"> -->
+    <!-- </references> -->
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t></t>
+    </section>
+
+    <section title="Document History">
+      <t>
+        [[ To be removed from the final specification ]]
+      </t>
+      <t>
+	-02
+	<list style='symbols'>
+	  <t>
+	    Consistency and cleanup pass, including removing unused references.
+	  </t>
+	  <t>
+	    Moved <spanx style="verb">display</spanx> and <spanx
+	    style="verb">prompt</spanx> parameter definitions from the
+	    Framework spec back to the Core spec.
+	  </t>
+	</list>
+      </t>
+      <t>
+	-01
+	<list style='symbols'>
+	  <t>
+	    Added RFC5656/BCP47 locale information to claims requests.
+	  </t>
+	</list>
+      </t>
+      <t>
+	-00
+	<list style='symbols'>
+          <t>Split from core when all optional features were
+          removed.</t>
+	</list>
+      </t>
+    </section>
+
+  </back>
+</rfc>

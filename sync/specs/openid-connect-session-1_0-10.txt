@@ -1,0 +1,952 @@
+
+
+
+Draft                                                     B. de Medeiros
+                                                              N. Agarwal
+                                                                  Google
+                                                        N. Sakimura, Ed.
+                                                                     NRI
+                                                              J. Bradley
+                                                           Ping Identity
+                                                                M. Jones
+                                                               Microsoft
+                                                       December 27, 2012
+
+
+            OpenID Connect Session Management 1.0 - draft 10
+
+Abstract
+
+   NOTE: This is a first cut of a significant rewrite based on the
+   decisions made at the May 5, 2012 working group meeting.
+
+   OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+   protocol.  It allows Clients to verify the identity of the End-User
+   based on the authentication performed by an Authorization Server, as
+   well as to obtain basic profile information about the End-User in an
+   interoperable and RESTful manner.
+
+   This document describes how to manage sessions for OpenID Connect.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 1]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
+     1.1.  Requirements Notation and Conventions  . . . . . . . . . .  3
+     1.2.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  3
+   2.  Endpoint Discovery . . . . . . . . . . . . . . . . . . . . . .  4
+   3.  Creating and Updating Sessions . . . . . . . . . . . . . . . .  5
+   4.  Session status change notification . . . . . . . . . . . . . .  6
+     4.1.  OP iframe  . . . . . . . . . . . . . . . . . . . . . . . .  6
+     4.2.  RP iframe  . . . . . . . . . . . . . . . . . . . . . . . .  7
+   5.  RP initiated Logout  . . . . . . . . . . . . . . . . . . . . .  9
+   6.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 10
+   7.  Security Considerations  . . . . . . . . . . . . . . . . . . . 11
+   8.  Normative References . . . . . . . . . . . . . . . . . . . . . 12
+   Appendix A.  Acknowledgements  . . . . . . . . . . . . . . . . . . 13
+   Appendix B.  Notices . . . . . . . . . . . . . . . . . . . . . . . 14
+   Appendix C.  Document History  . . . . . . . . . . . . . . . . . . 15
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 17
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 2]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+1.  Introduction
+
+   While OpenID Connect Messages and Standard defines the method to
+   login the user to the RP based on the ID token, it does not talk
+   about how to continuously monitor the user's login status at the OP
+   so that the RP may logout the user once the user has logged out of
+   the OP.  This specification defines the method to achieve this.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+1.2.  Terminology
+
+   This specification uses the terms "Access Token", "Refresh Token",
+   "Authorization Code", "Authorization Grant", "Authorization Server",
+   "Authorization Endpoint", "Client", "Client Identifier", "Client
+   Secret", "Protected Resource", "Resource Owner", "Resource Server",
+   and "Token Endpoint" defined by OAuth 2.0 [RFC6749], and the terms
+   defined by OpenID Connect Messages 1.0 [OpenID.Messages].
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 3]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+2.  Endpoint Discovery
+
+   To support the OpenID Connect session management, the RP MUST obtain
+   the session management related endpoint URLs.  This can either be
+   obtained out of band or through the OP configuration file as
+   described in OpenID Connect Discovery.
+
+   The OP endpoints defined in this specification are as follows:
+
+   check_session_endpoint  URL of an OP endpoint that provides a page to
+      support cross-origin communications for session state information
+      with the RP client, using the HTML5 postMessage API.  The page is
+      loaded from an invisible iframe embedded in an RP page so that it
+      can run in the OP's security context.  It accepts postMessage
+      requests from the relevant RP iframe and postMessage back the
+      login status of the user at the OP.
+
+   end_session_endpoint  The URL that initiates the user logout at the
+      OP.
+
+   The RP endpoints defined in this specification are as follows:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 4]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+3.  Creating and Updating Sessions
+
+   In OpenID Connect, the session at the RP typically starts when the RP
+   validates the user's ID Token.  Refer to OpenID Connect Standard to
+   find out how to obtain an ID Token and validate it.  Typically, when
+   the RP has enough knowledge on the user's identity, the RP sends the
+   authentication request with previously obtained ID Token as the user
+   hint with prompt=none.
+
+   This specification defines one additional claim in the ID Token.
+
+   ops  OP Session Status.  A JSON string that represents the user's
+      login state at the OP.  This string is opaque to the RP.  REQUIRED
+      if session management is supported.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 5]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+4.  Session status change notification
+
+   ID Token typically comes with the expiry date.  The RP MAY rely on it
+   to expire the RP session.  However, it is entirely possible that the
+   user may have logged out of the OP before the expiry date.
+   Therefore, it is highly desirable to be able to find out the login
+   status of the user at the OP.
+
+   To do so, it is possible to repeat the authentication request with
+   prompt=none.  However, this causes network traffic and this is
+   problematic on the mobile devices that are increasingly becoming
+   popular.  Therefore, once the session is established with the
+   authentication request and response, it is desirable to be able to
+   check the login status at the OP without causing network traffic by
+   polling the hidden OP iframe from a RP iframe with origin restricted
+   postMessage as follows.
+
+4.1.  OP iframe
+
+   The RP typically loads an invisible OP iframe in the page from the
+   OP's "check_session_endpoint" with the following parameters.
+
+   id_token_hint  REQUIRED.  ID Token that the RP received when it
+      logged in the user.  The value of the "aud" field, which contains
+      a "client_id" of the RP, is used to set the source origin for the
+      postMessage request.  Note: If the ID Token was asymmetrically
+      encrypted for the RP, then the RP MUST decrypt it and use the
+      decrypted version of the ID Token in this field.
+
+   The RP MUST assign an "id" attribute to the iframe so that it can
+   address it later.
+
+   The OP iframe MUST accept the postMessage from the source origin that
+   was registered with the client.  It MUST reject the postMessage
+   request from other source origin.
+
+   The postMessage from the RP iframe delivers session state, the
+   concatenation of the following, as the data:
+
+   1.  SHA-256 hash of the concatenation of the Client ID, the source
+       origin URL, the OP session state, and a salt, which is 128 bits
+       or more,
+
+   2.  an ASCII period ('.') character, i.e., 0x2E,
+
+   3.  the salt.
+
+   The OP iframe MUST recalculate it from the previously obtained Client
+
+
+
+de Medeiros, et al.                                             [Page 6]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+   ID, the source origin URL, the current OP session state, and the salt
+   obtained from the data.  If the received value and the calculated
+   value do not match, then the OP iframe MUST postMessage the string
+   "changed" back to the source.  If it matched, then it MUST
+   postMessage the string "unchanged".
+
+   Following is a non-normative example pseudo code for the OP iframe.
+
+window.addEventListener("message",receiveMessage, false);
+function receiveMessage(e){
+  if ( e.origin !== "http://client.example.net" ) {
+    return;
+  }
+  var stat;
+  var opss = get_op_session_state();
+  var ss = CryptoJS.SHA256(client_id + origin + opss + salt) + "." + salt;
+  if (e.data == ss) {
+    stat = 'unchanged';
+  } else [
+    stat = 'changed';
+  }
+  e.source.postMessage(stat, e.origin);
+};
+
+4.2.  RP iframe
+
+   The RP also loads an invisible iframe from itself in the same page.
+   This iframe MUST know the id of the OP iframe so that it can
+   postMessage to the OP iframe.
+
+   RP iframe polls OP iframe with postMessage with certain interval
+   suitable for the RP application.  With each postMessage, it sends the
+   session state defined in Section 4.1.  It also has to be able to
+   receive the postMessage back from the OP iframe.  The received data
+   would either be "changed" or "unchanged".  Upon receipt of "changed",
+   the RP MUST perform the re-authentication with "prompt=none" to find
+   the current session state at the OP.
+
+   Following is a non-normative example pseudo code for the RP iframe.
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 7]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+var stat = "unchanged";
+var mes = CryptoJS.SHA256(client_id + origin + opss + salt) + "." + salt;
+
+function check_session()
+{
+  var targetOrigin  = "http://server.example.com";
+  var win = window.parent.document.getElementById("op").contentWindow;
+  win.postMessage( mes, targetOrigin);
+
+}
+function setTimer()
+{
+  check_session();
+  timerID = setInterval("check_session()",3*1000);
+}
+
+window.addEventListener("message", receiveMessage, false);
+
+function receiveMessage(e)
+{
+  var targetOrigin  = "http://server.example.com";
+  if (e.origin !== targetOrigin ) {return;}
+  stat = e.data;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 8]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+5.  RP initiated Logout
+
+   Sometimes, the RP may want to notify the OP that the user has logged
+   out of the site, and he may want to logout of the OP as well.  In
+   this case, the RP, after having logged out the user, sends the user
+   to the OP's logout endpoint URL that is either advertised through
+   OP's provider configuration information or via out of band knowledge.
+
+   Upon receipt of such message, the OP SHOULD prompt the user whether
+   he wants to logout of the OP as well.  If the user says "yes", then
+   the OP MUST log him out.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 9]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+6.  IANA Considerations
+
+   This document makes no requests of IANA.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                            [Page 10]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+7.  Security Considerations
+
+   TBD
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                            [Page 11]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+8.  Normative References
+
+   [OpenID.Messages]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B.,
+              Mortimore, C., and E. Jay, "OpenID Connect Messages 1.0",
+              December 2012.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC6749]  Hardt, D., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, October 2012.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                            [Page 12]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+Appendix A.  Acknowledgements
+
+   Breno de Medeiros, Naveen Agarwal, George Fletcher, Torsten
+   Lodderstedt, Axel Nennker, Amanda Anganes, Justin Richer, Tony
+   Nadalin, Edmund Jay, Michael B. Jones, John Bradley, and Nat Sakimura
+   contributed to the design of this specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                            [Page 13]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+Appendix B.  Notices
+
+   Copyright (c) 2012 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                            [Page 14]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+Appendix C.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -10
+
+   o  Fixed #689 - Track JWT change that allows JWTs to have multiple
+      audiences.
+
+   -09
+
+   o  Changed "user_hint" to "id_token_hint" for consistency with
+      Messages.
+
+   o  Fixed #666 - JWS signature validation vs. verification.
+
+   o  Referenced OAuth 2.0 RFC -- RFC 6749.
+
+   -08
+
+   o  Complete rewrite based on the decisions made at the May 5, 2012
+      face to face working group meeting.
+
+   -07
+
+   o  Added warning about the significant revisions planned to session
+      management to the abstract and introduction.
+
+   o  Changed client.example.com to client.example.org, per issue #251
+
+   o  Listed author of ISO29115 as "International Telecommunication
+      Union and International Organization for Standardization", per
+      issue #589
+
+   o  Use standards track version of JSON Web Token spec
+      (draft-ietf-oauth-json-web-token)
+
+   -06
+
+   o  Updated Notices
+
+   o  Updated References
+
+   -05
+
+   o  Removed Check Session Endpoint
+
+
+
+
+
+de Medeiros, et al.                                            [Page 15]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+   o  Updated ID Token claims to reflect changes in Messages
+
+   -04
+
+   o  Changes associated with renaming "Lite" to "Basic Client" and
+      replacing "Core" and "Framework" with "Messages" and "Standard".
+
+   o  Numerous cleanups, including updating references.
+
+   -03
+
+   o  Corrected examples.
+
+   -02
+
+   o  Correct issues raised by Johnny Bufu and discussed on the 7-Jul-11
+      working group call.
+
+   -01
+
+   o  Consistency and cleanup pass, including removing unused
+      references.
+
+   -00
+
+   o  Split from core when all optional features were removed.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                            [Page 16]
+
+                  OpenID Connect Session Management 1.0    December 2012
+
+
+Authors' Addresses
+
+   Breno de Medeiros
+   Google
+
+   Email: breno@google.com
+
+
+   Naveen Agarwal
+   Google
+
+   Email: naa@google.com
+
+
+   Nat Sakimura (editor)
+   Nomura Research Institute, Ltd.
+
+   Email: n-sakimura@nri.co.jp
+
+
+   John Bradley
+   Ping Identity
+
+   Email: ve7jtb@ve7jtb.com
+
+
+   Michael B. Jones
+   Microsoft
+
+   Email: mbj@microsoft.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                            [Page 17]
+

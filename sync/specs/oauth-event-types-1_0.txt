@@ -1,0 +1,560 @@
+
+
+
+
+                                                            M. Scurtescu
+                                                                  Google
+                                                              A. Backman
+                                                                  Amazon
+                                                                 P. Hunt
+                                                                  Oracle
+                                                              J. Bradley
+                                                                  Yubico
+                                                          April 24, 2018
+
+
+                         OAuth Event Types 1.0
+                         oauth-event-types-1_0
+
+Abstract
+
+   This document defines the OAuth Event Types.  Event Types are
+   introduced and defined in Security Event Token (SET) [SET].
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   1
+     1.1.  Notational Conventions  . . . . . . . . . . . . . . . . .   2
+   2.  OAuth Specific Subject Identifier Types . . . . . . . . . . .   2
+     2.1.  Token Subject Identifier Type . . . . . . . . . . . . . .   2
+     2.2.  Client Subject Identifier Type  . . . . . . . . . . . . .   3
+   3.  Event Types . . . . . . . . . . . . . . . . . . . . . . . . .   3
+     3.1.  Token Issued  . . . . . . . . . . . . . . . . . . . . . .   3
+     3.2.  Token Revoked . . . . . . . . . . . . . . . . . . . . . .   4
+     3.3.  Tokens Revoked  . . . . . . . . . . . . . . . . . . . . .   6
+     3.4.  Client Disabled . . . . . . . . . . . . . . . . . . . . .   7
+     3.5.  Client Enabled  . . . . . . . . . . . . . . . . . . . . .   8
+     3.6.  Client Credential Changed . . . . . . . . . . . . . . . .   8
+   4.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   8
+     4.1.  Subject Identifier Type Registry  . . . . . . . . . . . .   8
+   5.  Normative References  . . . . . . . . . . . . . . . . . . . .   9
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .   9
+
+1.  Introduction
+
+   This specification is based on RISC Profile [RISC-PROFILE] and uses
+   the subject identifiers defined there.
+
+   The "aud" claim identifies the OAuth 2 client and its value SHOULD be
+   the OAuth 2 [RFC6749] client id.
+
+
+
+
+
+
+Scurtescu, et al.       Expires October 26, 2018                [Page 1]
+
+                            oauth-event-types                 April 2018
+
+
+1.1.  Notational Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+2.  OAuth Specific Subject Identifier Types
+
+   This section defines OAuth specific Subject Identifier Types.
+   Subject identifiers are defined in Section 2 of [RISC-PROFILE].
+
+2.1.  Token Subject Identifier Type
+
+   A Token Subject Identifier Type describes an OAuth 2 token subject
+   and it is identified by the name "oauth_token".
+
+   Subject Identifiers of this type MUST contain the following claims:
+
+   o  token_type - required, describes the OAuth 2 token type.  Possible
+      values:
+
+      *  access_token
+
+      *  authorization_code
+
+      *  refresh_token
+
+   o  token_identifier_alg - required, describes how is the token string
+      in the "token" attribute to be interpreted.  Possible values:
+
+      *  plain - plain token string
+
+      *  prefix - token string prefix
+
+      *  hash_* - token string hash, actual hash algorithms added as a
+         suffix.  TODO: create individual values for each hash
+         algorithm.
+
+   o  token - required, the token identifier, as described by
+      "token_identifier_alg".
+
+
+
+
+
+
+
+
+
+Scurtescu, et al.       Expires October 26, 2018                [Page 2]
+
+                            oauth-event-types                 April 2018
+
+
+   "subject": {
+     "subject_type": "oauth_token",
+     "token_type": "refresh_token",
+     "token_identifier_alg": "plain",
+     "token": "7265667265736820746F6B656E20737472696E67"
+   }
+
+             Figure 1: Example: Token Subject Identifier Type
+
+2.2.  Client Subject Identifier Type
+
+   A Client Subject Identifier Type describes an OAuth 2 client subject
+   and it is identified by the name "oauth_client".
+
+   Subjects identifiers of this type MUST contain the following claim:
+
+   o  client_id - required, the OAuth 2 client id.
+
+   "subject": {
+     "subject_type": "oauth_client",
+     "client_id": "636C69656E74206964"
+   }
+
+             Figure 2: Example: Client Subject Identifier Type
+
+3.  Event Types
+
+   The base URI for OAuth Event Types is:
+   https://schemas.openid.net/secevent/oauth/event-type/
+
+3.1.  Token Issued
+
+   Event Type URI:
+   https://schemas.openid.net/secevent/oauth/event-type/token-issued
+
+   Token Issued signals that a new token was issued.
+
+   Attributes:
+
+   o  subject - required, a Subjectect Identifier as defined by
+      Section 2.1 that identifies the token.
+
+   o  token_subject - optional, a Subject Identifier as defined by
+      Section 2.1 of [RISC-PROFILE] that identifies the account
+      associated with the token.
+
+   o  TODO: OAuth flow and endpoints involved in the process?  For
+      example: redirect_uri, response_type, origin?
+
+
+
+Scurtescu, et al.       Expires October 26, 2018                [Page 3]
+
+                            oauth-event-types                 April 2018
+
+
+   The token SHOULD be uniquely identified by the provided attributes,
+   either by "subject" alone or by "subject" in combination with
+   "token_subject".  The token is unique in the context of a given
+   Transmitter and not globally unique.  TODO: do we need a "iss"
+   attribute for the "oauth_token" Subject Type?
+
+   {
+     "iss": "https://idp.example.com/",
+     "jti": "756E69717565206964656E746966696572",
+     "iat": 1508184845,
+     "aud": "636C69656E745F6964",
+     "events": {
+       "https://schemas.openid.net/secevent/oauth/event-type/\
+       token-issued": {
+         "subject": {
+           "subject_type": "oauth_token",
+           "token_type": "refresh_token",
+           "token_identifier_alg": "token_string",
+           "token": "7265667265736820746F6B656E20737472696E67"
+         },
+         "token_subject" {
+           "subject_type": "iss-sub",
+           "iss": "https://idp.example.com/",
+           "sub": "75736572206964"
+         }
+       }
+     }
+   }
+
+   _(the event type URI is wrapped, the backslash is the continuation
+   character)_
+
+                      Figure 3: Example: Token Issued
+
+3.2.  Token Revoked
+
+   Event Type URI:
+   https://schemas.openid.net/secevent/oauth/event-type/token-revoked
+
+   Token Revoked signals that the token identified by this event was
+   revoked.
+
+   Attributes:
+
+   o  subject - required, a Subjectect Identifier as defined by
+      Section 2.1 that identifies the token.
+
+
+
+
+
+Scurtescu, et al.       Expires October 26, 2018                [Page 4]
+
+                            oauth-event-types                 April 2018
+
+
+   o  token_subject - optional, a Subject Identifier as defined by
+      Section 2.1 of [RISC-PROFILE] that identifies the account
+      associated with the token.
+
+   o  reason - optional, the reason why the token was revoked.  Possible
+      values:
+
+      *  inactive - token was revoked by the issuer because of
+         inactivity
+
+      *  too_many - token was revoked by the issuer because an internal
+         limit was reached
+
+      *  api - token was revoked through an API call like [RFC7009]
+
+      *  user - token was revoked explicitly by the user
+
+      *  issuer - token was revoked by the issuer for some other reason
+
+      *  TODO: add extension mechanism (either through URIs or IANA
+         registry)
+
+   The token SHOULD be uniquely identified by the provided attributes,
+   either by "subject" alone or by "subject" in combination with
+   "token_subject".  The token is unique in the context of a given
+   Transmitter and not globally unique.  TODO: do we need a "iss"
+   attribute for the "oauth_token" Subject Type?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Scurtescu, et al.       Expires October 26, 2018                [Page 5]
+
+                            oauth-event-types                 April 2018
+
+
+   {
+     "iss": "https://idp.example.com/",
+     "jti": "756E69717565206964656E746966696572",
+     "iat": 1508184845,
+     "aud": "636C69656E745F6964",
+     "events": {
+       "https://schemas.openid.net/secevent/oauth/event-type/\
+       token-revoked": {
+         "subject": {
+           "subject_type": "oauth_token",
+           "token_type": "refresh_token",
+           "token_identifier_alg": "token_string",
+           "token": "7265667265736820746F6B656E20737472696E67"
+         },
+         "token_subject" {
+           "subject_type": "iss-sub",
+           "iss": "https://idp.example.com/",
+           "sub": "75736572206964"
+         },
+         "reason": "inactive"
+       }
+     }
+   }
+
+   _(the event type URI is wrapped, the backslash is the continuation
+   character)_
+
+                     Figure 4: Example: Token Revoked
+
+3.3.  Tokens Revoked
+
+   Event Type URI:
+   https://schemas.openid.net/secevent/oauth/event-type/tokens-revoked
+
+   Tokens Revoked signals that all tokens issued for the account
+   identified by the subject have been revoked.
+
+   Attributes:
+
+   o  subject - optional, a Subject Identifier as defined by Section 2.1
+      of [RISC-PROFILE] that identifies the account associated with the
+      token.
+
+   o  reason - optional, the reason why all the tokens were revoked.
+      Possible values:
+
+      *  user - all tokens were revoked explicitly by the user
+
+
+
+
+Scurtescu, et al.       Expires October 26, 2018                [Page 6]
+
+                            oauth-event-types                 April 2018
+
+
+      *  issuer - all tokens were revoked by the issuer
+
+      *  TODO: add extension mechanism (either through URIs or IANA
+         registry)
+
+   {
+     "iss": "https://idp.example.com/",
+     "jti": "756E69717565206964656E746966696572",
+     "iat": 1508184845,
+     "aud": "636C69656E745F6964",
+     "events": {
+       "https://schemas.openid.net/secevent/oauth/event-type/\
+       tokens-revoked": {
+         "subject": {
+           "subject_type": "iss-sub",
+           "iss": "https://idp.example.com/",
+           "sub": "7375626A656374",
+         },
+       }
+     }
+   }
+
+   _(the event type URI is wrapped, the backslash is the continuation
+   character)_
+
+                     Figure 5: Example: Tokens Revoked
+
+3.4.  Client Disabled
+
+   Event Type URI:
+   https://schemas.openid.net/secevent/oauth/event-type/client-disabled
+
+   Client Disabled signals that the client identified by the "aud" claim
+   has been disabled.  The client may be enabled (Section 3.5) in the
+   future.
+
+   Attributes: TODO use client subject identifier
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Scurtescu, et al.       Expires October 26, 2018                [Page 7]
+
+                            oauth-event-types                 April 2018
+
+
+   {
+     "iss": "https://idp.example.com/",
+     "jti": "756E69717565206964656E746966696572",
+     "iat": 1508184845,
+     "aud": "636C69656E745F6964",
+     "events": {
+       "https://schemas.openid.net/secevent/oauth/event-type/\
+       client-disabled": {}
+     }
+   }
+
+   _(the event type URI is wrapped, the backslash is the continuation
+   character)_
+
+                    Figure 6: Example: Client Disabled
+
+3.5.  Client Enabled
+
+   Event Type URI:
+   https://schemas.openid.net/secevent/oauth/event-type/client-enabled
+
+   Client Enabled signals that the client identified by the "aud" claim
+   has been enabled.
+
+   Attributes: TODO use client subject identifier
+
+3.6.  Client Credential Changed
+
+   Event Type URI:
+   https://schemas.openid.net/secevent/oauth/event-type/client-
+   credential-changed
+
+   Client Credential Changed signals that one of the credentials of the
+   client identified by the "aud" claim has changed.  For example the
+   client secret has changed.
+
+   Attributes: TODO use client subject identifier
+
+4.  IANA Considerations
+
+4.1.  Subject Identifier Type Registry
+
+   TODO: register "oauth_token" and "oauth_client" subject identifier
+   types.
+
+
+
+
+
+
+
+Scurtescu, et al.       Expires October 26, 2018                [Page 8]
+
+                            oauth-event-types                 April 2018
+
+
+5.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997, <https://www.rfc-
+              editor.org/info/rfc2119>.
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <https://www.rfc-editor.org/info/rfc6749>.
+
+   [RFC7009]  Lodderstedt, T., Ed., Dronia, S., and M. Scurtescu, "OAuth
+              2.0 Token Revocation", RFC 7009, DOI 10.17487/RFC7009,
+              August 2013, <https://www.rfc-editor.org/info/rfc7009>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RISC-PROFILE]
+              Scurtescu, M., Backman, A., and J. Bradley, "OpenID RISC
+              Profile of IETF Security Events 1.0", April 2018,
+              <http://openid.net/specs/openid-risc-profile-1_0.html>.
+
+   [SET]      Hunt, P., Ed., Jones, M., Denniss, W., and M. Ansari,
+              "Security Event Token (SET)", April 2018,
+              <https://tools.ietf.org/html/draft-ietf-secevent-token-
+              09>.
+
+Authors' Addresses
+
+   Marius Scurtescu
+   Google
+
+   Email: mscurtescu@google.com
+
+
+   Annabelle Backman
+   Amazon
+
+   Email: richanna@amazon.com
+
+
+   Phil Hunt
+   Oracle Corporation
+
+   Email: phil.hunt@yahoo.com
+
+
+
+
+Scurtescu, et al.       Expires October 26, 2018                [Page 9]
+
+                            oauth-event-types                 April 2018
+
+
+   John Bradley
+   Yubico
+
+   Email: secevemt@ve7jtb.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Scurtescu, et al.       Expires October 26, 2018               [Page 10]

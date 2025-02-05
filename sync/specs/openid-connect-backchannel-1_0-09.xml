@@ -1,0 +1,1517 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml2rfc.tools.ietf.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN" "http://xml2rfc.tools.ietf.org/authoring/rfc2629.dtd">
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="openid-connect-backchannel-1_0" ipr="none">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="5" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="yes" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title abbrev="OpenID Connect Back-Channel Logout 1.0">OpenID Connect
+    Back-Channel Logout 1.0 - draft 09</title>
+
+    <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      <organization abbrev="Microsoft">Microsoft</organization>
+      <address>
+        <email>mbj@microsoft.com</email>
+	<uri>https://self-issued.info/</uri>
+      </address>
+    </author>
+
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization abbrev="Yubico">Yubico</organization>
+      <address>
+        <email>ve7jtb@ve7jtb.com</email>
+	<uri>http://www.thread-safe.com/</uri>
+      </address>
+    </author>
+
+    <date day="23" month="August" year="2022" />
+
+    <workgroup>OpenID Connect Working Group</workgroup>
+
+    <abstract>
+      <t>OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+      protocol. It enables Clients to verify the identity of the End-User based
+      on the authentication performed by an Authorization Server, as well as to
+      obtain basic profile information about the End-User in an interoperable and
+      REST-like manner.</t>
+
+      <t>
+	This specification defines a logout mechanism that uses direct back-channel
+	communication between the OP and RPs being logged out;
+	this differs from front-channel logout mechanisms,
+	which communicate logout requests from the OP to RPs via the User Agent.
+      </t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+
+      <t>
+	OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+	<xref target="RFC6749"/>
+	protocol. It enables Clients to verify the identity of the End-User based
+	on the authentication performed by an Authorization Server, as well as to
+	obtain basic profile information about the End-User in an interoperable and
+	REST-like manner.
+      </t>
+      <t>
+	This specification defines a logout mechanism that uses direct back-channel
+	communication between the OP and RPs being logged out;
+	this differs from front-channel logout mechanisms,
+	which communicate logout requests from the OP to RPs via the User Agent.
+      </t>
+      <t>
+	An upside of back-channel communication is that it can be more reliable
+	than communication through the User Agent, since in the front-channel,
+	the RP's browser session must be active for the communication to succeed.
+	(If the RP's browser tab was subsequently used to navigate to an unrelated page,
+	the RP session will be active unless the user uses the back button to return to it.)
+	Both the <xref target="OpenID.Session">OpenID Connect Session Management 1.0</xref>
+	and <xref target="OpenID.FrontChannel">OpenID Connect Front-Channel Logout 1.0</xref>
+	specifications use front-channel communication,
+	which communicate logout requests from the OP to RPs via the User Agent.
+      </t>
+      <t>
+	A downside of back-channel communication is that the session state maintained between
+	the OP and RP over the front-channel, such as cookies and HTML5 local storage,
+	are not available when using back-channel communication.
+	As a result, all needed state must be explicitly communicated between the parties.
+	Furthermore, RPs must implement an application-specific method of terminating
+	RP sessions with the OP upon receiving back-channel logout requests;
+	this can be more complicated than simply clearing cookies and HTML5 local storage state,
+	which is often all that has to happen to implement logout in response to
+	front-channel logout requests.
+      </t>
+      <t>
+	Another significant limitation of back-channel logout is that the RP's
+	back-channel logout URI must be reachable from all the OPs used.
+	This means, for instance, that the RP cannot be behind a firewall or NAT
+	when used with public OPs.
+      </t>
+      <t>
+	The
+	<xref target="OpenID.RPInitiated">OpenID Connect RP-Initiated Logout 1.0</xref>
+	specification complements these specifications by defining a mechanism for a Relying Party
+	to request that an OpenID Provider log out the End-User.
+      </t>
+      <t>
+	This specification can be used separately from or in combination with
+	OpenID Connect RP-Initiated Logout 1.0,
+	OpenID Connect Session Management 1.0, and/or
+	OpenID Connect Front-Channel Logout 1.0.
+      </t>
+
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+        "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
+        document are to be interpreted as described in <xref
+        target="RFC2119">RFC 2119</xref>.</t>
+
+	<t>
+	  In the .txt version of this specification,
+	  values are quoted to indicate that they are to be taken literally.
+	  When using these values in protocol messages,
+	  the quotes MUST NOT be used as part of the value.
+	  In the HTML version of this specification,
+	  values to be taken literally are indicated by
+	  the use of <spanx style="verb">this fixed-width font</spanx>.
+	</t>
+      </section>
+
+      <section anchor="Terminology" title="Terminology">
+        <t>
+	  This specification uses the terms
+	  "Authorization Server",
+	  "Client", "Client Identifier", and "Redirection URI"
+	  defined by <xref target="RFC6749">OAuth 2.0</xref>,
+	  the term "User Agent" defined by <xref target="RFC7230">RFC 7230</xref>,
+	  the terms "Session" and "Session ID" defined by
+	  <xref target="OpenID.FrontChannel">OpenID Connect Front-Channel Logout 1.0</xref>
+	  and the terms defined by
+	  <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>
+	  and <xref target="JWT">JSON Web Token (JWT)</xref>.
+	</t>
+	<t>
+	  This specification also defines the following term:
+	  <list style="hanging">
+
+            <t hangText="Logout Token">
+	      <vspace/>
+              <xref target="JWT">JSON Web Token (JWT)</xref> similar to an ID Token
+	      that contains Claims about the logout action being requested.
+            </t>
+
+	  </list>
+	</t>
+      </section>
+
+    </section>
+
+    <section anchor="Backchannel" title="Back-Channel Logout">
+      <section anchor="BCSupport" title="Indicating OP Support for Back-Channel Logout">
+	<t>
+	  If the OpenID Provider supports
+	  <xref target="OpenID.Discovery">OpenID Connect Discovery 1.0</xref>,
+	  it uses this metadata value to advertise its support for back-channel logout:
+	</t>
+	<t>
+	  <list style="hanging">
+	    <t hangText="backchannel_logout_supported">
+	      <vspace/>
+	      OPTIONAL.
+	      Boolean value specifying whether the OP supports back-channel logout,
+	      with <spanx style="verb">true</spanx> indicating support.
+	      If omitted, the default value is <spanx style="verb">false</spanx>.
+	    </t>
+	  </list>
+	</t>
+	<t>
+	  It SHOULD also register this related metadata value:
+	</t>
+	<t>
+	  <list style="hanging">
+	    <t hangText="backchannel_logout_session_supported">
+	      <vspace/>
+	      OPTIONAL.
+	      Boolean value specifying whether the OP can pass
+	      a <spanx style="verb">sid</spanx> (session ID)
+	      Claim in the Logout Token to identify the RP session with the OP.
+	      If supported, the <spanx style="verb">sid</spanx>
+	      Claim is also included in ID Tokens issued by the OP.
+	      If omitted, the default value is <spanx style="verb">false</spanx>.
+	    </t>
+	  </list>
+	</t>
+	<t>
+	  The <spanx style="verb">sid</spanx> (session ID) Claim used in ID Tokens and
+	  as a Logout Token parameter has the following definition
+	  (which is identical to the corresponding definition in
+	  <xref target="OpenID.FrontChannel">OpenID Connect Front-Channel Logout 1.0</xref>):
+	</t>
+	<t>
+	  <list style="hanging">
+	    <t hangText="sid">
+	      <vspace/>
+	      OPTIONAL.
+	      Session ID - String identifier for a Session.
+	      This represents a Session of a User Agent or device
+	      for a logged-in End-User at an RP.
+	      Different <spanx style="verb">sid</spanx> values are used to identify
+	      distinct sessions at an OP.
+	      The <spanx style="verb">sid</spanx> value need only be unique
+	      in the context of a particular issuer.
+	      Its contents are opaque to the RP.
+	      Its syntax is the same as an OAuth 2.0 Client Identifier.
+	    </t>
+	  </list>
+	</t>
+
+      </section>
+
+      <section anchor="BCRegistration" title="Indicating RP Support for Back-Channel Logout">
+	<t>
+	  Relying Parties supporting back-channel-based logout register a back-channel logout URI
+	  with the OP as part of their client registration.
+	</t>
+	<t>
+	  The back-channel logout URI MUST be an absolute URI as defined by
+	  Section 4.3 of <xref target='RFC3986' />.
+	  The back-channel logout URI MAY include an
+	  <spanx style='verb'>application/x-www-form-urlencoded</spanx> formatted
+	  query component, per Section 3.4 of <xref target='RFC3986' />,
+	  which MUST be retained when adding additional query parameters.
+	  The back-channel logout URI MUST NOT include a fragment component.
+	</t>
+	<t>
+	  If the RP supports
+	  <xref target="OpenID.Registration">OpenID Connect Dynamic Client Registration 1.0</xref>,
+	  it uses this metadata value to register the back-channel logout URI:
+	</t>
+	<t>
+	  <list style="hanging">
+	    <t hangText="backchannel_logout_uri">
+	      <vspace/>
+	      OPTIONAL.
+	      RP URL that will cause the RP to log itself out
+	      when sent a Logout Token by the OP.
+	      This URL SHOULD use the <spanx style="verb">https</spanx> scheme
+	      and MAY contain port, path, and query parameter components;
+	      however, it MAY use the <spanx style="verb">http</spanx> scheme,
+	      provided that the Client Type is <spanx style="verb">confidential</spanx>,
+	      as defined in Section 2.1 of <xref target="RFC6749">OAuth 2.0</xref>, and
+	      provided the OP allows the use of <spanx style="verb">http</spanx> RP URIs.
+	    </t>
+	  </list>
+	</t>
+	<t>
+	  It SHOULD also register this related metadata value:
+	</t>
+	<t>
+	  <list style="hanging">
+	    <t hangText="backchannel_logout_session_required">
+	      <vspace/>
+	      OPTIONAL.
+	      Boolean value specifying whether the RP requires that
+	      a <spanx style="verb">sid</spanx> (session ID)
+	      Claim be included in the Logout Token to identify the RP session with the OP
+	      when the <spanx style="verb">backchannel_logout_uri</spanx> is used.
+	      If omitted, the default value is <spanx style="verb">false</spanx>.
+	    </t>
+	  </list>
+	</t>
+      </section>
+
+      <section anchor="Tracking" title="Remembering Logged-In RPs">
+	<t>
+	  OPs supporting back-channel logout need to keep track of
+	  the set of logged-in RPs so that they know what RPs to contact
+	  at their back-channel logout URIs to cause them to log out.
+	  Some OPs track this state using a "visited sites" cookie.
+	  OPs are encouraged to send logout requests to them in parallel.
+	</t>
+      </section>
+
+      <section anchor="LogoutToken" title="Logout Token">
+	<t>
+	  OPs send a JWT similar to an ID Token to RPs called a Logout Token
+	  to request that they log out.
+	  ID Tokens are defined in Section 2 of <xref target="OpenID.Core"/>.
+	</t>
+	<t>
+	  The following Claims are used within the Logout Token:
+	</t>
+
+	<t>
+	  <list style="hanging">
+	    <t hangText="iss">
+	      <vspace/>
+	      REQUIRED.
+	      Issuer Identifier, as specified in Section 2 of <xref target="OpenID.Core"/>.
+	    </t>
+
+	    <t hangText="sub">
+	      <vspace/>
+	      OPTIONAL.
+	      Subject Identifier, as specified in Section 2 of <xref target="OpenID.Core"/>.
+	    </t>
+
+	    <t hangText="aud">
+	      <vspace/>
+	      REQUIRED.
+	      Audience(s), as specified in Section 2 of <xref target="OpenID.Core"/>.
+	    </t>
+
+	    <t hangText="iat">
+	      <vspace/>
+	      REQUIRED.
+	      Issued at time, as specified in Section 2 of <xref target="OpenID.Core"/>.
+	    </t>
+
+	    <t hangText="jti">
+	      <vspace/>
+	      REQUIRED.
+	      Unique identifier for the token, as specified in Section 9 of <xref target="OpenID.Core"/>.
+	    </t>
+
+	    <t hangText="events">
+	      <vspace/>
+	      REQUIRED.
+	      Claim whose value is a JSON object
+	      containing the member name
+	      <spanx style="verb">http://schemas.openid.net/event/backchannel-logout</spanx>.
+	      This declares that the JWT is a Logout Token.
+	      The corresponding member value MUST be a JSON object and
+	      SHOULD be the empty JSON object <spanx style="verb">{}</spanx>.
+	    </t>
+
+	    <t hangText="sid">
+	      <vspace/>
+	      OPTIONAL.
+	      Session ID - String identifier for a Session.
+	      This represents a Session of a User Agent or device
+	      for a logged-in End-User at an RP.
+	      Different <spanx style="verb">sid</spanx> values are used to identify
+	      distinct sessions at an OP.
+	      The <spanx style="verb">sid</spanx> value need only be unique
+	      in the context of a particular issuer.
+	      Its contents are opaque to the RP.
+	      Its syntax is the same as an OAuth 2.0 Client Identifier.
+	    </t>
+
+	  </list>
+	</t>
+	<t>
+	  A Logout Token MUST contain either a <spanx style="verb">sub</spanx>
+	  or a <spanx style="verb">sid</spanx> Claim, and MAY contain both.
+	  If a <spanx style="verb">sid</spanx> Claim is not present,
+	  the intent is that all sessions at the RP
+	  for the End-User identified by the <spanx style="verb">iss</spanx>
+	  and <spanx style="verb">sub</spanx> Claims be logged out.
+	</t>
+	<t>
+	  The following Claim MUST NOT be used within the Logout Token:
+	</t>
+	<t>
+	  <list style="hanging">
+	    <t hangText="nonce">
+	      <vspace/>
+	      PROHIBITED.
+	      A <spanx style="verb">nonce</spanx> Claim MUST NOT be present.
+	      Its use is prohibited to make a Logout Token syntactically invalid
+	      if used in a forged Authentication Response in place of an ID Token.
+	    </t>
+	  </list>
+	</t>
+	<t>
+	  Logout Tokens MAY contain other Claims.
+	  Any Claims used that are not understood MUST be ignored.
+	</t>
+	<t>
+	  A Logout Token MUST be signed and MAY also be encrypted.
+	  The same keys are used to sign and encrypt Logout Tokens
+	  as are used for ID Tokens.
+	  If the Logout Token is encrypted, it SHOULD replicate the
+	  <spanx style="verb">iss</spanx> (issuer) claim
+	  in the JWT Header Parameters,
+	  as specified in Section 5.3 of <xref target="JWT"/>.
+	</t>
+	<t>
+	  It is RECOMMENDED that Logout Tokens be explicitly typed.
+	  This is accomplished by including a <spanx style="verb">typ</spanx> (type) Header Parameter
+	  with a value of <spanx style="verb">logout+jwt</spanx> in the Logout Token.
+	  See <xref target="CrossJWT"/> for a discussion of the security and interoperability considerations
+	  of using explicit typing.
+	</t>
+	<t>
+	  NOTE: The Logout Token is compatible with
+	  the Security Event Token (SET) <xref target="RFC8417"/> specification,
+	  but uses a more specific <spanx style="verb">typ</spanx> (type) value.
+	</t>
+	<figure>
+	  <preamble>
+	    A non-normative example JWT Claims Set for a Logout Token follows:
+	  </preamble>
+	  <artwork><![CDATA[
+  {
+   "iss": "https://server.example.com",
+   "sub": "248289761001",
+   "aud": "s6BhdRkqt3",
+   "iat": 1471566154,
+   "jti": "bWJq",
+   "sid": "08a5019c-17e1-4977-8f42-65a12843ea02",
+   "events": {
+     "http://schemas.openid.net/event/backchannel-logout": {}
+     }
+  }
+]]></artwork>
+	</figure>
+      </section>
+
+      <section anchor="BCRequest" title="Back-Channel Logout Request">
+	<t>
+	  The OP uses an HTTP POST to the registered back-channel logout URI
+	  to trigger the logout actions by the RP.  The POST body uses the
+	  <spanx style="verb">application/x-www-form-urlencoded</spanx> encoding
+	  and must include a <spanx style="verb">logout_token</spanx> parameter
+	  containing a Logout Token from the OP for the RP identifying the
+	  End-User to be logged out.
+	</t>
+	<t>
+	  The POST body MAY contain other values in addition to
+	  <spanx style="verb">logout_token</spanx>.
+	  Values that are not understood by the implementation MUST be ignored.
+	</t>
+	<figure>
+	  <preamble>
+	    The following is a non-normative example of such a logout request
+	    (with most of the Logout Token contents omitted for brevity):
+	  </preamble>
+
+	  <artwork><![CDATA[
+  POST /backchannel_logout HTTP/1.1
+  Host: rp.example.org
+  Content-Type: application/x-www-form-urlencoded
+
+  logout_token=eyJhbGci ... .eyJpc3Mi ... .T3BlbklE ...
+]]></artwork>
+	</figure>
+
+	<t>
+	  The OP should not retransmit a Back-Channel Logout Request unless the OP suspects that
+	  previous transmissions may have failed due to potentially recoverable errors
+	  (such as network outage or temporary service interruption at either the OP or RP).
+	  In this case, the OP SHOULD delay retransmission for an appropriate amount of time
+	  to avoid overwhelming the RP.
+	  In all other cases, the OP SHOULD NOT retransmit a Back-Channel Logout Request.
+	  (Note that this is the same retransmission logic as specified in
+	  <xref target="RFC8935">Push-Based Security Event Token (SET) Delivery Using HTTP</xref>.)
+	</t>
+      </section>
+
+      <section anchor="Validation" title="Logout Token Validation">
+	<t>
+	   Upon receiving a logout request at the back-channel logout URI,
+	   the RP MUST validate the Logout Token as follows:
+	</t>
+
+	<t>
+	  <list style="numbers">
+	    <t>
+	      If the Logout Token is encrypted, decrypt it using the
+	      keys and algorithms that the Client specified during Registration
+	      that the OP was to use to encrypt ID Tokens.
+	      If ID Token encryption was negotiated with the OP at Registration time
+	      and the Logout Token is not encrypted, the RP SHOULD reject it.
+	    </t>
+	    <t>
+	      Validate the Logout Token signature in the same way that
+	      an ID Token signature is validated, with the following refinements.
+	    </t>
+	    <t>
+	      Validate the <spanx style="verb">alg</spanx> (algorithm)
+	      Header Parameter in the same way it is validated for ID Tokens.
+	      Like ID Tokens, selection of the algorithm used is governed by
+	      the <spanx style="verb">id_token_signing_alg_values_supported</spanx> Discovery parameter
+	      and the <spanx style="verb">id_token_signed_response_alg</spanx> Registration parameter
+	      when they are used;
+	      otherwise, the value SHOULD be the default of <spanx style="verb">RS256</spanx>.
+	      Additionally, an <spanx style="verb">alg</spanx> with the value
+	      <spanx style="verb">none</spanx> MUST NOT be used for Logout Tokens.
+	    </t>
+	    <t>
+	      Validate the <spanx style="verb">iss</spanx>,
+	      <spanx style="verb">aud</spanx>,
+	      and <spanx style="verb">iat</spanx>
+	      Claims in the same way they are validated in ID Tokens.
+	    </t>
+	    <t>
+	      Verify that the Logout Token contains a <spanx style="verb">sub</spanx> Claim,
+	      a <spanx style="verb">sid</spanx> Claim, or both.
+	    </t>
+	    <t>
+	      Verify that the Logout Token contains an
+	      <spanx style="verb">events</spanx> Claim
+	      whose value is JSON object containing the member name
+	      <spanx style="verb">http://schemas.openid.net/event/backchannel-logout</spanx>.
+	    </t>
+	    <t>
+	      Verify that the Logout Token does not contain a
+	      <spanx style="verb">nonce</spanx> Claim.
+	    </t>
+	    <t>
+	      Optionally verify that another Logout Token with the same
+	      <spanx style="verb">jti</spanx> value has not been recently received.
+	    </t>
+	    <t>
+	      Optionally verify that the <spanx style="verb">iss</spanx> Logout Token Claim
+	      matches the <spanx style="verb">iss</spanx> Claim in an ID Token issued
+	      for the current session or a recent session of this RP with the OP.
+	    </t>
+	    <t>
+	      Optionally verify that any <spanx style="verb">sub</spanx> Logout Token Claim
+	      matches the <spanx style="verb">sub</spanx> Claim in an ID Token issued
+	      for the current session or a recent session of this RP with the OP.
+	    </t>
+	    <t>
+	      Optionally verify that any <spanx style="verb">sid</spanx> Logout Token Claim
+	      matches the <spanx style="verb">sid</spanx> Claim in an ID Token issued
+	      for the current session or a recent session of this RP with the OP.
+	    </t>
+	  </list>
+	</t>
+	<t>
+	  If any of the validation steps fails, reject the Logout Token
+	  and return an HTTP 400 Bad Request error.
+	  Otherwise, proceed to perform the logout actions.
+	</t>
+
+      </section>
+
+      <section anchor="BCActions" title="Back-Channel Logout Actions">
+	<t>
+	  After receiving a valid Logout Token from the OpenID Provider,
+	  the RP locates the session(s) identified by the
+	  <spanx style="verb">iss</spanx> and
+	  <spanx style="verb">sub</spanx> Claims
+	  and/or the <spanx style="verb">sid</spanx> Claim.
+	  The RP then clears any state associated with the identified session(s).
+	  The mechanism by which the RP achieves this is implementation specific.
+	  If the identified End-User is already logged out at the RP when the logout request
+	  is received, the logout is considered to have succeeded.
+	</t>
+	<t>
+	  In the case that the RP is also an OP serving as an identity provider
+	  to downstream logged-in sessions, it is desirable for the logout request
+	  to the RP to likewise trigger downstream logout requests.
+	  This is achieved by having the RP/OP send logout requests to its downstream RPs
+	  as part of its logout actions.
+	</t>
+	<t>
+	  Refresh tokens issued without the <spanx style="verb">offline_access</spanx> property
+	  to a session being logged out SHOULD be revoked.
+	  Refresh tokens issued with the <spanx style="verb">offline_access</spanx> property
+	  normally SHOULD NOT be revoked.
+	</t>
+      </section>
+
+      <section anchor="BCResponse" title="Back-Channel Logout Response">
+	<t>
+	  If the logout succeeded, the RP MUST respond with HTTP 200 OK.
+	  However, note that some Web frameworks will substitute an HTTP 204 No Content response
+	  for an HTTP 200 OK when the HTTP body is empty.
+	  Therefore, OPs should be prepared to also process an HTTP 204 No Content response as a successful response.
+	</t>
+	<t>
+	  If the logout request was invalid or the logout failed,
+	  the RP MUST respond with HTTP 400 Bad Request.
+	  The response MAY include an HTTP body consisting of a JSON object with
+	  <spanx style="verb">error</spanx> and <spanx style="verb">error_description</spanx> parameters
+	  conveying the nature of the error that occured, which can assist with debugging.
+	  These error response parameters are used as specified in Section 5.2 of <xref target="RFC6749">OAuth 2.0</xref>.
+	  Like in OAuth 2.0, the parameters are included in the entity-body of the HTTP response
+	  using the <spanx style="verb">application/json</spanx> media type.
+	  Also like in OAuth 2.0, the <spanx style="verb">error</spanx> parameter is REQUIRED when a response body is present
+	  and the <spanx style="verb">error_description</spanx> parameter is OPTIONAL.
+	  An <spanx style="verb">error</spanx> value of <spanx style="verb">invalid_request</spanx>
+	  MAY be used to indicate that there was a problem with the syntax of the logout request.
+	  Note that the information conveyed in the response body is intended to help debug deployments;
+	  it is not intended that implementations use different <spanx style="verb">error</spanx> values
+	  to trigger different runtime behaviors.
+	</t>
+	<t>
+	  The RP's response SHOULD include the <spanx style="verb">Cache-Control</spanx>
+	  HTTP response header field with a <spanx style="verb">no-store</spanx> value,
+	  keeping the response from being cached to prevent cached responses
+	  from interfering with future logout requests.
+	  An example of this is:
+	</t>
+	<figure><artwork><![CDATA[
+  Cache-Control: no-store
+]]></artwork></figure>
+      </section>
+
+    </section>
+
+    <section anchor="ImplementationConsiderations" title="Implementation Considerations">
+      <t>
+	This specification defines features used by both Relying Parties and
+	OpenID Providers that choose to implement Back-Channel Logout.
+	All of these Relying Parties and OpenID Providers
+	MUST implement the features that are listed
+	in this specification as being "REQUIRED" or are described with a "MUST".
+	No other implementation considerations for implementations of
+	Back-Channel Logout are defined by this specification.
+      </t>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>
+	The signed Logout Token is required in the logout request to prevent
+	denial of service attacks by enabling the RP to verify that
+	the logout request is coming from a legitimate party.
+      </t>
+      <t>
+	The kinds of Relying Parties that can be logged out by different implementations
+	will vary.  Implementations should make it clear, for instance,
+	whether they are capable of logging out native applications or only Web RPs.
+      </t>
+      <t>
+	OPs are encouraged to use short expiration times in Logout Tokens,
+	preferably at most two minutes in the future,
+	to prevent captured Logout Tokens from being replayable.
+      </t>
+
+      <section title="Cross-JWT Confusion" anchor="CrossJWT">
+	<t>
+	  As described in Section 2.8 of <xref target="RFC8725"/>,
+	  attackers may attempt to use a JWT issued for one purpose in a context that it was not intended for.
+	  The mitigations described for these attacks can be applied to Logout Tokens.
+	</t>
+	<t>
+	  One way that an attacker might attempt to repurpose a Logout Token
+	  is to try to use it as an ID Token.
+	  As described in <xref target="LogoutToken"/>,
+	  inclusion of a <spanx style="verb">nonce</spanx> Claim in a Logout Token
+	  is prohibited to prevent its misuse as an ID Token.
+	</t>
+	<t>
+	  Another way to prevent cross-JWT confusion is to use explicit typing,
+	  as described in Section 3.11 of <xref target="RFC8725"/>.
+	  One would explicitly type a Logout Token by including a
+	  <spanx style="verb">typ</spanx> (type) Header Parameter with a value of
+	  <spanx style="verb">logout+jwt</spanx>
+	  (which is registered in <xref target="MediaContents"/>.
+	  Note that the <spanx style="verb">application/</spanx> portion of the
+	  <spanx style="verb">application/logout+jwt</spanx> media type name is omitted
+	  when used as a <spanx style="verb">typ</spanx> Header Parameter value,
+	  as described in the <spanx style="verb">typ</spanx> definition
+	  in Section 4.1.9 <xref target="JWS"/>.
+	  Including an explicit type in issued Logout Tokens is a best practice.
+	  Note however, that requiring explicitly typed Logout Tokens
+	  will break most existing deployments,
+	  as existing OPs and RPs are already commonly using untyped Logout Tokens.
+	  However, requiring explicit typing would be a good idea
+	  for new deployment profiles where compatibility with existing deployments
+	  is not a consideration.
+	</t>
+      </section>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+
+      <section anchor="DynRegRegistration" title="OAuth Dynamic Client Registration Metadata Registration">
+	<t>
+	  This specification registers the following client metadata definitions
+	  in the IANA "OAuth Dynamic Client Registration Metadata" registry
+	  <xref target="IANA.OAuth.Parameters"/>
+	  established by <xref target="RFC7591"/>:
+	</t>
+
+	<section anchor="DynRegContents" title="Registry Contents">
+	  <t> <?rfc subcompact="yes"?>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">backchannel_logout_uri</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		RP URL that will cause the RP to log itself out
+		when sent a Logout Token by the OP
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="BCRegistration"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">backchannel_logout_session_required</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		Boolean value specifying whether the RP requires that
+		a <spanx style="verb">sid</spanx> (session ID)
+		Claim be included in the Logout Token to identify the RP session with the OP
+		when the <spanx style="verb">backchannel_logout_uri</spanx> is used
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="BCRegistration"/> of this specification
+	      </t>
+	    </list>
+	  </t>
+	</section>
+	<?rfc subcompact="no"?>
+      </section>
+
+      <section anchor="ASMetadataRegistry" title="OAuth Authorization Server Metadata Registry">
+	<t>
+	  This specification registers the following metadata names in the
+	  IANA "OAuth Authorization Server Metadata" registry <xref target="IANA.OAuth.Parameters"/>
+	  established by <xref target="RFC8414"/>.
+	</t>
+
+	<section anchor='MetadataContents' title='Registry Contents'>
+	  <t>
+	    <?rfc subcompact="yes"?>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">backchannel_logout_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		Boolean value specifying whether the OP supports back-channel logout,
+		with <spanx style="verb">true</spanx> indicating support
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="Backchannel"/> of this document
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">backchannel_logout_session_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		Boolean value specifying whether the OP can pass
+		a <spanx style="verb">sid</spanx> (session ID)
+		Claim in the Logout Token to identify the RP session with the OP
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="Backchannel"/> of this document
+              </t>
+	    </list>
+	  </t>
+	</section>
+	<?rfc subcompact="no"?>
+
+      </section>
+
+      <section title="Media Type Registration" anchor="MediaReg">
+	<section title="Registry Contents" anchor="MediaContents">
+	  <t>
+	    This section registers the
+	    <spanx style="verb">application/logout+jwt</spanx>
+	    media type <xref target="RFC2046"/> in the IANA "Media Types"
+	    registry <xref target="IANA.MediaTypes"/> in the manner
+	    described in <xref target="RFC6838"/>, which can be used to
+	    indicate that the content is a Logout Token.
+	  </t>
+	  <t> <?rfc subcompact="yes"?>
+	  <list style="symbols">
+	    <t>
+	      Type name: application
+	    </t>
+	    <t>
+	      Subtype name: logout+jwt
+	    </t>
+	    <t>
+	      Required parameters: n/a
+	    </t>
+	    <t>
+	      Optional parameters: n/a
+	    </t>
+	    <t>
+	      Encoding considerations: binary;
+	      A Logout Token is a JWT;
+	      JWT values are encoded as a
+	      series of base64url-encoded values (some of which may be the
+	      empty string) separated by period ('.') characters.
+	    </t>
+	    <t>
+	      Security considerations: See <xref target="CrossJWT"/> of this specification
+	    </t>
+	    <t>
+	      Interoperability considerations: n/a
+	    </t>
+	    <t>
+	      Published specification: <xref target="LogoutToken"/> of this specification
+	    </t>
+	    <t>
+	      Applications that use this media type:
+	      Applications that use Logout Tokens to achieve back-channel logout
+	    </t>
+	    <t>
+	      Fragment identifier considerations: n/a
+	    </t>
+	    <t>
+	      Additional information:<list style="empty">
+	      <t>Magic number(s): n/a</t>
+	      <t>File extension(s): n/a</t>
+	      <t>Macintosh file type code(s): n/a </t></list>
+	      <vspace/>
+	    </t>
+	    <t>
+	      Person &amp; email address to contact for further information:
+	      <vspace/>
+	      OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	    </t>
+	    <t>
+	      Intended usage: COMMON
+	    </t>
+	    <t>
+	      Restrictions on usage: none
+	    </t>
+	    <t>
+	      Author: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	    </t>
+	    <t>
+	      Change controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	    </t>
+	    <t>
+	      Provisional registration? No
+	    </t>
+	  </list>
+	  </t>
+	</section>
+	<?rfc subcompact="no"?>
+      </section>
+
+    </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml -->
+
+<reference anchor="RFC2119" target="https://www.rfc-editor.org/info/rfc2119">
+  <front>
+    <title>Key words for use in RFCs to Indicate Requirement Levels</title>
+    <author fullname="S. Bradner" initials="S" surname="Bradner"/>
+    <date month="March" year="1997"/>
+    <abstract>
+      <t>In many standards track documents several words are used to signify the requirements in the specification.  These words are often capitalized.  This document defines these words as they should be interpreted in IETF documents.  This document specifies an Internet Best Current Practices for the Internet Community, and requests discussion and suggestions for improvements.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="BCP" value="14"/>
+  <seriesInfo name="RFC" value="2119"/>
+  <seriesInfo name="DOI" value="10.17487/RFC2119"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.3986.xml -->
+
+<reference anchor="RFC3986" target="https://www.rfc-editor.org/info/rfc3986">
+  <front>
+    <title>Uniform Resource Identifier (URI): Generic Syntax</title>
+    <author fullname="T. Berners-Lee" initials="T" surname="Berners-Lee"/>
+    <author fullname="R. Fielding" initials="R" surname="Fielding"/>
+    <author fullname="L. Masinter" initials="L" surname="Masinter"/>
+    <date month="January" year="2005"/>
+    <abstract>
+      <t>A Uniform Resource Identifier (URI) is a compact sequence of characters that identifies an abstract or physical resource.  This specification defines the generic URI syntax and a process for resolving URI references that might be in relative form, along with guidelines and security considerations for the use of URIs on the Internet.  The URI syntax defines a grammar that is a superset of all valid URIs, allowing an implementation to parse the common components of a URI reference without knowing the scheme-specific requirements of every possible identifier.  This specification does not define a generative grammar for URIs; that task is performed by the individual specifications of each URI scheme. [STANDARDS-TRACK]</t>
+    </abstract>
+  </front>
+  <seriesInfo name="STD" value="66"/>
+  <seriesInfo name="RFC" value="3986"/>
+  <seriesInfo name="DOI" value="10.17487/RFC3986"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.6749.xml -->
+
+<reference anchor="RFC6749" target="https://www.rfc-editor.org/info/rfc6749">
+  <front>
+    <title>The OAuth 2.0 Authorization Framework</title>
+    <author fullname="D. Hardt" initials="D" role="editor" surname="Hardt"/>
+    <date month="October" year="2012"/>
+    <abstract>
+      <t>The OAuth 2.0 authorization framework enables a third-party application to obtain limited access to an HTTP service, either on behalf of a resource owner by orchestrating an approval interaction between the resource owner and the HTTP service, or by allowing the third-party application to obtain access on its own behalf.  This specification replaces and obsoletes the OAuth 1.0 protocol described in RFC 5849. [STANDARDS-TRACK]</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="6749"/>
+  <seriesInfo name="DOI" value="10.17487/RFC6749"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7230.xml -->
+
+<reference anchor="RFC7230" target="https://www.rfc-editor.org/info/rfc7230">
+  <front>
+    <title>Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing</title>
+    <author fullname="R. Fielding" initials="R" role="editor" surname="Fielding"/>
+    <author fullname="J. Reschke" initials="J" role="editor" surname="Reschke"/>
+    <date month="June" year="2014"/>
+    <abstract>
+      <t>The Hypertext Transfer Protocol (HTTP) is a stateless application-level protocol for distributed, collaborative, hypertext information systems.  This document provides an overview of HTTP architecture and its associated terminology, defines the "http" and "https" Uniform Resource Identifier (URI) schemes, defines the HTTP/1.1 message syntax and parsing requirements, and describes related security concerns for implementations.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="7230"/>
+  <seriesInfo name="DOI" value="10.17487/RFC7230"/>
+</reference>
+
+      <reference anchor="OpenID.Core" target="https://openid.net/specs/openid-connect-core-1_0.html">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NAT.Consulting (was at NRI)">NAT.Consulting</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Yubico (was at Ping Identity)">Yubico</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+	  <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+	    <organization abbrev="Stripe (was at Salesforce)">Stripe</organization>
+	  </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+      <reference anchor="OpenID.Discovery" target="https://openid.net/specs/openid-connect-discovery-1_0.html">
+        <front>
+          <title>OpenID Connect Discovery 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NAT.Consulting (was at NRI)">NAT.Consulting</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Yubico (was at Ping Identity)">Yubico</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="Illumila">Illumila</organization>
+          </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+      <reference anchor="OpenID.Registration" target="https://openid.net/specs/openid-connect-registration-1_0.html">
+        <front>
+          <title>OpenID Connect Dynamic Client Registration 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NAT.Consulting (was at NRI)">NAT.Consulting</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Yubico (was at Ping Identity)">Yubico</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+      <reference anchor="OpenID.RPInitiated" target="https://openid.net/specs/openid-connect-rpinitiated-1_0.html">
+	<front>
+	  <title>OpenID Connect RP-Initiated Logout 1.0</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+	  <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+	    <organization>Google</organization>
+	  </author>
+
+	  <author fullname="Naveen Agarwal" initials="N." surname="Agarwal">
+	    <organization>Microsoft</organization>
+	  </author>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NAT.Consulting">NAT.Consulting</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Yubico">Yubico</organization>
+	  </author>
+
+	  <date day="18" month="April" year="2022" />
+	</front>
+      </reference>
+
+      <reference anchor="OpenID.FrontChannel" target="https://openid.net/specs/openid-connect-frontchannel-1_0.html">
+	<front>
+	  <title>OpenID Connect Front-Channel Logout 1.0</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+	  <date day="18" month="April" year="2022" />
+	</front>
+      </reference>
+
+      <reference anchor="OpenID.Session" target="https://openid.net/specs/openid-connect-session-1_0.html">
+	<front>
+	  <title>OpenID Connect Session Management 1.0</title>
+
+	  <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+	    <organization>Google</organization>
+	  </author>
+
+	  <author fullname="Naveen Agarwal" initials="N." surname="Agarwal">
+	    <organization>Microsoft</organization>
+	  </author>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NAT.Consulting">NAT.Consulting</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Yubico">Yubico</organization>
+	  </author>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+	  <date day="18" month="April" year="2022" />
+	</front>
+      </reference>
+
+      <reference anchor="JWT" target="https://tools.ietf.org/html/rfc7519">
+        <front>
+          <title>JSON Web Token (JWT)</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization>Microsoft</organization>
+	    <address>
+	      <email>mbj@microsoft.com</email>
+	      <uri>https://self-issued.info/</uri>
+	    </address>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Ping Identity">Ping Identity</organization>
+	    <address>
+	      <email>ve7jtb@ve7jtb.com</email>
+	      <uri>http://www.thread-safe.com/</uri>
+	    </address>
+	  </author>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NRI">Nomura Research Institute</organization>
+	    <address>
+	      <email>n-sakimura@nri.co.jp</email>
+	      <uri>https://nat.sakimura.org/</uri>
+	    </address>
+	  </author>
+
+	  <date month="May" year="2015"/>
+        </front>
+        <seriesInfo name="RFC" value="7519" />
+	<seriesInfo name="DOI" value="10.17487/RFC7519"/>
+      </reference>
+
+      <reference anchor="IANA.OAuth.Parameters" target="https://www.iana.org/assignments/oauth-parameters">
+        <front>
+          <title>OAuth Parameters</title>
+          <author>
+            <organization>IANA</organization>
+          </author>
+	  <date/>
+        </front>
+      </reference>
+
+      <reference anchor="IANA.MediaTypes" target="https://www.iana.org/assignments/media-types">
+	<front>
+	  <title>Media Types</title>
+	  <author>
+	    <organization>IANA</organization>
+	  </author>
+	  <date/>
+	</front>
+      </reference>
+
+    </references>
+
+    <references title="Informative References">
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.2046.xml -->
+
+<reference anchor="RFC2046" target="https://www.rfc-editor.org/info/rfc2046">
+  <front>
+    <title>Multipurpose Internet Mail Extensions (MIME) Part Two: Media Types</title>
+    <author fullname="N. Freed" initials="N" surname="Freed"/>
+    <author fullname="N. Borenstein" initials="N" surname="Borenstein"/>
+    <date month="November" year="1996"/>
+    <abstract>
+      <t>This second document defines the general structure of the MIME media typing system and defines an initial set of media types. [STANDARDS-TRACK]</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="2046"/>
+  <seriesInfo name="DOI" value="10.17487/RFC2046"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.6838.xml -->
+
+<reference anchor="RFC6838" target="https://www.rfc-editor.org/info/rfc6838">
+  <front>
+    <title>Media Type Specifications and Registration Procedures</title>
+    <author fullname="N. Freed" initials="N" surname="Freed"/>
+    <author fullname="J. Klensin" initials="J" surname="Klensin"/>
+    <author fullname="T. Hansen" initials="T" surname="Hansen"/>
+    <date month="January" year="2013"/>
+    <abstract>
+      <t>This document defines procedures for the specification and registration of media types for use in HTTP, MIME, and other Internet protocols.  This memo documents an Internet Best Current Practice.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="BCP" value="13"/>
+  <seriesInfo name="RFC" value="6838"/>
+  <seriesInfo name="DOI" value="10.17487/RFC6838"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7591.xml -->
+
+<reference anchor="RFC7591" target="https://www.rfc-editor.org/info/rfc7591">
+  <front>
+    <title>OAuth 2.0 Dynamic Client Registration Protocol</title>
+    <author fullname="J. Richer" initials="J" role="editor" surname="Richer"/>
+    <author fullname="M. Jones" initials="M" surname="Jones"/>
+    <author fullname="J. Bradley" initials="J" surname="Bradley"/>
+    <author fullname="M. Machulak" initials="M" surname="Machulak"/>
+    <author fullname="P. Hunt" initials="P" surname="Hunt"/>
+    <date month="July" year="2015"/>
+    <abstract>
+      <t>This specification defines mechanisms for dynamically registering OAuth 2.0 clients with authorization servers.  Registration requests send a set of desired client metadata values to the authorization server.  The resulting registration responses return a client identifier to use at the authorization server and the client metadata values registered for the client.  The client can then use this registration information to communicate with the authorization server using the OAuth 2.0 protocol.  This specification also defines a set of common client metadata fields and values for clients to use during registration.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="7591"/>
+  <seriesInfo name="DOI" value="10.17487/RFC7591"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8414.xml -->
+
+<reference anchor="RFC8414" target="https://www.rfc-editor.org/info/rfc8414">
+  <front>
+    <title>OAuth 2.0 Authorization Server Metadata</title>
+    <author fullname="M. Jones" initials="M" surname="Jones"/>
+    <author fullname="N. Sakimura" initials="N" surname="Sakimura"/>
+    <author fullname="J. Bradley" initials="J" surname="Bradley"/>
+    <date month="June" year="2018"/>
+    <abstract>
+      <t>This specification defines a metadata format that an OAuth 2.0 client can use to obtain the information needed to interact with an OAuth 2.0 authorization server, including its endpoint locations and authorization server capabilities.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="8414"/>
+  <seriesInfo name="DOI" value="10.17487/RFC8414"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8417.xml -->
+
+<reference anchor="RFC8417" target="https://www.rfc-editor.org/info/rfc8417">
+  <front>
+    <title>Security Event Token (SET)</title>
+    <author fullname="P. Hunt" initials="P" role="editor" surname="Hunt"/>
+    <author fullname="M. Jones" initials="M" surname="Jones"/>
+    <author fullname="W. Denniss" initials="W" surname="Denniss"/>
+    <author fullname="M. Ansari" initials="M" surname="Ansari"/>
+    <date month="July" year="2018"/>
+    <abstract>
+      <t>This specification defines the Security Event Token (SET) data structure.  A SET describes statements of fact from the perspective of an issuer about a subject.  These statements of fact represent an event that occurred directly to or about a security subject, for example, a statement about the issuance or revocation of a token on behalf of a subject.  This specification is intended to enable representing security- and identity-related events.  A SET is a JSON Web Token (JWT), which can be optionally signed and/or encrypted.  SETs can be distributed via protocols such as HTTP.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="8417"/>
+  <seriesInfo name="DOI" value="10.17487/RFC8417"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8725.xml -->
+
+<reference anchor="RFC8725" target="https://www.rfc-editor.org/info/rfc8725">
+  <front>
+    <title>JSON Web Token Best Current Practices</title>
+    <author fullname="Y. Sheffer" initials="Y" surname="Sheffer"/>
+    <author fullname="D. Hardt" initials="D" surname="Hardt"/>
+    <author fullname="M. Jones" initials="M" surname="Jones"/>
+    <date month="February" year="2020"/>
+    <abstract>
+      <t>JSON Web Tokens, also known as JWTs, are URL-safe JSON-based security tokens that contain a set of claims that can be signed and/or encrypted.  JWTs are being widely used and deployed as a simple security token format in numerous protocols and applications, both in the area of digital identity and in other application areas.  This Best Current Practices document updates RFC 7519 to provide actionable guidance leading to secure implementation and deployment of JWTs.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="BCP" value="225"/>
+  <seriesInfo name="RFC" value="8725"/>
+  <seriesInfo name="DOI" value="10.17487/RFC8725"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8935.xml -->
+
+<reference anchor="RFC8935" target="https://www.rfc-editor.org/info/rfc8935">
+  <front>
+    <title>Push-Based Security Event Token (SET) Delivery Using HTTP</title>
+    <author fullname="A. Backman" initials="A" role="editor" surname="Backman"/>
+    <author fullname="M. Jones" initials="M" role="editor" surname="Jones"/>
+    <author fullname="M. Scurtescu" initials="M" surname="Scurtescu"/>
+    <author fullname="M. Ansari" initials="M" surname="Ansari"/>
+    <author fullname="A. Nadalin" initials="A" surname="Nadalin"/>
+    <date month="November" year="2020"/>
+    <abstract>
+      <t>This specification defines how a Security Event Token (SET) can be delivered to an intended recipient using HTTP POST over TLS.  The SET is transmitted in the body of an HTTP POST request to an endpoint operated by the recipient, and the recipient indicates successful or failed transmission via the HTTP response.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="8935"/>
+  <seriesInfo name="DOI" value="10.17487/RFC8935"/>
+</reference>
+
+      <reference anchor="JWS" target="https://tools.ietf.org/html/rfc7515">
+	<front>
+	  <title>JSON Web Signature (JWS)</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Ping Identity">Ping Identity</organization>
+	  </author>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+	  </author>
+
+	  <date month="May" year="2015" />
+	</front>
+
+	<seriesInfo name="RFC" value="7515"/>
+	<seriesInfo name="DOI" value="10.17487/RFC7515"/>
+      </reference>
+
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>
+	The OpenID Community would like to thank the following people for
+	their contributions to this specification:
+      </t>
+      <t>
+        <list style="empty">
+          <t>John Bradley (ve7jtb@ve7jtb.com), Yubico</t>
+	  <t>Brian Campbell (bcampbell@pingidentity.com), Ping Identity</t>
+	  <t>Andrii Deinega (andrii.deinega@gmail.com), GlobalLogic</t>
+	  <t>Vladimir Dzhuvinov (vladimir@connect2id.com), Connect2id</t>
+	  <t>Pedro Felix (pmhsfelix@gmail.com), individual</t>
+	  <t>Joseph Heenan (joseph@authlete.com), Authlete</t>
+	  <t>Phil Hunt (phil.hunt@oracle.com), Oracle</t>
+          <t>Michael B. Jones (mbj@microsoft.com), Microsoft</t>
+	  <t>Todd Lainhart (lainhart@us.ibm.com), IBM</t>
+	  <t>Torsten Lodderstedt (torsten@lodderstedt.net), yes.com</t>
+	  <t>Nat Sakimura (nat@nat.consulting), NAT.Consulting</t>
+	  <t>Filip Skokan (panva.ip@gmail.com), Auth0</t>
+	  <t>Hans Zandbelt (hans.zandbelt@zmartzone.eu), ZmartZone</t>
+       </list>
+      </t>
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2022 The OpenID Foundation.</t>
+
+      <t>The OpenID Foundation (OIDF) grants to any Contributor, developer,
+      implementer, or other interested party a non-exclusive, royalty free,
+      worldwide copyright license to reproduce, prepare derivative works from,
+      distribute, perform and display, this Implementers Draft or Final
+      Specification solely for the purposes of (i) developing specifications,
+      and (ii) implementing Implementers Drafts and Final Specifications based
+      on such documents, provided that attribution be made to the OIDF as the
+      source of the material, but that such attribution does not indicate an
+      endorsement by the OIDF.</t>
+
+      <t>The technology described in this specification was made available
+      from contributions from various sources, including members of the OpenID
+      Foundation and others. Although the OpenID Foundation has taken steps to
+      help ensure that the technology is available for distribution, it takes
+      no position regarding the validity or scope of any intellectual property
+      or other rights that might be claimed to pertain to the implementation
+      or use of the technology described in this specification or the extent
+      to which any license under such rights might or might not be available;
+      neither does it represent that it has made any independent effort to
+      identify any such rights. The OpenID Foundation and the contributors to
+      this specification make no (and hereby expressly disclaim any)
+      warranties (express, implied, or otherwise), including implied
+      warranties of merchantability, non-infringement, fitness for a
+      particular purpose, or title, related to this specification, and the
+      entire risk as to implementing this specification is assumed by the
+      implementer. The OpenID Intellectual Property Rights policy requires
+      contributors to offer a patent promise not to assert certain patent
+      claims against other contributors and against implementers. The OpenID
+      Foundation invites any interested party to bring to its attention any
+      copyrights, patents, patent applications, or other proprietary rights
+      that may cover technology that may be required to practice this
+      specification.</t>
+    </section>
+
+    <section anchor="History" title="Document History">
+      <t>[[ To be removed from the final specification ]]</t>
+
+      <t>
+	-09
+        <list style="symbols">
+	  <t>
+	    Fixed #1605 - Specified how to handle failed requests, using the same language as RFC 8935
+	    (Push-Based Security Event Token (SET) Delivery Using HTTP).
+	  </t>
+	</list>
+      </t>
+
+      <t>
+	-08
+        <list style="symbols">
+	  <t>
+	    Fixed #1484 - Described omission of the <spanx style="verb">application/</spanx>
+	    prefix in <spanx style="verb">typ</spanx> Header Parameter values.
+	  </t>
+	  <t>
+	    Fixed #1475 - Removed a note about possibly adding a mechanism to request revocation of
+	    <spanx style="verb">offline_access</spanx> refresh tokens.
+	  </t>
+	  <t>
+	    Fixed #1483 - Removed Pragma: no-cache and Cache-Control: no-cache,
+	    leaving only Cache-Control: no-store.
+	  </t>
+	  <t>
+	    Fixed #1476 - Described <spanx style="verb">alg</spanx> Header Parameter validation for Logout Tokens.
+	  </t>
+	  <t>
+	    Fixed #1486 - Added a note about an HTTP 204 No Content response
+	    being substituted for an HTTP 200 OK response when the HTTP body is empty.
+	  </t>
+	  <t>
+	    Fixed #1487 - Simplified error handing to use HTTP 400 Bad Request for all error cases,
+	    removing the use of HTTP 501 Not Implemented and HTTP 504 Gateway Timeout.
+	  </t>
+	  <t>
+	    Fixed #1491 - Added optional <spanx style="verb">error</spanx> and <spanx style="verb">error_description</spanx>
+	    parameters to error responses.
+	  </t>
+	</list>
+      </t>
+
+      <t>
+	-07
+        <list style="symbols">
+	  <t>
+	    Fixed #1468 - Support explicit typing of Logout Tokens.
+	    The nature of the support is intentionally parallel to
+	    the way that explicit typing of Request Objects is supported in RFC 9101.
+	  </t>
+	  <t>
+	    Updated contributor affiliations.
+	  </t>
+	  <t>
+	    Updated many spec URLs from http to https.
+	  </t>
+	</list>
+      </t>
+
+      <t>
+	-06
+	<list style="symbols">
+	  <t>
+	    Fixed #1030 - Specify the use of HTTPS URIs.
+	  </t>
+	  <t>
+	    Fixed #1031 - Specify <spanx style="verb">sid</spanx> ID Token claim for use in Back-Channel Logout.
+	  </t>
+	  <t>
+	    Fixed #1176 - Verify that the <spanx style="verb">sid</spanx> Logout Token claim matches this claim in an ID Token.
+	  </t>
+	  <t>
+	    Added Implementation Considerations section.
+	  </t>
+	  <t>
+	    Fixed #1049 - Include a reference to the OP when the Logout Token is encrypted.
+	  </t>
+        </list>
+      </t>
+
+      <t>
+	-05
+	<list style="symbols">
+          <t>
+	    Referenced the final Security Event Token (SET) <xref target="RFC8417"/> specification.
+	  </t>
+          <t>
+	    Fixed #1085 - Split RP-Initiated Logout into its own specification.
+	  </t>
+	  <t>
+	    Registered the AS metadata values <spanx style="verb">backchannel_logout_supported</spanx>
+	    and <spanx style="verb">backchannel_logout_session_supported</spanx>.
+	  </t>
+	  <t>
+	    Updated affiliations and acknowledgements.
+	  </t>
+        </list>
+      </t>
+
+      <t>
+	-04
+	<list style="symbols">
+	  <t>
+	    Stated that
+	    a Logout Token MUST contain either a <spanx style="verb">sub</spanx>
+	    or a <spanx style="verb">sid</spanx> Claim, and MAY contain both.
+	    If a <spanx style="verb">sid</spanx> Claim is not present,
+	    the intent is that all sessions at the RP
+	    for the End-User identified by the <spanx style="verb">iss</spanx>
+	    and <spanx style="verb">sub</spanx> Claims be logged out.
+	    This addresses issue #1000.
+	  </t>
+	  <t>
+	    Defined logout behaviors for refresh tokens issued with and without
+	    the <spanx style="verb">offline_access</spanx> property.
+	  </t>
+	  <t>
+	    Removed the requirement that the domain, port, and scheme of the
+	    <spanx style="verb">backchannel_logout_uri</spanx> URL
+	    MUST be the same as that of a registered Redirection URI value.
+	  </t>
+          <t>
+	    Updated the Logout Token syntax to match
+	    draft-ietf-secevent-token-00.
+	  </t>
+        </list>
+      </t>
+
+      <t>
+	-03
+	<list style="symbols">
+          <t>
+	    Changed from using a <spanx style="verb">logout_only</spanx> Claim
+	    to using a logout event in the Logout Token.
+	    The Logout Token is compatible with draft-hunt-idevent-token-03.
+	  </t>
+        </list>
+      </t>
+
+      <t>
+	-02
+	<list style="symbols">
+          <t>
+	    Renamed HTTP-Based Logout to Front-Channel Logout.
+	  </t>
+        </list>
+      </t>
+
+      <t>
+	-01
+	<list style="symbols">
+          <t>
+	    Cleaned up some text left over from the HTTP-Based Logout spec.
+	  </t>
+	  <t>
+	    Clarified the conditions under which HTTP 504 Gateway Timeout is returned.
+	  </t>
+        </list>
+      </t>
+
+      <t>
+	-00
+	<list style="symbols">
+          <t>
+	    Wrote the initial version based on working group discussions.
+	    The structure of this specification is intentionally similar
+	    to the OpenID Connect HTTP-Based Logout 1.0 specification.
+	  </t>
+        </list>
+      </t>
+    </section>
+  </back>
+</rfc>

@@ -1,0 +1,1288 @@
+
+
+
+Draft                                                   N. Sakimura, Ed.
+                                                                     NRI
+                                                             D. Recordon
+                                                                Facebook
+                                                              J. Bradley
+                                                               Protiviti
+                                                          B. de Medeiros
+                                                                  Google
+                                                                M. Jones
+                                                               Microsoft
+                                                                  E. Jay
+                                                                    MGI1
+                                                           July 12, 2011
+
+
+                   OpenID Connect Core 1.0 - draft 10
+
+Abstract
+
+   OpenID Connect is an identity framework that provides authentication,
+   authorization, and attribute transmission capability.  It allows
+   third party attested claims from distributed sources.  The
+   specification suite builds on OAuth 2.0 and consists of Building
+   Blocks (Core, Framework, Discovery, Dynamic Client Registration,
+   Session Management, JSON Web Token, JSON Web Signature, JSON WEB
+   Encryption, JSON Web Keys, Simple Web Discovery), Protocol Bindings
+   (e.g., Artifact Binding, Authorization Code Binding, User Agent
+   Binding) and Extensions.  This specification is the "Core" of the
+   suite that defines the messages used and abstract flow which will be
+   further constrained or extended in the companion specifications in
+   the suite.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 1]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+
+Table of Contents
+
+   1.  Terminology  . . . . . . . . . . . . . . . . . . . . . . . . .  3
+   2.  Overview . . . . . . . . . . . . . . . . . . . . . . . . . . .  5
+   3.  Messages . . . . . . . . . . . . . . . . . . . . . . . . . . .  6
+     3.1.  Authorization Endpoint . . . . . . . . . . . . . . . . . .  6
+       3.1.1.  Authorization Request  . . . . . . . . . . . . . . . .  6
+       3.1.2.  Authorization Response . . . . . . . . . . . . . . . .  8
+       3.1.3.  Authorization Error Response . . . . . . . . . . . . .  8
+     3.2.  Token Endpoint . . . . . . . . . . . . . . . . . . . . . .  9
+       3.2.1.  Access Token Request . . . . . . . . . . . . . . . . .  9
+       3.2.2.  Access Token Response  . . . . . . . . . . . . . . . .  9
+       3.2.3.  Token Error Response . . . . . . . . . . . . . . . . .  9
+     3.3.  UserInfo Endpoint  . . . . . . . . . . . . . . . . . . . . 10
+   4.  Serializations . . . . . . . . . . . . . . . . . . . . . . . . 11
+     4.1.  Query String Serialization . . . . . . . . . . . . . . . . 11
+     4.2.  JSON Serialization . . . . . . . . . . . . . . . . . . . . 11
+   5.  Extensions . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+   6.  Related Specifications . . . . . . . . . . . . . . . . . . . . 13
+   7.  Security Considerations  . . . . . . . . . . . . . . . . . . . 14
+   8.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 15
+     8.1.  OAuth Parameters Registry  . . . . . . . . . . . . . . . . 15
+       8.1.1.  Scope Parameters . . . . . . . . . . . . . . . . . . . 15
+       8.1.2.  Authorization Request Parameters . . . . . . . . . . . 15
+       8.1.3.  Access Token Response Parameters . . . . . . . . . . . 15
+   9.  Open Issues and Things To Be Done (TBD)  . . . . . . . . . . . 17
+   10. References . . . . . . . . . . . . . . . . . . . . . . . . . . 18
+     10.1. Normative References . . . . . . . . . . . . . . . . . . . 18
+     10.2. Informative References . . . . . . . . . . . . . . . . . . 19
+   Appendix A.  Acknowledgements  . . . . . . . . . . . . . . . . . . 20
+   Appendix B.  Document History  . . . . . . . . . . . . . . . . . . 21
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 23
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 2]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+1.  Terminology
+
+   In addition to the terms "Access Token", "Refresh Token",
+   "Authorization Code", "Authorization Grant", "Authorization Server",
+   "Authorization Endpoint", "Client", "Client Identifier", "Client
+   Secret", "Protected Resource", "Resource Owner", "Resource Server",
+   and "Token Endpoint" that are defined by OAuth 2.0 [OAuth.2.0], this
+   specification defines the following terms:
+
+   Assertion  A set of Claims about the End-User that are attested to by
+      the OpenID Provider and Resource Servers.
+
+   Authentication  An act of verifying End-User's identity through the
+      verification of the credential.
+
+   Claim  A piece of information about an Entity that a Claims Provider
+      asserts about that Entity.
+
+   Claims Provider  An Authorization Server that can return claims about
+      a user.
+
+   End-User  A human resource owner.
+
+   Entity  Something that has separate and distinct existence and that
+      can be identified in context.
+
+   ID Token  A token that contains a specific set of claims about an
+      authenticated user.  See OpenID Connect Session Management 1.0
+      [OpenID.Session] for more information.
+
+   OpenID Provider (OP)  A service capable of providing identity
+      information to a Relying Party.
+
+   OP Endpoints  End-User Authentication Endpoint, Authorization
+      Endpoint, and Token Endpoint.
+
+   OpenID Request Object  A JSON object that holds the request
+      variables.  It holds OpenID request variables.  It MAY also
+      contain other OAuth parameters for the request signing purpose, in
+      which case the parameter values MUST match with the OAuth request
+      parameters.
+
+   Relying Party (RP)  An application requiring identity information
+      from an OpenID Provider.
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 3]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+   RP Endpoint  The endpoint to which the OP responses are returned
+      through redirect.
+
+   UserInfo Endpoint  A protected resource that, when presented with an
+      access token by the client, returns authorized information about
+      the user represented by that access token.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 4]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+2.  Overview
+
+   The OpenID Connect protocol, in abstract, follows the following
+   steps.
+
+   1.  The Client sends a request to the Server's end-user authorization
+       endpoint.
+
+   2.  The Server authenticates the user and obtains appropriate
+       authorization.
+
+   3.  The Server responds with access_token and a few other variables.
+
+   4.  The Client sends a request with the access_token to the UserInfo
+       endpoint OpenID Connect UserInfo 1.0 [OpenID.UserInfo].
+
+   5.  UserInfo endpoint returns the additional user information
+       supported by the Server.
+
+   Each message may be signed and encrypted.  When the message is
+   encrypted, it MUST be signed first then encrypted.  This
+   specification only defines the abstract message flow and message
+   formats.  The actual use MUST be based on one of the companion
+   protocol bindings specifications such as the OpenID Connect HTTP
+   Redirect Binding 1.0 [OpenID.HTTP-Redirect].
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 5]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+3.  Messages
+
+   In OpenID Connect protocols, in abstract, the process proceeds by the
+   client interacting with endpoints.  There are number of endpoints
+   involved.
+
+   1.  Authorization Endpoint: The Client sends a request to the Server
+       at the authorization endpoint.  The Server then authenticates the
+       End-User to find out if he is eligible to make the authorization.
+       Then, upon the authorization action of the End-User, the Server
+       returns an Authorization Response that includes Authorization
+       Code, "code".  For some Clients, Implicit Grant may be used to
+       obtain "access_token" without using "code".  In this case,
+       "response_type" MUST be set to "token".
+
+   2.  Token Endpoint: The Client sends the access token request to the
+       token endpoint to obtain Access Token Response which includes an
+       "access_token".
+
+   3.  UserInfo Endpoint: The "access_token" MAY be sent to the UserInfo
+       endpoint to obtain claims about the user.
+
+   4.  Session Management Endpoints: The ID Token MAY be sent to these
+       endpoints to manage the session.
+
+   Both Request and Response may either be serialized into Query String
+   Serialization (Section 4.1) or JSON [RFC4627].
+
+3.1.  Authorization Endpoint
+
+   The client sends an Authorization Request to the authorization
+   endpoint to obtain an Authorization Response.
+
+3.1.1.  Authorization Request
+
+   Section 4.1.1 and 4.2.1 of OAuth 2.0 [OAuth.2.0] defines the OAuth
+   Authorization Request parameters.  In this specification, the values
+   to the parameters are defined as follows.
+
+   response_type  A space delimited, case sensitive list of string
+      values (Pending OAuth 2.0 changes).  Acceptable values include
+      "code", "token", and "none".  The value MUST include "code" for
+      requesting an Authorization Code, "token" for requesting an Access
+      Token, and "none" if no response is needed.
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 6]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+   scope  It MUST include "openid" as one of the strings.
+
+   Other required OAuth 2.0 parameters in the request include:
+
+   client_id  The client identifier.
+
+   redirect_uri  A redirection URI where the response will be sent.
+
+   The following extension parameters are also defined:
+
+   display  OPTIONAL.  A string value that specifies how the
+      authorization server displays the authentication page to the user.
+
+      none  The authorization server MUST NOT display any authentication
+         page.
+
+      popup  The authorization server displays a popup authentication
+         page.
+
+      mobile  The authorization server performs authentication using a
+         mobile device???
+
+   prompt  OPTIONAL.  A space delimited, case sensitive list of string
+      values that specifies how the authorization server prompts the
+      user for reauthentication and reapproval.  The possible values
+      are:
+
+      login  The authorization server MUST prompt the user for
+         reauthentication.
+
+      consent  The authorization server MUST prompt the user for
+         reapproval before returning information to the client.
+
+      select_account  The authorization server MUST prompt the user to
+         select a user account if the current account does not match the
+         account in the request.
+
+   Following is a non-normative example when they are sent in the query
+   parameters serialization:
+   GET /authorize?scope=openid&response_type=code
+   &client_id=s6BhdRkqt3
+   &redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb
+   &req=HeADeR.pAyl0rd.cRypT0 HTTP/1.1
+   Host: server.example.com
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 7]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+3.1.2.  Authorization Response
+
+   When the "response_type" in the request includes "code", the
+   Authorization Response MUST return the parameters defined in section
+   4.1.2 of OAuth 2.0 [OAuth.2.0].
+
+   When the "response_type" in the request includes "token", the
+   Authorization Response MUST return the parameters defined in section
+   4.2.2 of OAuth 2.0 [OAuth.2.0].
+
+   The "response_type" ""none"" preempts all other values and no other
+   response parameter values are returned.
+
+   Example: The request is sent over to the Authorization Server through
+   HTTP redirect as follows:
+HTTP/1.1 302 Found
+Location: https://server.example.com//authorize?response_type=code&client_id=s6BhdRkqt3&state=xyz
+        &redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb&state=1f_8skd
+
+   Then, after appropriate user authenticaiton and authorization, the
+   Authorization Server redirects the End-User's user-agent by sending
+   the following HTTP response:
+   HTTP/1.1 302 Found
+   Location: https://client.example.com/cb?code=i1WsRn1uB1&state=1f_8skd
+
+3.1.3.  Authorization Error Response
+
+   If the end-user denies the access request or if the request fails,
+   the authorization server informs the client by returning parameters
+   defined in section 4.1.2.1 of OAuth 2.0 [OAuth.2.0].
+
+3.1.3.1.  Error Codes
+
+   In addition to the error codes defined in section 4.1.2.1 of OAuth
+   2.0 [OAuth.2.0], this specification defines the following additional
+   error codes:
+
+   invalid_request_redirect_uri  The redirect_uri in the request is
+      missing or malformed.
+
+   login_required  The authorization server requires user
+      authentication.
+
+   session_selection_required  The user is required to select a session
+      at the authorization server.  The user may be authenticated at the
+      authorization server with different associated accounts, but the
+      user did not select a session or no session selection is requested
+      from the user due to the "display" parameter being set to "none".
+
+
+
+Sakimura, et al.                                                [Page 8]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+   approval_required  The authorization server requires user approval.
+
+   user_mismatched  The current logged in user at the authorization
+      server does not match the requested user.
+
+3.2.  Token Endpoint
+
+   Access Token Request / Response interacts with a Token endpoint.
+   Upon a successful request, it returns an Access Token.
+
+3.2.1.  Access Token Request
+
+   The client obtains an access token by authenticating with the
+   authorization server and presenting its access grant (in the form of
+   an authorization code, resource owner credentials, an assertion, or a
+   refresh token).
+
+   The request parameters of the Access Token Request are defined in
+   section 4.1.3 of OAuth 2.0 [OAuth.2.0].
+
+3.2.2.  Access Token Response
+
+   After receiving and verifying a valid and authorized Access Token
+   Request from the client, the Authorization Server returns a Positive
+   Assertion that includes an Access Token.  The parameters in the
+   successful response are defined in Section 4.2.2 of OAuth 2.0
+   [OAuth.2.0].
+
+   Following is a non-normative example:
+   {
+       "access_token": "SlAV32hkKG",
+       "refresh_token": "8xLOxBtZp8",
+       "expires_in": 3600,
+   }
+
+   As in the OAuth 2.0 [OAuth.2.0], Clients SHOULD ignore unrecognized
+   response parameters.
+
+3.2.3.  Token Error Response
+
+   If the token request is invalid or unauthorized, the authorization
+   server constructs the error response.  The parameters of the Token
+   Error Response are defined as in Section 5.2 of OAuth 2.0
+   [OAuth.2.0].
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 9]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+3.2.3.1.  Error Codes
+
+   In addition to the error codes defined in Section 5.2 of OAuth 2.0
+   [OAuth.2.0], this specification defines the following error codes.
+
+   invalid_authorization_code  The authorization code is missing,
+      malformed, or invalid.
+
+3.3.  UserInfo Endpoint
+
+   The UserInfo endpoint returns claims about the authenticated user.
+   This endpoint is defined in the OpenID Connect UserInfo 1.0
+   [OpenID.UserInfo] specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 10]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+4.  Serializations
+
+   Each message can be serialized either in query parameter
+   serialization or JSON serialization unless it was explicitly stated
+   in the previous sections.
+
+4.1.  Query String Serialization
+
+   In order to serialize the parameters using the query string
+   serialization, the client constructs the string by adding the
+   following parameters to the end-user authorization endpoint URI query
+   component using the "application/x-www-form-urlencoded" format as
+   defined by [W3C.REC-html401-19991224].
+
+   Following is a non-normative example of such serialization:
+   GET /authorize?scope=openid&response_type=code
+   &client_id=s6BhdRkqt3
+   &redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb HTTP/1.1
+   Host: server.example.com
+
+4.2.  JSON Serialization
+
+   The parameters are serialized into a JSON structure by adding each
+   parameter at the highest structure level.  Parameter names and string
+   values are included as JSON strings.  Numerical values are included
+   as JSON numbers.  Each parameter may have JSON Structure as its
+   value.
+
+   Following is a non-normative example of such serialization:
+   {
+     "access_token":"SlAV32hkKG",
+     "expires_in":3600,
+     "refresh_token":"8xLOxBtZp8",
+     }
+   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 11]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+5.  Extensions
+
+   OpenID Connect supports OPTIONAL extension parameters such as OpenID
+   Request Object, ID Token, and UserInfo Response, as defined in OpenID
+   Connect Framework 1.0 [OpenID.Framework].
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 12]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+6.  Related Specifications
+
+   These related OpenID Connect specifications MAY OPTIONALLY be used in
+   combination with this specification to provide additional
+   functionality:
+
+   o  OpenID Connect UserInfo 1.0 [OpenID.UserInfo] - Schema and format
+      of claims returned by the UserInfo endpoint of OpenID Connect
+
+   o  OpenID Connect HTTP Redirect Binding 1.0 [OpenID.HTTP-Redirect] -
+      Concrete HTTP Redirect based protocol binding for OpenID Connect
+      messages
+
+   o  OpenID Connect Discovery 1.0 [OpenID.Discovery] - Dynamic
+      discovery for user and server endpoints and information
+
+   o  OpenID Connect Dynamic Client Registration 1.0
+      [OpenID.Registration] - Dynamic registration of OpenID Connect
+      clients with OpenID Providers
+
+   o  OpenID Connect Session Management 1.0 [OpenID.Session] - Session
+      management for OpenID Connect sessions
+
+   o  OpenID Connect Framework 1.0 [OpenID.Framework] - Extension and
+      general claims framework
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 13]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+7.  Security Considerations
+
+   See OAuth 2.0 Security Considerations [OAuth.2.0.SC].
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 14]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+8.  IANA Considerations
+
+8.1.  OAuth Parameters Registry
+
+8.1.1.  Scope Parameters
+
+   The following is the parameter registration request for the "scope"
+   parameter as defined in this specification:
+
+   o  Parameter name: openid
+
+   o  Parameter usage location: The end-user authorization endpoint
+      request, the end-user authorization endpoint response, the token
+      endpoint request, the token endpoint response, and the
+      "WWW-Authenticate" header field.
+
+   o  Change controller: IETF
+
+   o  Specification document(s): [[ this document ]]
+
+   o  Related information: None
+
+8.1.2.  Authorization Request Parameters
+
+   The following is the parameter registration request for the
+   Authorization Request in this specification:
+
+   o  Parameter name: openid
+
+   o  Parameter usage location: Authorization Request
+
+   o  Change controller: IETF
+
+   o  Specification document(s): [[ this document ]]
+
+   o  Related information: None
+
+8.1.3.  Access Token Response Parameters
+
+   The following is the parameter registration request for the Access
+   Token Response in this specification:
+
+   o  Parameter name: openid
+
+   o  Parameter usage location: Access Token Response
+
+   o  Change controller: IETF
+
+
+
+
+Sakimura, et al.                                               [Page 15]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+   o  Specification document(s): [[ this document ]]
+
+   o  Related information: None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 16]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+9.  Open Issues and Things To Be Done (TBD)
+
+   [[ To be removed from the final specification ]]
+
+   Following items remain to be done in this draft:
+
+   o  Finish the security consideration section.
+
+   o  Properly capitalize the Defined Words.
+
+   o  Better to split the Authentication and Authorization server?
+      (Model-wise, yes, but it gets complicated.  Current model is
+      implicitly assuming that the Authentication and Authorization
+      server are operated by the same entity and the protocol between
+      them are proprietary.)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 17]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+10.  References
+
+10.1.  Normative References
+
+   [OAuth.2.0]
+              Hammer-Lahav, E., Ed., Recordon, D., and D. Hardt, "OAuth
+              2.0 Authorization Protocol", May 2011.
+
+   [OAuth.2.0.SC]
+              Lodderstedt, T., Ed., McGloin, M., Hunt, P., and A.
+              Nadalin, "OAuth 2.0 Security Considerations", April 2011.
+
+   [OpenID.Discovery]
+              Sakimura, N., Bradley, J., Jones, M., and E. Jay, "OpenID
+              Connect Discovery 1.0", July 2011.
+
+   [OpenID.Framework]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B.,
+              Mortimore, C., and E. Jay, "OpenID Connect Framework 1.0",
+              July 2011.
+
+   [OpenID.HTTP-Redirect]
+              Sakimura, N., Ed., Bradley, J., de Medeiros, B., Jones,
+              M., and E. Jay, "OpenID Connect HTTP Redirect Binding
+              1.0", July 2011.
+
+   [OpenID.Registration]
+              Sakimura, N., Bradley, J., Ed., and M. Jones, "OpenID
+              Connect Dynamic Client Registration 1.0 - draft 02",
+              July 2011.
+
+   [OpenID.Session]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B.,
+              Mortimore, C., and E. Jay, "OpenID Connect Session
+              Management 1.0", July 2011.
+
+   [OpenID.UserInfo]
+              Sakimura, N., Bradley, J., de Medeiros, B., Jones, M.,
+              Jay, E., and G. George, "OpenID Connect UserInfo 1.0",
+              July 2011.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC4627]  Crockford, D., "The application/json Media Type for
+              JavaScript Object Notation (JSON)", RFC 4627, July 2006.
+
+   [W3C.REC-html401-19991224]
+
+
+
+Sakimura, et al.                                               [Page 18]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+              Jacobs, I., Hors, A., and D. Raggett, "HTML 4.01
+              Specification", World Wide Web Consortium
+              Recommendation REC-html401-19991224, December 1999,
+              <http://www.w3.org/TR/1999/REC-html401-19991224>.
+
+10.2.  Informative References
+
+   [OpenID.2.0]
+              specs@openid.net, "OpenID Authentication 2.0", 2007.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 19]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+Appendix A.  Acknowledgements
+
+   As a successor version of OpenID, this specification heavily relies
+   on OpenID Authentication 2.0 [OpenID.2.0].  Please refer to Appendix
+   C of OpenID Authentication 2.0 for the full list of the contributors
+   for that specification.
+
+   This specification is largely compliant with OAuth 2.0 draft 16.
+   Please refer to the OAuth 2.0 specification for the list of
+   contributors.
+
+   In addition, the OpenID Community would like to thank the following
+   people for the work they've done in the drafting and editing of this
+   specification.
+
+      Anthony Nadalin (tonynad@microsoft.com), Microsoft
+
+      Breno de Medeiros (breno@gmail.com), Google
+
+      Chuck Mortimore (cmortimore@salesforce.com), Salesforce.com
+
+      David Recordon (dr@fb.com), Facebook
+
+      George Fletcher (george.fletcher@corp.aol.com), AOL
+
+      Hideki Nara (hideki.nara@gmail.com), Takt Communications
+
+      John Bradley (jbradely@mac.com), Protiviti Government Services
+
+      Mike Jones (Michael.Jones@microsoft.com), Microsoft
+
+      Nat Sakimura (n-sakimura@nri.co.jp), Nomura Research Institute,
+      Ltd.
+
+      Paul Tarjan (pt@fb.com), Facebook
+
+      Ryo Itou (ritou@yahoo-corp.jp), Yahoo!  Japan
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 20]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+Appendix B.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -10
+
+   o  Correct issues raised by Pam Dingle and discussed on the mailing
+      list after the 7-Jul-11 working group call.
+
+   o  Adopted long_names.
+
+   -09
+
+   o  Correct issues raised by Johnny Bufu and discussed on the 7-Jul-11
+      working group call.
+
+   -08
+
+   o  Consistency and cleanup pass, including removing unused
+      references.
+
+   o  Moved "display" and "prompt" parameter definitions from the
+      Framework spec back to the Core spec.
+
+   o  Removed obsolete OAuth 2.0-derived language about prefixing errors
+      with "x_".
+
+   -07
+
+   o  Moved optional features to new Framework specification and split
+      session management into a separate Session Management
+      specification.
+
+   -06
+
+   o  Claims Syntax.  Session Token.  Misc.
+
+   -05
+
+   o  Reference OAuth 2.0 now since it will be stable.
+
+   -04
+
+   o  To keep the ID Token small so that it fits cookie more easily,
+      moved OPTIONAL parameters to UserInfo endpoint response.
+
+   -03
+
+
+
+
+Sakimura, et al.                                               [Page 21]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+   o  Combined with Session Management.  Moved "openid" back to token
+      endpoint.  Renaming the sections according to the endpoint names.
+      Rewrote intro to the Messages section to be more approachable.
+
+   -02
+
+   o  Catch up to OAuth 2.0 d15.  Replaced JSS and JSE to JWS and JWE.
+      Section grouping and reorganizations.  Added more contributors.
+
+   -01
+
+   o  First Draft that incorporates the core of both openidconnect.com
+      proposal and OpenID Artifact Binding RC3 and abstracted.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 22]
+
+                   OpenID Connect Core 1.0 - draft 10          July 2011
+
+
+Authors' Addresses
+
+   Nat Sakimura (editor)
+   Nomura Research Institute, Ltd.
+
+   Email: n-sakimura@nri.co.jp
+
+
+   David Recordon
+   Facebook Inc.
+
+   Email: dr@fb.com
+
+
+   John Bradley
+   Protiviti Government Services
+
+   Email: jbradley@mac.com
+
+
+   Breno de Medeiros
+   Google Inc.
+
+   Email: breno@google.com
+
+
+   Michael B. Jones
+   Microsoft Corporation
+
+   Email: mbj@microsoft.com
+
+
+   Edmund Jay
+   MGI1
+
+   Email: ejay@mgi1.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 23]
+

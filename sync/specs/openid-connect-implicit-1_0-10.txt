@@ -1,0 +1,2968 @@
+
+
+
+Draft                                                        N. Sakimura
+                                                                     NRI
+                                                              J. Bradley
+                                                           Ping Identity
+                                                                M. Jones
+                                                               Microsoft
+                                                          B. de Medeiros
+                                                                  Google
+                                                            C. Mortimore
+                                                              Salesforce
+                                                                  E. Jay
+                                                                Illumila
+                                                            May 30, 2013
+
+
+         OpenID Connect Implicit  Client Profile 1.0 - draft 10
+
+Abstract
+
+   OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+   protocol.  It allows Clients to verify the identity of the End-User
+   based on the authentication performed by an Authorization Server, as
+   well as to obtain basic profile information about the End-User in an
+   interoperable and REST-like manner.
+
+   OpenID Connect Implicit Client Profile 1.0 is a profile of the OpenID
+   Connect Messages 1.0 and OpenID Connect Standard 1.0 specifications
+   that is designed to be easy to read and implement for basic Web-based
+   Relying Parties using the OAuth implicit grant type.  This
+   specification intentionally duplicates content from the Messages and
+   Standard specifications to provide a self-contained implementation
+   profile for basic Web-based Relying Parties using the OAuth implicit
+   grant type.
+
+   OpenID Providers and non-Web-based applications should instead
+   consult the Messages and Standard specifications.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 1]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  4
+     1.1.  Requirements Notation and Conventions  . . . . . . . . . .  4
+     1.2.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  4
+   2.  Protocol Elements  . . . . . . . . . . . . . . . . . . . . . .  6
+     2.1.  Implicit Flow  . . . . . . . . . . . . . . . . . . . . . .  6
+       2.1.1.  Client Prepares Authorization Request  . . . . . . . .  6
+         2.1.1.1.  Request Parameters . . . . . . . . . . . . . . . .  7
+       2.1.2.  Client Sends Request to Authorization Server . . . . . 10
+       2.1.3.  Authorization Server Authenticates End-User  . . . . . 10
+       2.1.4.  Authorization Server Obtains End-User
+               Consent/Authorization  . . . . . . . . . . . . . . . . 10
+       2.1.5.  Authorization Server Sends End-User Back to Client . . 11
+         2.1.5.1.  End-User Grants Authorization  . . . . . . . . . . 11
+         2.1.5.2.  End-User Denies Authorization or Invalid
+                   Request  . . . . . . . . . . . . . . . . . . . . . 12
+         2.1.5.3.  Example Redirect URI Response  . . . . . . . . . . 12
+     2.2.  ID Token . . . . . . . . . . . . . . . . . . . . . . . . . 13
+       2.2.1.  ID Token Validation  . . . . . . . . . . . . . . . . . 16
+       2.2.2.  Access Token Validation  . . . . . . . . . . . . . . . 17
+     2.3.  UserInfo Endpoint  . . . . . . . . . . . . . . . . . . . . 18
+       2.3.1.  UserInfo Request . . . . . . . . . . . . . . . . . . . 18
+       2.3.2.  UserInfo Response  . . . . . . . . . . . . . . . . . . 18
+       2.3.3.  UserInfo Error Response  . . . . . . . . . . . . . . . 19
+     2.4.  Scope Values . . . . . . . . . . . . . . . . . . . . . . . 19
+     2.5.  Standard Claims  . . . . . . . . . . . . . . . . . . . . . 20
+       2.5.1.  Address Claim  . . . . . . . . . . . . . . . . . . . . 26
+       2.5.2.  Claims Languages and Scripts . . . . . . . . . . . . . 27
+       2.5.3.  Claim Stability and Uniqueness . . . . . . . . . . . . 28
+   3.  Self-Issued OpenID Provider  . . . . . . . . . . . . . . . . . 29
+     3.1.  Self-Issued OpenID Provider Discovery  . . . . . . . . . . 29
+     3.2.  Self-Issued OpenID Provider Registration . . . . . . . . . 29
+       3.2.1.  Providing Additional Registration Information  . . . . 30
+     3.3.  Self-Issued OpenID Provider Request  . . . . . . . . . . . 30
+     3.4.  Self-Issued OpenID Provider Response . . . . . . . . . . . 31
+     3.5.  Self-Issued ID Token Validation  . . . . . . . . . . . . . 31
+   4.  Serializations . . . . . . . . . . . . . . . . . . . . . . . . 34
+     4.1.  Query String Serialization . . . . . . . . . . . . . . . . 34
+     4.2.  Form Serialization . . . . . . . . . . . . . . . . . . . . 34
+   5.  String Operations  . . . . . . . . . . . . . . . . . . . . . . 35
+   6.  TLS Version  . . . . . . . . . . . . . . . . . . . . . . . . . 36
+   7.  Implementation Considerations  . . . . . . . . . . . . . . . . 37
+     7.1.  Discovery and Registration . . . . . . . . . . . . . . . . 37
+   8.  Security Considerations  . . . . . . . . . . . . . . . . . . . 38
+     8.1.  TLS Requirements . . . . . . . . . . . . . . . . . . . . . 38
+   9.  Privacy Considerations . . . . . . . . . . . . . . . . . . . . 39
+   10. IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 40
+
+
+
+Sakimura, et al.                                                [Page 2]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   11. References . . . . . . . . . . . . . . . . . . . . . . . . . . 41
+     11.1. Normative References . . . . . . . . . . . . . . . . . . . 41
+     11.2. Informative References . . . . . . . . . . . . . . . . . . 43
+   Appendix A.  Acknowledgements  . . . . . . . . . . . . . . . . . . 44
+   Appendix B.  Notices . . . . . . . . . . . . . . . . . . . . . . . 46
+   Appendix C.  Document History  . . . . . . . . . . . . . . . . . . 47
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 53
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 3]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+1.  Introduction
+
+   OpenID Connect Implicit Client Profile 1.0 is a profile of the OpenID
+   Connect Messages 1.0 [OpenID.Messages] and OpenID Connect Standard
+   1.0 [OpenID.Standard] specifications that is designed to be easy to
+   read and implement for basic Web-based Relying Parties using the
+   OAuth implicit grant type.  This specification intentionally
+   duplicates content from the Messages and Standard specifications to
+   provide a self-contained implementation profile for basic Web-based
+   Relying Parties using the OAuth implicit grant type.
+
+   See the OpenID Connect Basic Client Profile 1.0 [OpenID.Basic]
+   specification for a related profile for basic Web-based Relying
+   Parties using the OAuth "authorization_code" grant type.  OpenID
+   Providers and non-Web-based applications should instead consult the
+   Messages and Standard specifications.  This profile omits
+   implementation and security considerations for OpenID Providers and
+   non-Web-based applications.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119].
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+   All uses of JSON Web Signature (JWS) [JWS] data structures in this
+   specification utilize the JWS Compact Serialization; the JWS JSON
+   Serialization is not used.
+
+   When the RFC 2119 language applies to the behavior of OpenID
+   Providers, it is in this specification for explanatory value to help
+   Client implementers understand the expected behavior of OpenID
+   Providers.
+
+1.2.  Terminology
+
+   This specification uses the terms "Access Token", "Refresh Token",
+   "Authorization Code", "Authorization Grant", "Authorization Server",
+   "Authorization Endpoint", "Client", "Client Identifier", "Client
+   Secret", "Protected Resource", "Resource Owner", "Resource Server",
+   and "Token Endpoint" defined by OAuth 2.0 [RFC6749].
+
+   This specification also defines the following terms:
+
+
+
+
+Sakimura, et al.                                                [Page 4]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   Relying Party (RP)  Application requiring Claims from an OpenID
+      Provider.
+
+   OpenID Provider (OP)  Service capable of providing Claims to a
+      Relying Party.
+
+   Claim  Piece of information about an Entity that a Claims Provider
+      asserts about that Entity.
+
+   Claims Provider  Server that can return Claims about an Entity.
+
+   End-User  Human Resource Owner.
+
+   Entity  Something that has a separate and distinct existence and that
+      can be identified in a context.  An End-User is one example of an
+      Entity.
+
+   Personally Identifiable Information (PII)  Information that (a) can
+      be used to identify the natural person to whom such information
+      relates, or (b) is or might be directly or indirectly linked to a
+      natural person to whom such information relates.
+
+   Pairwise Pseudonymous Identifier (PPID)  Identifier that identifies
+      the Entity to a Relying Party that cannot be correlated with the
+      Entity's PPID at another Relying Party.
+
+   ID Token  JSON Web Token (JWT) [JWT] that contains Claims about the
+      authentication event.
+
+   Issuer  Entity that issues a set of Claims.
+
+   Issuer Identifier  URL using the "https" scheme that acts as a
+      verifiable identifier for an Issuer.
+
+   Self-Issued OpenID Provider  Personal OpenID Provider that issues
+      self-signed ID Tokens.
+
+   UserInfo Endpoint  Protected resource that, when presented with an
+      Access Token by the Client, returns authorized information about
+      the End-User represented by the corresponding Authorization Grant.
+
+   Voluntary Claim  Claim specified by the Client as being useful but
+      not essential for the specific task requested by the End-User.
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 5]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+2.  Protocol Elements
+
+   Authorization Requests can follow one of two paths; the Implicit Flow
+   or the Authorization Code Flow.  The Authorization Code Flow is
+   suitable for Clients that can securely maintain a Client Secret
+   between themselves and the Authorization Server whereas, the Implicit
+   Flow is suitable for Clients that cannot.
+
+   This specification only provides information that is sufficient for
+   basic Clients using the Implicit Flow.
+
+2.1.  Implicit Flow
+
+   The Implicit Flow consists of the following steps:
+
+   1.  Client prepares an Authorization Request containing the desired
+       request parameters.
+
+   2.  Client sends a request to the Authorization Server.
+
+   3.  Authorization Server authenticates the End-User.
+
+   4.  Authorization Server obtains the End-User Consent/Authorization.
+
+   5.  Authorization Server sends the End-User back to the Client with
+       an Access Token and ID Token.
+
+2.1.1.  Client Prepares Authorization Request
+
+   When the Client wishes to access a Protected Resource and the End-
+   User Authorization has not yet been obtained, the Client prepares an
+   Authorization Request to the Authorization Endpoint.
+
+   Communication with the Authorization Endpoint MUST utilize TLS.  See
+   Section 8.1 for more information on using TLS.
+
+   Clients MAY construct the request using the HTTP "GET" or the HTTP
+   "POST" method as defined in RFC 2616 [RFC2616].
+
+   If using the HTTP "GET" method, the parameters are serialized using
+   the Query String Serialization, per Section 4.1.  If using the HTTP
+   "POST" method, the request parameters are added to the HTTP request
+   entity-body using the "application/x-www-form-urlencoded" format as
+   defined by [W3C.REC-html401-19991224].
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 6]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   The following is a non-normative example of an Authorization Request
+   URL (with line wraps for display purposes only):
+
+     https://server.example.com/authorize?
+       response_type=token%20id_token
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+       &scope=openid%20profile
+       &state=af0ifjsldkj
+       &nonce=n-0S6_WzA2Mj
+
+2.1.1.1.  Request Parameters
+
+   This profile of OpenID Connect uses the following OAuth 2.0 request
+   parameters:
+
+   response_type  REQUIRED.  This value MUST include "token" and
+      "id_token", as a space delimited list.  This requests that both an
+      Access Token and an ID Token be returned in the URL fragment of
+      the response, as specified in OAuth 2.0 Multiple Response Type
+      Encoding Practices [OAuth.Responses].
+
+   client_id  REQUIRED.  OAuth 2.0 Client Identifier.
+
+   scope  REQUIRED.  Space delimited, case sensitive list of ASCII OAuth
+      2.0 scope values.  OpenID Connect requests MUST contain the
+      "openid" scope value.  OPTIONAL scope values of "profile",
+      "email", "address", "phone", and "offline_access" are also
+      defined.  See Section 2.4 for more about the scope values defined
+      by this specification.
+
+   redirect_uri  REQUIRED.  Redirection URI to which the response will
+      be sent.  This MUST be pre-registered with the OpenID Provider.
+      If the Client uses the OAuth implicit grant type, the redirection
+      URI MUST NOT use the "http" scheme unless the Client is a native
+      application, in which case it MAY use the "http:" scheme with
+      "localhost" as the hostname.
+
+   state  RECOMMENDED.  Opaque value used to maintain state between the
+      request and the callback; serves as a protection against XSRF
+      attacks.
+
+   This specification also defines the following request parameters:
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 7]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   nonce  REQUIRED.  String value used to associate a Client session
+      with an ID Token, and to mitigate replay attacks.  The value is
+      passed through unmodified to the ID Token.  Sufficient entropy
+      MUST be present in the "nonce" values used to prevent attackers
+      from guessing values.  One method to achieve this is to store a
+      random value as a signed session cookie, and pass the value in the
+      "nonce" parameter.  In that case, the "nonce" in the returned ID
+      Token can be compared to the signed session cookie to detect ID
+      Token replay by third parties.
+
+   display  OPTIONAL.  ASCII string value that specifies how the
+      Authorization Server displays the authentication and consent user
+      interface pages to the End-User.  The defined values are:
+
+      page  The Authorization Server SHOULD display authentication and
+         consent UI consistent with a full User-Agent page view.  If the
+         display parameter is not specified this is the default display
+         mode.
+
+      popup  The Authorization Server SHOULD display authentication and
+         consent UI consistent with a popup User-Agent window.  The
+         popup User-Agent window SHOULD be 450 pixels wide and 500
+         pixels tall.
+
+      touch  The Authorization Server SHOULD display authentication and
+         consent UI consistent with a device that leverages a touch
+         interface.  The Authorization Server MAY attempt to detect the
+         touch device and further customize the interface.
+
+      wap  The Authorization Server SHOULD display authentication and
+         consent UI consistent with a "feature phone" type display.
+
+   prompt  OPTIONAL.  Space delimited, case sensitive list of ASCII
+      string values that specifies whether the Authorization Server
+      prompts the End-User for reauthentication and consent.  The
+      defined values are:
+
+      none  The Authorization Server MUST NOT display any authentication
+         or consent user interface pages.  An error is returned if the
+         End-User is not already authenticated or the Client does not
+         have pre-configured consent for the requested Claims.  This can
+         be used as a method to check for existing authentication and/or
+         consent.
+
+      login  The Authorization Server MUST prompt the End-User for
+         reauthentication.
+
+
+
+
+
+Sakimura, et al.                                                [Page 8]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+      consent  The Authorization Server MUST prompt the End-User for
+         consent before returning information to the Client.
+
+      select_account  The Authorization Server MUST prompt the End-User
+         to select a user account.  This allows a user who has multiple
+         accounts at the Authorization Server to select amongst the
+         multiple accounts that they may have current sessions for.
+
+      The "prompt" parameter can be used by the Client to make sure that
+      the End-User is still present for the current session or to bring
+      attention to the request.  If this parameter contains "none" with
+      any other value, an error is returned.
+
+   max_age  OPTIONAL.  Maximum Authentication Age. Specifies that the
+      End-User must be actively authenticated if the End-User was
+      authenticated longer ago than the specified number of seconds.
+      When "max_age" is used, the ID Token returned MUST include an
+      "auth_time" Claim Value.
+
+   ui_locales  OPTIONAL.  End-User's preferred languages and scripts for
+      the user interface, represented as a space-separated list of BCP47
+      [RFC5646] language tag values, ordered by preference.  For
+      instance, the value "fr-CA fr en" represents a preference for
+      French as spoken in Canada, then French (without a region
+      designation), followed by English (without a region designation).
+      An error SHOULD NOT result if some or all of the requested locales
+      are not supported by the OpenID Provider.
+
+   claims_locales  OPTIONAL.  End-User's preferred languages and scripts
+      for Claims being returned, represented as a space-separated list
+      of BCP47 [RFC5646] language tag values, ordered by preference.  An
+      error SHOULD NOT result if some or all of the requested locales
+      are not supported by the OpenID Provider.
+
+   id_token_hint  OPTIONAL.  Previously issued ID Token passed to the
+      Authorization Server as a hint about the End-User's current or
+      past authenticated session with the Client.  This SHOULD be
+      present when "prompt=none" is used.  If the End-User identified by
+      the ID Token is logged in or is logged in by the request, then the
+      Authorization Server returns a positive response; otherwise, it
+      SHOULD return a negative response.  The Authorization Server need
+      not be listed as an audience of the ID Token when it is used as an
+      "id_token_hint" value.
+
+   login_hint  OPTIONAL.  Hint to the Authorization Server about the
+      login identifier the End-User may use to log in (if necessary).
+      This hint can be used by an RP if it first asks the End-User for
+      their e-mail address (or other identifier) and then wants to pass
+
+
+
+Sakimura, et al.                                                [Page 9]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+      that value as a hint to the discovered authorization service.  It
+      is RECOMMENDED that the hint value match the value used for
+      discovery.  This value MAY also be a phone number in the format
+      specified for the "phone_number" Claim.  The use of this parameter
+      is left to the OP's discretion.
+
+   acr_values  OPTIONAL.  Requested Authentication Context Class
+      Reference values.  Space-separated string that specifies the "acr"
+      values that the Authorization Server MUST use for processing
+      requests from this Client.  The Authentication Context Class
+      satisfied by the authentication performed is returned as the "acr"
+      Claim Value, as specified in Section 2.2.
+
+   registration  OPTIONAL.  This parameter is used by the Client to
+      provide information about itself to a Self-Issued OP that would
+      normally be provided to an OP during Dynamic Client Registration,
+      as specified in Section 3.2.1.  The "registration" parameter
+      SHOULD NOT be used when the OP is not a Self-Issued OP.
+
+2.1.2.  Client Sends Request to Authorization Server
+
+   Having constructed the Authorization Request, the Client sends it to
+   the Authorization Endpoint using HTTPS.
+
+   Following is a non-normative example using HTTP redirect (with line
+   wraps for display purposes only):
+
+     HTTP/1.1 302 Found
+     Location: https://server.example.com/authorize?
+       response_type=token%20id_token
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+       &scope=openid%20profile
+       &state=af0ifjsldkj
+       &nonce=n-0S6_WzA2Mj
+
+2.1.3.  Authorization Server Authenticates End-User
+
+   The Authorization Server authenticates the resource owner to make
+   sure that consent is obtained from the right party.  If interaction
+   with the End-User occurs over an HTTP channel, it MUST use TLS, as
+   per Section 8.1.  The exact authentication methods used are out of
+   scope for this specification.
+
+2.1.4.  Authorization Server Obtains End-User Consent/Authorization
+
+   The Authorization Server obtains an authorization decision for the
+   requested Claims.  This can done by presenting the End-User with a
+
+
+
+Sakimura, et al.                                               [Page 10]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   dialogue that allows the End-User to recognize what he is consenting
+   to and obtain his consent or by establishing consent via other means
+   (for example, via previous administrative consent).
+
+   The "openid" scope value declares that this OAuth 2.0 request is an
+   OpenID Connect request.  Use of all other scope values is OPTIONAL.
+
+2.1.5.  Authorization Server Sends End-User Back to Client
+
+   Once the authorization is determined, the Authorization Server
+   returns a successful response or an error response.
+
+2.1.5.1.  End-User Grants Authorization
+
+   If the Resource Owner grants the access request, the Authorization
+   Server issues an Access Token and delivers it to the Client by adding
+   the following parameters to the fragment component of the redirection
+   URI using the "application/x-www-form-urlencoded" format as defined
+   in Section 4.2.2 of OAuth 2.0 [RFC6749] and OAuth 2.0 Multiple
+   Response Type Encoding Practices [OAuth.Responses].
+
+   In the Implicit Flow, the entire response is returned in the fragment
+   component of the redirect URI, as defined in 4.2.2 of OAuth 2.0
+   [RFC6749].
+
+   access_token  REQUIRED.  Access Token for the UserInfo Endpoint.
+
+   token_type  REQUIRED.  OAuth 2.0 Token Type value.  The value MUST be
+      "Bearer" or another "token_type" value that the Client has
+      negotiated with the Authorization Server.  Clients implementing
+      this profile MUST support the OAuth 2.0 Bearer Token Usage
+      [RFC6750] specification.  This profile only describes the use of
+      bearer tokens.
+
+   id_token  REQUIRED.  ID Token.
+
+   state  OAuth 2.0 state value.  REQUIRED if the "state" parameter is
+      present in the Client Authorization Request.  Clients MUST verify
+      that the "state" value is equal to the exact value of "state"
+      parameter in the Authorization Request.
+
+   expires_in  OPTIONAL.  Expiration time of the Access Token in seconds
+      since the response was generated.
+
+   The Client can then use the Access Token to access protected
+   resources at Resource Servers.
+
+
+
+
+
+Sakimura, et al.                                               [Page 11]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   The following is a non-normative example (with line wraps for the
+   display purposes only):
+
+     HTTP/1.1 302 Found
+     Location: https://client.example.org/cb#
+       access_token=SlAV32hkKG
+       &token_type=bearer
+       &id_token=eyJ0 ... NiJ9.eyJ1c ... I6IjIifX0.DeWt4Qu ... ZXso
+       &expires_in=3600
+       &state=af0ifjsldkj
+
+2.1.5.2.  End-User Denies Authorization or Invalid Request
+
+   If the End-User denies the authorization or the End-User
+   authentication fails, the Authorization Server MUST return the error
+   Authorization Response as defined in 4.2.2.1 of OAuth 2.0 [RFC6749].
+   No other parameters SHOULD be returned.
+
+2.1.5.3.  Example Redirect URI Response
+
+   The Client must provide a way for the User-Agent to parse the
+   fragment encoded response and post it to the Web Server Client for
+   validation.
+
+   The following is an example of a JavaScript file that a Client might
+   host at its "redirect_uri".  This is loaded by the redirect from the
+   Authorization Server.  The fragment is parsed and then sent by "POST"
+   to a URI that will validate the information received.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 12]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   Following is a non-normative example of a Redirect URI response:
+
+     GET /cb HTTP/1.1
+     Host: client.example.org
+
+     HTTP/1.1 200 OK
+     Content-Type: text/html
+
+     <script type="text/javascript">
+
+     // First, parse the query string
+     var params = {}, postBody = location.hash.substring(1),
+         regex = /([^&=]+)=([^&]*)/g, m;
+     while (m = regex.exec(postBody)) {
+       params[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
+     }
+
+     // And send the token over to the server
+     var req = new XMLHttpRequest();
+     // using POST so query isn't logged
+     req.open('POST', 'https://' + window.location.host +
+                      '/catch_response', true);
+     req.setRequestHeader('Content-Type',
+                          'application/x-www-form-urlencoded');
+
+     req.onreadystatechange = function (e) {
+       if (req.readyState == 4) {
+         if (req.status == 200) {
+     // If the response from the POST is 200 OK, redirect the user
+           window.location = 'https://'
+             + window.location.host + '/redirect_after_login'
+         }
+     // if the OAuth response is invalid, generate an error message
+         else if (req.status == 400) {
+           alert('There was an error processing the token')
+         } else {
+           alert('Something other than 200 was returned')
+         }
+       }
+     };
+     req.send(postBody);
+
+2.2.  ID Token
+
+   The ID Token is a security token that contains Claims about the
+   authentication event and other requested Claims.  The ID Token is
+   represented as a JSON Web Token (JWT) [JWT].
+
+
+
+
+Sakimura, et al.                                               [Page 13]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   The ID Token is used to manage the authentication event and user
+   identifier and is scoped to a particular Client via the "aud"
+   (audience) and "nonce" Claims.
+
+   The following Claims are used within the ID Token:
+
+   iss  REQUIRED.  Issuer Identifier for the Issuer of the response.
+
+   sub  REQUIRED.  Subject identifier.  A locally unique and never
+      reassigned identifier within the Issuer for the End-User, which is
+      intended to be consumed by the Client. e.g. "24400320" or
+      "AItOawmwtWwcT0k51BayewNvutrJUqsvl6qs7A4".  It MUST NOT exceed 255
+      ASCII characters in length.
+
+   aud  REQUIRED.  Audience(s) that this ID Token is intended for.  It
+      MUST contain the OAuth 2.0 "client_id" of the Relying Party as an
+      audience value.  It MAY also contain identifiers for other
+      audiences.
+
+   exp  REQUIRED.  Expiration time on or after which the ID Token MUST
+      NOT be accepted for processing.  The processing of this parameter
+      requires that the current date/time MUST be before the expiration
+      date/time listed in the value.  Implementers MAY provide for some
+      small leeway, usually no more than a few minutes, to account for
+      clock skew.  The time is represented as the number of seconds from
+      1970-01-01T0:0:0Z as measured in UTC until the date/time.  See RFC
+      3339 [RFC3339] for details regarding date/times in general and UTC
+      in particular.
+
+   iat  REQUIRED.  Time at which the JWT was issued.  The time is
+      represented as the number of seconds from 1970-01-01T0:0:0Z as
+      measured in UTC until the date/time.
+
+   auth_time  OPTIONAL or REQUIRED.  Time when the End-User
+      authentication occurred.  The time is represented as the number of
+      seconds from 1970-01-01T0:0:0Z as measured in UTC until the date/
+      time.  When a "max_age" request is made then this Claim is
+      REQUIRED.
+
+   nonce  REQUIRED.  String value used to associate a Client session
+      with an ID Token, and to mitigate replay attacks.  The value is
+      passed through unmodified from the Authorization Request to the ID
+      Token.  The Client MUST verify that the "nonce" Claim Value is
+      equal to the value of the "nonce" parameter sent in the
+      Authorization Request.  If present in the Authorization Request,
+      Authorization Servers MUST include a "nonce" Claim in the ID Token
+      with the Claim Value being the nonce value sent in the
+      Authorization Request.  Use of the nonce is REQUIRED when using
+
+
+
+Sakimura, et al.                                               [Page 14]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+      the implicit flow.
+
+   at_hash  REQUIRED.  Access Token hash value.  If the ID Token is
+      issued with an "access_token" in an implicit flow, this is
+      REQUIRED, which is the case for this profile.  Its value is the
+      base64url encoding of the left-most half of the hash of the octets
+      of the ASCII representation of the "access_token" value, where the
+      hash algorithm used is the hash algorithm used in the "alg"
+      parameter of the ID Token's JWS [JWS] header.  For instance, if
+      the "alg" is "RS256", hash the "access_token" value with SHA-256,
+      then take the left-most 128 bits and base64url encode them.
+
+   acr  OPTIONAL.  Authentication Context Class Reference.  String
+      specifying an Authentication Context Class Reference value that
+      identifies the Authentication Context Class that the
+      authentication performed satisfied.  The value "0" indicates the
+      End-User authentication did not meet the requirements of ISO/IEC
+      29115 [ISO29115] level 1.  Authentication using a long-lived
+      browser cookie, for instance, is one example where the use of
+      "level 0" is appropriate.  Authentications with level 0 should
+      never be used to authorize access to any resource of any monetary
+      value.  An absolute URI or a registered name [RFC6711] MAY be used
+      as an "acr" value.
+
+   amr  OPTIONAL.  Authentication Methods References.  JSON array of
+      strings that are identifiers for authentication methods used in
+      the authentication.  For instance, values might indicate that both
+      password and OTP authentication methods were used.  The definition
+      of particular values to be used in the "amr" Claim is beyond the
+      scope of this specification.
+
+   azp  OPTIONAL or REQUIRED.  Authorized Party - the party to which the
+      ID Token was issued.  If present, it MUST contain the OAuth 2.0
+      "client_id" of the Relying Party.  This Claim is only REQUIRED
+      when the party requesting the ID Token is not the same as the sole
+      audience of the ID Token.  It MAY be included even when the
+      Authorized Party is the same as the sole audience.  The "azp"
+      value is a case sensitive string containing a StringOrURI value.
+
+   sub_jwk  NOT RECOMMENDED or REQUIRED.  Public key value used to check
+      the signature of an ID Token issued by a Self-Issued OpenID
+      Provider, as specified in Section 3.  The key is a bare key in JWK
+      [JWK] format (not an X.509 certificate value).  Use of the
+      "sub_jwk" Claim is REQUIRED when the OP is a Self-Issued OP and is
+      NOT RECOMMENDED when the OP is not Self-Issued.
+
+   The JWT MAY contain other Claims.  Any Claims used that are not
+   understood MUST be ignored.
+
+
+
+Sakimura, et al.                                               [Page 15]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   ID Tokens MUST be signed using JWS [JWS].  Clients MUST directly
+   validate the ID Token per Section 2.2.1.
+
+   ID Tokens SHOULD NOT use the JWS or JWE "x5u", "x5c", "jku", or "jwk"
+   header parameter fields.  Instead, key values and key references used
+   for ID Tokens are communicated in advance using Discovery and
+   Registration parameters.
+
+   The following is a non-normative example of a base64url decoded ID
+   Token (with line wraps for display purposes only):
+
+     {
+      "iss": "https://server.example.com",
+      "sub": "24400320",
+      "aud": "s6BhdRkqt3",
+      "nonce": "n-0S6_WzA2Mj",
+      "exp": 1311281970,
+      "iat": 1311280970,
+      "at_hash": "MTIzNDU2Nzg5MDEyMzQ1Ng"
+     }
+
+2.2.1.  ID Token Validation
+
+   If any of the validation procedures defined in this specification
+   fail, any operations requiring the information that failed to
+   correctly validate MUST be aborted and the information that failed to
+   validate MUST NOT be used.
+
+   To validate the ID Token in the Authorization Response, the Client
+   MUST do the following:
+
+   1.   The Client MUST validate that the "aud" (audience) Claim
+        contains its "client_id" value registered at the Issuer
+        identified by the "iss" (issuer) Claim as an audience.  The ID
+        Token MUST be rejected if the ID Token does not list the Client
+        as a valid audience, or if it contains additional audiences not
+        trusted by the Client.
+
+   2.   If the ID Token contains multiple audiences, the Client SHOULD
+        verify that an "azp" Claim is present.
+
+   3.   If an "azp" (authorized party) Claim is present, the Client
+        SHOULD verify and that its "client_id" is the Claim value.
+
+   4.   The Client MUST validate the signature of the ID Token according
+        to JWS [JWS] using the algorithm specified in the "alg"
+        parameter of the JWT header.
+
+
+
+
+Sakimura, et al.                                               [Page 16]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   5.   The "alg" value SHOULD be "RS256".  Validation of tokens using
+        other signing algorithms is described in the OpenID Connect
+        Messages 1.0 [OpenID.Messages] specification.
+
+   6.   The Client MUST use the signing key provided in Discovery by the
+        Issuer.  The Issuer must exactly match the value of the "iss"
+        (issuer) Claim.
+
+   7.   The current time MUST be less than the value of the "exp" Claim
+        (possibly allowing for some small leeway to account for clock
+        skew).
+
+   8.   The "iat" Claim can be used to reject tokens that were issued
+        too far away from the current time, limiting the amount of time
+        that nonces must be stored to prevent attacks.  The acceptable
+        range is Client specific.
+
+   9.   The value of the "nonce" Claim MUST be checked to verify that it
+        is the same value as the one that was sent in the Authorization
+        Request.  The Client SHOULD check the "nonce" value for replay
+        attacks.  The precise method for detecting replay attacks is
+        Client specific.
+
+   10.  If the "acr" Claim was requested, the Client SHOULD check that
+        the asserted Claim Value is appropriate.  The meaning and
+        processing of "acr" Claim Values is out of scope for this
+        specification.
+
+   11.  When a "max_age" request is made, the Client SHOULD check the
+        "auth_time" Claim value and request re-authentication if it
+        determines too much time has elapsed since the last End-User
+        authentication.
+
+2.2.2.  Access Token Validation
+
+   To validate an Access Token issued with an ID Token in the implicit
+   flow, the Client SHOULD do the following:
+
+   1.  Hash the octets of the ASCII representation of the "access_token"
+       with the hash algorithm specified in JWA [JWA] for the "alg"
+       parameter in the ID Token's JWS [JWS] header.
+
+   2.  Take the left-most half of the hash and base64url encode it.
+
+   3.  The value of "at_hash" in the ID Token MUST match the value
+       produced in the previous step if "at_hash" is present in the ID
+       Token.
+
+
+
+
+Sakimura, et al.                                               [Page 17]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+2.3.  UserInfo Endpoint
+
+   The UserInfo Endpoint is an OAuth 2.0 Protected Resource that returns
+   Claims about the authenticated End-User.  The location of the
+   UserInfo Endpoint MUST be a URL using the "https" scheme, which MAY
+   contain port, path, and query parameter components.  The returned
+   Claims are represented by a JSON object that contains a collection of
+   name and value pairs for the Claims.
+
+   Communication with the UserInfo Endpoint MUST utilize TLS.  See
+   Section 8.1 for more information on using TLS.
+
+2.3.1.  UserInfo Request
+
+   Clients send requests to the UserInfo Endpoint to obtain Claims about
+   the End-User.  The UserInfo Endpoint is an OAuth 2.0 [RFC6749]
+   Protected Resource that complies with the OAuth 2.0 Bearer Token
+   Usage [RFC6750] specification.  The Access Token SHOULD be sent using
+   the "Authorization" header field.  The following parameters are
+   defined for use in UserInfo Requests:
+
+   access_token  REQUIRED.  Access Token obtained from an OpenID Connect
+      Authorization Request.  This parameter MUST only be sent using one
+      method using either the "Authorization" header field or a form-
+      encoded "POST" body parameter.
+
+   The following is a non-normative example of a UserInfo Request:
+
+     GET /userinfo HTTP/1.1
+     Host: server.example.com
+     Authorization: Bearer SlAV32hkKG
+
+2.3.2.  UserInfo Response
+
+   The UserInfo Claims MUST be returned as the members of a JSON object.
+   The response body SHOULD be encoded using UTF-8.  The Claims defined
+   in Section 2.5 can be returned, as can additional Claims not
+   specified there.
+
+   If a Claim is not returned, that Claim Name SHOULD be omitted from
+   the JSON object representing the Claims; it SHOULD NOT be present
+   with a null or empty string value.
+
+   The "sub" (subject) Claim MUST always be returned in the UserInfo
+   Response.
+
+   NOTE: The UserInfo Endpoint response is not guaranteed to be about
+   the End-User identified by the "sub" (subject) element of the ID
+
+
+
+Sakimura, et al.                                               [Page 18]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   Token.  The "sub" Claim in the UserInfo Endpoint response MUST be
+   verified to exactly match the "sub" Claim in the ID Token before
+   using additional UserInfo Endpoint Claims.
+
+2.3.3.  UserInfo Error Response
+
+   When an error condition occurs, the UserInfo Endpoint returns an
+   Error Response as defined in Section 3 of OAuth 2.0 Bearer Token
+   Usage [RFC6750].
+
+2.4.  Scope Values
+
+   OpenID Connect Clients use "scope" values as defined in 3.3 of OAuth
+   2.0 [RFC6749] to specify what access privileges are being requested
+   for Access Tokens.  The scopes associated with Access Tokens
+   determine what resources will be available when they are used to
+   access OAuth 2.0 protected endpoints.  For OpenID Connect, scopes can
+   be used to request that specific sets of information be made
+   available as Claim Values.  This specification describes only the
+   scope values used by OpenID Connect.
+
+   OpenID Connect allows additional scope values to be defined and used.
+   Scope values used that are not understood by an implementation SHOULD
+   be ignored.
+
+   Claims requested by the following scopes are treated by Authorization
+   Servers as Voluntary Claims.
+
+   OpenID Connect defines the following "scope" values:
+
+   openid  REQUIRED.  Informs the Authorization Server that the Client
+      is making an OpenID Connect request.  If the "openid" scope value
+      is not present, the behavior is entirely unspecified.
+
+   profile  OPTIONAL.  This scope value requests access to the End-
+      User's default profile Claims, which are: "name", "family_name",
+      "given_name", "middle_name", "nickname", "preferred_username",
+      "profile", "picture", "website", "gender", "birthdate",
+      "zoneinfo", "locale", and "updated_at".
+
+   email  OPTIONAL.  This scope value requests access to the "email" and
+      "email_verified" Claims.
+
+   address  OPTIONAL.  This scope value requests access to the "address"
+      Claim.
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 19]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   phone  OPTIONAL.  This scope value requests access to the
+      "phone_number" and "phone_number_verified" Claims.
+
+   offline_access  This scope value MAY NOT be used with the OpenID
+      Connect Implicit Client Profile 1.0.  See the OpenID Connect Basic
+      Client Profile 1.0 [OpenID.Basic] for its usage in that profile.
+
+   Multiple scope values MAY be used by creating a space delimited, case
+   sensitive list of ASCII scope values.
+
+   The Claims requested by the "profile", "email", "address", and
+   "phone" scope values are returned from the UserInfo Endpoint, as
+   described in Section 2.3.2.
+
+   In some cases, the End-User will be given the option to have the
+   OpenID Provider decline to provide some or all information requested
+   by Clients.  To minimize the amount of information that the user is
+   being asked to disclose, a Client may elect to only request a subset
+   of the information available from the UserInfo Endpoint.
+
+   The following is a non-normative example of a "scope" Request.
+
+     scope=openid profile email phone
+
+2.5.  Standard Claims
+
+   This profile defines a set of standard Claims.  They are returned by
+   normal OPs in the UserInfo Response and are returned by Self-Issued
+   OPs in the ID Token.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 20]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   +-----------------------+---------+---------------------------------+
+   | Member                | Type    | Description                     |
+   +-----------------------+---------+---------------------------------+
+   | sub                   | string  | Subject - Identifier for the    |
+   |                       |         | End-User at the Issuer.         |
+   |                       |         |                                 |
+   | name                  | string  | End-User's full name in         |
+   |                       |         | displayable form including all  |
+   |                       |         | name parts, possibly including  |
+   |                       |         | titles and suffixes, ordered    |
+   |                       |         | according to the End-User's     |
+   |                       |         | locale and preferences.         |
+   |                       |         |                                 |
+   | given_name            | string  | Given name(s) or first name(s)  |
+   |                       |         | of the End-User.  Note that in  |
+   |                       |         | some cultures, people may have  |
+   |                       |         | multiple given names; all may   |
+   |                       |         | be present, with the names      |
+   |                       |         | being separated by space        |
+   |                       |         | characters.                     |
+   |                       |         |                                 |
+   | family_name           | string  | Surname(s) or last name(s) of   |
+   |                       |         | the End-User.  Note that in     |
+   |                       |         | some cultures, people may have  |
+   |                       |         | multiple family names; all may  |
+   |                       |         | be present, with the names      |
+   |                       |         | being separated by space        |
+   |                       |         | characters.                     |
+   |                       |         |                                 |
+   | middle_name           | string  | Middle name(s) of the End-User. |
+   |                       |         | Note that in some cultures,     |
+   |                       |         | people may have multiple middle |
+   |                       |         | names; all may be present, with |
+   |                       |         | the names being separated by    |
+   |                       |         | space characters.  Also note    |
+   |                       |         | that in some cultures, middle   |
+   |                       |         | names are not used.             |
+   |                       |         |                                 |
+   | nickname              | string  | Casual name of the End-User     |
+   |                       |         | that may or may not be the same |
+   |                       |         | as the "given_name".  For       |
+   |                       |         | instance, a "nickname" value of |
+   |                       |         | "Mike" might be returned        |
+   |                       |         | alongside a "given_name" value  |
+   |                       |         | of "Michael".                   |
+   |                       |         |                                 |
+
+
+
+
+
+Sakimura, et al.                                               [Page 21]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   | preferred_username    | string  | Shorthand name that the         |
+   |                       |         | End-User wishes to be referred  |
+   |                       |         | to at the RP, such as "janedoe" |
+   |                       |         | or "j.doe".  This value MAY be  |
+   |                       |         | any valid JSON string including |
+   |                       |         | special characters such as "@", |
+   |                       |         | "/", or whitespace.  This value |
+   |                       |         | MUST NOT be relied upon to be   |
+   |                       |         | unique by the RP.  (See         |
+   |                       |         | Section 2.5.3.)                 |
+   |                       |         |                                 |
+   | profile               | string  | URL of the End-User's profile   |
+   |                       |         | page.  The contents of this Web |
+   |                       |         | page should be about the        |
+   |                       |         | End-User.                       |
+   |                       |         |                                 |
+   | picture               | string  | URL of the End-User's profile   |
+   |                       |         | picture.  This URL MUST refer   |
+   |                       |         | to an image file (for example,  |
+   |                       |         | a PNG, JPEG, or GIF image       |
+   |                       |         | file), rather than to a Web     |
+   |                       |         | page containing an image.  Note |
+   |                       |         | that this URL SHOULD            |
+   |                       |         | specifically reference a        |
+   |                       |         | profile photo of the End-User   |
+   |                       |         | suitable for displaying when    |
+   |                       |         | describing the End-User, rather |
+   |                       |         | than an arbitrary photo taken   |
+   |                       |         | by the End-User.                |
+   |                       |         |                                 |
+   | website               | string  | URL of the End-User's Web page  |
+   |                       |         | or blog.  This Web page should  |
+   |                       |         | contain information published   |
+   |                       |         | by the End-User or an           |
+   |                       |         | organization that the End-User  |
+   |                       |         | is affiliated with.             |
+   |                       |         |                                 |
+   | email                 | string  | End-User's preferred e-mail     |
+   |                       |         | address.  Its value MUST        |
+   |                       |         | conform to the RFC 5322         |
+   |                       |         | [RFC5322] addr-spec syntax.     |
+   |                       |         | This value MUST NOT be relied   |
+   |                       |         | upon to be unique by the RP, as |
+   |                       |         | discussed in Section 2.5.3.     |
+   |                       |         |                                 |
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 22]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   | email_verified        | boolean | True if the End-User's e-mail   |
+   |                       |         | address has been verified;      |
+   |                       |         | otherwise false.  When this     |
+   |                       |         | Claim Value is "true", this     |
+   |                       |         | means that the OP took          |
+   |                       |         | affirmative steps to ensure     |
+   |                       |         | that this e-mail address was    |
+   |                       |         | controlled by the End-User at   |
+   |                       |         | the time the verification was   |
+   |                       |         | performed.  The means by which  |
+   |                       |         | an e-mail address must be       |
+   |                       |         | verified is context-specific,   |
+   |                       |         | and dependent upon the trust    |
+   |                       |         | framework or contractual        |
+   |                       |         | agreements within which the     |
+   |                       |         | parties are operating.          |
+   |                       |         |                                 |
+   | gender                | string  | End-User's gender.  Values      |
+   |                       |         | defined by this specification   |
+   |                       |         | are "female" and "male".  Other |
+   |                       |         | values MAY be used when neither |
+   |                       |         | of the defined values are       |
+   |                       |         | applicable.                     |
+   |                       |         |                                 |
+   | birthdate             | string  | End-User's birthday,            |
+   |                       |         | represented as an ISO 8601:2004 |
+   |                       |         | [ISO8601-2004] "YYYY-MM-DD"     |
+   |                       |         | format.  The year MAY be        |
+   |                       |         | "0000", indicating that it is   |
+   |                       |         | omitted.  To represent only the |
+   |                       |         | year, "YYYY" format is allowed. |
+   |                       |         | Note that depending on the      |
+   |                       |         | underlying platform's date      |
+   |                       |         | related function, providing     |
+   |                       |         | just year may result in varying |
+   |                       |         | month and day, so the           |
+   |                       |         | implementers should take this   |
+   |                       |         | factor into account to          |
+   |                       |         | correctly process the dates.    |
+   |                       |         |                                 |
+   | zoneinfo              | string  | String from zoneinfo [zoneinfo] |
+   |                       |         | time zone database representing |
+   |                       |         | the End-User's time zone.  For  |
+   |                       |         | example, "Europe/Paris" or      |
+   |                       |         | "America/Los_Angeles".          |
+   |                       |         |                                 |
+
+
+
+
+
+Sakimura, et al.                                               [Page 23]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   | locale                | string  | End-User's locale, represented  |
+   |                       |         | as a BCP47 [RFC5646] language   |
+   |                       |         | tag.  This is typically an ISO  |
+   |                       |         | 639-1 Alpha-2 [ISO639-1]        |
+   |                       |         | language code in lowercase and  |
+   |                       |         | an ISO 3166-1 Alpha-2           |
+   |                       |         | [ISO3166-1] country code in     |
+   |                       |         | uppercase, separated by a dash. |
+   |                       |         | For example, "en-US" or         |
+   |                       |         | "fr-CA".  As a compatibility    |
+   |                       |         | note, some implementations have |
+   |                       |         | used an underscore as the       |
+   |                       |         | separator rather than a dash,   |
+   |                       |         | for example, "en_US";           |
+   |                       |         | Implementations MAY choose to   |
+   |                       |         | accept this locale syntax as    |
+   |                       |         | well.                           |
+   |                       |         |                                 |
+   | phone_number          | string  | End-User's preferred telephone  |
+   |                       |         | number.  E.164 [E.164] is       |
+   |                       |         | RECOMMENDED as the format of    |
+   |                       |         | this Claim, for example, "+1    |
+   |                       |         | (425) 555-1212" or "+56 (2) 687 |
+   |                       |         | 2400".  If the phone number     |
+   |                       |         | contains an extension, it is    |
+   |                       |         | RECOMMENDED that the extension  |
+   |                       |         | be represented using the RFC    |
+   |                       |         | 3966 [RFC3966] extension        |
+   |                       |         | syntax, for example, "+1 (604)  |
+   |                       |         | 555-1234;ext=5678".             |
+   |                       |         |                                 |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 24]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   | phone_number_verified | boolean | True if the End-User's phone    |
+   |                       |         | number has been verified;       |
+   |                       |         | otherwise false.  When this     |
+   |                       |         | Claim Value is "true", this     |
+   |                       |         | means that the OP took          |
+   |                       |         | affirmative steps to ensure     |
+   |                       |         | that this phone number was      |
+   |                       |         | controlled by the End-User at   |
+   |                       |         | the time the verification was   |
+   |                       |         | performed.  The means by which  |
+   |                       |         | a phone number must be verified |
+   |                       |         | is context-specific, and        |
+   |                       |         | dependent upon the trust        |
+   |                       |         | framework or contractual        |
+   |                       |         | agreements within which the     |
+   |                       |         | parties are operating.  When    |
+   |                       |         | true, the "phone_number" Claim  |
+   |                       |         | MUST be in E.164 format and any |
+   |                       |         | extensions MUST be represented  |
+   |                       |         | in RFC 3966 format.             |
+   |                       |         |                                 |
+   | address               | JSON    | End-User's preferred address.   |
+   |                       | object  | The value of the "address"      |
+   |                       |         | member is a JSON [RFC4627]      |
+   |                       |         | structure containing some or    |
+   |                       |         | all of the members defined in   |
+   |                       |         | Section 2.5.1.                  |
+   |                       |         |                                 |
+   | updated_at            | string  | Time the End-User's information |
+   |                       |         | was last updated.  The time is  |
+   |                       |         | represented as the number of    |
+   |                       |         | seconds from 1970-01-01T0:0:0Z  |
+   |                       |         | as measured in UTC until the    |
+   |                       |         | date/time.                      |
+   +-----------------------+---------+---------------------------------+
+
+                   Table 1: Reserved Member Definitions
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 25]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   Following is a non-normative example of such a response:
+
+     {
+      "sub": "248289761001",
+      "name": "Jane Doe",
+      "given_name": "Jane",
+      "family_name": "Doe",
+      "preferred_username": "j.doe",
+      "email": "janedoe@example.com",
+      "picture": "http://example.com/janedoe/me.jpg"
+     }
+
+   The UserInfo Endpoint MUST return Claims in JSON format unless a
+   different format was specified during Registration
+   [OpenID.Registration].  The UserInfo Endpoint MUST return a content-
+   type header to indicate which format is being returned.  The
+   following are accepted content types:
+
+               +------------------+------------------------+
+               | Content-Type     | Format Returned        |
+               +------------------+------------------------+
+               | application/json | plain text JSON object |
+               +------------------+------------------------+
+               | application/jwt  | JSON Web Token (JWT)   |
+               +------------------+------------------------+
+
+2.5.1.  Address Claim
+
+   The components of a physical mailing address.  Implementations MAY
+   return only a subset of the fields of an "address", depending upon
+   the information available and the End-User's privacy preferences.
+   For example, the "country" and "region" might be returned without
+   returning more fine-grained address information.
+
+   Implementations MAY return just the full address as a single string
+   in the formatted sub-field, or they MAY return just the individual
+   component fields using the other sub-fields, or they MAY return both.
+   If both variants are returned, they SHOULD be describing the same
+   address, with the formatted address indicating how the component
+   fields SHOULD be combined.
+
+   formatted  Full mailing address, formatted for display or use on a
+      mailing label.  This field MAY contain multiple lines, separated
+      by newline characters.  This is the primary member of this Claim
+      value, for the purposes of sorting and filtering.
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 26]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   street_address  Full street address component, which may include
+      house number, street name, Post Office Box, and multi-line
+      extended street address information.  This field MAY contain
+      multiple lines, separated by newline characters.
+
+   locality  City or locality component.
+
+   region  State, province, prefecture or region component.
+
+   postal_code  Zip code or postal code component.
+
+   country  Country name component.
+
+2.5.2.  Claims Languages and Scripts
+
+   Human-readable Claim Values and Claim Values that reference human-
+   readable values MAY be represented in multiple languages and scripts.
+   To specify the languages and scripts, BCP47 [RFC5646] language tags
+   are added to member names, delimited by a "#" character.  For
+   example, "family_name#ja-Kana-JP" expresses the Family Name in
+   Katakana in Japanese, which is commonly used to index and represent
+   the phonetics of the Kanji representation of the same represented as
+   "family_name#ja-Hani-JP".  As another example, both "website" and
+   "website#de" Claim Values might be returned, referencing a Web site
+   in an unspecified language and a Web site in German.
+
+   Since Claim Names are case sensitive, it is strongly RECOMMENDED that
+   language tag values used in Claim Names be spelled using the
+   character case with which they are registered in the IANA Language
+   Subtag Registry [IANA.Language].  In particular, normally language
+   names are spelled with lowercase characters, region names are spelled
+   with uppercase characters, and languages are spelled with mixed case
+   characters.  However, since BCP47 language tag values are case
+   insensitive, implementations SHOULD interpret the language tag values
+   supplied in a case insensitive manner.
+
+   Per the recommendations in BCP47, language tag values for Claims
+   should only be as specific as necessary.  For instance, using "fr"
+   might be sufficient in many contexts, rather than "fr-CA" or "fr-FR".
+   Where possible, OPs should try to match requested Claim locales with
+   Claims it has.  For instance, if the Client asks for a Claim with a
+   "de" (German) language tag and the OP has a value tagged with "de-CH"
+   (Swiss German) and no generic German value, it would be appropriate
+   for the OP to return the Swiss German value to the Client.  (This
+   intentionally moves as much of the complexity of language tag
+   matching to the OP as possible, to simplify Clients.)
+
+   A "claims_locales" request can be used to specify the preferred
+
+
+
+Sakimura, et al.                                               [Page 27]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   languages and scripts to use for the returned Claims.
+
+   When the OP determines, either through the "claims_locales"
+   parameter, or by other means, that the End-User and Client are
+   requesting Claims in only one set of languages and scripts, it is
+   RECOMMENDED that OPs return Claims without language tags when they
+   employ this language and script.  It is also RECOMMENDED that Clients
+   be written in a manner that they can handle and utilize Claims using
+   language tags.
+
+2.5.3.  Claim Stability and Uniqueness
+
+   The "sub" (subject) and "iss" (issuer) Claims are the only Claims
+   that a Client can rely upon as a stable identifier for the End-User,
+   since the "sub" Claim MUST be locally unique and never reassigned
+   within the Issuer for a particular End-User, as described in
+   Section 2.2.  Therefore, the only guaranteed unique identifier for a
+   given End-User is the combination of the "iss" Claim and the "sub"
+   Claim.
+
+   All other Claims carry no such guarantees across different issuers in
+   terms of stability over time or uniqueness across users, and Issuers
+   are permitted to apply local restrictions and policies.  For
+   instance, an Issuer MAY re-use an "email" Claim value across
+   different End-Users at different points in time, and the claimed
+   "email" address for a given End-User MAY change over time.
+   Therefore, other Claims such as "email", "phone_number", and
+   "preferred_username" and MUST NOT be used as unique identifiers for
+   the End-User.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 28]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+3.  Self-Issued OpenID Provider
+
+   OpenID Connect supports Self-Issued OpenID Providers - personal OPs
+   that issue self-signed ID Tokens.  Self-Issued OPs use the special
+   Issuer Identifier "https://self-issued.me".
+
+3.1.  Self-Issued OpenID Provider Discovery
+
+   If the input identifier for the discovery process contains the domain
+   self-issued.me, dynamic discovery is not performed.  Instead, then
+   the following static configuration values are used:
+
+
+     {
+      "authorization_endpoint":
+        "openid:",
+      "issuer":
+        "https://self-issued.me",
+      "scopes_supported":
+        ["openid", "profile", "email", "address", "phone"],
+      "response_types_supported":
+        ["id_token"],
+      "subject_types_supported":
+        ["pairwise"],
+      "id_token_signing_alg_values_supported":
+        ["RS256"],
+      "request_object_signing_alg_values_supported":
+        ["none", "RS256"]
+      }
+
+   Note: The OpenID Foundation may consider hosting a site
+   https://self-issued.me/ that returns the above static configuration
+   file so that the Client would not need any special treatment for
+   discovery of the Self-Issued OP.
+
+3.2.  Self-Issued OpenID Provider Registration
+
+   When using a Self-Issued OP, the Client is deemed to have registered
+   with the OP and obtained following Client Registration Response.
+
+   client_id  "redirect_uri" value of the Client.
+
+   client_secret_expires_at  0
+
+   Note: The OpenID Foundation may consider hosting the (stateless)
+   endpoint "https://self-issued.me/registration/1.0/" that returns the
+   response above so that the Client would not need to perform any
+   special processing for registration of a Self-Issued OP.
+
+
+
+Sakimura, et al.                                               [Page 29]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+3.2.1.  Providing Additional Registration Information
+
+   The "registration" request parameter can be used by the Client to
+   provide information about itself to a Self-Issued OP that would
+   normally be provided to an OP during Dynamic Client Registration.
+   The value is a JSON object containing name/value pairs defined in
+   Section 2.1 of the OpenID Connect Dynamic Client Registration 1.0
+   [OpenID.Registration] specification.  None of this information is
+   required by Self-Issued OPs, so the use of this parameter is
+   OPTIONAL.
+
+   The "registration" parameter value is represented in an OAuth 2.0
+   request as UTF-8 encoded JSON (which ends up being form-urlencoded
+   when passed as an OAuth parameter).
+
+   The Registration parameters that would typically be used in requests
+   to Self-Issued OPs are "policy_uri", "tos_uri", and "logo_uri".  If
+   the Client uses more than one redirect URI, the "redirect_uris"
+   parameter would be used to register them.
+
+3.3.  Self-Issued OpenID Provider Request
+
+   The Client sends the Authorization Request to the Authorization
+   Endpoint with the following parameters:
+
+   response_type  REQUIRED.  Constant string value "id_token".
+
+   client_id  REQUIRED.  Client ID value for the Client, which in this
+      case contains the "redirect_uri" value of the Client.  Since the
+      Client's "redirect_uri" URI value is communicated as the Client
+      ID, a "redirect_uri" parameter is NOT REQUIRED to also be included
+      in the request.
+
+   scope  REQUIRED. "scope" parameter value, as defined in Section 2.4.
+
+   id_token_hint  OPTIONAL.  Previously issued ID Token passed to the
+      Authorization Server as a hint about the End-User's current or
+      past authenticated session with the Client.  This SHOULD be
+      present when "prompt=none" is used.  If the End-User identified by
+      the ID Token is logged in or is logged in by the request, then the
+      Authorization Server returns a positive response; otherwise, it
+      SHOULD return a negative response.
+
+   registration  OPTIONAL.  This parameter is used by the Client to
+      provide information about itself to a Self-Issued OP that would
+      normally be provided to an OP during Dynamic Client Registration,
+      as specified in Section 3.2.1.  The "registration" parameter
+      SHOULD NOT be used when the OP is not a Self-Issued OP.
+
+
+
+Sakimura, et al.                                               [Page 30]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   Other parameters MAY be sent.  Note that all Claims are returned in
+   the ID Token.
+
+   The entire URL MUST NOT exceed 2048 ASCII characters.
+
+   Following is a non-normative example (with line wraps for display
+   purposes only):
+
+     HTTP/1.1 302 Found
+     Location: openid://
+       ?response_type=id_token
+       &client_id=https%3A%2F%2Fclient.example.org%2Fcb
+       &scope=openid%20profile
+       &state=af0ifjsldkj
+       &nonce=n-0S6_WzA2Mj
+       registration=&%7B%22logo_uri%22%3A%22https%3A%2F%2F
+         client.example.org%2Flogo.png%22%7D
+
+3.4.  Self-Issued OpenID Provider Response
+
+   The self-issued OpenID Provider response is the same as the normal
+   implicit flow response with the following refinements.  Since it is
+   an implicit flow response, the response parameters will be returned
+   in a fragment.
+
+   1.  The "iss" (issuer) Claim Value is "https://self-issued.me".
+
+   2.  A "sub_jwk" Claim is present, with its value being the public key
+       value used to check the signature of the ID Token.
+
+   3.  The "sub" (subject) Claim value is the base64url encoded SHA-256
+       hash of the concatenation of the octets of the UTF-8
+       representations of the base64url encoded key values in the
+       "sub_jwk" Claim.  When the "kty" value is "RSA", the key values
+       "n" and "e" are concatenated in that order.  When the "kty" value
+       is "EC", the key values "crv", "x", and "y" are concatenated in
+       that order.
+
+   4.  No Access Token is returned for accessing a UserInfo Endpoint, so
+       all Claims returned must be in the ID Token.
+
+3.5.  Self-Issued ID Token Validation
+
+   To validate the ID Token in the Authorization or Token Endpoint
+   Response, the Client MUST do the following:
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 31]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   1.  The Client MUST validate that the value of the "iss" (issuer)
+       Claim is "https://self-isued.me".  If "iss" contains a different
+       value, the ID Token is not Self-Issued, and instead it MUST be
+       validated according to Section 2.2.1.
+
+   2.  The Client MUST validate that the "aud" (audience) Claim contains
+       the value of the "redirect_uri" that the Client sent in the
+       authentication request as an audience.
+
+   3.  The Client MUST validate the signature of the ID Token according
+       to JWS [JWS] using the algorithm specified in the "alg" parameter
+       of the JWT header [JWT], using the key in the "sub_jwk" Claim;
+       the key is a bare key in JWK [JWK] format (not an X.509
+       certificate value).
+
+   4.  The "alg" value SHOULD be the default of "RS256".  It may also be
+       "ES256".
+
+   5.  The Client MUST validate that the "sub" (subject) Claim value is
+       the base64url encoded SHA-256 hash of the concatenation of the
+       octets of the UTF-8 representations of the base64url encoded key
+       values in the "sub_jwk" Claim.  When the "kty" value is "RSA",
+       the key values "n" and "e" are concatenated in that order.  When
+       the "kty" value is "EC", the key values "crv", "x", and "y" are
+       concatenated in that order.
+
+   6.  The current time MUST be less than the value of the "exp" Claim
+       (possibly allowing for some small leeway to account for clock
+       skew).
+
+   7.  The "iat" Claim can be used to reject tokens that were issued too
+       far away from the current time, limiting the amount of time that
+       nonces must be stored to prevent attacks.  The acceptable range
+       is Client specific.
+
+   8.  If a nonce value was sent in the Authorization Request, a "nonce"
+       Claim MUST be present and its value of the checked to verify that
+       it is the same value as the one that was sent in the
+       Authorization Request.  The Client SHOULD check the "nonce" value
+       for replay attacks.  The precise method for detecting replay
+       attacks is Client specific.
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 32]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   The following is a non-normative example of a base64url decoded Self-
+   Issued ID Token (with line wraps for display purposes only):
+
+     {
+      "iss": "https://self-issued.me",
+      "sub": "wBy8QvHbPzUnL0x63h13QqvUYcOur1X0cbQpPVRqX5k",
+      "aud": "https://client.example.org/cb",
+      "nonce": "n-0S6_WzA2Mj",
+      "exp": 1311281970,
+      "iat": 1311280970,
+      "sub_jwk": {
+        "kty":"RSA",
+        "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx
+        4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMs
+        tn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2
+        QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbI
+        SD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqb
+        w0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
+        "e":"AQAB"
+       }
+     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 33]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+4.  Serializations
+
+   A request message MAY be serialized using one of the following
+   methods:
+
+   1.  Query String Serialization
+
+   2.  Form Serialization
+
+4.1.  Query String Serialization
+
+   In order to serialize the parameters using the Query String
+   Serialization, the Client constructs the string by adding the
+   parameters and values to the query component using the
+   "application/x-www-form-urlencoded" format as defined by
+   [W3C.REC-html401-19991224].  Query String Serialization is typically
+   used in HTTP "GET" requests.
+
+   Following is a non-normative example of such serialization:
+
+     GET /authorize?scope=openid
+       &response_type=token%20id_token
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb HTTP/1.1
+     Host: server.example.com
+
+
+4.2.  Form Serialization
+
+   Parameters and their values are Form Serialized by adding the
+   parameter names and values to the entity body of the HTTP request
+   using the "application/x-www-form-urlencoded" format as defined by
+   [W3C.REC-html401-19991224].  Form Serialization is typically used in
+   HTTP "POST" requests.
+
+   Following is a non-normative example of such serialization:
+
+     POST /authorize HTTP/1.1
+     Host: server.example.com
+     Content-Type: application/x-www-form-urlencoded
+
+     scope=openid
+       &response_type=token%20id_token
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 34]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+5.  String Operations
+
+   Processing some OpenID Connect messages requires comparing values in
+   the messages to known values.  For example, the Claim Names returned
+   by the UserInfo Endpoint might be compared to specific Claim Names
+   such as "sub".  Comparing Unicode strings, however, has significant
+   security implications.
+
+   Therefore, comparisons between JSON strings and other Unicode strings
+   MUST be performed as specified below:
+
+   1.  Remove any JSON applied escaping to produce an array of Unicode
+       code points.
+
+   2.  Unicode Normalization [USA15] MUST NOT be applied at any point to
+       either the JSON string or to the string it is to be compared
+       against.
+
+   3.  Comparisons between the two strings MUST be performed as a
+       Unicode code point to code point equality comparison.
+
+   In several places, this specification uses space delimited lists of
+   strings.  In all such cases, only the ASCII space character (0x20)
+   MAY be used for this purpose.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 35]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+6.  TLS Version
+
+   Whenever Transport Layer Security (TLS) is used by this
+   specification, the appropriate version (or versions) of TLS will vary
+   over time, based on the widespread deployment and known security
+   vulnerabilities.  At the time of this writing, TLS version 1.2
+   [RFC5246] is the most recent version, but has a very limited
+   deployment base and might not be readily available for
+   implementation.  TLS version 1.0 [RFC2246] is the most widely
+   deployed version and will provide the broadest interoperability.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 36]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+7.  Implementation Considerations
+
+   This specification defines features used by Relying Parties using the
+   OAuth implicit grant type.  These Relying Parties MUST implement the
+   features that are listed in this specification as being "REQUIRED" or
+   are described with a "MUST".
+
+7.1.  Discovery and Registration
+
+   Some OpenID Connect installations can use a pre-configured set of
+   OpenID Providers and/or Relying Parties.  In those cases, it may not
+   be necessary to support dynamic discovery of information about
+   identities or services or dynamic registration of Clients.
+
+   However, if installations choose to support unanticipated
+   interactions between Relying Parties and OpenID Providers that do not
+   have pre-configured relationships, they SHOULD accomplish this by
+   implementing the facilities defined in the OpenID Connect Discovery
+   1.0 [OpenID.Discovery] and OpenID Connect Dynamic Client Registration
+   1.0 [OpenID.Registration] specifications.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 37]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+8.  Security Considerations
+
+   For security considerations other than those listed below, refer to
+   the OpenID Connect Messages 1.0 [OpenID.Messages] and OpenID Connect
+   Standard 1.0 [OpenID.Standard] specifications.
+
+8.1.  TLS Requirements
+
+   Implementations MUST support TLS.  Which version(s) ought to be
+   implemented will vary over time, and depend on the widespread
+   deployment and known security vulnerabilities at the time of
+   implementation.  At the time of this writing, TLS version 1.2
+   [RFC5246] is the most recent version, but has very limited actual
+   deployment, and might not be readily available in implementation
+   toolkits.  TLS version 1.0 [RFC2246] is the most widely deployed
+   version, and will give the broadest interoperability.
+
+   To protect against information disclosure and tampering,
+   confidentiality protection MUST be applied using TLS with a
+   ciphersuite that provides confidentiality and integrity protection.
+
+   Whenever TLS is used, a TLS server certificate check MUST be
+   performed, per RFC 6125 [RFC6125].
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 38]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+9.  Privacy Considerations
+
+   The UserInfo Response typically contains Personally Identifiable
+   Information (PII).  As such, End-User consent for the release of the
+   information for the specified purpose SHOULD be obtained at or prior
+   to the authorization time in accordance with relevant regulations.
+   The purpose of use is typically registered in association with the
+   "redirect_uri".
+
+   Only necessary UserInfo data SHOULD be stored at the Client and the
+   Client SHOULD associate the received data with the purpose of use
+   statement.
+
+   The Resource Server SHOULD make the UserInfo access log available to
+   the End-User so that the End-User can monitor who accessed his data.
+
+   To protect the End-User from a possible correlation among Clients,
+   the use of a Pairwise Pseudonymous Identifier (PPID) as the "sub"
+   (subject) SHOULD be considered.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 39]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+10.  IANA Considerations
+
+   This document makes no requests of IANA.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 40]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+11.  References
+
+11.1.  Normative References
+
+   [E.164]    International Telecommunication Union, "E.164: The
+              international public telecommunication numbering plan",
+              2010.
+
+   [IANA.Language]
+              Internet Assigned Numbers Authority (IANA), "Language
+              Subtag Registry", 2005.
+
+   [ISO29115]
+              International Organization for Standardization, "ISO/IEC
+              FDIS 29115 -- Information technology - Security techniques
+              - Entity authentication assurance framework", ISO/
+              IEC 29115, December 2012.
+
+   [ISO3166-1]
+              International Organization for Standardization, "ISO 3166-
+              1:1997. Codes for the representation of names of countries
+              and their subdivisions -- Part 1: Country codes", 1997.
+
+   [ISO639-1]
+              International Organization for Standardization, "ISO 639-
+              1:2002. Codes for the representation of names of languages
+              -- Part 1: Alpha-2 code", 2002.
+
+   [ISO8601-2004]
+              International Organization for Standardization, "ISO 8601:
+              2004. Data elements and interchange formats - Information
+              interchange - Representation of dates and times", 2004.
+
+   [JWA]      Jones, M., "JSON Web Algorithms (JWA)",
+              draft-ietf-jose-json-web-algorithms (work in progress),
+              May 2013.
+
+   [JWK]      Jones, M., "JSON Web Key (JWK)",
+              draft-ietf-jose-json-web-key (work in progress), May 2013.
+
+   [JWS]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web
+              Signature (JWS)", draft-ietf-jose-json-web-signature (work
+              in progress), May 2013.
+
+   [JWT]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token
+              (JWT)", draft-ietf-oauth-json-web-token (work in
+              progress), May 2013.
+
+
+
+
+Sakimura, et al.                                               [Page 41]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   [OAuth.Responses]
+              de Medeiros, B., Scurtescu, M., and P. Tarjan, "OAuth 2.0
+              Multiple Response Type Encoding Practices", March 2013.
+
+   [OpenID.Discovery]
+              Sakimura, N., Bradley, J., Jones, M., and E. Jay, "OpenID
+              Connect Discovery 1.0", May 2013.
+
+   [OpenID.Messages]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B.,
+              Mortimore, C., and E. Jay, "OpenID Connect Messages 1.0",
+              May 2013.
+
+   [OpenID.Registration]
+              Sakimura, N., Bradley, J., and M. Jones, "OpenID Connect
+              Dynamic Client Registration 1.0", May 2013.
+
+   [OpenID.Standard]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B.,
+              Mortimore, C., and E. Jay, "OpenID Connect Standard 1.0",
+              May 2013.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC2246]  Dierks, T. and C. Allen, "The TLS Protocol Version 1.0",
+              RFC 2246, January 1999.
+
+   [RFC2616]  Fielding, R., Gettys, J., Mogul, J., Frystyk, H.,
+              Masinter, L., Leach, P., and T. Berners-Lee, "Hypertext
+              Transfer Protocol -- HTTP/1.1", RFC 2616, June 1999.
+
+   [RFC3339]  Klyne, G., Ed. and C. Newman, "Date and Time on the
+              Internet: Timestamps", RFC 3339, July 2002.
+
+   [RFC3966]  Schulzrinne, H., "The tel URI for Telephone Numbers",
+              RFC 3966, December 2004.
+
+   [RFC4627]  Crockford, D., "The application/json Media Type for
+              JavaScript Object Notation (JSON)", RFC 4627, July 2006.
+
+   [RFC5246]  Dierks, T. and E. Rescorla, "The Transport Layer Security
+              (TLS) Protocol Version 1.2", RFC 5246, August 2008.
+
+   [RFC5322]  Resnick, P., Ed., "Internet Message Format", RFC 5322,
+              October 2008.
+
+   [RFC5646]  Phillips, A. and M. Davis, "Tags for Identifying
+
+
+
+Sakimura, et al.                                               [Page 42]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+              Languages", BCP 47, RFC 5646, September 2009.
+
+   [RFC6125]  Saint-Andre, P. and J. Hodges, "Representation and
+              Verification of Domain-Based Application Service Identity
+              within Internet Public Key Infrastructure Using X.509
+              (PKIX) Certificates in the Context of Transport Layer
+              Security (TLS)", RFC 6125, March 2011.
+
+   [RFC6711]  Johansson, L., "An IANA Registry for Level of Assurance
+              (LoA) Profiles", RFC 6711, August 2012.
+
+   [RFC6749]  Hardt, D., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, October 2012.
+
+   [RFC6750]  Jones, M. and D. Hardt, "The OAuth 2.0 Authorization
+              Framework: Bearer Token Usage", RFC 6750, October 2012.
+
+   [USA15]    Davis, M., Whistler, K., and M. Duerst, "Unicode
+              Normalization Forms", Unicode Standard Annex 15, 09 2009.
+
+   [W3C.REC-html401-19991224]
+              Hors, A., Raggett, D., and I. Jacobs, "HTML 4.01
+              Specification", World Wide Web Consortium
+              Recommendation REC-html401-19991224, December 1999,
+              <http://www.w3.org/TR/1999/REC-html401-19991224>.
+
+   [zoneinfo]
+              Public Domain, "The tz database", June 2011.
+
+11.2.  Informative References
+
+   [OpenID.Basic]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Basic Client Profile 1.0",
+              May 2013.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 43]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+Appendix A.  Acknowledgements
+
+   The OpenID Community would like to thank the following people for the
+   work they've done in the drafting and editing of this specification.
+
+      Naveen Agarwal (naa@google.com), Google
+
+      Casper Biering (cb@peercraft.com), Peercraft
+
+      John Bradley (ve7jtb@ve7jtb.com), Ping Identity
+
+      Tim Bray (tbray@textuality.com), Google
+
+      Johnny Bufu (jbufu@janrain.com), Janrain
+
+      Breno de Medeiros (breno@gmail.com), Google
+
+      Pamela Dingle (pdingle@pingidentity.com), Ping Identity
+
+      George Fletcher (george.fletcher@corp.aol.com), AOL
+
+      Roland Hedberg (roland.hedberg@adm.umu.se), Independent
+
+      Ryo Ito (ryo.ito@mixi.co.jp), mixi, Inc.
+
+      Edmund Jay (ejay@mgi1.com), Illumila
+
+      Michael B. Jones (mbj@microsoft.com), Microsoft
+
+      Nov Matake (nov@matake.jp), Independent
+
+      Chuck Mortimore (cmortimore@salesforce.com), Salesforce
+
+      Anthony Nadalin (tonynad@microsoft.com), Microsoft
+
+      Hideki Nara (hideki.nara@gmail.com), Takt Communications
+
+      Axel Nennker (axel.nennker@telekom.de), Deutsche Telekom
+
+      Torsten Lodderstedt (t.lodderstedt@telekom.de), Deutsche Telekom
+
+      David Recordon (dr@fb.com), Facebook
+
+      Justin Richer (jricher@mitre.org), Mitre
+
+      Nat Sakimura (n-sakimura@nri.co.jp), Nomura Research Institute,
+      Ltd.
+
+
+
+
+Sakimura, et al.                                               [Page 44]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+      Luke Shepard (lshepard@fb.com), Facebook
+
+      Andreas Akre Solberg (andreas.solberg@uninett.no), UNINET
+
+      Paul Tarjan (pt@fb.com), Facebook
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 45]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+Appendix B.  Notices
+
+   Copyright (c) 2013 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 46]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+Appendix C.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -10
+
+   o  Stated that sufficient entropy must be present in "nonce" values
+      to prevent attackers from guessing values.
+
+   o  Stated that the Authorization Server need not be listed as an
+      audience of the ID Token when it is used as an "id_token_hint"
+      value.
+
+   o  Restricted the meaning of the "azp" (authorized party) Claim to
+      simply be the single party to which the ID Token was issued.
+
+   o  Changed from using the term "byte" to either "octet" or
+      "character".
+
+   o  Stated that the JWS Compact Serialization is always used for JWS
+      data structures.
+
+   -09
+
+   o  Fixed #825 - Replaced "updated_time", which used the RFC 3339
+      textual time format, with "updated_at", using the numeric time
+      format used by "iat", etc.
+
+   o  Fixed #829 - Stated that additional scope values can be defined
+      and used and that scope values that are not understood should be
+      ignored.
+
+   o  Fixed #831 - Stated that JWS and JWE header parameters used to
+      communicate key values and key references should not be used in ID
+      Tokens, since these are communicated in advance using Discovery
+      and Registration parameters.
+
+   o  Fixed #712 and #830 - Clarified the "azp" description and made
+      "azp" multi-valued, like "aud".
+
+   -08
+
+   o  Fixed #802 - Clarified recommendations and responsibilities for
+      producing and consuming Claims with and without language tags.
+
+   o  Fixed #797 - Clarified the intended semantics of e-mail
+      verification and that the precise verification rules are context-
+      specific.
+
+
+
+Sakimura, et al.                                               [Page 47]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   o  Fixed #806 - Added "phone_number_verified" Claim.
+
+   o  Fixed #800 - Specified that phone number extensions are to be
+      represented using RFC 3966 extension syntax.
+
+   o  Fixed #795 - Specified that e-mail addresses must conform to the
+      RFC 5322 addr-spec syntax.
+
+   o  Fixed #808 - Specified that phone numbers may be used as
+      "login_hint" values.
+
+   o  Fixed #801 - Removed "schema" and "id" parameters to UserInfo
+      Endpoint.  Also fixed related issue #791 - Removed
+      "invalid_schema" error.
+
+   o  Fixed #793, #796, and #799 - Allow name Claims to contain multiple
+      space-separated names.
+
+   o  Fixed #794 - Required "picture" to refer to an image file that is
+      a picture of the End-User.
+
+   o  Fixed #811 - Specify that language tag components should be
+      spelled using the character cases registered in the IANA Language
+      Subtag Registry.
+
+   o  Fixed #812 - Clarified that language tag values used need not be
+      unnecessarily specific.
+
+   o  Fixed #816 - Changed "must understand" language to "MUST be
+      ignored if not understood".
+
+   -07
+
+   o  Fixed #711 - Awkward phrase "The following Claims are REQUIRED and
+      OPTIONAL".
+
+   o  Fixed #712 - "azp" definition clarification.
+
+   o  Fixed #713 - Explicitly require "sub" claim to be returned from
+      UserInfo endpoint.
+
+   o  Fixed #716 - Client/server 2119 blurriness.
+
+   o  Fixed #722 - Text on "id_token_hint" needs to be clarified.
+
+   o  Fixed #718 - Text on re-encrypting should be clearer.
+
+
+
+
+
+Sakimura, et al.                                               [Page 48]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   o  Fixed #732 - Capitalize name of "Bearer" authentication scheme.
+
+   o  Fixed #738 - Behavior when "openid" scope is omitted.
+
+   o  Added Security Considerations section about TLS version
+      requirements and usage.
+
+   o  Removed language about clients that do not support TLS.  Also
+      removed language about supporting other transport-layer mechanisms
+      with equivalent security to TLS.
+
+   o  State that when any validations fail, any operations requiring the
+      information that failed to correctly validate MUST be aborted and
+      the information that failed to validate MUST NOT be used.
+
+   o  Added "id_token_hint" parameter to Implicit, since it SHOULD be
+      present when "prompt=none" is used.
+
+   o  Removed vestigial encryption text that had been copied over from
+      Standard, since encryption is not part of the Implicit profile.
+
+   o  Fixed #742 - Added new "ui_locales" parameter.
+
+   o  Fixed #743 - Added "claims_locales" parameter.
+
+   o  Fixed #744 - Added "max_age" parameter.
+
+   o  Fixed #765 - Added new "acr_values" parameter.
+
+   o  Fixed #597 - Changed representation of omitted year in "birthdate"
+      from "9999" to "0000".
+
+   o  Fixed #739 - Added registration parameter and members of
+      registration object.
+
+   o  Deleted top-level "policy_url" parameter from the Self-Issued
+      case, since it is already a "registration" parameter member.
+
+   o  Fixed #778 - Added "registration" parameter to Self-Issued request
+      example.
+
+   o  Fixed #782 - Changed uses of "_url" in identifiers to "_uri".
+
+   o  Consolidated the "x509_encryption_uri" and "jwk_encryption_uri"
+      parameters into a combined "jwk_uri" parameter (per other changes
+      related to #703).
+
+
+
+
+
+Sakimura, et al.                                               [Page 49]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   o  Fixed #786 - Changed the name of "jwk_uri" to "jwks_uri".
+
+   o  Clarified when the "http" scheme can and can not be used in
+      "redirect_uri" values.
+
+   o  Stated that the "azp" Claim is only needed when the party
+      requesting the ID Token is different than the audience of the ID
+      Token.
+
+   o  Use legal "acr" values in examples.
+
+   o  Fixed #789 - Added "amr" (authentication methods references)
+      Claim.
+
+   -06
+
+   o  Fixed #637 removed requirement for hash of at_token and code to be
+      SHA2 in Section 2.1.2.1 and Section 5.2.
+
+   o  Added Section 2.5 Access Token Validation.
+
+   o  Fixed #620 - Update Section 2.2.5.1 to allow for other token
+      types, but make bearer mandatory to support for implicit clients.
+
+   o  Fixed #657 - Update Section 3.3 to say that the sub is sent as the
+      kid if the id_token is encrypted in the request.
+
+   o  Added Implementation Considerations section.
+
+   o  Fixed #698 - Inconsistent use of articles.
+
+   o  Updated Scopes description.
+
+   o  Added auth_time definition to ID Token schema.
+
+   o  Fixed #655 - Specify UTF-8 as encoding scheme whenever necessary.
+
+   o  Renamed the "user_jwk" Claim to "sub_jwk", paralleling the change
+      from "user_id" to "sub".
+
+   o  Defined the "sub_jwk" claim.
+
+   o  Clarified that the "offline_access" scope value MAY NOT be used
+      with the Implicit Client Profile.
+
+   o  To remove ambiguity in the self-issued "sub" computation, changed
+      the text "the concatenation of the key values" to "the
+      concatenation of the bytes of the UTF-8 representations of the
+
+
+
+Sakimura, et al.                                               [Page 50]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+      base64url encoded key values".
+
+   o  Tracked JWK parameter name changes alg -> kty, mod -> n, exp -> e.
+
+   -05
+
+   o  Fixed #687 - Inconsistency between "user_id" and "prn" claims.
+      The fix changed these names: user_id -> sub,
+      user_id_types_supported -> subject_types_supported, user_id_type
+      -> subject_type, and prn -> sub.
+
+   o  Fixed #689 - Track JWT change that allows JWTs to have multiple
+      audiences.
+
+   o  Fixed #660 - Clarified that returning the "sub" value from the
+      UserInfo endpoint is mandatory.
+
+   o  Fixed #636 - ID Token authorized party claim.
+
+   o  Fixed #689 - Add caution about multiple audiences.
+
+   o  Fixed #694 - Add login_hint
+
+   -04
+
+   o  Make it clear that nonce is REQUIRED for implicit
+
+   o  RE #607 add example decoded id_token for non self-issued.
+
+   o  Fixed #614 - Discovery - 3.2 Distinguishing between signature and
+      integrity parameters for HMAC algorithms.  This fix tracks the
+      parameter changes made to the JWE spec in
+      draft-ietf-jose-json-web-encryption-06.  It deletes the parameters
+      {userinfo,id_token}_encrypted_response_int.  It replaces the
+      parameters
+      {userinfo,id_token,request_object,token_endpoint}_algs_supported
+      with {userinfo,id_token,request_object,token_endpoint}_signing_alg
+      _values_supported and {userinfo,id_token,request_object,token_endp
+      oint}_encryption_{alg,enc}_values_supported.
+
+   o  Fixed #666 - JWS signature validation vs. verification.
+
+   o  Fixed #682 - Change remaining uses of "birthday" to "birthdate".
+
+   o  Referenced OAuth 2.0 RFCs -- RFC 6749 and RFC 6750.
+
+   -03
+
+
+
+
+Sakimura, et al.                                               [Page 51]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+   o  Defined means of using a self-issued OP
+
+   -02
+
+   o  Added "preferred_username" claim under "profile" scope
+
+   o  Added ID Token section to describe required claims
+
+   o  Added section on claim stability
+
+   -01
+
+   o  Removed "claims_in_id_token" scope value, per decision on June 15,
+      2012 special working group call
+
+   -00
+
+   o  Initial version, based upon Basic Client specification version -17
+
+   o  Renamed from Basic Client to Implicit Client, per issue #567
+
+   o  Changed "verified" to "email_verified", per issue #564
+
+   o  Removed Check ID Endpoint and added ID token signature
+      verification text, per issue #570
+
+   o  Changed client.example.com to client.example.org, per issue #251
+
+   o  Added claims_in_id_token scope definition to Basic and Implicit,
+      per issue #594
+
+   o  Use standards track version of JSON Web Token spec
+      (draft-ietf-oauth-json-web-token)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 52]
+
+               OpenID Connect Implicit Client Profile 1.0       May 2013
+
+
+Authors' Addresses
+
+   Nat Sakimura
+   Nomura Research Institute, Ltd.
+
+   Email: n-sakimura@nri.co.jp
+
+
+   John Bradley
+   Ping Identity
+
+   Email: ve7jtb@ve7jtb.com
+
+
+   Michael B. Jones
+   Microsoft
+
+   Email: mbj@microsoft.com
+
+
+   Breno de Medeiros
+   Google
+
+   Email: breno@google.com
+
+
+   Chuck Mortimore
+   Salesforce
+
+   Email: cmortimore@salesforce.com
+
+
+   Edmund Jay
+   Illumila
+
+   Email: ejay@mgi1.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 53]
+

@@ -1,0 +1,2987 @@
+<!DOCTYPE html>
+<html lang="en" class="Internet-Draft">
+<head>
+<meta charset="utf-8">
+<meta content="Common,Latin" name="scripts">
+<meta content="initial-scale=1.0" name="viewport">
+<title>Self-Issued OpenID Provider v2 - draft 13</title>
+<meta content="Kristina Yasuda" name="author">
+<meta content="Michael B. Jones" name="author">
+<meta content="Torsten Lodderstedt" name="author">
+<meta content="
+       OpenID Connect defines mechanisms by which an End-User can leverage an OpenID Provider (OP) to release identity information (such as authentication and claims) to a Relying Party (RP) which can act on that information. In this model, the RP trusts assertions made by the OP, i.e. the OP is the issuer of these assertions. 
+       This specification extends OpenID Connect with the concept of a Self-Issued OpenID Provider (Self-Issued OP), an OP controlled by the End-User. The Self-Issued OP does not itself assert identity information about this End-User. Instead the End-User becomes the issuer of identity information. Using Self-Issued OPs, End-Users can authenticate themselves with Self-Issued ID Tokens signed with keys under the End-User's control and present self-attested claims directly to the RPs. 
+       Self-Issued OPs can also present cryptographically verifiable claims issued by the third parties trusted by the RPs, when used with separate specifications such as  , or Aggregated and Distributed Claims defined in Section 5.6.2 of  . This allows End-Users to interact with RPs, without RPs interacting directly with claims issuers. 
+    " name="description">
+<meta content="xml2rfc 3.16.0" name="generator">
+<meta content="security" name="keyword">
+<meta content="openid" name="keyword">
+<meta content="ssi" name="keyword">
+<meta content="openid-connect-self-issued-v2-1_0-13" name="ietf.draft">
+<!-- Generator version information:
+  xml2rfc 3.16.0
+    Python 3.10.2
+    appdirs 1.4.4
+    ConfigArgParse 1.5.3
+    google-i18n-address 2.5.2
+    html5lib 1.1
+    intervaltree 3.1.0
+    Jinja2 3.1.2
+    lxml 4.9.2
+    MarkupSafe 2.1.2
+    pycountry 22.3.5
+    PyYAML 6.0
+    requests 2.28.2
+    setuptools 57.5.0
+    six 1.16.0
+    wcwidth 0.2.6
+-->
+<link href="./openid-connect-self-issued-v2-1_0-13.xml" rel="alternate" type="application/rfc+xml">
+<link href="#copyright" rel="license">
+<style type="text/css">/*
+
+  NOTE: Changes at the bottom of this file overrides some earlier settings.
+
+  Once the style has stabilized and has been adopted as an official RFC style,
+  this can be consolidated so that style settings occur only in one place, but
+  for now the contents of this file consists first of the initial CSS work as
+  provided to the RFC Formatter (xml2rfc) work, followed by itemized and
+  commented changes found necessary during the development of the v3
+  formatters.
+
+*/
+
+/* fonts */
+@import url('https://fonts.googleapis.com/css?family=Noto+Sans'); /* Sans-serif */
+@import url('https://fonts.googleapis.com/css?family=Noto+Serif'); /* Serif (print) */
+@import url('https://fonts.googleapis.com/css?family=Roboto+Mono'); /* Monospace */
+
+:root {
+  --font-sans: 'Noto Sans', Arial, Helvetica, sans-serif;
+  --font-serif: 'Noto Serif', 'Times', 'Times New Roman', serif;
+  --font-mono: 'Roboto Mono', Courier, 'Courier New', monospace;
+}
+
+@viewport {
+  zoom: 1.0;
+  width: extend-to-zoom;
+}
+@-ms-viewport {
+  width: extend-to-zoom;
+  zoom: 1.0;
+}
+/* general and mobile first */
+html {
+}
+body {
+  max-width: 90%;
+  margin: 1.5em auto;
+  color: #222;
+  background-color: #fff;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  scroll-behavior: smooth;
+}
+.ears {
+  display: none;
+}
+
+/* headings */
+#title, h1, h2, h3, h4, h5, h6 {
+  margin: 1em 0 0.5em;
+  font-weight: bold;
+  line-height: 1.3;
+}
+#title {
+  clear: both;
+  border-bottom: 1px solid #ddd;
+  margin: 0 0 0.5em 0;
+  padding: 1em 0 0.5em;
+}
+.author {
+  padding-bottom: 4px;
+}
+h1 {
+  font-size: 26px;
+  margin: 1em 0;
+}
+h2 {
+  font-size: 22px;
+  margin-top: -20px;  /* provide offset for in-page anchors */
+  padding-top: 33px;
+}
+h3 {
+  font-size: 18px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h4 {
+  font-size: 16px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h5, h6 {
+  font-size: 14px;
+}
+#n-copyright-notice {
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 1em;
+  margin-bottom: 1em;
+}
+/* general structure */
+p {
+  padding: 0;
+  margin: 0 0 1em 0;
+  text-align: left;
+}
+div, span {
+  position: relative;
+}
+div {
+  margin: 0;
+}
+.alignRight.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignRight.art-text pre {
+  padding: 0;
+}
+.alignRight {
+  margin: 1em 0;
+}
+.alignRight > *:first-child {
+  border: none;
+  margin: 0;
+  float: right;
+  clear: both;
+}
+.alignRight > *:nth-child(2) {
+  clear: both;
+  display: block;
+  border: none;
+}
+svg {
+  display: block;
+}
+svg[font-family~="serif" i], svg [font-family~="serif" i] {
+  font-family: var(--font-serif);
+}
+svg[font-family~="sans-serif" i], svg [font-family~="sans-serif" i] {
+  font-family: var(--font-sans);
+}
+svg[font-family~="monospace" i], svg [font-family~="monospace" i] {
+  font-family: var(--font-mono);
+}
+.alignCenter.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignCenter.art-text pre {
+  padding: 0;
+}
+.alignCenter {
+  margin: 1em 0;
+}
+.alignCenter > *:first-child {
+  display: table;
+  border: none;
+  margin: 0 auto;
+}
+
+/* lists */
+ol, ul {
+  padding: 0;
+  margin: 0 0 1em 2em;
+}
+ol ol, ul ul, ol ul, ul ol {
+  margin-left: 1em;
+}
+li {
+  margin: 0 0 0.25em 0;
+}
+.ulCompact li {
+  margin: 0;
+}
+ul.empty, .ulEmpty {
+  list-style-type: none;
+}
+ul.empty li, .ulEmpty li {
+  margin-top: 0.5em;
+}
+ul.ulBare, li.ulBare {
+  margin-left: 0em !important;
+}
+ul.compact, .ulCompact,
+ol.compact, .olCompact {
+  line-height: 100%;
+  margin: 0 0 0 2em;
+}
+
+/* definition lists */
+dl {
+}
+dl > dt {
+  float: left;
+  margin-right: 1em;
+}
+/* 
+dl.nohang > dt {
+  float: none;
+}
+*/
+dl > dd {
+  margin-bottom: .8em;
+  min-height: 1.3em;
+}
+dl.compact > dd, .dlCompact > dd {
+  margin-bottom: 0em;
+}
+dl > dd > dl {
+  margin-top: 0.5em;
+  margin-bottom: 0em;
+}
+
+/* links */
+a {
+  text-decoration: none;
+}
+a[href] {
+  color: #22e; /* Arlen: WCAG 2019 */
+}
+a[href]:hover {
+  background-color: #f2f2f2;
+}
+figcaption a[href],
+a[href].selfRef {
+  color: #222;
+}
+/* XXX probably not this:
+a.selfRef:hover {
+  background-color: transparent;
+  cursor: default;
+} */
+
+/* Figures */
+tt, code, pre {
+  background-color: #f9f9f9;
+  font-family: var(--font-mono);
+}
+pre {
+  border: 1px solid #eee;
+  margin: 0;
+  padding: 1em;
+}
+img {
+  max-width: 100%;
+}
+figure {
+  margin: 0;
+}
+figure blockquote {
+  margin: 0.8em 0.4em 0.4em;
+}
+figcaption {
+  font-style: italic;
+  margin: 0 0 1em 0;
+}
+@media screen {
+  pre {
+    overflow-x: auto;
+    max-width: 100%;
+    max-width: calc(100% - 22px);
+  }
+}
+
+/* aside, blockquote */
+aside, blockquote {
+  margin-left: 0;
+  padding: 1.2em 2em;
+}
+blockquote {
+  background-color: #f9f9f9;
+  color: #111; /* Arlen: WCAG 2019 */
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  margin: 1em 0;
+}
+cite {
+  display: block;
+  text-align: right;
+  font-style: italic;
+}
+
+/* tables */
+table {
+  width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+  border: 1px solid #eee;
+}
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.5em 0.75em;
+}
+th {
+  text-align: left;
+  background-color: #e9e9e9;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f5f5f5;
+}
+table caption {
+  font-style: italic;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+table p {
+  /* XXX to avoid bottom margin on table row signifiers. If paragraphs should
+     be allowed within tables more generally, it would be far better to select on a class. */
+  margin: 0;
+}
+
+/* pilcrow */
+a.pilcrow {
+  color: #666; /* Arlen: AHDJ 2019 */
+  text-decoration: none;
+  visibility: hidden;
+  user-select: none;
+  -ms-user-select: none;
+  -o-user-select:none;
+  -moz-user-select: none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+@media screen {
+  aside:hover > a.pilcrow,
+  p:hover > a.pilcrow,
+  blockquote:hover > a.pilcrow,
+  div:hover > a.pilcrow,
+  li:hover > a.pilcrow,
+  pre:hover > a.pilcrow {
+    visibility: visible;
+  }
+  a.pilcrow:hover {
+    background-color: transparent;
+  }
+}
+
+/* misc */
+hr {
+  border: 0;
+  border-top: 1px solid #eee;
+}
+.bcp14 {
+  font-variant: small-caps;
+}
+
+.role {
+  font-variant: all-small-caps;
+}
+
+/* info block */
+#identifiers {
+  margin: 0;
+  font-size: 0.9em;
+}
+#identifiers dt {
+  width: 3em;
+  clear: left;
+}
+#identifiers dd {
+  float: left;
+  margin-bottom: 0;
+}
+/* Fix PDF info block run off issue */
+@media print {
+  #identifiers dd {
+    float: none;
+  }
+}
+#identifiers .authors .author {
+  display: inline-block;
+  margin-right: 1.5em;
+}
+#identifiers .authors .org {
+  font-style: italic;
+}
+
+/* The prepared/rendered info at the very bottom of the page */
+.docInfo {
+  color: #666; /* Arlen: WCAG 2019 */
+  font-size: 0.9em;
+  font-style: italic;
+  margin-top: 2em;
+}
+.docInfo .prepared {
+  float: left;
+}
+.docInfo .prepared {
+  float: right;
+}
+
+/* table of contents */
+#toc  {
+  padding: 0.75em 0 2em 0;
+  margin-bottom: 1em;
+}
+nav.toc ul {
+  margin: 0 0.5em 0 0;
+  padding: 0;
+  list-style: none;
+}
+nav.toc li {
+  line-height: 1.3em;
+  margin: 0.75em 0;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
+}
+/* references */
+.references dt {
+  text-align: right;
+  font-weight: bold;
+  min-width: 7em;
+}
+.references dd {
+  margin-left: 8em;
+  overflow: auto;
+}
+
+.refInstance {
+  margin-bottom: 1.25em;
+}
+
+.references .ascii {
+  margin-bottom: 0.25em;
+}
+
+/* index */
+.index ul {
+  margin: 0 0 0 1em;
+  padding: 0;
+  list-style: none;
+}
+.index ul ul {
+  margin: 0;
+}
+.index li {
+  margin: 0;
+  text-indent: -2em;
+  padding-left: 2em;
+  padding-bottom: 5px;
+}
+.indexIndex {
+  margin: 0.5em 0 1em;
+}
+.index a {
+  font-weight: 700;
+}
+/* make the index two-column on all but the smallest screens */
+@media (min-width: 600px) {
+  .index ul {
+    -moz-column-count: 2;
+    -moz-column-gap: 20px;
+  }
+  .index ul ul {
+    -moz-column-count: 1;
+    -moz-column-gap: 0;
+  }
+}
+
+/* authors */
+address.vcard {
+  font-style: normal;
+  margin: 1em 0;
+}
+
+address.vcard .nameRole {
+  font-weight: 700;
+  margin-left: 0;
+}
+address.vcard .label {
+  font-family: var(--font-sans);
+  margin: 0.5em 0;
+}
+address.vcard .type {
+  display: none;
+}
+.alternative-contact {
+  margin: 1.5em 0 1em;
+}
+hr.addr {
+  border-top: 1px dashed;
+  margin: 0;
+  color: #ddd;
+  max-width: calc(100% - 16px);
+}
+
+/* temporary notes */
+.rfcEditorRemove::before {
+  position: absolute;
+  top: 0.2em;
+  right: 0.2em;
+  padding: 0.2em;
+  content: "The RFC Editor will remove this note";
+  color: #9e2a00; /* Arlen: WCAG 2019 */
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+}
+.rfcEditorRemove {
+  position: relative;
+  padding-top: 1.8em;
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  border-radius: 3px;
+}
+.cref {
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  padding: 2px 4px;
+}
+.crefSource {
+  font-style: italic;
+}
+/* alternative layout for smaller screens */
+@media screen and (max-width: 1023px) {
+  body {
+    padding-top: 2em;
+  }
+  #title {
+    padding: 1em 0;
+  }
+  h1 {
+    font-size: 24px;
+  }
+  h2 {
+    font-size: 20px;
+    margin-top: -18px;  /* provide offset for in-page anchors */
+    padding-top: 38px;
+  }
+  #identifiers dd {
+    max-width: 60%;
+  }
+  #toc {
+    position: fixed;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    padding: 0;
+    margin: 0;
+    background-color: inherit;
+    border-bottom: 1px solid #ccc;
+  }
+  #toc h2 {
+    margin: -1px 0 0 0;
+    padding: 4px 0 4px 6px;
+    padding-right: 1em;
+    min-width: 190px;
+    font-size: 1.1em;
+    text-align: right;
+    background-color: #444;
+    color: white;
+    cursor: pointer;
+  }
+  #toc h2::before { /* css hamburger */
+    float: right;
+    position: relative;
+    width: 1em;
+    height: 1px;
+    left: -164px;
+    margin: 6px 0 0 0;
+    background: white none repeat scroll 0 0;
+    box-shadow: 0 4px 0 0 white, 0 8px 0 0 white;
+    content: "";
+  }
+  #toc nav {
+    display: none;
+    padding: 0.5em 1em 1em;
+    overflow: auto;
+    height: calc(100vh - 48px);
+    border-left: 1px solid #ddd;
+  }
+}
+
+/* alternative layout for wide screens */
+@media screen and (min-width: 1024px) {
+  body {
+    max-width: 724px;
+    margin: 42px auto;
+    padding-left: 1.5em;
+    padding-right: 29em;
+  }
+  #toc {
+    position: fixed;
+    top: 42px;
+    right: 42px;
+    width: 25%;
+    margin: 0;
+    padding: 0 1em;
+    z-index: 1;
+  }
+  #toc h2 {
+    border-top: none;
+    border-bottom: 1px solid #ddd;
+    font-size: 1em;
+    font-weight: normal;
+    margin: 0;
+    padding: 0.25em 1em 1em 0;
+  }
+  #toc nav {
+    display: block;
+    height: calc(90vh - 84px);
+    bottom: 0;
+    padding: 0.5em 0 0;
+    overflow: auto;
+  }
+  img { /* future proofing */
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* pagination */
+@media print {
+  body {
+
+    width: 100%;
+  }
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+  #n-copyright-notice {
+    border-bottom: none;
+  }
+  #toc, #n-introduction {
+    page-break-before: always;
+  }
+  #toc {
+    border-top: none;
+    padding-top: 0;
+  }
+  figure, pre {
+    page-break-inside: avoid;
+  }
+  figure {
+    overflow: scroll;
+  }
+  .breakable pre {
+    break-inside: auto;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+  h2+*, h3+*, h4+*, h5+*, h6+* {
+    page-break-before: avoid;
+  }
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 10pt;
+  }
+  table {
+    border: 1px solid #ddd;
+  }
+  td {
+    border-top: 1px solid #ddd;
+  }
+}
+
+/* This is commented out here, as the string-set: doesn't
+   pass W3C validation currently */
+/*
+.ears thead .left {
+  string-set: ears-top-left content();
+}
+
+.ears thead .center {
+  string-set: ears-top-center content();
+}
+
+.ears thead .right {
+  string-set: ears-top-right content();
+}
+
+.ears tfoot .left {
+  string-set: ears-bottom-left content();
+}
+
+.ears tfoot .center {
+  string-set: ears-bottom-center content();
+}
+
+.ears tfoot .right {
+  string-set: ears-bottom-right content();
+}
+*/
+
+@page :first {
+  padding-top: 0;
+  @top-left {
+    content: normal;
+    border: none;
+  }
+  @top-center {
+    content: normal;
+    border: none;
+  }
+  @top-right {
+    content: normal;
+    border: none;
+  }
+}
+
+@page {
+  size: A4;
+  margin-bottom: 45mm;
+  padding-top: 20px;
+  /* The following is commented out here, but set appropriately by in code, as
+     the content depends on the document */
+  /*
+  @top-left {
+    content: 'Internet-Draft';
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-left {
+    content: string(ears-top-left);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-center {
+    content: string(ears-top-center);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-right {
+    content: string(ears-top-right);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @bottom-left {
+    content: string(ears-bottom-left);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-center {
+    content: string(ears-bottom-center);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-right {
+      content: '[Page ' counter(page) ']';
+      vertical-align: top;
+      border-top: solid 1px #ccc;
+  }
+  */
+
+}
+
+/* Changes introduced to fix issues found during implementation */
+/* Make sure links are clickable even if overlapped by following H* */
+a {
+  z-index: 2;
+}
+/* Separate body from document info even without intervening H1 */
+section {
+  clear: both;
+}
+
+
+/* Top align author divs, to avoid names without organization dropping level with org names */
+.author {
+  vertical-align: top;
+}
+
+/* Leave room in document info to show Internet-Draft on one line */
+#identifiers dt {
+  width: 8em;
+}
+
+/* Don't waste quite as much whitespace between label and value in doc info */
+#identifiers dd {
+  margin-left: 1em;
+}
+
+/* Give floating toc a background color (needed when it's a div inside section */
+#toc {
+  background-color: white;
+}
+
+/* Make the collapsed ToC header render white on gray also when it's a link */
+@media screen and (max-width: 1023px) {
+  #toc h2 a,
+  #toc h2 a:link,
+  #toc h2 a:focus,
+  #toc h2 a:hover,
+  #toc a.toplink,
+  #toc a.toplink:hover {
+    color: white;
+    background-color: #444;
+    text-decoration: none;
+  }
+}
+
+/* Give the bottom of the ToC some whitespace */
+@media screen and (min-width: 1024px) {
+  #toc {
+    padding: 0 0 1em 1em;
+  }
+}
+
+/* Style section numbers with more space between number and title */
+.section-number {
+  padding-right: 0.5em;
+}
+
+/* prevent monospace from becoming overly large */
+tt, code, pre {
+  font-size: 95%;
+}
+
+/* Fix the height/width aspect for ascii art*/
+.sourcecode pre,
+.art-text pre {
+  line-height: 1.12;
+}
+
+
+/* Add styling for a link in the ToC that points to the top of the document */
+a.toplink {
+  float: right;
+  margin-right: 0.5em;
+}
+
+/* Fix the dl styling to match the RFC 7992 attributes */
+dl > dt,
+dl.dlParallel > dt {
+  float: left;
+  margin-right: 1em;
+}
+dl.dlNewline > dt {
+  float: none;
+}
+
+/* Provide styling for table cell text alignment */
+table td.text-left,
+table th.text-left {
+  text-align: left;
+}
+table td.text-center,
+table th.text-center {
+  text-align: center;
+}
+table td.text-right,
+table th.text-right {
+  text-align: right;
+}
+
+/* Make the alternative author contact information look less like just another
+   author, and group it closer with the primary author contact information */
+.alternative-contact {
+  margin: 0.5em 0 0.25em 0;
+}
+address .non-ascii {
+  margin: 0 0 0 2em;
+}
+
+/* With it being possible to set tables with alignment
+  left, center, and right, { width: 100%; } does not make sense */
+table {
+  width: auto;
+}
+
+/* Avoid reference text that sits in a block with very wide left margin,
+   because of a long floating dt label.*/
+.references dd {
+  overflow: visible;
+}
+
+/* Control caption placement */
+caption {
+  caption-side: bottom;
+}
+
+/* Limit the width of the author address vcard, so names in right-to-left
+   script don't end up on the other side of the page. */
+
+address.vcard {
+  max-width: 30em;
+  margin-right: auto;
+}
+
+/* For address alignment dependent on LTR or RTL scripts */
+address div.left {
+  text-align: left;
+}
+address div.right {
+  text-align: right;
+}
+
+/* Provide table alignment support.  We can't use the alignX classes above
+   since they do unwanted things with caption and other styling. */
+table.right {
+ margin-left: auto;
+ margin-right: 0;
+}
+table.center {
+ margin-left: auto;
+ margin-right: auto;
+}
+table.left {
+ margin-left: 0;
+ margin-right: auto;
+}
+
+/* Give the table caption label the same styling as the figcaption */
+caption a[href] {
+  color: #222;
+}
+
+@media print {
+  .toplink {
+    display: none;
+  }
+
+  /* avoid overwriting the top border line with the ToC header */
+  #toc {
+    padding-top: 1px;
+  }
+
+  /* Avoid page breaks inside dl and author address entries */
+  .vcard {
+    page-break-inside: avoid;
+  }
+
+}
+/* Tweak the bcp14 keyword presentation */
+.bcp14 {
+  font-variant: small-caps;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+/* Tweak the invisible space above H* in order not to overlay links in text above */
+ h2 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 31px;
+ }
+ h3 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+ h4 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+/* Float artwork pilcrow to the right */
+@media screen {
+  .artwork a.pilcrow {
+    display: block;
+    line-height: 0.7;
+    margin-top: 0.15em;
+  }
+}
+/* Make pilcrows on dd visible */
+@media screen {
+  dd:hover > a.pilcrow {
+    visibility: visible;
+  }
+}
+/* Make the placement of figcaption match that of a table's caption
+   by removing the figure's added bottom margin */
+.alignLeft.art-text,
+.alignCenter.art-text,
+.alignRight.art-text {
+   margin-bottom: 0;
+}
+.alignLeft,
+.alignCenter,
+.alignRight {
+  margin: 1em 0 0 0;
+}
+/* In print, the pilcrow won't show on hover, so prevent it from taking up space,
+   possibly even requiring a new line */
+@media print {
+  a.pilcrow {
+    display: none;
+  }
+}
+/* Styling for the external metadata */
+div#external-metadata {
+  background-color: #eee;
+  padding: 0.5em;
+  margin-bottom: 0.5em;
+  display: none;
+}
+div#internal-metadata {
+  padding: 0.5em;                       /* to match the external-metadata padding */
+}
+/* Styling for title RFC Number */
+h1#rfcnum {
+  clear: both;
+  margin: 0 0 -1em;
+  padding: 1em 0 0 0;
+}
+/* Make .olPercent look the same as <ol><li> */
+dl.olPercent > dd {
+  margin-bottom: 0.25em;
+  min-height: initial;
+}
+/* Give aside some styling to set it apart */
+aside {
+  border-left: 1px solid #ddd;
+  margin: 1em 0 1em 2em;
+  padding: 0.2em 2em;
+}
+aside > dl,
+aside > ol,
+aside > ul,
+aside > table,
+aside > p {
+  margin-bottom: 0.5em;
+}
+/* Additional page break settings */
+@media print {
+  figcaption, table caption {
+    page-break-before: avoid;
+  }
+}
+/* Font size adjustments for print */
+@media print {
+  body  { font-size: 10pt;      line-height: normal; max-width: 96%; }
+  h1    { font-size: 1.72em;    padding-top: 1.5em; } /* 1*1.2*1.2*1.2 */
+  h2    { font-size: 1.44em;    padding-top: 1.5em; } /* 1*1.2*1.2 */
+  h3    { font-size: 1.2em;     padding-top: 1.5em; } /* 1*1.2 */
+  h4    { font-size: 1em;       padding-top: 1.5em; }
+  h5, h6 { font-size: 1em;      margin: initial; padding: 0.5em 0 0.3em; }
+}
+/* Sourcecode margin in print, when there's no pilcrow */
+@media print {
+  .artwork,
+  .artwork > pre,
+  .sourcecode {
+    margin-bottom: 1em;
+  }
+}
+/* Avoid narrow tables forcing too narrow table captions, which may render badly */
+table {
+  min-width: 20em;
+}
+/* ol type a */
+ol.type-a { list-style-type: lower-alpha; }
+ol.type-A { list-style-type: upper-alpha; }
+ol.type-i { list-style-type: lower-roman; }
+ol.type-I { list-style-type: lower-roman; }
+/* Apply the print table and row borders in general, on request from the RPC,
+and increase the contrast between border and odd row background slightly */
+table {
+  border: 1px solid #ddd;
+}
+td {
+  border-top: 1px solid #ddd;
+}
+tr {
+  break-inside: avoid;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f8f8f8;
+}
+/* Use style rules to govern display of the TOC. */
+@media screen and (max-width: 1023px) {
+  #toc nav { display: none; }
+  #toc.active nav { display: block; }
+}
+/* Add support for keepWithNext */
+.keepWithNext {
+  break-after: avoid-page;
+  break-after: avoid-page;
+}
+/* Add support for keepWithPrevious */
+.keepWithPrevious {
+  break-before: avoid-page;
+}
+/* Change the approach to avoiding breaks inside artwork etc. */
+figure, pre, table, .artwork, .sourcecode  {
+  break-before: auto;
+  break-after: auto;
+}
+/* Avoid breaks between <dt> and <dd> */
+dl {
+  break-before: auto;
+  break-inside: auto;
+}
+dt {
+  break-before: auto;
+  break-after: avoid-page;
+}
+dd {
+  break-before: avoid-page;
+  break-after: auto;
+  orphans: 3;
+  widows: 3
+}
+span.break, dd.break {
+  margin-bottom: 0;
+  min-height: 0;
+  break-before: auto;
+  break-inside: auto;
+  break-after: auto;
+}
+/* Undo break-before ToC */
+@media print {
+  #toc {
+    break-before: auto;
+  }
+}
+/* Text in compact lists should not get extra bottom margin space,
+   since that would makes the list not compact */
+ul.compact p, .ulCompact p,
+ol.compact p, .olCompact p {
+ margin: 0;
+}
+/* But the list as a whole needs the extra space at the end */
+section ul.compact,
+section .ulCompact,
+section ol.compact,
+section .olCompact {
+  margin-bottom: 1em;                    /* same as p not within ul.compact etc. */
+}
+/* The tt and code background above interferes with for instance table cell
+   backgrounds.  Changed to something a bit more selective. */
+tt, code {
+  background-color: transparent;
+}
+p tt, p code, li tt, li code {
+  background-color: #f8f8f8;
+}
+/* Tweak the pre margin -- 0px doesn't come out well */
+pre {
+   margin-top: 0.5px;
+}
+/* Tweak the compact list text */
+ul.compact, .ulCompact,
+ol.compact, .olCompact,
+dl.compact, .dlCompact {
+  line-height: normal;
+}
+/* Don't add top margin for nested lists */
+li > ul, li > ol, li > dl,
+dd > ul, dd > ol, dd > dl,
+dl > dd > dl {
+  margin-top: initial;
+}
+/* Elements that should not be rendered on the same line as a <dt> */
+/* This should match the element list in writer.text.TextWriter.render_dl() */
+dd > div.artwork:first-child,
+dd > aside:first-child,
+dd > figure:first-child,
+dd > ol:first-child,
+dd > div.sourcecode:first-child,
+dd > table:first-child,
+dd > ul:first-child {
+  clear: left;
+}
+/* fix for weird browser behaviour when <dd/> is empty */
+dt+dd:empty::before{
+  content: "\00a0";
+}
+/* Make paragraph spacing inside <li> smaller than in body text, to fit better within the list */
+li > p {
+  margin-bottom: 0.5em
+}
+/* Don't let p margin spill out from inside list items */
+li > p:last-of-type:only-child {
+  margin-bottom: 0;
+}
+</style>
+<link href="rfc-local.css" rel="stylesheet" type="text/css">
+</head>
+<body class="xml2rfc">
+<script src="metadata.min.js"></script>
+<table class="ears">
+<thead><tr>
+<td class="left"></td>
+<td class="center">siop-v2</td>
+<td class="right">November 2023</td>
+</tr></thead>
+<tfoot><tr>
+<td class="left">Yasuda, et al.</td>
+<td class="center">Standards Track</td>
+<td class="right">[Page]</td>
+</tr></tfoot>
+</table>
+<div id="external-metadata" class="document-information"></div>
+<div id="internal-metadata" class="document-information">
+<dl id="identifiers">
+<dt class="label-workgroup">Workgroup:</dt>
+<dd class="workgroup">OpenID Connect</dd>
+<dt class="label-published">Published:</dt>
+<dd class="published">
+<time datetime="2023-11-28" class="published">28 November 2023</time>
+    </dd>
+<dt class="label-authors">Authors:</dt>
+<dd class="authors">
+<div class="author">
+      <div class="author-name">K. Yasuda</div>
+<div class="org">Microsoft</div>
+</div>
+<div class="author">
+      <div class="author-name">M. Jones</div>
+<div class="org">Self-Issued Consulting</div>
+</div>
+<div class="author">
+      <div class="author-name">T. Lodderstedt</div>
+<div class="org">sprind.org</div>
+</div>
+</dd>
+</dl>
+</div>
+<h1 id="title">Self-Issued OpenID Provider v2 - draft 13</h1>
+<section id="section-abstract">
+      <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
+<p id="section-abstract-1">OpenID Connect defines mechanisms by which an End-User can leverage an OpenID Provider (OP) to release identity information (such as authentication and claims) to a Relying Party (RP) which can act on that information. In this model, the RP trusts assertions made by the OP, i.e. the OP is the issuer of these assertions.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+<p id="section-abstract-2">This specification extends OpenID Connect with the concept of a Self-Issued OpenID Provider (Self-Issued OP), an OP controlled by the End-User. The Self-Issued OP does not itself assert identity information about this End-User. Instead the End-User becomes the issuer of identity information. Using Self-Issued OPs, End-Users can authenticate themselves with Self-Issued ID Tokens signed with keys under the End-User's control and present self-attested claims directly to the RPs.<a href="#section-abstract-2" class="pilcrow">¶</a></p>
+<p id="section-abstract-3">Self-Issued OPs can also present cryptographically verifiable claims issued by the third parties trusted by the RPs, when used with separate specifications such as <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>, or Aggregated and Distributed Claims defined in Section 5.6.2 of <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>. This allows End-Users to interact with RPs, without RPs interacting directly with claims issuers.<a href="#section-abstract-3" class="pilcrow">¶</a></p>
+</section>
+<div id="toc">
+<section id="section-toc.1">
+        <a href="#" onclick="scroll(0,0)" class="toplink">▲</a><h2 id="name-table-of-contents">
+<a href="#name-table-of-contents" class="section-name selfRef">Table of Contents</a>
+        </h2>
+<nav class="toc"><ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1">
+            <p id="section-toc.1-1.1.1"><a href="#section-1" class="auto internal xref">1</a>.  <a href="#name-introduction" class="internal xref">Introduction</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.1">
+                <p id="section-toc.1-1.1.2.1.1" class="keepWithNext"><a href="#section-1.1" class="auto internal xref">1.1</a>.  <a href="#name-requirements-notation-and-c" class="internal xref">Requirements Notation and Conventions</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.2">
+                <p id="section-toc.1-1.1.2.2.1" class="keepWithNext"><a href="#section-1.2" class="auto internal xref">1.2</a>.  <a href="#name-notable-differences-between" class="internal xref">Notable Differences between OpenID Connect Core and Self-Issued OP Models</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.3">
+                <p id="section-toc.1-1.1.2.3.1" class="keepWithNext"><a href="#section-1.3" class="auto internal xref">1.3</a>.  <a href="#name-terms-and-definitions" class="internal xref">Terms and Definitions</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.4">
+                <p id="section-toc.1-1.1.2.4.1"><a href="#section-1.4" class="auto internal xref">1.4</a>.  <a href="#name-abbreviations" class="internal xref">Abbreviations</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2">
+            <p id="section-toc.1-1.2.1"><a href="#section-2" class="auto internal xref">2</a>.  <a href="#name-scope" class="internal xref">Scope</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1">
+                <p id="section-toc.1-1.2.2.1.1"><a href="#section-2.1" class="auto internal xref">2.1</a>.  <a href="#name-in-scope" class="internal xref">In Scope</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2">
+                <p id="section-toc.1-1.2.2.2.1"><a href="#section-2.2" class="auto internal xref">2.2</a>.  <a href="#name-out-of-scope" class="internal xref">Out of Scope</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2.2.1">
+                    <p id="section-toc.1-1.2.2.2.2.1.1"><a href="#section-2.2.1" class="auto internal xref">2.2.1</a>.  <a href="#name-presentation-of-claims-from" class="internal xref">Presentation of Claims from the Third-Party Issuers</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.3">
+                <p id="section-toc.1-1.2.2.3.1"><a href="#section-2.3" class="auto internal xref">2.3</a>.  <a href="#name-relationship-with-section-7" class="internal xref">Relationship with Section 7 of OpenID.Core Self-Issued OpenID Provider</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3">
+            <p id="section-toc.1-1.3.1"><a href="#section-3" class="auto internal xref">3</a>.  <a href="#name-protocol-flow" class="internal xref">Protocol Flow</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-cross-device-self-issued-op" class="internal xref">Cross-Device Self-Issued OP</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-self-issued-openid-provider" class="internal xref">Self-Issued OpenID Provider Invocation</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
+            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-self-issued-openid-provider-" class="internal xref">Self-Issued OpenID Provider Discovery</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.1">
+                <p id="section-toc.1-1.6.2.1.1"><a href="#section-6.1" class="auto internal xref">6.1</a>.  <a href="#name-dynamic-discovery-of-self-i" class="internal xref">Dynamic Discovery of Self-Issued OpenID Provider Metadata</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.2">
+                <p id="section-toc.1-1.6.2.2.1"><a href="#section-6.2" class="auto internal xref">6.2</a>.  <a href="#name-choice-of-authorization_end" class="internal xref">Choice of <code>authorization_endpoint</code></a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
+            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-relying-party-registration" class="internal xref">Relying Party Registration</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.1">
+                <p id="section-toc.1-1.7.2.1.1"><a href="#section-7.1" class="auto internal xref">7.1</a>.  <a href="#name-pre-registered-relying-part" class="internal xref">Pre-Registered Relying Party</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.2">
+                <p id="section-toc.1-1.7.2.2.1"><a href="#section-7.2" class="auto internal xref">7.2</a>.  <a href="#name-non-pre-registered-relying-" class="internal xref">Non-Pre-Registered Relying Party</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.2.2.1">
+                    <p id="section-toc.1-1.7.2.2.2.1.1"><a href="#section-7.2.1" class="auto internal xref">7.2.1</a>.  <a href="#name-client_id-equals-redirect_u" class="internal xref"><code>client_id</code> equals <code>redirect_uri</code></a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.2.2.2">
+                    <p id="section-toc.1-1.7.2.2.2.2.1"><a href="#section-7.2.2" class="auto internal xref">7.2.2</a>.  <a href="#name-openid-federation-10-automa" class="internal xref">OpenID Federation 1.0 Automatic Registration</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.2.2.3">
+                    <p id="section-toc.1-1.7.2.2.2.3.1"><a href="#section-7.2.3" class="auto internal xref">7.2.3</a>.  <a href="#name-decentralized-identifiers" class="internal xref">Decentralized Identifiers</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.3">
+                <p id="section-toc.1-1.7.2.3.1"><a href="#section-7.3" class="auto internal xref">7.3</a>.  <a href="#name-relying-party-client-metada" class="internal xref">Relying Party Client Metadata parameter</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.4">
+                <p id="section-toc.1-1.7.2.4.1"><a href="#section-7.4" class="auto internal xref">7.4</a>.  <a href="#name-relying-party-metadata-erro" class="internal xref">Relying Party Metadata Error Response</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.5">
+                <p id="section-toc.1-1.7.2.5.1"><a href="#section-7.5" class="auto internal xref">7.5</a>.  <a href="#name-relying-party-metadata-valu" class="internal xref">Relying Party Metadata Values</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8">
+            <p id="section-toc.1-1.8.1"><a href="#section-8" class="auto internal xref">8</a>.  <a href="#name-subject-syntax-types" class="internal xref">Subject Syntax Types</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9">
+            <p id="section-toc.1-1.9.1"><a href="#section-9" class="auto internal xref">9</a>.  <a href="#name-self-issued-openid-provider-a" class="internal xref">Self-Issued OpenID Provider Authorization Request</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.1">
+                <p id="section-toc.1-1.9.2.1.1"><a href="#section-9.1" class="auto internal xref">9.1</a>.  <a href="#name-aud-of-a-request-object" class="internal xref"><code>aud</code> of a Request Object</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.2">
+                <p id="section-toc.1-1.9.2.2.1"><a href="#section-9.2" class="auto internal xref">9.2</a>.  <a href="#name-cross-device-self-issued-ope" class="internal xref">Cross-Device Self-Issued OpenID Provider Request</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10">
+            <p id="section-toc.1-1.10.1"><a href="#section-10" class="auto internal xref">10</a>. <a href="#name-self-issued-openid-provider-au" class="internal xref">Self-Issued OpenID Provider Authorization Response</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.1">
+                <p id="section-toc.1-1.10.2.1.1"><a href="#section-10.1" class="auto internal xref">10.1</a>.  <a href="#name-self-issued-openid-provider-r" class="internal xref">Self-Issued OpenID Provider Response (Authorization Code Flow)</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.2">
+                <p id="section-toc.1-1.10.2.2.1"><a href="#section-10.2" class="auto internal xref">10.2</a>.  <a href="#name-cross-device-self-issued-open" class="internal xref">Cross-Device Self-Issued OpenID Provider Response</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.3">
+                <p id="section-toc.1-1.10.2.3.1"><a href="#section-10.3" class="auto internal xref">10.3</a>.  <a href="#name-self-issued-openid-provider-e" class="internal xref">Self-Issued OpenID Provider Error Response</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11">
+            <p id="section-toc.1-1.11.1"><a href="#section-11" class="auto internal xref">11</a>. <a href="#name-self-issued-id-token" class="internal xref">Self-Issued ID Token</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.1">
+                <p id="section-toc.1-1.11.2.1.1"><a href="#section-11.1" class="auto internal xref">11.1</a>.  <a href="#name-self-issued-id-token-valida" class="internal xref">Self-Issued ID Token Validation</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.2">
+                <p id="section-toc.1-1.11.2.2.1"><a href="#section-11.2" class="auto internal xref">11.2</a>.  <a href="#name-cross-device-self-issued-id" class="internal xref">Cross-Device Self-Issued ID Token Validation</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12">
+            <p id="section-toc.1-1.12.1"><a href="#section-12" class="auto internal xref">12</a>. <a href="#name-verifiable-presentation-sup" class="internal xref">Verifiable Presentation Support</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13">
+            <p id="section-toc.1-1.13.1"><a href="#section-13" class="auto internal xref">13</a>. <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.1">
+                <p id="section-toc.1-1.13.2.1.1"><a href="#section-13.1" class="auto internal xref">13.1</a>.  <a href="#name-handling-end-user-data" class="internal xref">Handling End-User Data</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.1.2.1">
+                    <p id="section-toc.1-1.13.2.1.2.1.1"><a href="#section-13.1.1" class="auto internal xref">13.1.1</a>.  <a href="#name-end-user-claims-in-id-token" class="internal xref">End-User Claims in ID Tokens</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.2">
+                <p id="section-toc.1-1.13.2.2.1"><a href="#section-13.2" class="auto internal xref">13.2</a>.  <a href="#name-rp-and-self-issued-op-metad" class="internal xref">RP and Self-Issued OP Metadata Integrity</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.3">
+                <p id="section-toc.1-1.13.2.3.1"><a href="#section-13.3" class="auto internal xref">13.3</a>.  <a href="#name-usage-of-cross-device-self-" class="internal xref">Usage of Cross-Device Self-Issued OP for Authentication</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.4">
+                <p id="section-toc.1-1.13.2.4.1"><a href="#section-13.4" class="auto internal xref">13.4</a>.  <a href="#name-invocation-using-private-us" class="internal xref">Invocation using Private-Use URI Schemes (Custom URL Schemes)</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.5">
+                <p id="section-toc.1-1.13.2.5.1"><a href="#section-13.5" class="auto internal xref">13.5</a>.  <a href="#name-self-issued-op-authorizatio" class="internal xref">Self-Issued OP Authorization Response Confidentiality</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13.2.6">
+                <p id="section-toc.1-1.13.2.6.1"><a href="#section-13.6" class="auto internal xref">13.6</a>.  <a href="#name-tls-requirements" class="internal xref">TLS Requirements</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14">
+            <p id="section-toc.1-1.14.1"><a href="#section-14" class="auto internal xref">14</a>. <a href="#name-privacy-considerations" class="internal xref">Privacy Considerations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.1">
+                <p id="section-toc.1-1.14.2.1.1"><a href="#section-14.1" class="auto internal xref">14.1</a>.  <a href="#name-selective-disclosure-and-un" class="internal xref">Selective Disclosure and Unlinkable Presentations</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15">
+            <p id="section-toc.1-1.15.1"><a href="#section-15" class="auto internal xref">15</a>. <a href="#name-implementation-consideratio" class="internal xref">Implementation Considerations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15.2.1">
+                <p id="section-toc.1-1.15.2.1.1"><a href="#section-15.1" class="auto internal xref">15.1</a>.  <a href="#name-static-configuration-values" class="internal xref">Static Configuration Values of the Self-Issued OPs</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15.2.1.2.1">
+                    <p id="section-toc.1-1.15.2.1.2.1.1"><a href="#section-15.1.1" class="auto internal xref">15.1.1</a>.  <a href="#name-profiles-that-define-static" class="internal xref">Profiles that Define Static Configuration Values</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15.2.1.2.2">
+                    <p id="section-toc.1-1.15.2.1.2.2.1"><a href="#section-15.1.2" class="auto internal xref">15.1.2</a>.  <a href="#name-a-set-of-static-configurati" class="internal xref">A Set of Static Configuration Values bound to <code>siopv2://</code></a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15.2.1.2.3">
+                    <p id="section-toc.1-1.15.2.1.2.3.1"><a href="#section-15.1.3" class="auto internal xref">15.1.3</a>.  <a href="#name-a-set-of-static-configuratio" class="internal xref">A Set of Static Configuration Values bound to <code>openid://</code></a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15.2.2">
+                <p id="section-toc.1-1.15.2.2.1"><a href="#section-15.2" class="auto internal xref">15.2</a>.  <a href="#name-supporting-multiple-self-is" class="internal xref">Supporting Multiple Self-Issued OPs</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15.2.3">
+                <p id="section-toc.1-1.15.2.3.1"><a href="#section-15.3" class="auto internal xref">15.3</a>.  <a href="#name-receiving-cross-device-resp" class="internal xref">Receiving Cross-Device Responses</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16">
+            <p id="section-toc.1-1.16.1"><a href="#section-16" class="auto internal xref">16</a>. <a href="#name-relationships-to-other-docu" class="internal xref">Relationships to Other Documents</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.17">
+            <p id="section-toc.1-1.17.1"><a href="#section-17" class="auto internal xref">17</a>. <a href="#name-normative-references" class="internal xref">Normative References</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.18">
+            <p id="section-toc.1-1.18.1"><a href="#section-18" class="auto internal xref">18</a>. <a href="#name-informative-references" class="internal xref">Informative References</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.19">
+            <p id="section-toc.1-1.19.1"><a href="#appendix-A" class="auto internal xref">Appendix A</a>.  <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.20">
+            <p id="section-toc.1-1.20.1"><a href="#appendix-B" class="auto internal xref">Appendix B</a>.  <a href="#name-acknowledgements" class="internal xref">Acknowledgements</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.21">
+            <p id="section-toc.1-1.21.1"><a href="#appendix-C" class="auto internal xref">Appendix C</a>.  <a href="#name-notices" class="internal xref">Notices</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.22">
+            <p id="section-toc.1-1.22.1"><a href="#appendix-D" class="auto internal xref">Appendix D</a>.  <a href="#name-use-cases" class="internal xref">Use Cases</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.22.2.1">
+                <p id="section-toc.1-1.22.2.1.1"><a href="#appendix-D.1" class="auto internal xref">D.1</a>.  <a href="#name-resilience-against-sudden-o" class="internal xref">Resilience against Sudden or Planned Hosted OP Unavailability</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.22.2.2">
+                <p id="section-toc.1-1.22.2.2.1"><a href="#appendix-D.2" class="auto internal xref">D.2</a>.  <a href="#name-authentication-at-the-edge" class="internal xref">Authentication at the Edge</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.22.2.3">
+                <p id="section-toc.1-1.22.2.3.1"><a href="#appendix-D.3" class="auto internal xref">D.3</a>.  <a href="#name-authentication-and-presenta" class="internal xref">Authentication and Presentations of User Claims without the involvement of the Issuer</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.22.2.4">
+                <p id="section-toc.1-1.22.2.4.1"><a href="#appendix-D.4" class="auto internal xref">D.4</a>.  <a href="#name-aggregation-of-multiple-per" class="internal xref">Aggregation of Multiple Personas under One Self-Issued OP</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.22.2.5">
+                <p id="section-toc.1-1.22.2.5.1"><a href="#appendix-D.5" class="auto internal xref">D.5</a>.  <a href="#name-identifier-portability" class="internal xref">Identifier Portability</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.22.2.6">
+                <p id="section-toc.1-1.22.2.6.1"><a href="#appendix-D.6" class="auto internal xref">D.6</a>.  <a href="#name-cloud-wallet" class="internal xref">Cloud Wallet</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.23">
+            <p id="section-toc.1-1.23.1"><a href="#appendix-E" class="auto internal xref">Appendix E</a>.  <a href="#name-document-history" class="internal xref">Document History</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.24">
+            <p id="section-toc.1-1.24.1"><a href="#appendix-F" class="auto internal xref"></a><a href="#name-authors-addresses" class="internal xref">Authors' Addresses</a></p>
+</li>
+        </ul>
+</nav>
+</section>
+</div>
+<div id="introduction">
+<section id="section-1">
+      <h2 id="name-introduction">
+<a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction" class="section-name selfRef">Introduction</a>
+      </h2>
+<p id="section-1-1">This specification extends OpenID Connect with the concept of a <em>Self-Issued OpenID Provider</em> (Self-Issued OP), an OpenID Provider (OP) which is within the End-User’s control. Using Self-Issued OPs, End-Users can authenticate themselves with Self-Issued ID Tokens and present self-attested claims directly to the RPs. Self-Issued OPs can also present cryptographically verifiable claims issued by the third parties trusted by the RPs, when used with separate specifications such as <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>, or Aggregated and Distributed Claims defined in Section 5.6.2 of <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>. This allows End-Users to interact with RPs, without RPs interacting with claims issuers.<a href="#section-1-1" class="pilcrow">¶</a></p>
+<p id="section-1-2">End-User control does not imply the Self-Issued OP is entirely locally hosted on an End-User's device. There are different ways to implement a Self-Issued OP: the Self-Issued OP can completely run on an End-User device; it might utilize cloud components; or it might completely run in the cloud.<a href="#section-1-2" class="pilcrow">¶</a></p>
+<p id="section-1-3">The crucial difference between a traditional OP and the Self-Issued OP is that the Self-Issued OP allows the End-User to determine identifiers and claims released to the RP.<a href="#section-1-3" class="pilcrow">¶</a></p>
+<p id="section-1-4"><span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span> defines that an OP releases End-User authentication information in the form of an ID Token. An RP will trust an ID Token based on the relationship between the RP and the issuer of this ID Token.<a href="#section-1-4" class="pilcrow">¶</a></p>
+<p id="section-1-5">The extensions defined in this specification provide the protocol changes needed to support Self-Issued OpenID Provider model. Aspects not defined in this specification are expected to follow <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>. Most notably, a Self-Issued OP MAY implement all flows as specified in <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>, e.g. the Authorization Code Flow, and OpenID Connect extension flows, such as <span>[<a href="#OpenID.CIBA" class="cite xref">OpenID.CIBA</a>]</span>, as permitted by its deployment model. If the Self-Issued OP is operated entirely locally on a user device, it might be unable to expose any endpoints beyond the authorization endpoint to the RPs. However, if the Self-Issued OP has cloud-based components, it MAY expose further endpoints, such as a Token Endpoint. The same is applicable for Dynamic Client Registration (<span>[<a href="#OpenID.Registration" class="cite xref">OpenID.Registration</a>]</span>).<a href="#section-1-5" class="pilcrow">¶</a></p>
+<p id="section-1-6">This specification replaces <a href="https://identity.foundation/did-siop/">Self-Issued OpenID Connect Provider DID Profile v0.1</a> and was written as a working item of a liaison between Decentralized Identity Foundation and OpenID Foundation.<a href="#section-1-6" class="pilcrow">¶</a></p>
+<div id="requirements-notation-and-conventions">
+<section id="section-1.1">
+        <h3 id="name-requirements-notation-and-c">
+<a href="#section-1.1" class="section-number selfRef">1.1. </a><a href="#name-requirements-notation-and-c" class="section-name selfRef">Requirements Notation and Conventions</a>
+        </h3>
+<p id="section-1.1-1">The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 <span>[<a href="#RFC2119" class="cite xref">RFC2119</a>]</span>.<a href="#section-1.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="notable-differences-between-openid-connect-core-and-self-issued-op-models">
+<section id="section-1.2">
+        <h3 id="name-notable-differences-between">
+<a href="#section-1.2" class="section-number selfRef">1.2. </a><a href="#name-notable-differences-between" class="section-name selfRef">Notable Differences between OpenID Connect Core and Self-Issued OP Models</a>
+        </h3>
+<p id="section-1.2-1">In the traditional OpenID Connect model, when an OP acts as an ID Token issuer, it is common for the OP to have a legal stake with the RPs and a reputation-based stake with both RPs and End-Users to provide correct information. In the Self-Issued OP model, the RP's trust relationship is directly with the End-User. The Self-Issued OP allows the End-User to authenticate towards the RP with an identifier controlled by the End-User instead of an identifier assigned to the End-User by a third-party provided OP. An End-User controlled identifier might be a public key fingerprint or a Decentralized Identifier (see <span>[<a href="#DID-Core" class="cite xref">DID-Core</a>]</span>). This changes the trust model and the way signatures of the Self-Issued ID Tokens are validated in comparison to the traditional OpenID Connect model.<a href="#section-1.2-1" class="pilcrow">¶</a></p>
+<p id="section-1.2-2">In traditional OpenID Connect, the ID Token is signed by the OP as an entity, identified by the <code>iss</code> claim. The RP uses this identifier to obtain the key material to validate the ID Token's signature. This signature ensures the data is attested by the OP the RP trusts for that purpose and it also is an attestation of what service produced the ID Token (since both are the same entity).<a href="#section-1.2-2" class="pilcrow">¶</a></p>
+<p id="section-1.2-3">In the Self-Issued OP case, the ID Token is self-signed with a private key under the user's control, identified by the <code>sub</code> claim. The RP uses this identifier to obtain the key material to validate the ID Token's signature. Unlike traditional OpenID Connect, this signature can no longer be used to cryptographically validate the software or service that created the ID Token. Self-issued ID Token can be detected when the <code>iss</code> value is set to the user identifier conveyed in the <code>sub</code> Claim, because from a conceptual perspective, the issuer of the ID Token is the user. This also aligns Self-Issued OP with the way self-signed certificates and W3C Verifiable Presentations handle subject and issuer of such certificates and assertions, respectively.<a href="#section-1.2-3" class="pilcrow">¶</a></p>
+<p id="section-1.2-4">Because a Self-Issued OP within the End-User’s control does not have the legal, reputational trust of a traditional OP, claims about the End-User (e.g., <code>birthdate</code>) included in a Self-Issued ID Token, are by default self-asserted and non-verifiable. A Self-Issued OP can also present cryptographically verifiable claims issued by the third-party sources trusted by the RP, as defined in separate specifications such as <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span> or Aggregated and Distributed Claims in Section 5.6.2 of <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>.<a href="#section-1.2-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="terms-and-definitions">
+<section id="section-1.3">
+        <h3 id="name-terms-and-definitions">
+<a href="#section-1.3" class="section-number selfRef">1.3. </a><a href="#name-terms-and-definitions" class="section-name selfRef">Terms and Definitions</a>
+        </h3>
+<p id="section-1.3-1">This specification uses the terms "Authorization Request", "Authorization Response", "Authorization Server", "Client", "Client Identifier", "Response Type", and "Token Response" defined by OAuth 2.0 <span>[<a href="#RFC6749" class="cite xref">RFC6749</a>]</span>, the terms "End-User", "Entity", "Request Object", and "Request URI" as defined by OpenID Connect Core <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>, the term "JSON Web Token (JWT)" defined by JSON Web Token (JWT) <span>[<a href="#RFC7519" class="cite xref">RFC7519</a>]</span>, the term "JOSE Header" and the term "Base64url Encoding" defined by JSON Web Signature (JWS) <span>[<a href="#RFC7515" class="cite xref">RFC7515</a>]</span>, and the term "Response Mode" defined by OAuth 2.0 Multiple Response Type Encoding Practices <span>[<a href="#OAuth.Responses" class="cite xref">OAuth.Responses</a>]</span>.<a href="#section-1.3-1" class="pilcrow">¶</a></p>
+<p id="section-1.3-2">This specification also defines the following terms. In the case where a term has a definition that differs, the definition below is authoritative.<a href="#section-1.3-2" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlCompact dlParallel" id="section-1.3-3">
+          <dt id="section-1.3-3.1">Self-Issued OpenID Provider (Self-Issued OP):</dt>
+          <dd style="margin-left: 1.5em" id="section-1.3-3.2">An OpenID Provider (OP)  to prove control over a cryptographically Verifiable Identifier<a href="#section-1.3-3.2" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.3-3.3">Self-Issued Request:</dt>
+          <dd style="margin-left: 1.5em" id="section-1.3-3.4">Request to a Self-Issued OP from an RP<a href="#section-1.3-3.4" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.3-3.5">Self-Issued Response:</dt>
+          <dd style="margin-left: 1.5em" id="section-1.3-3.6">Response to an RP from a Self-Issued OP<a href="#section-1.3-3.6" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.3-3.7">Self-Issued ID Token:</dt>
+          <dd style="margin-left: 1.5em" id="section-1.3-3.8">ID Token signed using the key material controlled by the End-User. It is issued by a Self-Issued OP.<a href="#section-1.3-3.8" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.3-3.9">Cryptographically Verifiable Identifier:</dt>
+          <dd style="margin-left: 1.5em" id="section-1.3-3.10">An identifier that is either based upon or resolves to cryptographic key material that can be used to verify a signature on the ID Token or the Self-Issued Request.<a href="#section-1.3-3.10" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.3-3.11">Trust Framework:</dt>
+          <dd style="margin-left: 1.5em" id="section-1.3-3.12">A legally enforceable set of specifications, rules, and agreements that govern a multi-party system established for a common purpose, designed for conducting specific types of transactions among a community of participants, and bound by a common set of requirements, as defined in <a href="https://openidentityexchange.org/networks/87/item.html?id=365">OIX</a>.<a href="#section-1.3-3.12" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.3-3.13">Wallet:</dt>
+          <dd style="margin-left: 1.5em" id="section-1.3-3.14">Entity that receives, stores, presents, and manages Credentials and key material of the End-User. There is no single deployment model of a Wallet: Credentials and keys can both be stored/managed locally by the End-User, or by using a remote self-hosted service, or a remote third party service. In the context of this specification, the Wallet acts as an Self-Issued OpenID Provider towards the RP.<a href="#section-1.3-3.14" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="abbreviations">
+<section id="section-1.4">
+        <h3 id="name-abbreviations">
+<a href="#section-1.4" class="section-number selfRef">1.4. </a><a href="#name-abbreviations" class="section-name selfRef">Abbreviations</a>
+        </h3>
+<ul class="compact">
+<li class="compact" id="section-1.4-1.1">OP: OpenID Provider<a href="#section-1.4-1.1" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-1.4-1.2">RP: Relying Party<a href="#section-1.4-1.2" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-1.4-1.3">Self-Issued OP or SIOP: Self-Issued OpenID Provider<a href="#section-1.4-1.3" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="scope">
+<section id="section-2">
+      <h2 id="name-scope">
+<a href="#section-2" class="section-number selfRef">2. </a><a href="#name-scope" class="section-name selfRef">Scope</a>
+      </h2>
+<div id="in-scope">
+<section id="section-2.1">
+        <h3 id="name-in-scope">
+<a href="#section-2.1" class="section-number selfRef">2.1. </a><a href="#name-in-scope" class="section-name selfRef">In Scope</a>
+        </h3>
+<p id="section-2.1-1">This specification extends the OpenID Connect Core in the following ways:<a href="#section-2.1-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-2.1-2.1">
+            <p id="section-2.1-2.1.1"><strong>Invocation of a Self-Issued OP</strong>: mechanisms for how the RP invokes/opens a Self-Issued OP.<a href="#section-2.1-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-2.1-2.2">
+            <p id="section-2.1-2.2.1"><strong>Obtaining Self-Issued OP Metadata (Static and Dynamic Discovery)</strong>: mechanisms for how the RP discovers Self-issued OP's metadata such as authorization endpoint.<a href="#section-2.1-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-2.1-2.3">
+            <p id="section-2.1-2.3.1"><strong>Obtaining RP Metadata</strong>: mechanisms for how the Self-Issued OPs obtain RP metadata both with or without RP pre-registering with the Self-Issued OP.<a href="#section-2.1-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-2.1-2.4">
+            <p id="section-2.1-2.4.1"><strong>Self-Issued ID Token</strong>: defines additional claims and processing requirements of ID Tokens issued by Self-Issued OPs. An ID Token is self-issued if the values of the <code>iss</code> and the <code>sub</code> claims are the same.<a href="#section-2.1-2.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-2.1-2.5">
+            <p id="section-2.1-2.5.1"><strong>Support for Self-Asserted Claims</strong>: transporting claims in a Self-Issued ID Token that are not verifiable by the RP.<a href="#section-2.1-2.5.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-2.1-2.6">
+            <p id="section-2.1-2.6.1"><strong>Support for Cryptographically Verifiable Identifiers</strong>: an identifier that is either based upon or can be resolved to cryptographic key material and is used by the Self-Issued OPs in the <code>sub</code> Claim of the ID Token to prove possession of the cryptographic key used to sign the ID Token. Types of such identifiers are defined in this specification as Subject Syntax Types.<a href="#section-2.1-2.6.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+</section>
+</div>
+<div id="out-of-scope">
+<section id="section-2.2">
+        <h3 id="name-out-of-scope">
+<a href="#section-2.2" class="section-number selfRef">2.2. </a><a href="#name-out-of-scope" class="section-name selfRef">Out of Scope</a>
+        </h3>
+<p id="section-2.2-1">The following are considered out of scope of this document.<a href="#section-2.2-1" class="pilcrow">¶</a></p>
+<div id="presentation-of-claims-from-the-third-party-issuers">
+<section id="section-2.2.1">
+          <h4 id="name-presentation-of-claims-from">
+<a href="#section-2.2.1" class="section-number selfRef">2.2.1. </a><a href="#name-presentation-of-claims-from" class="section-name selfRef">Presentation of Claims from the Third-Party Issuers</a>
+          </h4>
+<p id="section-2.2.1-1">A Self-Issued OP can present self-attested claims in the ID Token.<a href="#section-2.2.1-1" class="pilcrow">¶</a></p>
+<p id="section-2.2.1-2">Methods to present of cryptographically verifiable claims issued by trusted third-party sources are defined in other specifications, such as <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>, which extends OAuth 2.0 to enable presentation of Verifiable Credentials, supporting W3C Verifiable Credentials and ISO/IEC 18013-5:2021 mdoc as well as other credential formats.<a href="#section-2.2.1-2" class="pilcrow">¶</a></p>
+<p id="section-2.2.1-3">The cryptographic keys within the Verifiable Presentation and for signing the Self-Issued ID Token are not necessarily related and the RP SHOULD NOT make assumptions in this regard.<a href="#section-2.2.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="relationship-with-section-7-of-openid-core-self-issued-openid-provider">
+<section id="section-2.3">
+        <h3 id="name-relationship-with-section-7">
+<a href="#section-2.3" class="section-number selfRef">2.3. </a><a href="#name-relationship-with-section-7" class="section-name selfRef">Relationship with Section 7 of <em class="cite xref">[OpenID.Core]</em> Self-Issued OpenID Provider</a>
+        </h3>
+<p id="section-2.3-1">This specification extends Section 7 of <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span> Self-Issued OpenID Provider in the following ways:<a href="#section-2.3-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-2.3-2.1">Added support for Decentralized Identifiers defined in <span>[<a href="#DID-Core" class="cite xref">DID-Core</a>]</span> as Cryptographically Verifiable Identifiers in addition to the JWK thumbprint defined in Self-Issued OP v2. See <a href="#sub-syntax-type" class="auto internal xref">Section 8</a>.<a href="#section-2.3-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.3-2.2">Added support for Cross-Device Self-Issued OP model. See <a href="#cross-device-siop" class="auto internal xref">Section 4</a>.<a href="#section-2.3-2.2" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.3-2.3">Extended mechanisms how not-pre-registered RPs can pass their metadata in the Authorization Request. See <a href="#rp-resolution" class="auto internal xref">Section 7</a>.<a href="#section-2.3-2.3" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.3-2.4">Added support for Dynamic Self-Issued OpenID Provider Discovery. See <a href="#dynamic-siop-metadata" class="auto internal xref">Section 6.1</a>.<a href="#section-2.3-2.4" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.3-2.5">Added support for claimed URLs (universal links, app links) in addition to the custom URL scheme as Self-Issued OP <code>authorization_endpoint</code>. See <a href="#choice-of-authoriation-endpoint" class="auto internal xref">Section 6.2</a>.<a href="#section-2.3-2.5" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-2.3-2.6">Added support to use of any OpenID Connect flow for Self-Issued OPs and Dynamic Client Registration.<a href="#section-2.3-2.6" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-2.3-3">Note that while this specification extends the original Section 7 of <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span> Self-Issued OpenID Provider, some sections of it could be applicable more generally to the entire OpenID Connect Core specification.<a href="#section-2.3-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="protocol-flow">
+<section id="section-3">
+      <h2 id="name-protocol-flow">
+<a href="#section-3" class="section-number selfRef">3. </a><a href="#name-protocol-flow" class="section-name selfRef">Protocol Flow</a>
+      </h2>
+<p id="section-3-1">Self-Issued Request results in Self-Issued OP returning an ID Token to the Relying Party when the End-User authentication succeeds and the End-User provides necessary permission. The ID Token always includes claims about the Authentication event and MAY include additional claims about the End-User.<a href="#section-3-1" class="pilcrow">¶</a></p>
+<span id="name-self-issued-op-protocol-flo"></span><figure id="figure-1">
+        <div class="lang-ascii-art sourcecode" id="section-3-2.1">
+<pre>+------+                                           +----------------+
+|      |                                           |                |
+|      |--(1) Self-Issued OpenID Provider Request-&gt;|                |
+|      |     (Authorization Request)               |                |
+|      |                                           |                |
+|      |       +----------+                        |                |
+|      |       |          |                        |                |
+|      |       | End-User |                        |                |
+|  RP  |       |          |&lt;--(2) AuthN &amp; AuthZ---&gt;| Self-Issued OP |
+|      |       |          |                        |                |
+|      |       +----------+                        |                |
+|      |                                           |                |
+|      |&lt;-(3) Self-Issued OpenID Provider Response-|                |
+|      |      (Self-Issued ID Token)               |                |
+|      |                                           |                |
++------+                                           +----------------+
+</pre>
+</div>
+<figcaption><a href="#figure-1" class="selfRef">Figure 1</a>:
+<a href="#name-self-issued-op-protocol-flo" class="selfRef">Self-Issued OP Protocol Flow</a>
+        </figcaption></figure>
+</section>
+</div>
+<div id="cross-device-siop">
+<section id="section-4">
+      <h2 id="name-cross-device-self-issued-op">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-cross-device-self-issued-op" class="section-name selfRef">Cross-Device Self-Issued OP</a>
+      </h2>
+<p id="section-4-1">There are two models of Self-Issued OP protocol flows:<a href="#section-4-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-4-2.1">Same-Device Self-Issued OP model: Self-Issued OP is on the same device on which the End-User's user interactions are occurring. The RP might be a Web site on a different machine and still use the same-device Self-Issued OP protocol flow for authentication.<a href="#section-4-2.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="section-4-2.2">Cross-device Self-Issued OP model: Self-Issued OP is on a different device than the one on which the End-User's user interactions are occurring.<a href="#section-4-2.2" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="section-4-3">This section outlines how Self-Issued OP is used in cross-device scenarios, and its differences with the same device model. In contrast to same-device scenarios, neither RP nor Self-Issued OP can communicate to each other via HTTP redirects through a user agent. The protocol flow is therefore modified as follows:<a href="#section-4-3" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="compact type-1" id="section-4-4">
+<li id="section-4-4.1">The RP prepares a Self-Issued Request and renders it as a QR code.<a href="#section-4-4.1" class="pilcrow">¶</a>
+</li>
+        <li id="section-4-4.2">The End-User scans the QR code with her smartphone's camera app.<a href="#section-4-4.2" class="pilcrow">¶</a>
+</li>
+        <li id="section-4-4.3">Self-Issued OP is invoked on the smartphone (custom URL scheme or claimed URLs).<a href="#section-4-4.3" class="pilcrow">¶</a>
+</li>
+        <li id="section-4-4.4">The Self-Issued OP processes the Authorization Request.<a href="#section-4-4.4" class="pilcrow">¶</a>
+</li>
+        <li id="section-4-4.5">Upon completion of the Authorization Request, the Self-Issued OP directly sends an HTTPS POST request with the Authorization Response to an endpoint exposed by the RP.<a href="#section-4-4.5" class="pilcrow">¶</a>
+</li>
+      </ol>
+<p id="section-4-5">The request in Step 5 is not a form post request where the Self-Issued OP would respond to a user agent with a form, which automatically triggers a POST request to the RP. The Self-Issued OP sends this request directly to the RP's endpoint.<a href="#section-4-5" class="pilcrow">¶</a></p>
+<p id="section-4-6">For brevity, mainly the QR code method is discussed as a mechanism to initiate a cross-device protocol flow throughout this specification. However, other mechanisms to initiate a cross-device flow are possible.<a href="#section-4-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="siop-invocation">
+<section id="section-5">
+      <h2 id="name-self-issued-openid-provider">
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-self-issued-openid-provider" class="section-name selfRef">Self-Issued OpenID Provider Invocation</a>
+      </h2>
+<p id="section-5-1">When the End-User first interacts with the RP, there are currently no established, robust means for the RP to reliably determine a URI of the Self-Issued OP an End-User may have a relationship with or have installed. The RP is, therefore, responsible for selecting where to direct the request URL.<a href="#section-5-1" class="pilcrow">¶</a></p>
+<p id="section-5-2">When the RP sends the request to the Self-Issued OP, there are two scenarios of how to reach and invoke an application that can process that request.<a href="#section-5-2" class="pilcrow">¶</a></p>
+<p id="section-5-3">In the first scenario, the request is encoded in a QR code or a link, and the End-User scans it with the camera via the application that is intended to handle the request from the RP. In this scenario, the request does not need to be intended for a specific <code>authorization_endpoint</code> of a Self-Issued OP. Note that a QR code option will not work in a same-device Self-Issued OP protocol flow, when the RP and the Self-Issued OP are on the same device.<a href="#section-5-3" class="pilcrow">¶</a></p>
+<p id="section-5-4">In the second scenario, the request includes the <code>authorization_endpoint</code> of a Self-Issued OP and will open a target application. In this scenario, there are two ways of how the RP can obtain <code>authorization_endpoint</code> of the Self-Issued OP to construct a targeted request as defined in <a href="#siop-discovery" class="auto internal xref">Section 6</a>, either using the static set of Self-Issued OP metadata, or by pre-obtaining <code>authorization_endpoint</code>. Note that this protocol flow would work both for the same-device Self-Issued OP protocol flow and the cross-device Self-Issued OP protocol flow.<a href="#section-5-4" class="pilcrow">¶</a></p>
+<p id="section-5-5">The following is a non-normative example of a request with no specific <code>authorization_endpoint</code>, which must be scanned by the Self-Issued OP application manually opened by the End-User instead of an arbitrary camera application on a user-device. It is a request when the RP is pre-registered with the Self-Issued OP (line wraps within values are for display purposes only):<a href="#section-5-5" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-5-6">
+<pre>    client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;request_uri=https%3A%2F%2Fclient.example.org%2Frequest%2FGkurKxf5T0Y-mnPFCHqWOMiZi4VS138cQO_V7PZHAdM
+</pre><a href="#section-5-6" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="siop-discovery">
+<section id="section-6">
+      <h2 id="name-self-issued-openid-provider-">
+<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-self-issued-openid-provider-" class="section-name selfRef">Self-Issued OpenID Provider Discovery</a>
+      </h2>
+<p id="section-6-1">The RP can obtain <code>authorization_endpoint</code> of the Self-Issued OP to construct a request targeted to a particular application either by using the pre-agreed static configuration values, or by performing Dynamic Discovery as defined in <a href="#dynamic-siop-metadata" class="auto internal xref">Section 6.1</a>.<a href="#section-6-1" class="pilcrow">¶</a></p>
+<div id="dynamic-siop-metadata">
+<section id="section-6.1">
+        <h3 id="name-dynamic-discovery-of-self-i">
+<a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-dynamic-discovery-of-self-i" class="section-name selfRef">Dynamic Discovery of Self-Issued OpenID Provider Metadata</a>
+        </h3>
+<p id="section-6.1-1">As an alternative mechanism to the <a href="#static-config" class="auto internal xref">Section 15.1</a>, the RP can pre-obtain Self-Issued OP Discovery Metadata prior to the transaction, either using <span>[<a href="#OpenID.Discovery" class="cite xref">OpenID.Discovery</a>]</span>, or out-of-band mechanisms.<a href="#section-6.1-1" class="pilcrow">¶</a></p>
+<p id="section-6.1-2">How the RP obtains Self-Issued OP's Issuer Identifier is out of scope of this specification. The RPs MAY skip Section 2 of <span>[<a href="#OpenID.Discovery" class="cite xref">OpenID.Discovery</a>]</span>.<a href="#section-6.1-2" class="pilcrow">¶</a></p>
+<p id="section-6.1-3">When <span>[<a href="#OpenID.Discovery" class="cite xref">OpenID.Discovery</a>]</span> is used, the RP MUST obtain Self-Issued OP metadata from a JSON document that Self-Issued OP made available at the path formed by concatenating the string <code>/.well-known/openid-configuration</code> to the Self-Issued OP's Issuer Identifier.<a href="#section-6.1-3" class="pilcrow">¶</a></p>
+<p id="section-6.1-4">Note that contrary to <span>[<a href="#OpenID.Discovery" class="cite xref">OpenID.Discovery</a>]</span>, <code>jwks_uri</code> parameter MUST NOT be present in Self-Issued OP Metadata. If it is, the RP MUST ignore it and use the <code>sub</code> Claim in the ID Token to obtain signing keys to validate the signatures from the Self-Issued OpenID Provider.<a href="#section-6.1-4" class="pilcrow">¶</a></p>
+<p id="section-6.1-5">These metadata values are used by the Self-Issued OP:<a href="#section-6.1-5" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.1-6.1">
+            <p id="section-6.1-6.1.1"><code>authorization_endpoint</code><a href="#section-6.1-6.1.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.1-6.1.2.1">REQUIRED. URL of the Self-Issued OP used by the RP to perform Authentication of the End-User. Can be custom URL scheme, or Universal Links/App links. See <a href="#choice-of-authoriation-endpoint" class="auto internal xref">Section 6.2</a>.<a href="#section-6.1-6.1.2.1" class="pilcrow">¶</a>
+</li>
+            </ul>
+</li>
+          <li class="compact" id="section-6.1-6.2">
+            <p id="section-6.1-6.2.1"><code>issuer</code><a href="#section-6.1-6.2.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.1-6.2.2.1">REQUIRED. URL using the <code>https</code> scheme with no query or fragment component that the Self-Issued OP asserts as its Issuer Identifier. MUST be identical to the <code>iss</code> Claim value in ID Tokens issued from this Self-Issued OP.<a href="#section-6.1-6.2.2.1" class="pilcrow">¶</a>
+</li>
+            </ul>
+</li>
+          <li class="compact" id="section-6.1-6.3">
+            <p id="section-6.1-6.3.1"><code>response_types_supported</code><a href="#section-6.1-6.3.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.1-6.3.2.1">REQUIRED. A JSON array of strings representing supported response types. MUST include <code>id_token</code>.<a href="#section-6.1-6.3.2.1" class="pilcrow">¶</a>
+</li>
+            </ul>
+</li>
+          <li class="compact" id="section-6.1-6.4">
+            <p id="section-6.1-6.4.1"><code>scopes_supported</code><a href="#section-6.1-6.4.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.1-6.4.2.1">REQUIRED. A JSON array of strings representing supported scopes. MUST support the <code>openid</code> scope value.<a href="#section-6.1-6.4.2.1" class="pilcrow">¶</a>
+</li>
+            </ul>
+</li>
+          <li class="compact" id="section-6.1-6.5">
+            <p id="section-6.1-6.5.1"><code>subject_types_supported</code><a href="#section-6.1-6.5.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.1-6.5.2.1">REQUIRED. A JSON array of strings representing supported subject types. Valid values include <code>pairwise</code> and <code>public</code>.<a href="#section-6.1-6.5.2.1" class="pilcrow">¶</a>
+</li>
+            </ul>
+</li>
+          <li class="compact" id="section-6.1-6.6">
+            <p id="section-6.1-6.6.1"><code>id_token_signing_alg_values_supported</code><a href="#section-6.1-6.6.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.1-6.6.2.1">REQUIRED. A JSON array containing a list of the JWS signing algorithms (alg values) supported by the OP for the ID Token to encode the Claims in a JWT <span>[<a href="#RFC7519" class="cite xref">RFC7519</a>]</span>. Valid values include <code>RS256</code>, <code>ES256</code>, <code>ES256K</code>, and <code>EdDSA</code>.<a href="#section-6.1-6.6.2.1" class="pilcrow">¶</a>
+</li>
+            </ul>
+</li>
+          <li class="compact" id="section-6.1-6.7">
+            <p id="section-6.1-6.7.1"><code>request_object_signing_alg_values_supported</code><a href="#section-6.1-6.7.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.1-6.7.2.1">REQUIRED. A JSON array containing a list of the JWS signing algorithms (alg values) supported by the OP for Request Objects, which are described in Section 6.1 of <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>. Valid values include <code>none</code>, <code>RS256</code>, <code>ES256</code>, <code>ES256K</code>, and <code>EdDSA</code>.<a href="#section-6.1-6.7.2.1" class="pilcrow">¶</a>
+</li>
+            </ul>
+</li>
+          <li class="compact" id="section-6.1-6.8">
+            <p id="section-6.1-6.8.1"><code>subject_syntax_types_supported</code><a href="#section-6.1-6.8.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.1-6.8.2.1">REQUIRED. A JSON array of strings representing URI scheme identifiers and optionally method names of supported Subject Syntax Types defined in <a href="#sub-syntax-type" class="auto internal xref">Section 8</a>. When Subject Syntax Type is JWK Thumbprint, a valid value is <code>urn:ietf:params:oauth:jwk-thumbprint</code> defined in <span>[<a href="#RFC9278" class="cite xref">RFC9278</a>]</span>. When Subject Syntax Type is Decentralized Identifier, valid values MUST be a <code>did:</code> prefix followed by a supported DID method without a <code>:</code> suffix. For example, support for the DID method with a method-name "example" would be represented by <code>did:example</code>. Support for all DID methods listed in Section 13 of <span>[<a href="#DID_Specification_Registries" class="cite xref">DID_Specification_Registries</a>]</span> is indicated by sending <code>did</code> without any method-name.<a href="#section-6.1-6.8.2.1" class="pilcrow">¶</a>
+</li>
+            </ul>
+</li>
+          <li class="compact" id="section-6.1-6.9">
+            <p id="section-6.1-6.9.1"><code>id_token_types_supported</code>:<a href="#section-6.1-6.9.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.1-6.9.2.1">
+                <p id="section-6.1-6.9.2.1.1">OPTIONAL. A JSON array of strings containing the list of ID Token types supported by the OP, the default value is <code>attester_signed_id_token</code>. The ID Token types defined in this specification are:<a href="#section-6.1-6.9.2.1.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-6.1-6.9.2.1.2.1">
+                    <code>subject_signed_id_token</code>: Self-Issued ID Token, i.e. the ID Token is signed with key material under the End-User's control.<a href="#section-6.1-6.9.2.1.2.1" class="pilcrow">¶</a>
+</li>
+                  <li class="compact" id="section-6.1-6.9.2.1.2.2">
+                    <code>attester_signed_id_token</code>: the ID Token is issued by the party operating the OP, i.e. this is the classical ID Token as defined in <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>.<a href="#section-6.1-6.9.2.1.2.2" class="pilcrow">¶</a>
+</li>
+                </ul>
+</li>
+            </ul>
+</li>
+        </ul>
+<p id="section-6.1-7">Other Discovery parameters defined in Section 3 of <span>[<a href="#OpenID.Discovery" class="cite xref">OpenID.Discovery</a>]</span> MAY be used.<a href="#section-6.1-7" class="pilcrow">¶</a></p>
+<p id="section-6.1-8">The RP MUST use the <code>authorization_endpoint</code> defined in Self-Issued OP Discovery Metadata to construct the request.<a href="#section-6.1-8" class="pilcrow">¶</a></p>
+<p id="section-6.1-9">The following is a non-normative example of a Self-Issued OP metadata obtained dynamically:<a href="#section-6.1-9" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-6.1-10">
+<pre>{
+  "authorization_endpoint": "https://wallet.example.com",
+  "issuer": "https://example.org",
+  "response_types_supported": [
+    "id_token"
+  ],
+  "scopes_supported": [
+    "openid"
+  ],
+  "subject_types_supported": [
+    "pairwise"
+  ],
+  "id_token_signing_alg_values_supported": [
+    "ES256K",
+    "EdDSA"
+  ],
+  "request_object_signing_alg_values_supported": [
+    "ES256K",
+    "EdDSA"
+  ],
+  "subject_syntax_types_supported": [
+    "urn:ietf:params:oauth:jwk-thumbprint",
+    "did:key"
+  ],
+  "id_token_types_supported": [
+    "subject_signed_id_token"
+  ]
+}
+</pre><a href="#section-6.1-10" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="choice-of-authoriation-endpoint">
+<section id="section-6.2">
+        <h3 id="name-choice-of-authorization_end">
+<a href="#section-6.2" class="section-number selfRef">6.2. </a><a href="#name-choice-of-authorization_end" class="section-name selfRef">Choice of <code>authorization_endpoint</code></a>
+        </h3>
+<p id="section-6.2-1">As the <code>authorization_endpoint</code> of a Self-Issued OP, the use of Universal Links or App Links is RECOMMENDED over the use of custom URL schemes. See <a href="#invocation-using-custom-scheme" class="auto internal xref">Section 13.4</a> for details.<a href="#section-6.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="rp-resolution">
+<section id="section-7">
+      <h2 id="name-relying-party-registration">
+<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-relying-party-registration" class="section-name selfRef">Relying Party Registration</a>
+      </h2>
+<p id="section-7-1">The Self-Issued OP utilizing this specification has multiple options to obtain RP's metadata:<a href="#section-7-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-7-2.1">Obtain it prior to a transaction, e.g., using <span>[<a href="#OpenID.Registration" class="cite xref">OpenID.Registration</a>]</span> or out-of-band mechanisms. See <a href="#pre-registered-rp" class="auto internal xref">Section 7.1</a> for the details.<a href="#section-7-2.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="section-7-2.2">
+          <p id="section-7-2.2.1">The RP provides metadata to the Self-Issued OP just-in-time in the Self-Issued OP Request using one of the following mechanisms defined in this specification:<a href="#section-7-2.2.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-7-2.2.2.1">
+              <code>client_id</code> equals <code>redirect_uri</code><a href="#section-7-2.2.2.1" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="section-7-2.2.2.2">OpenID Federation 1.0 Automatic Registration, per <span>[<a href="#OpenID.Federation" class="cite xref">OpenID.Federation</a>]</span><a href="#section-7-2.2.2.2" class="pilcrow">¶</a>
+</li>
+            <li class="compact" id="section-7-2.2.2.3">Decentralized Identifiers<a href="#section-7-2.2.2.3" class="pilcrow">¶</a>
+</li>
+          </ul>
+</li>
+      </ul>
+<p id="section-7-3">Just-in-time metadata exchange allows SIOPv2 to be used in deployments models where the Self-Issued OP does not or cannot support pre-registration of Client metadata.<a href="#section-7-3" class="pilcrow">¶</a></p>
+<div id="pre-registered-rp">
+<section id="section-7.1">
+        <h3 id="name-pre-registered-relying-part">
+<a href="#section-7.1" class="section-number selfRef">7.1. </a><a href="#name-pre-registered-relying-part" class="section-name selfRef">Pre-Registered Relying Party</a>
+        </h3>
+<p id="section-7.1-1">See Section X.X of <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>.<a href="#section-7.1-1" class="pilcrow">¶</a></p>
+<p id="section-7.1-2">The following is a non-normative example of a same-device request when the RP is pre-registered with the Self-Issued OP. HTTP 302 redirect request by the RP triggers the User Agent to make an Authorization Request to the Self-Issued OP (with line wraps within values for display purposes only):<a href="#section-7.1-2" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.1-3">
+<pre>  HTTP/1.1 302 Found
+  Location:  https://wallet.example.com/universal-link?
+    response_type=id_token
+    &amp;client_id=s6BhdRkqt3
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;scope=openid%20profile
+    &amp;nonce=n-0S6_WzA2Mj
+</pre><a href="#section-7.1-3" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="non-pre-registered-rp">
+<section id="section-7.2">
+        <h3 id="name-non-pre-registered-relying-">
+<a href="#section-7.2" class="section-number selfRef">7.2. </a><a href="#name-non-pre-registered-relying-" class="section-name selfRef">Non-Pre-Registered Relying Party</a>
+        </h3>
+<p id="section-7.2-1">When the RP has not pre-registered, it may pass its metadata to the Self-Issued OP in the Authorization Request. This mechanism is different from registration (Dynamic Client Registration or an out-of-band pre-registration) since Self-Issued OP does not return Client ID to the RP that the RP can re-use at the Self-Issued OP.<a href="#section-7.2-1" class="pilcrow">¶</a></p>
+<p id="section-7.2-2">No registration response is returned. A successful Authorization Response implicitly indicates that the client metadata parameters were accepted.<a href="#section-7.2-2" class="pilcrow">¶</a></p>
+<div id="client-id-equals-redirect-uri">
+<section id="section-7.2.1">
+          <h4 id="name-client_id-equals-redirect_u">
+<a href="#section-7.2.1" class="section-number selfRef">7.2.1. </a><a href="#name-client_id-equals-redirect_u" class="section-name selfRef"><code>client_id</code> equals <code>redirect_uri</code></a>
+          </h4>
+<p id="section-7.2.1-1">As defined in Section X.X of <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>.<a href="#section-7.2.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="openid-federation-1-0-automatic-registration">
+<section id="section-7.2.2">
+          <h4 id="name-openid-federation-10-automa">
+<a href="#section-7.2.2" class="section-number selfRef">7.2.2. </a><a href="#name-openid-federation-10-automa" class="section-name selfRef">OpenID Federation 1.0 Automatic Registration</a>
+          </h4>
+<p id="section-7.2.2-1">As defined in Section X.X of <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>.<a href="#section-7.2.2-1" class="pilcrow">¶</a></p>
+<p id="section-7.2.2-2">The following is a non-normative example of a <code>client_id</code> value resolvable using OpenID Federation 1.0 Automatic Registration:<a href="#section-7.2.2-2" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-7.2.2-3">
+<pre>"client_id": "https://client.example.org"
+</pre><a href="#section-7.2.2-3" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="decentralized-identifiers">
+<section id="section-7.2.3">
+          <h4 id="name-decentralized-identifiers">
+<a href="#section-7.2.3" class="section-number selfRef">7.2.3. </a><a href="#name-decentralized-identifiers" class="section-name selfRef">Decentralized Identifiers</a>
+          </h4>
+<p id="section-7.2.3-1">As defined in Section X.X of <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>.<a href="#section-7.2.3-1" class="pilcrow">¶</a></p>
+<p id="section-7.2.3-2">The following is a non-normative example of a <code>client_id</code> value resolvable using Decentralized Identifier Resolution:<a href="#section-7.2.3-2" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-7.2.3-3">
+<pre>"client_id": "did:example:EiDrihTRe0GMdc3K16kgJB3Xbl9Hb8oqVHjzm6ufHcYDGA"
+</pre><a href="#section-7.2.3-3" class="pilcrow">¶</a>
+</div>
+<p id="section-7.2.3-4">The following is a non-normative example of a request when the RP is not pre-registered with the Self-Issued OP and uses Decentralized Identifier Resolution. (with line wraps within values for display purposes only):<a href="#section-7.2.3-4" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.2.3-5">
+<pre>siopv2://?
+  client_id=did%3Aexample%3AEiDri
+  &amp;request_uri=https%3A%2F%2Fclient.example.org%2Frequest%2FGkurKxf5T0Y-mnPFCHqWOMiZi4VS138cQO_V7PZHAdM
+</pre><a href="#section-7.2.3-5" class="pilcrow">¶</a>
+</div>
+<p id="section-7.2.3-6">The following is a non-normative example of a Request Object referenced by the <code>request_uri</code>. It is signed with <code>ES256</code> algorithm, using the keys obtained from the DID Document before base64url encoding:<a href="#section-7.2.3-6" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.2.3-7">
+<pre>{
+  "alg": "ES256",
+  "kid": "did:example:EiDri#sign1",
+  "typ": "JWT"
+}.
+{
+  "client_id": "did:example:EiDri",
+  "scope": "openid profile",
+  "response_type": "id_token",
+  "redirect_uri": "https://client.example.org/cb",
+  "client_metadata": {
+    "subject_syntax_types_supported": [
+      "did:example"
+    ],
+    "id_token_signed_response_alg": "ES256"
+  },
+  "nonce": "n-0S6_WzA2Mj"
+}.[signature]
+</pre><a href="#section-7.2.3-7" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="rp-registration-parameter">
+<section id="section-7.3">
+        <h3 id="name-relying-party-client-metada">
+<a href="#section-7.3" class="section-number selfRef">7.3. </a><a href="#name-relying-party-client-metada" class="section-name selfRef">Relying Party Client Metadata parameter</a>
+        </h3>
+<p id="section-7.3-1">As defined in Section X.X of <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>.<a href="#section-7.3-1" class="pilcrow">¶</a></p>
+<p id="section-7.3-2">The following is a non-normative example of an unsigned same-device request when the RP is not pre-registered with the Self-Issued OP. HTTP 302 redirect request by the RP triggers the User Agent to make an Authorization Request to the Self-Issued OP (with line wraps within values for display purposes only):<a href="#section-7.3-2" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-7.3-3">
+<pre>  HTTP/1.1 302 Found
+  Location: https://wallet.example.com/universal-link?
+    response_type=id_token
+    &amp;client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;scope=openid%20profile
+    &amp;nonce=n-0S6_WzA2Mj
+    &amp;client_metadata=%7B%22subject_syntax_types_supported%22%3A
+    %5B%22urn%3Aietf%3Aparams%3Aoauth%3Ajwk-thumbprint%22%5D%2C%0A%20%20%20%20
+    %22id_token_signed_response_alg%22%3A%22RS256%22%7D
+</pre><a href="#section-7.3-3" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="relying-party-metadata-error-response">
+<section id="section-7.4">
+        <h3 id="name-relying-party-metadata-erro">
+<a href="#section-7.4" class="section-number selfRef">7.4. </a><a href="#name-relying-party-metadata-erro" class="section-name selfRef">Relying Party Metadata Error Response</a>
+        </h3>
+<p id="section-7.4-1">When the Self-Issued OP receives a pre-registered Client ID of <a href="#pre-registered-rp" class="auto internal xref">Section 7.1</a>, but <code>client_metadata</code> or <code>client_metadata_uri</code> parameters of <a href="#non-pre-registered-rp" class="auto internal xref">Section 7.2</a> are also present, the Self-Issued OP MUST return an error. When the Self-Issued OP receives a Client ID of <a href="#non-pre-registered-rp" class="auto internal xref">Section 7.2</a> that it has cached following one of the methods defined in <a href="#non-pre-registered-rp" class="auto internal xref">Section 7.2</a>, it does not return an error.<a href="#section-7.4-1" class="pilcrow">¶</a></p>
+<p id="section-7.4-2">Self-Issued OPs compliant with this specification MUST NOT proceed with the transaction when pre-registered client metadata has been found based on the Client ID, but <code>client_metadata</code> parameter has also been present.<a href="#section-7.4-2" class="pilcrow">¶</a></p>
+<p id="section-7.4-3">Usage of <code>client_metadata</code> or <code>client_metadata_uri</code> parameters with Client ID that the Self-Issued OP might be seeing for the first time is mutualy exclusive with the registration mechanism where the Self-Issued OP assigns Client ID to the RP after receiving the RP's metadata.<a href="#section-7.4-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="rp-metadata">
+<section id="section-7.5">
+        <h3 id="name-relying-party-metadata-valu">
+<a href="#section-7.5" class="section-number selfRef">7.5. </a><a href="#name-relying-party-metadata-valu" class="section-name selfRef">Relying Party Metadata Values</a>
+        </h3>
+<p id="section-7.5-1">This extension defines the following RP parameter value, used by the RP to provide information about itself to the Self-Issued OP:<a href="#section-7.5-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-7.5-2.1">
+            <p id="section-7.5-2.1.1"><code>subject_syntax_types_supported</code><a href="#section-7.5-2.1.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-7.5-2.1.2.1">REQUIRED. A JSON array of strings representing URI scheme identifiers and optionally method names of supported Subject Syntax Types defined in <a href="#sub-syntax-type" class="auto internal xref">Section 8</a>. When Subject Syntax Type is JWK Thumbprint, a valid value is <code>urn:ietf:params:oauth:jwk-thumbprint</code> defined in <span>[<a href="#RFC9278" class="cite xref">RFC9278</a>]</span>. When Subject Syntax Type is Decentralized Identifier, valid values MUST be a <code>did:</code> prefix followed by a supported DID method without a <code>:</code> suffix. For example, support for the DID method with a method-name "example" would be represented by <code>did:example</code>. Support for all DID methods is indicated by sending <code>did</code> without any method-name.<a href="#section-7.5-2.1.2.1" class="pilcrow">¶</a>
+</li>
+            </ul>
+</li>
+        </ul>
+<p id="section-7.5-3">Other client metadata parameters defined in <span>[<a href="#OpenID.Registration" class="cite xref">OpenID.Registration</a>]</span> MAY be used. Examples are explanatory parameters such as <code>policy_uri</code>, <code>tos_uri</code>, and <code>logo_uri</code>. If the RP uses more than one Redirection URI, the <code>redirect_uris</code> parameter would be used to register them. Finally, if the RP is requesting encrypted responses, it would typically use the <code>jwks_uri</code>, <code>id_token_encrypted_response_alg</code> and <code>id_token_encrypted_response_enc</code> parameters.<a href="#section-7.5-3" class="pilcrow">¶</a></p>
+<p id="section-7.5-4">The following is a non-normative example of the supported RP parameter Values:<a href="#section-7.5-4" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-7.5-5">
+<pre>{
+  "subject_syntax_types_supported": [
+    "urn:ietf:params:oauth:jwk-thumbprint",
+    "did:example",
+    "did:key"
+  ]
+}
+</pre><a href="#section-7.5-5" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="sub-syntax-type">
+<section id="section-8">
+      <h2 id="name-subject-syntax-types">
+<a href="#section-8" class="section-number selfRef">8. </a><a href="#name-subject-syntax-types" class="section-name selfRef">Subject Syntax Types</a>
+      </h2>
+<p id="section-8-1">Subject Syntax Type refers to a type of an identifier used in a <code>sub</code> Claim in the ID Token issued by a Self-Issued OP. <code>sub</code> in Self-Issued OP protocol flow serves as an identifier of the Self-Issued OP's Holder and is used to obtain cryptographic material to verify the signature on the ID Token.<a href="#section-8-1" class="pilcrow">¶</a></p>
+<p id="section-8-2">This specification defines the following two Subject Syntax Types. Additional Subject Syntax Types may be defined in future versions of this specification, or profiles of this specification.<a href="#section-8-2" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-8-3.1">
+          <p id="section-8-3.1.1">JWK Thumbprint subject syntax type. When this type is used, the <code>sub</code> Claim value MUST be the base64url encoded representation of the JWK thumbprint of the key in the <code>sub_jwk</code> Claim <span>[<a href="#RFC7638" class="cite xref">RFC7638</a>]</span>, and <code>sub_jwk</code> MUST be included in the Self-Issued Response.<a href="#section-8-3.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-8-3.2">
+          <p id="section-8-3.2.1">Decentralized Identifier subject syntax type. When this type is used,  the <code>sub</code> Claim value MUST be a DID as defined in <span>[<a href="#DID-Core" class="cite xref">DID-Core</a>]</span>, and <code>sub_jwk</code> MUST NOT be included in the Self-Issued Response. The subject syntax type MUST be cryptographically verified against the resolved DID Document as defined in <a href="#siop-id-token-validation" class="auto internal xref">Section 11.1</a>.<a href="#section-8-3.2.1" class="pilcrow">¶</a></p>
+</li>
+      </ul>
+<p id="section-8-4">The RP indicates Subject Syntax Types it supports in Client metadata parameter <code>subject_syntax_types_supported</code> defined in <a href="#rp-metadata" class="auto internal xref">Section 7.5</a>.<a href="#section-8-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="siop_authentication_request">
+<section id="section-9">
+      <h2 id="name-self-issued-openid-provider-a">
+<a href="#section-9" class="section-number selfRef">9. </a><a href="#name-self-issued-openid-provider-a" class="section-name selfRef">Self-Issued OpenID Provider Authorization Request</a>
+      </h2>
+<p id="section-9-1">Self-Issued OP Authorization Request is sent to the Authorization Endpoint, which performs Authentication of the End-User.<a href="#section-9-1" class="pilcrow">¶</a></p>
+<p id="section-9-2">The Authorization Endpoint of the Self-Issued OP is used in the same manner as defined in Section 3 of <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>, with the exception of the differences specified in this section, and taking into account the recommendations given in <span>[<a href="#I-D.ietf-oauth-security-topics" class="cite xref">I-D.ietf-oauth-security-topics</a>]</span>.<a href="#section-9-2" class="pilcrow">¶</a></p>
+<p id="section-9-3">Communication with the Authorization Endpoint MUST utilize TLS.<a href="#section-9-3" class="pilcrow">¶</a></p>
+<p id="section-9-4">This specification defines the following new authorization request parameters in addition to <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>:<a href="#section-9-4" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-9-5.1">
+          <code>client_metadata</code>: OPTIONAL. This parameter is used by the RP to provide information about itself to a Self-Issued OP that would normally be provided to an OP during Dynamic RP Registration, as specified in <a href="#rp-registration-parameter" class="auto internal xref">Section 7.3</a>. It MUST not be present if the RP uses OpenID Federation 1.0 Automatic Registration to pass its metadata.<a href="#section-9-5.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="section-9-5.2">
+          <code>client_metadata_uri</code>: OPTIONAL. This parameter is used by the RP to provide information about itself to a Self-Issued OP that would normally be provided to an OP during Dynamic RP Registration, as specified in <a href="#rp-registration-parameter" class="auto internal xref">Section 7.3</a>. It MUST not be present if the RP uses OpenID Federation 1.0 Automatic Registration to pass its metadata.<a href="#section-9-5.2" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="section-9-5.3">
+          <code>id_token_type</code>: OPTIONAL. Space-separated string that specifies the types of ID Token the RP wants to obtain, with the values appearing in order of preference. The allowed individual values are <code>subject_signed_id_token</code> and <code>attester_signed_id_token</code> (see <a href="#dynamic-siop-metadata" class="auto internal xref">Section 6.1</a>). The default value is <code>attester_signed_id_token</code>. The RP determines the type if ID Token returned based on the comparison of the <code>iss</code> and <code>sub</code> claims values (see(see <a href="#siop-id-token-validation" class="auto internal xref">Section 11.1</a>). In order to preserve compatibility with existing OpenID Connect deployments, the OP MAY return an ID Token that does not fulfill the requirements as expressed in this parameter. So the RP SHOULD be prepared to reliably handle such an outcome.<a href="#section-9-5.3" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="section-9-6">This specification allows RPs to send authorization request parameters by using "request by value" and "request by reference" as defined in <span>[<a href="#RFC9101" class="cite xref">RFC9101</a>]</span> through the request parameters <code>request</code> or <code>request_uri</code>.<a href="#section-9-6" class="pilcrow">¶</a></p>
+<p id="section-9-7">When using the parameters <code>request</code> or <code>request_uri</code> the only further required parameter of the authorization request is the <code>client_id</code>.<a href="#section-9-7" class="pilcrow">¶</a></p>
+<p id="section-9-8">When <code>request</code> or <code>request_uri</code> parameters are NOT present, and RP is NOT using OpenID Federation 1.0 Automatic Registration to pass entire RP metadata, <code>client_metadata</code> or <code>client_metadata_uri</code> parameters MUST be present in the request. <code>client_metadata</code> and <code>client_metadata_uri</code> are mutually exclusive.<a href="#section-9-8" class="pilcrow">¶</a></p>
+<p id="section-9-9">RPs MUST send a <code>nonce</code> parameter  with every Self-Issued OP Authorization Request as a basis for replay detection complying with the security considerations given in <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>, Section 15.5.2.<a href="#section-9-9" class="pilcrow">¶</a></p>
+<p id="section-9-10">The ID Token to be used as an <code>id_token_hint</code> may have been encrypted to the RP in a previous transaction. Encrypted ID Tokens are Nested JWTs as defined in [!@RFC7519]. The RP MUST decrypt the ID Token value to retrieve the payload, which is a Self-Issued ID Token. The signed Self-Issued ID Token MAY be used as a hint.<a href="#section-9-10" class="pilcrow">¶</a></p>
+<p id="section-9-11">Alternatively, the RP MAY re-encrypt the resulting Self-Issued ID Token to the subject for confidentiality. Re-encryption requires a mutually supported set of algorithms between the RP and SIOP, and at least one subject public key usable for encryption. Supported algorithms MAY be advertised with the <code>request_object_encryption_alg_values_supported</code> and <code>request_object_encryption_enc_values_supported</code> OP Discovery parameters.<a href="#section-9-11" class="pilcrow">¶</a></p>
+<p id="section-9-12">When re-encrypting the ID Token value, the <code>sub</code> Claim value from the signed ID Token MUST be included as a <code>sub</code> parameter within the JWE protected header. If the <code>sub</code> has multiple public keys associated, the JWE protected header MUST distinguish the appropriate key with the JWE <code>kid</code> protected header. The JWE protected header MUST specify <code>alg</code> and <code>enc</code> header parameters unless the use of specific <code>alg</code> and  <code>enc</code> values have been pre-negotiated.<a href="#section-9-12" class="pilcrow">¶</a></p>
+<p id="section-9-13">Other parameters MAY be sent. Note that all Claims are returned in the ID Token.<a href="#section-9-13" class="pilcrow">¶</a></p>
+<p id="section-9-14">The entire URL is NOT RECOMMENDED to exceed 2048 ASCII characters.<a href="#section-9-14" class="pilcrow">¶</a></p>
+<p id="section-9-15">Note that multiple size limitations exist: the majority of browsers and mobile OS in general have approximately 1MB of URL length restrictions, while QR codes, intermediary CDN or firewalls might have a lower URL length restriction.<a href="#section-9-15" class="pilcrow">¶</a></p>
+<p id="section-9-16">The following is a non-normative example HTTP 302 redirect request by the RP which triggers the User Agent to make an Authorization Request to the Self-Issued OP in a same-device protocol flow (with line wraps within values for display purposes only):<a href="#section-9-16" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-9-17">
+<pre>  HTTP/1.1 302 Found
+  Location: siopv2://?
+    scope=openid
+    &amp;response_type=id_token
+    &amp;client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;id_token_type=subject_signed_id_token
+    &amp;client_metadata=%7B%22subject_syntax_types_supported%22%3A
+    %5B%22urn%3Aietf%3Aparams%3Aoauth%3Ajwk-thumbprint%22%5D%2C%0A%20%20%20%20
+    %22id_token_signed_response_alg%22%3A%22ES256%22%7D
+    &amp;nonce=n-0S6_WzA2Mj
+</pre><a href="#section-9-17" class="pilcrow">¶</a>
+</div>
+<p id="section-9-18">The following is a non-normative example of an authorization request utilizing a <code>request_uri</code> (with line wraps within values for display purposes only):<a href="#section-9-18" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-9-19">
+<pre>  HTTP/1.1 302 Found
+  Location: siopv2://?
+    client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;request_uri=https%3A%2F%2Fclient.example.org%2Frequest%2FGkurKxf5T0Y-mnPFCHqWOMiZi4VS138cQO_V7PZHAdM
+</pre><a href="#section-9-19" class="pilcrow">¶</a>
+</div>
+<div id="aud-of-a-request-object">
+<section id="section-9.1">
+        <h3 id="name-aud-of-a-request-object">
+<a href="#section-9.1" class="section-number selfRef">9.1. </a><a href="#name-aud-of-a-request-object" class="section-name selfRef"><code>aud</code> of a Request Object</a>
+        </h3>
+<p id="section-9.1-1">When an RP is sending a Request Object in a Self-Issued Request as defined in <span>[<a href="#RFC9101" class="cite xref">RFC9101</a>]</span>, the <code>aud</code> Claim value depends on whether the recipient of the request can be identified by the RP or not:<a href="#section-9.1-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-9.1-2.1">The <code>aud</code> Claim MUST equal to the <code>issuer</code> Claim value, when Dynamic Self-Issued OP Discovery is performed.<a href="#section-9.1-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-9.1-2.2">The <code>aud</code> Claim MUST be "<a href="https://self-issued.me/v2%22">https://self-issued.me/v2"</a>, when Static Self-Issued OP Discovery Metadata is used.<a href="#section-9.1-2.2" class="pilcrow">¶</a>
+</li>
+        </ul>
+</section>
+</div>
+<div id="cross-device-self-issued-openid-provider-request">
+<section id="section-9.2">
+        <h3 id="name-cross-device-self-issued-ope">
+<a href="#section-9.2" class="section-number selfRef">9.2. </a><a href="#name-cross-device-self-issued-ope" class="section-name selfRef">Cross-Device Self-Issued OpenID Provider Request</a>
+        </h3>
+<p id="section-9.2-1">The cross-device Authorization Request differs from the same-device variant (with response type <code>id_token</code>) as defined in <a href="#siop_authentication_request" class="auto internal xref">Section 9</a> as follows:<a href="#section-9.2-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-9.2-2.1">This specification introduces a new response mode <code>direct_post</code> in accordance with <span>[<a href="#OAuth.Responses" class="cite xref">OAuth.Responses</a>]</span>. This response mode is used to request the Self-Issued OP to deliver the result of the authentication process to a certain endpoint using the HTTP <code>POST</code> method. The additional parameter <code>response_mode</code> is used to carry this value.<a href="#section-9.2-2.1" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-9.2-2.2">This endpoint to which the Self-Issued OP shall deliver the authentication result is conveyed in the standard parameter <code>redirect_uri</code>.<a href="#section-9.2-2.2" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-9.2-3">Self-Issued OP is on a different device than the one on which the End-User’s user interactions are occurring.<a href="#section-9.2-3" class="pilcrow">¶</a></p>
+<p id="section-9.2-4">The following is a non-normative example of a Self-Issued Request URL in a cross-device protocol flow <a href="#cross-device-siop" class="auto internal xref">Section 4</a>:<a href="#section-9.2-4" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-9.2-5">
+<pre>  siopv2://?
+    scope=openid%20profile
+    &amp;response_type=id_token
+    &amp;client_id=https%3A%2F%2Fclient.example.org%2Fpost_cb
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fpost_cb
+    &amp;response_mode=post
+    &amp;client_metadata=%7B%22subject_syntax_types_supported%22%3A
+    %5B%22urn%3Aietf%3Aparams%3Aoauth%3Ajwk-thumbprint%22%5D%2C%0A%20%20%20%20
+    %22id_token_signed_response_alg%22%3A%22ES256%22%7D
+    &amp;nonce=n-0S6_WzA2Mj
+</pre><a href="#section-9.2-5" class="pilcrow">¶</a>
+</div>
+<p id="section-9.2-6">Note that the Authorization Request might only include request parameters and not be targeted to a particular <code>authorization_endpoint</code>, in which case, the End-User must use a particular Self-Issued OP application to scan the QR code with such request.<a href="#section-9.2-6" class="pilcrow">¶</a></p>
+<p id="section-9.2-7">Such an Authorization Request might result in a large QR code, especially when including extensive <code>client_metadata</code>. An RP MAY consider using a <code>request_uri</code> in such a case.<a href="#section-9.2-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="siop-authentication-response">
+<section id="section-10">
+      <h2 id="name-self-issued-openid-provider-au">
+<a href="#section-10" class="section-number selfRef">10. </a><a href="#name-self-issued-openid-provider-au" class="section-name selfRef">Self-Issued OpenID Provider Authorization Response</a>
+      </h2>
+<p id="section-10-1">A Self-Issued OpenID Provider Response is an OpenID Connect Authorization Response, whose parameters depend on the <code>response_type</code> used in the request. Depending on the <code>response_type</code> the result of the transaction is either obtained directly from the Authorization Response or from a Token Response.<a href="#section-10-1" class="pilcrow">¶</a></p>
+<p id="section-10-2">A Self-Issued OpenID Provider Response is returned when Self-Issued OP supports all Relying Party parameter values received from the Relying Party in the <code>client_metadata</code> parameter. If one or more of the Relying Party parameter Values is not supported, Self-Issued OP MUST return an error according to <a href="#siop-error-respose" class="auto internal xref">Section 10.3</a>.<a href="#section-10-2" class="pilcrow">¶</a></p>
+<p id="section-10-3">In a same-device protocol flow with Response Type <code>id_token</code>, the response parameters will be returned in the URL fragment component, unless a different Response Mode was specified.<a href="#section-10-3" class="pilcrow">¶</a></p>
+<p id="section-10-4">In a same-device protocol flow with Response Type <code>code</code>, the response parameters will be returned in HTTPS POST response body of the token response.<a href="#section-10-4" class="pilcrow">¶</a></p>
+<p id="section-10-5">In a cross-device protocol flow, upon completion of the Authorization Request, the Self-Issued OP directly sends an HTTPS POST request with the Authorization Response to an endpoint exposed by the RP.<a href="#section-10-5" class="pilcrow">¶</a></p>
+<p id="section-10-6">The following is an informative example of a Self-Issued Response in a same-device protocol flow (<code>response_type=id_token</code>):<a href="#section-10-6" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-10-7">
+<pre>  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    id_token=...
+</pre><a href="#section-10-7" class="pilcrow">¶</a>
+</div>
+<div id="self-issued-openid-provider-response-authorization-code-flow">
+<section id="section-10.1">
+        <h3 id="name-self-issued-openid-provider-r">
+<a href="#section-10.1" class="section-number selfRef">10.1. </a><a href="#name-self-issued-openid-provider-r" class="section-name selfRef">Self-Issued OpenID Provider Response (Authorization Code Flow)</a>
+        </h3>
+<p id="section-10.1-1">The following is an informative example of a Self-Issued Response for the authorization code flow (<code>response_type=code</code>):<a href="#section-10.1-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-10.1-2">
+<pre>  HTTP/1.1 200 OK
+  Content-Type: application/json
+  Cache-Control: no-store
+  Pragma: no-cache
+
+  {
+   "access_token": "SlAV32hkKG",
+   "token_type": "Bearer",
+   "expires_in": 3600,
+   "id_token": "..."
+  }
+</pre><a href="#section-10.1-2" class="pilcrow">¶</a>
+</div>
+<p id="section-10.1-3">Note: the SIOP MAY also provide End-User claims to the RP via the Userinfo endpoint.<a href="#section-10.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="cross-device-self-issued-openid-provider-response">
+<section id="section-10.2">
+        <h3 id="name-cross-device-self-issued-open">
+<a href="#section-10.2" class="section-number selfRef">10.2. </a><a href="#name-cross-device-self-issued-open" class="section-name selfRef">Cross-Device Self-Issued OpenID Provider Response</a>
+        </h3>
+<p id="section-10.2-1">The Self-Issued OP sends the Authorization Response to the endpoint passed in the <code>redirect_uri</code> Authorization Request parameter using an HTTPS POST request using "application/x-www-form-urlencoded" encoding. The Authorization Response contains the parameters as defined in <a href="#siop-authentication-response" class="auto internal xref">Section 10</a>.<a href="#section-10.2-1" class="pilcrow">¶</a></p>
+<p id="section-10.2-2">The Self-Issued OP MUST NOT follow redirects on this request.<a href="#section-10.2-2" class="pilcrow">¶</a></p>
+<p id="section-10.2-3">The following is an informative example of a Self-Issued Response in a cross-device protocol flow: <a href="#cross-device-siop" class="auto internal xref">Section 4</a>:<a href="#section-10.2-3" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-10.2-4">
+<pre>  POST /post_cb HTTP/1.1
+  Host: client.example.org
+  Content-Type: application/x-www-form-urlencoded
+
+  id_token=...
+</pre><a href="#section-10.2-4" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="siop-error-respose">
+<section id="section-10.3">
+        <h3 id="name-self-issued-openid-provider-e">
+<a href="#section-10.3" class="section-number selfRef">10.3. </a><a href="#name-self-issued-openid-provider-e" class="section-name selfRef">Self-Issued OpenID Provider Error Response</a>
+        </h3>
+<p id="section-10.3-1">The error response must be made in the same manner as defined in Section 3.1.2.6 of <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>.<a href="#section-10.3-1" class="pilcrow">¶</a></p>
+<p id="section-10.3-2">In addition to the error codes defined in Section 4.1.2.1 of OAuth 2.0 and Section 3.1.2.6 of <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>, this specification also defines the following error codes:<a href="#section-10.3-2" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-10.3-3.1">
+            <strong><code>user_cancelled</code></strong>: End-User cancelled the Authorization Request from the RP.<a href="#section-10.3-3.1" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-10.3-3.2">
+            <strong><code>client_metadata_value_not_supported</code></strong>: the Self-Issued OP does not support some Relying Party parameter values received in the request.<a href="#section-10.3-3.2" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-10.3-3.3">
+            <strong><code>subject_syntax_types_not_supported</code></strong>: the Self-Issued OP does not support any of the Subject Syntax Types supported by the RP, which were communicated in the request in the <code>subject_syntax_types_supported</code> parameter.<a href="#section-10.3-3.3" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-10.3-3.4">
+            <strong><code>invalid_client_metadata_uri</code></strong>: the <code>client_metadata_uri</code> in the Authorization Request returns an error or contains invalid data.<a href="#section-10.3-3.4" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-10.3-3.5">
+            <strong><code>invalid_client_metadata_object</code></strong>: the <code>client_metadata</code> parameter contains an invalid RP parameter Object.<a href="#section-10.3-3.5" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-10.3-4">Other error codes MAY be used.<a href="#section-10.3-4" class="pilcrow">¶</a></p>
+<p id="section-10.3-5">Note that HTTP error codes do not work in the cross-device Self-Issued OP protocol flows.<a href="#section-10.3-5" class="pilcrow">¶</a></p>
+<p id="section-10.3-6">The following is a non-normative example of an error response in the same-device Self-Issued OP protocol flow:<a href="#section-10.3-6" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-10.3-7">
+<pre>  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb?
+    error=invalid_request
+    &amp;error_description=Unsupported%20response_type%20value
+</pre><a href="#section-10.3-7" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="self-issued-id-token">
+<section id="section-11">
+      <h2 id="name-self-issued-id-token">
+<a href="#section-11" class="section-number selfRef">11. </a><a href="#name-self-issued-id-token" class="section-name selfRef">Self-Issued ID Token</a>
+      </h2>
+<p id="section-11-1">The response contains an ID Token and, if applicable, further response parameters as defined in extensions. As an example, the response MAY also include a VP token as defined in <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>.<a href="#section-11-1" class="pilcrow">¶</a></p>
+<p id="section-11-2">This extension defines the following claims to be included in the ID Token for use in Self-Issued OpenID Provider Responses:<a href="#section-11-2" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-11-3.1">
+          <p id="section-11-3.1.1"><code>iss</code><a href="#section-11-3.1.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-11-3.1.2.1">REQUIRED. in case of a Self-Issued ID Token, this claim MUST be set to the value of the <code>sub</code> claim in the same ID Token.<a href="#section-11-3.1.2.1" class="pilcrow">¶</a>
+</li>
+          </ul>
+</li>
+        <li class="compact" id="section-11-3.2">
+          <p id="section-11-3.2.1"><code>sub</code><a href="#section-11-3.2.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-11-3.2.2.1">REQUIRED. Subject identifier value. When Subject Syntax Type is JWK Thumbprint, the value is the base64url encoded representation of the thumbprint of the key in the <code>sub_jwk</code> Claim. When Subject Syntax Type is Decentralized Identifier, the value is a Decentralized Identifier. The thumbprint value of JWK Thumbprint Subject Syntax Type is computed as the SHA-256 hash of the octets of the UTF-8 representation of a JWK constructed containing only the REQUIRED members to represent the key, with the member names sorted into lexicographic order, and with no white space or line breaks. For instance, when the <code>kty</code> value is <code>RSA</code>, the member names <code>e</code>, <code>kty</code>, and <code>n</code> are the ones present in the constructed JWK used in the thumbprint computation and appear in that order; when the <code>kty</code> value is <code>EC</code>, the member names <code>crv</code>, <code>kty</code>, <code>x</code>, and <code>y</code> are present in that order. Note that this thumbprint calculation is the same as that defined in the JWK Thumbprint <span>[<a href="#RFC7638" class="cite xref">RFC7638</a>]</span> specification.<a href="#section-11-3.2.2.1" class="pilcrow">¶</a>
+</li>
+          </ul>
+</li>
+        <li class="compact" id="section-11-3.3">
+          <p id="section-11-3.3.1"><code>sub_jwk</code><a href="#section-11-3.3.1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-11-3.3.2.1">OPTIONAL. A JSON object that is a public key used to check the signature of an ID Token when Subject Syntax Type is JWK Thumbprint. The key is a bare key in JWK <span>[<a href="#RFC7517" class="cite xref">RFC7517</a>]</span> format (not an X.509 certificate value). MUST NOT be present when Subject Syntax Type other than JWK Thumbprint is used.<a href="#section-11-3.3.2.1" class="pilcrow">¶</a>
+</li>
+          </ul>
+</li>
+      </ul>
+<p id="section-11-4">Note that the use of the <code>sub_jwk</code> Claim is NOT RECOMMENDED when the OP is not Self-Issued.<a href="#section-11-4" class="pilcrow">¶</a></p>
+<p id="section-11-5">Whether the Self-Issued OP is a mobile application or a Web application, the ID Token is the same as defined in <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span> with the following refinements:<a href="#section-11-5" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="compact type-1" id="section-11-6">
+<li id="section-11-6.1">The <code>sub</code> (subject) Claim value is either the base64url encoded representation of the thumbprint of the key in the <code>sub_jwk</code> Claim or a Decentralized Identifier.<a href="#section-11-6.1" class="pilcrow">¶</a>
+</li>
+        <li id="section-11-6.2">When the <code>sub</code> Claim value is the base64url encoded representation of the thumbprint, a <code>sub_jwk</code> Claim is present, with its value being the public key used to check the signature of the ID Token.<a href="#section-11-6.2" class="pilcrow">¶</a>
+</li>
+      </ol>
+<p id="section-11-7">The following is a non-normative example of a base64url decoded Self-Issued ID Token body when the JWK Thumbprint Subject Syntax Type is used (with line wraps within values for display purposes only):<a href="#section-11-7" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-11-8">
+<pre>{
+  "iss": "urn:ietf:params:oauth:jwk-thumbprint:sha-256:NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs",
+  "sub": "urn:ietf:params:oauth:jwk-thumbprint:sha-256:NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs",
+  "aud": "https://client.example.org/cb",
+  "nonce": "n-0S6_WzA2Mj",
+  "exp": 1311281970,
+  "iat": 1311280970,
+  "sub_jwk": {
+    "kty": "RSA",
+    "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAt
+    VT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W
+    -5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQ
+    MicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdk
+    t-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-cs
+    FCur-kEgU8awapJzKnqDKgw",
+    "e": "AQAB"
+  }
+}
+</pre><a href="#section-11-8" class="pilcrow">¶</a>
+</div>
+<div id="siop-id-token-validation">
+<section id="section-11.1">
+        <h3 id="name-self-issued-id-token-valida">
+<a href="#section-11.1" class="section-number selfRef">11.1. </a><a href="#name-self-issued-id-token-valida" class="section-name selfRef">Self-Issued ID Token Validation</a>
+        </h3>
+<p id="section-11.1-1">To validate the ID Token received, the RP MUST do the following:<a href="#section-11.1-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="compact type-1" id="section-11.1-2">
+<li id="section-11.1-2.1">The Relying Party (RP) MUST determine whether the ID Token has been issued by the Self-Issued OP. The ID Token is self-issued if the <code>iss</code> Claim and the <code>sub</code> Claim have the same value. If both values differ, the ID Token MUST be processed as defined in <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>, section 3.2.2.11..<a href="#section-11.1-2.1" class="pilcrow">¶</a>
+</li>
+          <li id="section-11.1-2.2">The RP MUST validate that the <code>aud</code> (audience) Claim contains the value of the Client ID that the RP sent in the Authorization Request as an audience. When the request has been signed, the value might be an HTTPS URL, or a Decentralized Identifier.<a href="#section-11.1-2.2" class="pilcrow">¶</a>
+</li>
+          <li id="section-11.1-2.3">The RP MUST identify which Subject Syntax Type is used based on the URI of the <code>sub</code> Claim. Valid values defined in this specification are <code>urn:ietf:params:oauth:jwk-thumbprint</code> for JWK Thumbprint Subject Syntax Type and <code>did:</code> for Decentralized Identifier Subject Syntax Type.<a href="#section-11.1-2.3" class="pilcrow">¶</a>
+</li>
+          <li id="section-11.1-2.4">The RP MUST validate the signature of the ID Token. When Subject Syntax Type is JWK Thumbprint, validation is done according to JWS <span>[<a href="#RFC7515" class="cite xref">RFC7515</a>]</span> using the algorithm specified in the <code>alg</code> header parameter of the JOSE Header, using the key in the <code>sub_jwk</code> Claim. The key MUST be a bare key in JWK format (not an X.509 certificate value). The RP MUST validate that the algorithm is one of the allowed algorithms (as in <code>id_token_signing_alg_values_supported</code>). When Subject Syntax Type is Decentralized Identifier, validation is performed against the key obtained from a DID Document. DID Document MUST be obtained by resolving a Decentralized Identifier included in the <code>sub</code> Claim using DID Resolution as defined by a DID Method specification of the DID Method used. Since <code>verificationMethod</code> property in the DID Document may contain multiple public key sets, public key identified by a key identifier <code>kid</code> in a Header of a signed ID Token MUST be used to validate that ID Token.<a href="#section-11.1-2.4" class="pilcrow">¶</a>
+</li>
+          <li id="section-11.1-2.5">The RP MUST validate the <code>sub</code> Claim value. When Subject Syntax Type is JWK Thumbprint, the RP MUST validate that the <code>sub</code> Claim value equals the base64url encoded representation of the thumbprint of the key in the <code>sub_jwk</code> Claim, as specified in <a href="#siop-authentication-response" class="auto internal xref">Section 10</a>. When Subject Syntax Type is Decentralized Identifier, the RP MUST validate that the <code>sub</code> Claim value equals the <code>id</code> property in the DID Document.<a href="#section-11.1-2.5" class="pilcrow">¶</a>
+</li>
+          <li id="section-11.1-2.6">The current time MUST be before the time represented by the <code>exp</code> Claim (possibly allowing for some small leeway to account for clock skew).
+The <code>iat</code> Claim can be used to reject tokens that were issued too far away from the current time, limiting the amount of time that nonces need to be stored to prevent attacks. The acceptable range is RP-specific.<a href="#section-11.1-2.6" class="pilcrow">¶</a>
+</li>
+          <li id="section-11.1-2.7">The RP MUST validate that a <code>nonce</code> Claim is present and is the same value as the one that was sent in the Authorization Request. The Client MUST check the <code>nonce</code> value for replay attacks. The precise method for detecting replay attacks is RP specific.<a href="#section-11.1-2.7" class="pilcrow">¶</a>
+</li>
+        </ol>
+<p id="section-11.1-3">Any claim in the Self-Issued ID Token is considered to be self-attested. Verifying attestation by a third party requires additional artifacts and processing steps - see <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>.<a href="#section-11.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="cross-device-self-issued-id-token-validation">
+<section id="section-11.2">
+        <h3 id="name-cross-device-self-issued-id">
+<a href="#section-11.2" class="section-number selfRef">11.2. </a><a href="#name-cross-device-self-issued-id" class="section-name selfRef">Cross-Device Self-Issued ID Token Validation</a>
+        </h3>
+<p id="section-11.2-1">The RP MUST perform all the check as defined in <a href="#siop-id-token-validation" class="auto internal xref">Section 11.1</a>.<a href="#section-11.2-1" class="pilcrow">¶</a></p>
+<p id="section-11.2-2">Additionally, the RP MUST check whether the <code>nonce</code> Claim value provided in the ID Token is known to the RP and was not used before in an Authorization Response.<a href="#section-11.2-2" class="pilcrow">¶</a></p>
+<p id="section-11.2-3">The following is a non-normative example of a base64url decoded Self-Issued ID Token body when the dynamic Self-Issued OP Discovery and Decentralized Identifier Subject Syntax Type are used (with line wraps within values for display purposes only):<a href="#section-11.2-3" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-11.2-4">
+<pre>{
+  "iss": "did:example:NzbLsXh8uDCcd6MNwXF4W7noWXFZAfHkxZsRGC9Xs",
+  "sub": "did:example:NzbLsXh8uDCcd6MNwXF4W7noWXFZAfHkxZsRGC9Xs",
+  "aud": "https://client.example.org/cb",
+  "nonce": "n-0S6_WzA2Mj",
+  "exp": 1311281970,
+  "iat": 1311280970
+}
+</pre><a href="#section-11.2-4" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="verifiable-presentation-support">
+<section id="section-12">
+      <h2 id="name-verifiable-presentation-sup">
+<a href="#section-12" class="section-number selfRef">12. </a><a href="#name-verifiable-presentation-sup" class="section-name selfRef">Verifiable Presentation Support</a>
+      </h2>
+<p id="section-12-1">Self-Issued OP and the RP that wish to support request and presentation of cryptographically verifiable claims issued by trusted third-party sources (Verifiable Presentations) MUST be compliant with OpenID for Verifiable Presentations <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>.<a href="#section-12-1" class="pilcrow">¶</a></p>
+<p id="section-12-2">To prevent replay attacks, any Verifiable Presentations presented in a Self-Issued OP protocol flow MUST be bound to the <code>nonce</code> provided by the RP and the Client ID of the RP, as described in <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>.<a href="#section-12-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="security-considerations">
+<section id="section-13">
+      <h2 id="name-security-considerations">
+<a href="#section-13" class="section-number selfRef">13. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+      </h2>
+<div id="handling-end-user-data">
+<section id="section-13.1">
+        <h3 id="name-handling-end-user-data">
+<a href="#section-13.1" class="section-number selfRef">13.1. </a><a href="#name-handling-end-user-data" class="section-name selfRef">Handling End-User Data</a>
+        </h3>
+<p id="section-13.1-1">Using the mechanisms described in this specification and <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>, data about the End-User can be transported to the Relying Party in different ways. It is important that implementers take into consideration the specific security properties associated with the mechanisms.<a href="#section-13.1-1" class="pilcrow">¶</a></p>
+<div id="end-user-claims-in-id-tokens">
+<section id="section-13.1.1">
+          <h4 id="name-end-user-claims-in-id-token">
+<a href="#section-13.1.1" class="section-number selfRef">13.1.1. </a><a href="#name-end-user-claims-in-id-token" class="section-name selfRef">End-User Claims in ID Tokens</a>
+          </h4>
+<p id="section-13.1.1-1">Regarding the ID Token as a transport mechanism, the RP can trust that the Self-Issued OP has access to the private key required to sign the ID Token. The value of the <code>sub</code> Claim is bound to this key. It is in the Self-Issued OP's interest to not make the signing available to other parties, in particular attackers. The RP can therefore use the <code>sub</code> Claim as a primary identifier for the End-User, assuming that the ID Token was checked properly.<a href="#section-13.1.1-1" class="pilcrow">¶</a></p>
+<p id="section-13.1.1-2">Other Claims within the ID Token MUST be considered self-asserted: The Self-Issued OP can use arbitrary data that can usually not be checked by the RP. RPs therefore MUST NOT use other Claims than <code>sub</code> to (re-)identify users, for example, for login.<a href="#section-13.1.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="rp-and-self-issued-op-metadata-integrity">
+<section id="section-13.2">
+        <h3 id="name-rp-and-self-issued-op-metad">
+<a href="#section-13.2" class="section-number selfRef">13.2. </a><a href="#name-rp-and-self-issued-op-metad" class="section-name selfRef">RP and Self-Issued OP Metadata Integrity</a>
+        </h3>
+<p id="section-13.2-1">The integrity and authenticity of Self-Issued OP and RP metadata is paramount for the security of the protocol flow. For example, a modified <code>authorization_endpoint</code> could be used by an attacker to launch phishing or mix-up-style attacks (see <span>[<a href="#I-D.oauth-security-topics" class="cite xref">I-D.oauth-security-topics</a>]</span>). A modified <code>redirect_uri</code> could be used by an attacker to gather information that can then be used in replay attacks. The provisions defined in this specification ensure the authenticity and integrity of the metadata if all checks (signature validation, etc.) are performed as described.<a href="#section-13.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="usage-of-cross-device-self-issued-op-for-authentication">
+<section id="section-13.3">
+        <h3 id="name-usage-of-cross-device-self-">
+<a href="#section-13.3" class="section-number selfRef">13.3. </a><a href="#name-usage-of-cross-device-self-" class="section-name selfRef">Usage of Cross-Device Self-Issued OP for Authentication</a>
+        </h3>
+<p id="section-13.3-1">A known attack in cross-device Self-Issued OP is an Authorization Request replay attack, where a victim is tricked to send a response to an Authorization Request that an RP has generated for an attacker. In other words, the attacker would trick a victim to respond to a request that the attacker has generated for him/herself at a good RP, for example, by showing the QR code encoding the Authorization Request that would normally be presented on the RP's website on the attacker's website. In this case, the victim might not be able to detect that the request was generated by the RP for the attacker. (Note that the same attack applies when methods other than a QR code are used to encode the Authorization Request. For brevity, only the QR code method will be discussed in the following, but the same considerations apply to other transport methods as well.)<a href="#section-13.3-1" class="pilcrow">¶</a></p>
+<p id="section-13.3-2">This attack is based on the fact that the Authorization Request is not tied to a specific channel, i.e., it can be used both in its original context (on the RP's website) as well as in a replay scenario (on the attacker's website, in an email, etc.). Such a binding cannot be established across devices with currently deployed technology. Therefore, in the cross-device protocol flow, the contents transported in the authentication (including any Verifiable Presentations) are not wrong, but do not necessarily come from the End-User the RP website thinks it is interacting with.<a href="#section-13.3-2" class="pilcrow">¶</a></p>
+<p id="section-13.3-3">Implementers MUST take this fact into consideration when using cross-device Self-Issued OP. There are a number of measures that can be taken to reduce the risk of such an attack, but none of these can completely prevent the attack. For example:<a href="#section-13.3-3" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-13.3-4.1">The Self-Issued OP can show the origin of the request (e.g., the domain where the response will be sent) and/or ask the End-User to confirm this origin. In an attack, this origin would be different from the attacker's origin where the QR code is displayed to the End-User. It cannot be expected that all End-Users will identify an attack in this way, but at least for some users it might help to detect the attack. Note that depending on the device on which the attacker is showing the QR code, there might be no indication of the origin, e.g., on a terminal device   that does not show a browser with a URL bar.<a href="#section-13.3-4.1" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-13.3-4.2">The Authorization Request can be made short-lived. An attacker would have to request a new Authorization Request (e.g., QR code) frequently and update it on its website as well. This requires more effort from the attacker.<a href="#section-13.3-4.2" class="pilcrow">¶</a>
+</li>
+          <li class="compact" id="section-13.3-4.3">Self-Issued OP can warn the End-User when logging in at a new RP for the first time.<a href="#section-13.3-4.3" class="pilcrow">¶</a>
+</li>
+        </ul>
+<p id="section-13.3-5">Implementers should be cautious when using cross-device Self-Issued OP model for authentication and should implement mitigations according to the desired security level.<a href="#section-13.3-5" class="pilcrow">¶</a></p>
+<p id="section-13.3-6">This attack does not apply for the same-device Self-Issued OP protocol flows as the RP checks that the Authorization Response comes from the same browser where the Authorization Request was sent to. Same-device Self-Issued OP protocol flows therefore can be used for authentication, given all other security measures are put in place.<a href="#section-13.3-6" class="pilcrow">¶</a></p>
+<p id="section-13.3-7">For more details on possible attacks and mitigations see <span>[<a href="#I-D.ietf-oauth-cross-device-security" class="cite xref">I-D.ietf-oauth-cross-device-security</a>]</span>.<a href="#section-13.3-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="invocation-using-custom-scheme">
+<section id="section-13.4">
+        <h3 id="name-invocation-using-private-us">
+<a href="#section-13.4" class="section-number selfRef">13.4. </a><a href="#name-invocation-using-private-us" class="section-name selfRef">Invocation using Private-Use URI Schemes (Custom URL Schemes)</a>
+        </h3>
+<p id="section-13.4-1">Usage of private-use URI schemes with a certain path such as <code>siopv2://</code>, also referred to as custom URL schemes, as a way to invoke a Self-Issued OP may lead to phishing attacks and undefined behavior, as described in <span>[<a href="#RFC8252" class="cite xref">RFC8252</a>]</span>.<a href="#section-13.4-1" class="pilcrow">¶</a></p>
+<p id="section-13.4-2">Private-use URI schemes are a mechanism offered by mobile operating system providers. If an application developer registers a custom URL scheme with the application, that application will be invoked when a request containing the custom URL scheme is received by the device. If no available application supports the custom URL scheme, the platform or browser will typically generate a modal error and present it to the End-User.<a href="#section-13.4-2" class="pilcrow">¶</a></p>
+<p id="section-13.4-3">Implementers are highly encouraged to explore other options before using private-use URI schemes due to the known security issues of such schemes, such as lack of controls to prevent unknown applications from attempting to service Authorization Requests. Any malicious app can register the custom scheme already used by another app, imitate the user interface and impersonate a good app.<a href="#section-13.4-3" class="pilcrow">¶</a></p>
+<p id="section-13.4-4">The browser or operating system typically has a process by which native applications and websites can register support that one or more apps be called when an HTTPS URI is triggered in lieu of a system browser. This feature goes by several names including "App Links" and "Universal Links", and MAY be used to invoke an installed/registered Self-Issued OP. If no appropriate application has been rendered, the request for a Self-Issued OP will go to a browser, which MAY display additional information such as appropriate software options.<a href="#section-13.4-4" class="pilcrow">¶</a></p>
+<p id="section-13.4-5">Further details are discussed in <span>[<a href="#app-2-app-sec" class="cite xref">app-2-app-sec</a>]</span>.<a href="#section-13.4-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="self-issued-op-authorization-response-confidentiality">
+<section id="section-13.5">
+        <h3 id="name-self-issued-op-authorizatio">
+<a href="#section-13.5" class="section-number selfRef">13.5. </a><a href="#name-self-issued-op-authorizatio" class="section-name selfRef">Self-Issued OP Authorization Response Confidentiality</a>
+        </h3>
+<p id="section-13.5-1">The Authorization Response MUST NOT leak to a party outside of the Self-Issued OP, the RP and the system browser participating in the protocol flow.<a href="#section-13.5-1" class="pilcrow">¶</a></p>
+<p id="section-13.5-2">Implementers of Self-Issed OPs are encouraged to take operating system dependent measures to ensure that the Authorization Response is only passed to a legitimate system browser in the same-device protocol flow. If implementers wish to support native applications acting as an RP, they MAY alternatively invoke the RP application if the Self-Issed OP can verify the RP application to be legitimate.<a href="#section-13.5-2" class="pilcrow">¶</a></p>
+<p id="section-13.5-3">Further details of application to application and application to web communication are discussed in <span>[<a href="#app-2-app-sec" class="cite xref">app-2-app-sec</a>]</span>.<a href="#section-13.5-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="tls-requirements">
+<section id="section-13.6">
+        <h3 id="name-tls-requirements">
+<a href="#section-13.6" class="section-number selfRef">13.6. </a><a href="#name-tls-requirements" class="section-name selfRef">TLS Requirements</a>
+        </h3>
+<p id="section-13.6-1">Implementations MUST follow <span>[<a href="#BCP195" class="cite xref">BCP195</a>]</span>.<a href="#section-13.6-1" class="pilcrow">¶</a></p>
+<p id="section-13.6-2">Whenever TLS is used, a TLS server certificate check MUST be performed, per <span>[<a href="#RFC6125" class="cite xref">RFC6125</a>]</span>.<a href="#section-13.6-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="privacy-considerations">
+<section id="section-14">
+      <h2 id="name-privacy-considerations">
+<a href="#section-14" class="section-number selfRef">14. </a><a href="#name-privacy-considerations" class="section-name selfRef">Privacy Considerations</a>
+      </h2>
+<div id="selective-disclosure-and-unlinkable-presentations">
+<section id="section-14.1">
+        <h3 id="name-selective-disclosure-and-un">
+<a href="#section-14.1" class="section-number selfRef">14.1. </a><a href="#name-selective-disclosure-and-un" class="section-name selfRef">Selective Disclosure and Unlinkable Presentations</a>
+        </h3>
+<p id="section-14.1-1">Usage of decentralized identifiers does not automatically prevent possible RP correlation. If a status check of the presentation is done, Identity Provider / Self-Issued OP correlation can occur.<a href="#section-14.1-1" class="pilcrow">¶</a></p>
+<p id="section-14.1-2">Consider supporting pairwise identifiers that are unique per RP.<a href="#section-14.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="implementation-considerations">
+<section id="section-15">
+      <h2 id="name-implementation-consideratio">
+<a href="#section-15" class="section-number selfRef">15. </a><a href="#name-implementation-consideratio" class="section-name selfRef">Implementation Considerations</a>
+      </h2>
+<div id="static-config">
+<section id="section-15.1">
+        <h3 id="name-static-configuration-values">
+<a href="#section-15.1" class="section-number selfRef">15.1. </a><a href="#name-static-configuration-values" class="section-name selfRef">Static Configuration Values of the Self-Issued OPs</a>
+        </h3>
+<p id="section-15.1-1">This document lists profiles that define static configuration values of Self-Issued OPs and defines two sets of static configuration values for Self-Issued OPs as native apps that can be used by the RP when it is unable to perform dynamic discovery and is not using any of the profiles.<a href="#section-15.1-1" class="pilcrow">¶</a></p>
+<div id="profiles-that-define-static-configuration-values">
+<section id="section-15.1.1">
+          <h4 id="name-profiles-that-define-static">
+<a href="#section-15.1.1" class="section-number selfRef">15.1.1. </a><a href="#name-profiles-that-define-static" class="section-name selfRef">Profiles that Define Static Configuration Values</a>
+          </h4>
+<p id="section-15.1.1-1">Below is a list of profiles that define static configuration values of Self-Issued OPs:<a href="#section-15.1.1-1" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="section-15.1.1-2.1">
+              <a href="https://identity.foundation/jwt-vc-presentation-profile/">JWT VC Presentation Profile</a><a href="#section-15.1.1-2.1" class="pilcrow">¶</a>
+</li>
+          </ul>
+</section>
+</div>
+<div id="a-set-of-static-configuration-values-bound-to-siopv2">
+<section id="section-15.1.2">
+          <h4 id="name-a-set-of-static-configurati">
+<a href="#section-15.1.2" class="section-number selfRef">15.1.2. </a><a href="#name-a-set-of-static-configurati" class="section-name selfRef">A Set of Static Configuration Values bound to <code>siopv2://</code></a>
+          </h4>
+<p id="section-15.1.2-1">Below is a set of static configuration values that can be used with <code>id_token</code> as a supported <code>response_type</code>, bound to a custom URL scheme <code>siopv2://</code> as an <code>authorization_endpoint</code>:<a href="#section-15.1.2-1" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-15.1.2-2">
+<pre>{
+  "authorization_endpoint": "siopv2:",
+  "response_types_supported": [
+    "id_token"
+  ],
+  "scopes_supported": [
+    "openid"
+  ],
+  "subject_types_supported": [
+    "pairwise"
+  ],
+  "id_token_signing_alg_values_supported": [
+    "ES256"
+  ],
+  "request_object_signing_alg_values_supported": [
+    "ES256"
+  ],
+  "subject_syntax_types_supported": [
+    "urn:ietf:params:oauth:jwk-thumbprint"
+  ],
+  "id_token_types_supported": [
+    "subject_signed_id_token"
+  ]
+}
+</pre><a href="#section-15.1.2-2" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="a-set-of-static-configuration-values-bound-to-openid">
+<section id="section-15.1.3">
+          <h4 id="name-a-set-of-static-configuratio">
+<a href="#section-15.1.3" class="section-number selfRef">15.1.3. </a><a href="#name-a-set-of-static-configuratio" class="section-name selfRef">A Set of Static Configuration Values bound to <code>openid://</code></a>
+          </h4>
+<p id="section-15.1.3-1">Another set of static configuration values is used with both <code>vp_token</code> and <code>id_token</code> as supported <code>response_type</code>, bound to a custom URL scheme <code>openid://</code> as an <code>authorization_endpoint</code>:<a href="#section-15.1.3-1" class="pilcrow">¶</a></p>
+<div class="lang-json sourcecode" id="section-15.1.3-2">
+<pre>{
+  "authorization_endpoint": "openid:",
+  "response_types_supported": [
+    "vp_token",
+    "id_token"
+  ],
+  "vp_formats_supported": {
+    "jwt_vp": {
+      "alg": ["ES256"]
+    },
+    "jwt_vc": {
+      "alg": ["ES256"]
+    }
+  },
+  "scopes_supported": [
+    "openid"
+  ],
+  "subject_types_supported": [
+    "pairwise"
+  ],
+  "id_token_signing_alg_values_supported": [
+    "ES256"
+  ],
+  "request_object_signing_alg_values_supported": [
+    "ES256"
+  ],
+  "subject_syntax_types_supported": [
+    "urn:ietf:params:oauth:jwk-thumbprint"
+  ],
+  "id_token_types_supported": [
+    "subject_signed_id_token"
+  ]
+}
+</pre><a href="#section-15.1.3-2" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="supporting-multiple-self-issued-ops">
+<section id="section-15.2">
+        <h3 id="name-supporting-multiple-self-is">
+<a href="#section-15.2" class="section-number selfRef">15.2. </a><a href="#name-supporting-multiple-self-is" class="section-name selfRef">Supporting Multiple Self-Issued OPs</a>
+        </h3>
+<p id="section-15.2-1">When the RP wants to provide End-User choice to select from multiple possible Self-Issued OPs, it MAY present a static list of the supported options. This is similar to the process of supporting multiple different social networks represented as traditional OPs.<a href="#section-15.2-1" class="pilcrow">¶</a></p>
+<p id="section-15.2-2">Note that if Self-Issued OP implementations belong to a trust framework, the trust framework may dictate a common <code>authorization_endpoint</code> for a set of implementations. If <code>authorization_endpoint</code> is pre-registered with the underlying browser or operating system, invocation of this endpoint that leads to prompting the End-User to select a Self-Issued OP is handled by the underlying browser or operating system.<a href="#section-15.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="receiving-cross-device-responses">
+<section id="section-15.3">
+        <h3 id="name-receiving-cross-device-resp">
+<a href="#section-15.3" class="section-number selfRef">15.3. </a><a href="#name-receiving-cross-device-resp" class="section-name selfRef">Receiving Cross-Device Responses</a>
+        </h3>
+<p id="section-15.3-1">In case of the cross-device flow, the Self-Issued OP will send the result as an HTTPS POST message to the RP. This requires connectivity between Self-Issued OP and RP. There are different ways this can be achieved. The RP may, for example, expose a suitable endpoint from their backend. Alternatively, it may employ a separate service able to receive and store such messages, where the RP then queries the Self-Issued OP responses.<a href="#section-15.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="relationships-to-other-documents">
+<section id="section-16">
+      <h2 id="name-relationships-to-other-docu">
+<a href="#section-16" class="section-number selfRef">16. </a><a href="#name-relationships-to-other-docu" class="section-name selfRef">Relationships to Other Documents</a>
+      </h2>
+<p id="section-16-1">The scope of this specification was an extension to Chapter 7 Self-Issued OpenID Provider in <span>[<a href="#OpenID.Core" class="cite xref">OpenID.Core</a>]</span>. However, some sections of it could become applicable more generally to the entire OpenID Connect specification.<a href="#section-16-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<section id="section-17">
+      <h2 id="name-normative-references">
+<a href="#section-17" class="section-number selfRef">17. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
+      </h2>
+<dl class="references">
+<dt id="BCP195">[BCP195]</dt>
+      <dd>
+<span class="refAuthor">IETF</span>, <span class="refTitle">"BCP195"</span>, <time datetime="2022" class="refDate">2022</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/bcp195">https://www.rfc-editor.org/info/bcp195</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="DID-Core">[DID-Core]</dt>
+      <dd>
+<span class="refAuthor">Sporny, M.</span>, <span class="refAuthor">Guy, A.</span>, <span class="refAuthor">Sabadello, M.</span>, and <span class="refAuthor">D. Reed</span>, <span class="refTitle">"Decentralized Identifiers (DIDs) v1.0"</span>, <time datetime="2021-08-03" class="refDate">3 August 2021</time>, <span>&lt;<a href="https://www.w3.org/TR/2021/PR-did-core-20210803/">https://www.w3.org/TR/2021/PR-did-core-20210803/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.ietf-oauth-security-topics">[I-D.ietf-oauth-security-topics]</dt>
+      <dd>
+<span class="refAuthor">Lodderstedt, T.</span>, <span class="refAuthor">Bradley, J.</span>, <span class="refAuthor">Labunets, A.</span>, and <span class="refAuthor">D. Fett</span>, <span class="refTitle">"OAuth 2.0 Security Best Current Practice"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-oauth-security-topics-24</span>, <time datetime="2023-10-23" class="refDate">23 October 2023</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics-24">https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics-24</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="OAuth.Responses">[OAuth.Responses]</dt>
+      <dd>
+<span class="refAuthor">de Medeiros, B.</span>, <span class="refAuthor">Scurtescu, M.</span>, <span class="refAuthor">Tarjan, P.</span>, and <span class="refAuthor">M. Jones</span>, <span class="refTitle">"OAuth 2.0 Multiple Response Type Encoding Practices"</span>, <time datetime="2014-02-25" class="refDate">25 February 2014</time>, <span>&lt;<a href="https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html">https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="OpenID.CIBA">[OpenID.CIBA]</dt>
+      <dd>
+<span class="refAuthor">Fernandez, G.</span>, <span class="refAuthor">Walter, F.</span>, <span class="refAuthor">Nennker, A.</span>, <span class="refAuthor">Tonge, D.</span>, and <span class="refAuthor">B. Campbell</span>, <span class="refTitle">"OpenID Connect Client-Initiated Backchannel Authentication Flow - Core 1.0"</span>, <time datetime="2021-09-01" class="refDate">1 September 2021</time>, <span>&lt;<a href="https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html">https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="OpenID.Core">[OpenID.Core]</dt>
+      <dd>
+<span class="refAuthor">Sakimura, N.</span>, <span class="refAuthor">Bradley, J.</span>, <span class="refAuthor">Jones, M.</span>, <span class="refAuthor">de Medeiros, B.</span>, and <span class="refAuthor">C. Mortimore</span>, <span class="refTitle">"OpenID Connect Core 1.0 incorporating errata set 1"</span>, <time datetime="2014-11-08" class="refDate">8 November 2014</time>, <span>&lt;<a href="http://openid.net/specs/openid-connect-core-1_0.html">http://openid.net/specs/openid-connect-core-1_0.html</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="OpenID.Discovery">[OpenID.Discovery]</dt>
+      <dd>
+<span class="refAuthor">Sakimura, N.</span>, <span class="refAuthor">Bradley, J.</span>, <span class="refAuthor">Jones, M.</span>, and <span class="refAuthor">E. Jay</span>, <span class="refTitle">"OpenID Connect Core 1.0 incorporating errata set 1"</span>, <time datetime="2014-11-08" class="refDate">8 November 2014</time>, <span>&lt;<a href="https://openid.net/specs/openid-connect-discovery-1_0.html">https://openid.net/specs/openid-connect-discovery-1_0.html</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="OpenID.Federation">[OpenID.Federation]</dt>
+      <dd>
+<span class="refAuthor">Ed., R. H.</span>, <span class="refAuthor">Jones, M. B.</span>, <span class="refAuthor">Solberg, A.</span>, <span class="refAuthor">Bradley, J.</span>, <span class="refAuthor">Marco, G. D.</span>, and <span class="refAuthor">V. Dzhuvinov</span>, <span class="refTitle">"OpenID Federation 1.0"</span>, <time datetime="2023-11-08" class="refDate">8 November 2023</time>, <span>&lt;<a href="https://openid.net/specs/openid-connect-federation-1_0.html">https://openid.net/specs/openid-connect-federation-1_0.html</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="OpenID.Registration">[OpenID.Registration]</dt>
+      <dd>
+<span class="refAuthor">Sakimura, N.</span>, <span class="refAuthor">Bradley, J.</span>, and <span class="refAuthor">M. B. Jones</span>, <span class="refTitle">"OpenID Connect Dynamic Client Registration 1.0 incorporating errata set 1"</span>, <time datetime="2014-11-08" class="refDate">8 November 2014</time>, <span>&lt;<a href="https://openid.net/specs/openid-connect-registration-1_0.html">https://openid.net/specs/openid-connect-registration-1_0.html</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="OpenID4VP">[OpenID4VP]</dt>
+      <dd>
+<span class="refAuthor">Terbu, O.</span>, <span class="refAuthor">Lodderstedt, T.</span>, <span class="refAuthor">Yasuda, K.</span>, <span class="refAuthor">Lemmon, A.</span>, and <span class="refAuthor">T. Looker</span>, <span class="refTitle">"OpenID for Verifiable Presentations"</span>, <time datetime="2021-05-20" class="refDate">20 May 2021</time>, <span>&lt;<a href="https://openid.net/specs/openid-4-verifiable-presentations-1_0.html">https://openid.net/specs/openid-4-verifiable-presentations-1_0.html</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC2119">[RFC2119]</dt>
+      <dd>
+<span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc2119">https://www.rfc-editor.org/info/rfc2119</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6125">[RFC6125]</dt>
+      <dd>
+<span class="refAuthor">Saint-Andre, P.</span> and <span class="refAuthor">J. Hodges</span>, <span class="refTitle">"Representation and Verification of Domain-Based Application Service Identity within Internet Public Key Infrastructure Using X.509 (PKIX) Certificates in the Context of Transport Layer Security (TLS)"</span>, <span class="seriesInfo">RFC 6125</span>, <span class="seriesInfo">DOI 10.17487/RFC6125</span>, <time datetime="2011-03" class="refDate">March 2011</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6125">https://www.rfc-editor.org/info/rfc6125</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6749">[RFC6749]</dt>
+      <dd>
+<span class="refAuthor">Hardt, D., Ed.</span>, <span class="refTitle">"The OAuth 2.0 Authorization Framework"</span>, <span class="seriesInfo">RFC 6749</span>, <span class="seriesInfo">DOI 10.17487/RFC6749</span>, <time datetime="2012-10" class="refDate">October 2012</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc6749">https://www.rfc-editor.org/info/rfc6749</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7515">[RFC7515]</dt>
+      <dd>
+<span class="refAuthor">Jones, M.</span>, <span class="refAuthor">Bradley, J.</span>, and <span class="refAuthor">N. Sakimura</span>, <span class="refTitle">"JSON Web Signature (JWS)"</span>, <span class="seriesInfo">RFC 7515</span>, <span class="seriesInfo">DOI 10.17487/RFC7515</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7515">https://www.rfc-editor.org/info/rfc7515</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7517">[RFC7517]</dt>
+      <dd>
+<span class="refAuthor">Jones, M.</span>, <span class="refTitle">"JSON Web Key (JWK)"</span>, <span class="seriesInfo">RFC 7517</span>, <span class="seriesInfo">DOI 10.17487/RFC7517</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7517">https://www.rfc-editor.org/info/rfc7517</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7519">[RFC7519]</dt>
+      <dd>
+<span class="refAuthor">Jones, M.</span>, <span class="refAuthor">Bradley, J.</span>, and <span class="refAuthor">N. Sakimura</span>, <span class="refTitle">"JSON Web Token (JWT)"</span>, <span class="seriesInfo">RFC 7519</span>, <span class="seriesInfo">DOI 10.17487/RFC7519</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7519">https://www.rfc-editor.org/info/rfc7519</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7638">[RFC7638]</dt>
+      <dd>
+<span class="refAuthor">Jones, M.</span> and <span class="refAuthor">N. Sakimura</span>, <span class="refTitle">"JSON Web Key (JWK) Thumbprint"</span>, <span class="seriesInfo">RFC 7638</span>, <span class="seriesInfo">DOI 10.17487/RFC7638</span>, <time datetime="2015-09" class="refDate">September 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc7638">https://www.rfc-editor.org/info/rfc7638</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9101">[RFC9101]</dt>
+      <dd>
+<span class="refAuthor">Sakimura, N.</span>, <span class="refAuthor">Bradley, J.</span>, and <span class="refAuthor">M. Jones</span>, <span class="refTitle">"The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR)"</span>, <span class="seriesInfo">RFC 9101</span>, <span class="seriesInfo">DOI 10.17487/RFC9101</span>, <time datetime="2021-08" class="refDate">August 2021</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc9101">https://www.rfc-editor.org/info/rfc9101</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9278">[RFC9278]</dt>
+    <dd>
+<span class="refAuthor">Jones, M.</span> and <span class="refAuthor">K. Yasuda</span>, <span class="refTitle">"JWK Thumbprint URI"</span>, <span class="seriesInfo">RFC 9278</span>, <span class="seriesInfo">DOI 10.17487/RFC9278</span>, <time datetime="2022-08" class="refDate">August 2022</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc9278">https://www.rfc-editor.org/info/rfc9278</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+<section id="section-18">
+      <h2 id="name-informative-references">
+<a href="#section-18" class="section-number selfRef">18. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
+      </h2>
+<dl class="references">
+<dt id="DID_Specification_Registries">[DID_Specification_Registries]</dt>
+      <dd>
+<span class="refAuthor">Steele, O.</span>, <span class="refAuthor">Sporny, M.</span>, and <span class="refAuthor">M. Prorock</span>, <span class="refTitle">"DID Specification Registries"</span>, <time datetime="2022-08" class="refDate">August 2022</time>, <span>&lt;<a href="https://www.w3.org/TR/did-spec-registries/">https://www.w3.org/TR/did-spec-registries/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.ietf-oauth-cross-device-security">[I-D.ietf-oauth-cross-device-security]</dt>
+      <dd>
+<span class="refAuthor">Kasselman, P.</span>, <span class="refAuthor">Fett, D.</span>, and <span class="refAuthor">F. Skokan</span>, <span class="refTitle">"Cross-Device Flows: Security Best Current Practice"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-oauth-cross-device-security-04</span>, <time datetime="2023-10-22" class="refDate">22 October 2023</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-cross-device-security-04">https://datatracker.ietf.org/doc/html/draft-ietf-oauth-cross-device-security-04</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.oauth-security-topics">[I-D.oauth-security-topics]</dt>
+      <dd>
+<span class="refAuthor">Lodderstedt, T.</span>, <span class="refAuthor">Bradley, J.</span>, <span class="refAuthor">Labunets, A.</span>, and <span class="refAuthor">D. Fett</span>, <span class="refTitle">"OAuth 2.0 Security Best Current Practice"</span>, <time datetime="2021-12-16" class="refDate">16 December 2021</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics-19">https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics-19</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8252">[RFC8252]</dt>
+      <dd>
+<span class="refAuthor">Denniss, W.</span> and <span class="refAuthor">J. Bradley</span>, <span class="refTitle">"OAuth 2.0 for Native Apps"</span>, <span class="seriesInfo">BCP 212</span>, <span class="seriesInfo">RFC 8252</span>, <span class="seriesInfo">DOI 10.17487/RFC8252</span>, <time datetime="2017-10" class="refDate">October 2017</time>, <span>&lt;<a href="https://www.rfc-editor.org/info/rfc8252">https://www.rfc-editor.org/info/rfc8252</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="app-2-app-sec">[app-2-app-sec]</dt>
+    <dd>
+<span class="refAuthor">Hauck, F.</span>, <span class="refAuthor">Fett, D.</span>, and <span class="refAuthor">J. Heenan</span>, <span class="refTitle">"Improving OAuth App-to-App Security"</span>, <time datetime="2020-11-27" class="refDate">27 November 2020</time>, <span>&lt;<a href="https://danielfett.de/2020/11/27/improving-app2app/">https://danielfett.de/2020/11/27/improving-app2app/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+<div id="iana-considerations">
+<section id="appendix-A">
+      <h2 id="name-iana-considerations">
+<a href="#appendix-A" class="section-number selfRef">Appendix A. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+      </h2>
+<p id="appendix-A-1">TBD<a href="#appendix-A-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="Acknowledgements">
+<section id="appendix-B">
+      <h2 id="name-acknowledgements">
+<a href="#appendix-B" class="section-number selfRef">Appendix B. </a><a href="#name-acknowledgements" class="section-name selfRef">Acknowledgements</a>
+      </h2>
+<p id="appendix-B-1">We would like to thank Christina Bauer, John Bradley, Kim Cameron, Giuseppe De Marco, Daniel Fett, Alen Horvat, Edmund Jay, Tom Jones, Niels Klomp, Torsten Lodderstedt, Tobias Looker, Jeremie Miller, Brandon Murdoch, Nat Sakimura, Oliver Terbu, David Waite, and Dmitri Zagidulin for their contributions to this specification.<a href="#appendix-B-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="notices">
+<section id="appendix-C">
+      <h2 id="name-notices">
+<a href="#appendix-C" class="section-number selfRef">Appendix C. </a><a href="#name-notices" class="section-name selfRef">Notices</a>
+      </h2>
+<p id="appendix-C-1">Copyright (c) 2022 The OpenID Foundation.<a href="#appendix-C-1" class="pilcrow">¶</a></p>
+<p id="appendix-C-2">The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer, or other interested party a non-exclusive, royalty free, worldwide copyright license to reproduce, prepare derivative works from, distribute, perform and display, this Implementers Draft or Final Specification solely for the purposes of (i) developing specifications, and (ii) implementing Implementers Drafts and Final Specifications based on such documents, provided that attribution be made to the OIDF as the source of the material, but that such attribution does not indicate an endorsement by the OIDF.<a href="#appendix-C-2" class="pilcrow">¶</a></p>
+<p id="appendix-C-3">The technology described in this specification was made available from contributions from various sources, including members of the OpenID Foundation and others. Although the OpenID Foundation has taken steps to help ensure that the technology is available for distribution, it takes no position regarding the validity or scope of any intellectual property or other rights that might be claimed to pertain to the implementation or use of the technology described in this specification or the extent to which any license under such rights might or might not be available; neither does it represent that it has made any independent effort to identify any such rights. The OpenID Foundation and the contributors to this specification make no (and hereby expressly disclaim any) warranties (express, implied, or otherwise), including implied warranties of merchantability, non-infringement, fitness for a particular purpose, or title, related to this specification, and the entire risk as to implementing this specification is assumed by the implementer. The OpenID Intellectual Property Rights policy requires contributors to offer a patent promise not to assert certain patent claims against other contributors and against implementers. The OpenID Foundation invites any interested party to bring to its attention any copyrights, patents, patent applications, or other proprietary rights that may cover technology that may be required to practice this specification.<a href="#appendix-C-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="use-cases">
+<section id="appendix-D">
+      <h2 id="name-use-cases">
+<a href="#appendix-D" class="section-number selfRef">Appendix D. </a><a href="#name-use-cases" class="section-name selfRef">Use Cases</a>
+      </h2>
+<div id="resilience-against-sudden-or-planned-hosted-op-unavailability">
+<section id="appendix-D.1">
+        <h3 id="name-resilience-against-sudden-o">
+<a href="#appendix-D.1" class="section-number selfRef">D.1. </a><a href="#name-resilience-against-sudden-o" class="section-name selfRef">Resilience against Sudden or Planned Hosted OP Unavailability</a>
+        </h3>
+<p id="appendix-D.1-1">A hosted third-party provided OP's infrastructure may become unavailable or even destroyed due to natural disasters such as hurricanes, tsunamis and fires, or may be removed from service as a planned business decision. End-Users using Self-Issued OPs local to their environment, have lower chances of being simultaneously affected by such events.<a href="#appendix-D.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="authentication-at-the-edge">
+<section id="appendix-D.2">
+        <h3 id="name-authentication-at-the-edge">
+<a href="#appendix-D.2" class="section-number selfRef">D.2. </a><a href="#name-authentication-at-the-edge" class="section-name selfRef">Authentication at the Edge</a>
+        </h3>
+<p id="appendix-D.2-1">As internet-connected smartphones have risen in availability, traditionally in-person interactions and services have begun to be optimized with digital alternatives. These services often have requirements for digital authentication. Self-Issued OPs can provide this authentication directly, without needing to delegate to remote, hosted OPs. This potentially allows for increased efficiency as well as allowing for authentication in environments which may have reduced connectivity.<a href="#appendix-D.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="authentication-and-presentations-of-user-claims-without-the-involvement-of-the-issuer">
+<section id="appendix-D.3">
+        <h3 id="name-authentication-and-presenta">
+<a href="#appendix-D.3" class="section-number selfRef">D.3. </a><a href="#name-authentication-and-presenta" class="section-name selfRef">Authentication and Presentations of User Claims without the involvement of the Issuer</a>
+        </h3>
+<p id="appendix-D.3-1">The RP can directly receive the issuer-signed claims about the End-User from the Self-Issued OP, without talking to the Issuer. This prevents the Issuer from knowing where the End-User is presenting these issuer-signed claims. In this use-case, obtaining and potentially storing the issuer-signed credentials is the Self-Issued OP's responsibility using specifications such as <span>[<a href="#OpenID4VP" class="cite xref">OpenID4VP</a>]</span>.<a href="#appendix-D.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="aggregation-of-multiple-personas-under-one-self-issued-op">
+<section id="appendix-D.4">
+        <h3 id="name-aggregation-of-multiple-per">
+<a href="#appendix-D.4" class="section-number selfRef">D.4. </a><a href="#name-aggregation-of-multiple-per" class="section-name selfRef">Aggregation of Multiple Personas under One Self-Issued OP</a>
+        </h3>
+<p id="appendix-D.4-1">End-Users often use several hosted OpenID Providers for different Relying Parties. Some of the reasons to do this is to separate a work-related persona from a personal persona or to prevent the RPs from correlating their activities by using the same OP.<a href="#appendix-D.4-1" class="pilcrow">¶</a></p>
+<p id="appendix-D.4-2">The usage of multiple OPs can create friction later, as the End-User may return later having forgotten which OP they used for the Relying Party. A single Self-Issued OP can be chosen by the End-User based on its capability to meet specific needs and privacy concerns.<a href="#appendix-D.4-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="identifier-portability">
+<section id="appendix-D.5">
+        <h3 id="name-identifier-portability">
+<a href="#appendix-D.5" class="section-number selfRef">D.5. </a><a href="#name-identifier-portability" class="section-name selfRef">Identifier Portability</a>
+        </h3>
+<p id="appendix-D.5-1">With a hosted third-party provider, a user identifier used at the RP is assigned by the third-party, while with a Self-Issued OP, a user identifier can be created by an application locally controlled by the End-User. This would allow the End-User to maintain the relationship with the RP while minimizing the third-party influence, as long as the End-User can keep control of the Self-Issued identifier.<a href="#appendix-D.5-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="cloud-wallet">
+<section id="appendix-D.6">
+        <h3 id="name-cloud-wallet">
+<a href="#appendix-D.6" class="section-number selfRef">D.6. </a><a href="#name-cloud-wallet" class="section-name selfRef">Cloud Wallet</a>
+        </h3>
+<p id="appendix-D.6-1">End-Users may decide to store their credentials in a cloud wallet, in order to be able to access her existing credentials across devices without hazzle (e.g. no need to re-obtain credentials after changing phone). A cloud wallet is an applicatication that is not hosted entirely locally on the End-User's device, but has cloud-based components and is capable of hosting backend endpoints. Such a wallet can protect the user's credental on a high security level. It may, for example, utilize hardware security modules to protect the user's keys from cloning and replay. Since there is a backend involved and endpoints can be exposed, a cloud wallet can utilize the OpenID Connect authorization code flow, which allows verifier and wallet to mutually authenticate and exchange data via a direct TLS protected connection.<a href="#appendix-D.6-1" class="pilcrow">¶</a></p>
+<p id="appendix-D.6-2">A cloud wallet may utilize a native user experience, it may also (in addition or exclusively) offer a web based experience, which can be used on any device without the need for an app installation. This also means such a wallet can always use the more secure on-device flow instead of the cross-device flow. End-User authentication can be implemented using roaming authenticators or a private protocol with an authentication app.<a href="#appendix-D.6-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="document-history">
+<section id="appendix-E">
+      <h2 id="name-document-history">
+<a href="#appendix-E" class="section-number selfRef">Appendix E. </a><a href="#name-document-history" class="section-name selfRef">Document History</a>
+      </h2>
+<p id="appendix-E-1">[[ To be removed from the final specification ]]<a href="#appendix-E-1" class="pilcrow">¶</a></p>
+<p id="appendix-E-2">-13<a href="#appendix-E-2" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-E-3.1">Improved many of the examples.<a href="#appendix-E-3.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-3.2">Added Requirements Notation and Conventions section.<a href="#appendix-E-3.2" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-3.3">Cleaned up the text.<a href="#appendix-E-3.3" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="appendix-E-4">-12<a href="#appendix-E-4" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-E-5.1">Made SIOPv2 compatible with JAR<a href="#appendix-E-5.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-5.2">Clean up of the text<a href="#appendix-E-5.2" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="appendix-E-6">-11<a href="#appendix-E-6" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-E-7.1">Replaced JWK-Thumbprint-URI reference with RFC 9278.<a href="#appendix-E-7.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-7.2">Renamed registration and registration_uri to client_metadata and client_metadata_uri, respectively<a href="#appendix-E-7.2" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-7.3">Relaxed URI length restrictions<a href="#appendix-E-7.3" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-7.4">Added definition for base64url encoding<a href="#appendix-E-7.4" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-7.5">Added definition of term "wallet"<a href="#appendix-E-7.5" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="appendix-E-8">-10<a href="#appendix-E-8" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-E-9.1">Updated referenced spec names from "OpenID Connect for Verifiable ..." to "OpenID for Verifiable ...".<a href="#appendix-E-9.1" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="appendix-E-10">-09<a href="#appendix-E-10" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-E-11.1">updated definition of SIOP to be "an OP within the End-User's control", not local control<a href="#appendix-E-11.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-11.2">added reference to Distributed and Aggregated Claims as an option to send third party attested claims using SIOP<a href="#appendix-E-11.2" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-11.3">added metadata and request parameter to explicitely publish and request SIOP support<a href="#appendix-E-11.3" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-11.4">extended specification to allow for use the code flow and all other OpenID Connect flows<a href="#appendix-E-11.4" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-11.5">added examples of possible SIOP architectures<a href="#appendix-E-11.5" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="appendix-E-12">-08<a href="#appendix-E-12" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-E-13.1">added security consideration for confidentiality response (same-device)<a href="#appendix-E-13.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-13.2">added implementation consideration for cross device flow<a href="#appendix-E-13.2" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-13.3">
+          <code>iss</code> in the ID Token must equal <code>sub</code><a href="#appendix-E-13.3" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="appendix-E-14">-07<a href="#appendix-E-14" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-E-15.1">reflected editorial comments received during pre-implementer's draft review period<a href="#appendix-E-15.1" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="appendix-E-16">-06<a href="#appendix-E-16" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-E-17.1">Added statically registered clients<a href="#appendix-E-17.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-17.2">Cleanups in preparation for the first proposed Implementer's Draft<a href="#appendix-E-17.2" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-17.3">Updated Security Considerations<a href="#appendix-E-17.3" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-17.4">Added an Acknowledgements section<a href="#appendix-E-17.4" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-17.5">Clarified which Hash Function is to be used to compute/verify JWK Thumbprints<a href="#appendix-E-17.5" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-17.6">Added more examples<a href="#appendix-E-17.6" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="appendix-E-18">-05<a href="#appendix-E-18" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-E-19.1">Merged <code>did_methods_supported</code> metadata into <code>subject_syntax_type_supported</code><a href="#appendix-E-19.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-19.2">Added RP Metadata resolution methods<a href="#appendix-E-19.2" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-19.3">Editorial - language in Relying Party Registration Metadata Error Response<a href="#appendix-E-19.3" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-19.4">Introduced mandatory <code>i_am_siop</code> claim<a href="#appendix-E-19.4" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="appendix-E-20">-04<a href="#appendix-E-20" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-E-21.1">Added cross-device protocol flow<a href="#appendix-E-21.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-21.2">Clarified handling for did-based sub and sub_jwk<a href="#appendix-E-21.2" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-21.3">Revising of introductory text and scope of Self-Issued OP v2<a href="#appendix-E-21.3" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-21.4">Corrected typos and reworked registration example data<a href="#appendix-E-21.4" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="appendix-E-22">-03<a href="#appendix-E-22" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-E-23.1">sub_jwk made optional for Subject Syntax Type DID and mandatory for subtype jwk thumbprint<a href="#appendix-E-23.1" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-23.2">Added text that nonce is mandatory<a href="#appendix-E-23.2" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-23.3">Replaced vp claim with reference to OpenID4VP draft<a href="#appendix-E-23.3" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-23.4">Adopted Self-Issued OP chooser as Self-Issued OP Discovery<a href="#appendix-E-23.4" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-23.5">Deprecated openid:// for Self-Issued OP Discovery as not recommended<a href="#appendix-E-23.5" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-23.6">Clarified Discovery and Registration metadata<a href="#appendix-E-23.6" class="pilcrow">¶</a>
+</li>
+        <li class="compact" id="appendix-E-23.7">Formatted Normative Reference Section to mmarkdown<a href="#appendix-E-23.7" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="appendix-E-24">-02<a href="#appendix-E-24" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-E-25.1">Converted into mmarkdown<a href="#appendix-E-25.1" class="pilcrow">¶</a>
+</li>
+      </ul>
+<p id="appendix-E-26">-01<a href="#appendix-E-26" class="pilcrow">¶</a></p>
+<ul class="compact">
+<li class="compact" id="appendix-E-27.1">Version proposed for working group adoption<a href="#appendix-E-27.1" class="pilcrow">¶</a>
+</li>
+      </ul>
+</section>
+</div>
+<div id="authors-addresses">
+<section id="appendix-F">
+      <h2 id="name-authors-addresses">
+<a href="#name-authors-addresses" class="section-name selfRef">Authors' Addresses</a>
+      </h2>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Kristina Yasuda</span></div>
+<div dir="auto" class="left"><span class="org">Microsoft</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:kristina.yasuda@microsoft.com" class="email">kristina.yasuda@microsoft.com</a>
+</div>
+</address>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Michael B. Jones</span></div>
+<div dir="auto" class="left"><span class="org">Self-Issued Consulting</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:michael_b_jones@hotmail.com" class="email">michael_b_jones@hotmail.com</a>
+</div>
+<div class="url">
+<span>URI:</span>
+<a href="https://self-issued.info/" class="url">https://self-issued.info/</a>
+</div>
+</address>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Torsten Lodderstedt</span></div>
+<div dir="auto" class="left"><span class="org">sprind.org</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:torsten@lodderstedt.net" class="email">torsten@lodderstedt.net</a>
+</div>
+</address>
+</section>
+</div>
+<script>const toc = document.getElementById("toc");
+toc.querySelector("h2").addEventListener("click", e => {
+  toc.classList.toggle("active");
+});
+toc.querySelector("nav").addEventListener("click", e => {
+  toc.classList.remove("active");
+});
+</script>
+</body>
+</html>

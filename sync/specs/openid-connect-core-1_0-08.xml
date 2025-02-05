@@ -1,0 +1,1012 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml.resource.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<rfc category="exp" docName="openid-connect-core-1_0" ipr="trust200902">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="3" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="no" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title>OpenID Connect Core 1.0 - draft 08</title>
+
+    <author fullname="Nat Sakimura" initials="N." role="editor"
+            surname="Sakimura">
+      <organization abbrev="NRI">Nomura Research Institute,
+      Ltd.</organization>
+
+      <address>
+        <email>n-sakimura@nri.co.jp</email>
+      </address>
+    </author>
+
+    <author fullname="David Recordon" initials="D." surname="Recordon">
+      <organization abbrev="Facebook">Facebook Inc.</organization>
+
+      <address>
+        <email>dr@fb.com</email>
+      </address>
+    </author>
+
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization abbrev="Protiviti">Protiviti
+      Government Services</organization>
+
+      <address>
+        <email>jbradley@mac.com</email>
+      </address>
+    </author>
+
+    <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+      <organization abbrev="Google">Google Inc.</organization>
+
+      <address>
+        <email>breno@google.com</email>
+      </address>
+    </author>
+
+    <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      <organization abbrev="Microsoft">Microsoft Corporation</organization>
+
+      <address>
+        <email>mbj@microsoft.com</email>
+      </address>
+    </author>
+
+    <author fullname="Edmund Jay" initials="E." surname="Jay">
+      <organization abbrev="MGI1">MGI1</organization>
+
+      <address>
+        <email>ejay@mgi1.com</email>
+      </address>
+    </author>
+
+    <date day="6" month="July" year="2011" />
+
+    <abstract>
+      <t>OpenID Connect is an identity framework that provides authentication,
+      authorization, and attribute transmission capability. It allows third
+      party attested claims from distributed sources. The specification suite
+      builds on OAuth 2.0 and consists of Building Blocks (Core, Framework,
+      Discovery, Dynamic Client Registration, Session Management, JSON Web
+      Token, JSON Web Signature, JSON WEB Encryption, JSON Web Keys, Simple
+      Web Discovery), Protocol Bindings (e.g., Artifact Binding, Authorization
+      Code Binding, User Agent Binding) and Extensions. This specification is
+      the "Core" of the suite that defines the messages used and abstract flow
+      which will be further constrained or extended in the companion
+      specifications in the suite.</t>
+    </abstract>
+
+    <note title="Requirements Language">
+      <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+      "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+      document are to be interpreted as described in <xref
+      target="RFC2119">RFC 2119</xref>.</t>
+
+      <t>Throughout this document, values are quoted to indicate that they are
+      to be taken literally. When using these values in protocol messages, the
+      quotes MUST NOT be used as part of the value.</t>
+    </note>
+  </front>
+
+  <middle>
+    <section anchor="terminology" title="Terminology">
+      <t>
+	In addition to the terms "Access Token", "Refresh Token",
+	"Authorization Code", "Authorization Grant", "Authorization Server",
+	"Authorization Endpoint", "Client", "Client Identifier",
+	"Client Secret", "Protected Resource", "Resource Owner",
+	"Resource Server", and "Token Endpoint" that are defined
+	by <xref target="OAuth.2.0">OAuth 2.0</xref>, this
+	specification defines the following terms:
+
+        <list style="hanging">
+          <t hangText="Assertion">A set of Claims about the End-User that are
+          attested to by the OpenID Provider and Resource Servers.</t>
+
+          <t hangText="Authentication">An act of verifying End-User's identity
+          through the verification of the credential.</t>
+
+          <t hangText="Base64url">Base 64 Encoding <xref target="RFC3548" />
+          with URL and Filename Safe Alphabet without padding.</t>
+
+          <t hangText="Claim">A piece of information about an Entity that a
+          Claims Provider asserts about that Entity.</t>
+
+          <t hangText="Claims Provider">An Authorization Server that
+          can return claims about a user.</t>
+
+          <t hangText="End-User">A human resource owner.</t>
+
+          <t hangText="Entity">Something that has separate and distinct
+          existence and that can be identified in context.</t>
+
+          <t hangText="OpenID Provider (OP)">Authorization Servers that are
+          able to support OpenID Connect Messages.</t>
+
+          <t hangText="OP Endpoints">End-User Authentication Endpoint,
+          Authorization Endpoint, and Token Endpoint.</t>
+
+          <t hangText="OpenID Request Object">A JSON object that holds the
+          request variables. It holds OpenID request variables. It MAY also
+          contain other OAuth parameters for the request signing purpose, in
+          which case the parameter values MUST match with the OAuth request
+          parameters.</t>
+
+          <t hangText="Relying Party (RP)">Client and Resource Servers.</t>
+
+          <t hangText="RP Endpoint">The endpoint to which the OP responses
+          are returned through redirect.</t>
+
+          <t hangText="UserInfo Endpoint">A protected resource that when
+          presented with a token by the client, returns authorized information
+          about the current user.</t>
+        </list></t>
+    </section>
+
+    <section title="Overview">
+      <t>
+	The OpenID Connect protocol, in abstract, follows the
+	following steps.
+      </t>
+
+      <t><list style="numbers">
+          <t>The Client sends a request to the Server's end-user authorization
+          endpoint.</t>
+
+          <t>The Server authenticates the user and obtains appropriate
+          authorization.</t>
+
+          <t>The Server responds with access_token and a few other
+          variables.</t>
+
+          <t>The Client sends a request with the access_token to the
+          UserInfo endpoint <xref target="OpenID.UserInfo">OpenID
+          Connect UserInfo 1.0</xref>.</t>
+
+          <t>UserInfo endpoint returns the additional user information
+          supported by the Server.</t>
+        </list>Each message may be signed and encrypted. When the message is
+      encrypted, it MUST be signed first then encrypted. This specification
+      only defines the abstract message flow and message formats. The actual
+      use MUST be based on one of the companion protocol bindings
+      specifications such as the
+      <xref target="OpenID.HTTP-Redirect">OpenID Connect HTTP Redirect Binding 1.0</xref>.
+      </t>
+    </section>
+
+    <section title="Messages">
+
+      <t>In OpenID Connect protocols, in abstract, the process proceeds by the
+      client interacting with endpoints. There are number of endpoints
+      involved.</t>
+
+      <t><list style="numbers">
+          <t>Authorization Endpoint: The Client sends a request to the Server
+          at the authorization endpoint. The Server then authenticates the
+          End-User to find out if he is eligible to make the authorization.
+          Then, upon the authorization action of the End-User, the Server
+          returns an Authorization Response that includes Authorization Code,
+          <spanx style="verb">code</spanx>. For some Clients, Implicit Grant
+          may be used to obtain <spanx style="verb">access_token</spanx>
+          without using <spanx style="verb">code</spanx>. In this case, <spanx
+          style="verb">response_type</spanx> MUST be set to <spanx
+          style="verb">token</spanx>.</t>
+
+          <t>Token Endpoint: The Client sends the access token request to the
+          token endpoint to obtain Access Token Response which includes an
+          <spanx style="verb">access_token</spanx>.</t>
+
+          <t>UserInfo Endpoint: The <spanx
+          style="verb">access_token</spanx> MAY be sent to the
+          UserInfo endpoint to obtain claims about the user.</t>
+
+          <t>Session Management Endpoints: The ID Token MAY be sent to these
+          endpoints to manage the session.</t>
+        </list>Both Request and Response may either be serialized into <xref
+      target="qss">Query String Serialization</xref> or <xref
+      target="RFC4627">JSON</xref>.</t>
+
+      <section title="Authorization Endpoint">
+        <t>The client sends an Authorization Request to the authorization
+        endpoint to obtain an Authorization Response.</t>
+
+        <section anchor="auth_req" title="Authorization Request">
+          <t>Section 4.1.1 and 4.2.1 of <xref target="OAuth.2.0">OAuth
+          2.0</xref> defines the OAuth Authorization Request parameters. In
+          this specification, the values to the parameters are defined as
+          follows.</t>
+
+          <t>
+            <list style="hanging">
+              <t hangText="response_type">A space delimited, case
+              sensitive list of string values (Pending OAuth 2.0 changes).
+              Acceptable values are <spanx style="verb">code</spanx>, <spanx
+              style="verb">token</spanx>, and <spanx
+              style="verb">none</spanx>. The value MUST include <spanx
+              style="verb">code</spanx> for requesting an Authorization Code,
+              <spanx style="verb">token</spanx> for requesting an Access
+              Token, and <spanx style="verb">none</spanx> if no response is
+              needed.</t>
+
+              <t hangText="scope">It MUST include <spanx
+              style="verb">openid</spanx> as one of the strings.</t>
+            </list>
+          </t>
+
+          <t>Other required OAuth 2.0 parameters in the request include:</t>
+
+          <t>
+            <list style="hanging">
+              <t hangText="client_id">The client identifier.</t>
+
+              <t hangText="redirect_uri">A redirection URI where the response
+              will be sent.</t>
+            </list>
+          </t>
+
+        <t>The following extension parameters are also defined:</t>
+
+        <t><list style="hanging">
+
+            <t hangText="display">OPTIONAL. A string value that specifies how
+            the authorization server displays the authentication page to the
+            user.<list style="hanging">
+                <t hangText="none">The authorization server MUST NOT display
+                any authentication page.</t>
+
+                <t hangText="popup">The authorization server displays a popup
+                authentication page.</t>
+
+                <t hangText="mobile">The authorization server performs
+                authentication using a mobile device???</t>
+              </list></t>
+
+            <t hangText="prompt">OPTIONAL. A space delimited, case sensitive
+            list of string values that specifies how the authorization server
+            prompts the user for reauthentication and reapproval. The possible
+            values are:<list style="hanging">
+                <t hangText="login">The authorization server MUST prompt the
+                user for reauthentication.</t>
+
+                <t hangText="consent">The authorization server MUST prompt the
+                user for reapproval before returning information to the
+                client.</t>
+
+                <t hangText="select_account">The authorization server MUST
+                prompt the user to select a user account if the current
+                account does not match the account in the request.</t>
+              </list></t>
+          </list></t>
+
+          <figure>
+            <preamble>Following is a non-normative example when they are sent
+            in the query parameters serialization:</preamble>
+
+            <artwork><![CDATA[GET /authorize?scope=openid&response_type=code
+&client_id=s6BhdRkqt3
+&redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb
+&req=HeADeR.pAyl0rd.cRypT0 HTTP/1.1
+Host: server.example.com]]></artwork>
+          </figure>
+
+        </section>
+
+        <section title="Authorization Response">
+          <t>When the <spanx style="verb">response_type</spanx> in the request
+          includes <spanx style="verb">code</spanx>, the Authorization
+          Response MUST return the parameters defined in section 4.1.2 of
+          <xref target="OAuth.2.0">OAuth 2.0</xref>.</t>
+
+          <t>When the <spanx style="verb">response_type</spanx> in the request
+          includes <spanx style="verb">token</spanx>, the Authorization
+          Response MUST return the parameters defined in section 4.2.2 of
+          <xref target="OAuth.2.0">OAuth 2.0</xref>.</t>
+
+          <t>Response values for other requested <spanx
+          style="verb">response_type</spanx> parameters are returned in the
+          access token endpoint (TBD Need Confirmation). </t>
+
+          <t>The <spanx style="verb">response_type</spanx> "<spanx
+          style="verb">none</spanx>" preempts all other values and no other
+          response parameter values are returned.</t>
+
+          <t>For example, the Authorization Server redirects the End-User's
+          user-agent by sending the following HTTP response:</t>
+
+          <figure>
+            <artwork><![CDATA[HTTP/1.1 302 Found
+Location: https://client.example.com/cb?code=i1WsRn1uB1&state=1f 8skd]]></artwork>
+          </figure>
+
+        </section>
+
+        <section title="Authorization Error Response">
+          <t>If the end-user denies the access request or if the request
+          fails, the authorization server informs the client by returning
+          parameters defined in section 4.1.2.1 of <xref
+          target="OAuth.2.0">OAuth 2.0</xref>.</t>
+
+          <section title="Error Codes">
+            <t>In addition to the error codes defined in section 4.1.2.1 of
+            <xref target="OAuth.2.0">OAuth 2.0</xref>, this specification
+            defines the following additional error codes:</t>
+
+            <t>
+              <list style="hanging">
+                <t hangText="invalid_request_redirect_uri">The redirect_uri in
+                the request is missing or malformed.</t>
+              </list>
+            </t>
+
+          </section>
+        </section>
+      </section>
+
+      <section title="Token Endpoint">
+        <t>Access Token Request / Response interacts with a Token endpoint.
+        Upon a successful request, it returns an Access Token.</t>
+
+        <section anchor="access_token_request" title="Access Token Request">
+          <t>The client obtains an access token by authenticating with the
+          authorization server and presenting its access grant (in the form of
+          an authorization code, resource owner credentials, an assertion, or
+          a refresh token).</t>
+
+          <t>The request parameters of the Access Token Request are defined in
+          section 4.1.3 of <xref target="OAuth.2.0">OAuth 2.0</xref>.</t>
+        </section>
+
+        <section anchor="access_token_response" title="Access Token Response">
+          <t>After receiving and verifying a valid and authorized Access Token
+          Request from the client, the Authorization Server returns a Positive
+          Assertion that includes an Access Token. The parameters in the
+          successful response are defined in Section 4.2.2 of <xref
+          target="OAuth.2.0">OAuth 2.0</xref>.</t>
+
+          <figure>
+            <preamble>Following is a non-normative example:</preamble>
+
+            <artwork><![CDATA[{
+    "access_token": "SlAV32hkKG",
+    "token_type": "JWT",
+    "refresh_token": "8xLOxBtZp8",
+    "expires_in": 3600,
+}]]></artwork>
+          </figure>
+
+          <t>As in the <xref target="OAuth.2.0">OAuth 2.0</xref>, Clients
+          SHOULD ignore unrecognized response parameters.</t>
+        </section>
+
+        <section title="Token Error Response">
+          <t>If the token request is invalid or unauthorized, the
+          authorization server constructs the error response. The parameters
+          of the Token Error Response are defined as in Section 5.2 of <xref
+          target="OAuth.2.0">OAuth 2.0</xref>.</t>
+
+          <section title="Error Codes">
+            <t>In addition to the error codes defined in Section 5.2 of <xref
+            target="OAuth.2.0">OAuth 2.0</xref>, this specification defines the
+            following error codes.</t>
+
+            <t><list style="hanging">
+                <t hangText="invalid_authorization_code">The authorization
+                code is missing, malformed, or invalid.</t>
+              </list></t>
+          </section>
+        </section>
+      </section>
+
+      <section title="UserInfo Endpoint">
+        <t>The UserInfo endpoint returns claims about the authenticated user.
+        This endpoint is defined in the <xref
+        target="OpenID.UserInfo">OpenID Connect UserInfo 1.0</xref>
+        specification.</t>
+      </section>
+    </section>
+
+    <section anchor="Serializations" title="Serializations">
+      <t>Each message can be serialized either in query parameter
+      serialization or JSON serialization unless it was explicitly stated in
+      the previous sections.</t>
+
+      <section anchor="qss" title="Query String Serialization">
+        <t>
+	  In order to serialize the parameters using the query string
+	  serialization, the client constructs the string by adding
+	  the following parameters to the end-user authorization
+	  endpoint URI query component using the <spanx
+	  style="verb">application/x-www-form-urlencoded</spanx>
+	  format as defined by <xref target='W3C.REC-html401-19991224'
+	  />.
+	</t>
+
+        <figure>
+          <preamble>Following is a non-normative example of such
+          serialization:</preamble>
+
+          <artwork><![CDATA[GET /authorize?scope=openid&response_type=code
+&client_id=s6BhdRkqt3
+&redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb HTTP/1.1
+Host: server.example.com]]></artwork>
+        </figure>
+      </section>
+
+      <section anchor="js" title="JSON Serialization">
+        <t>The parameters are serialized into a JSON structure by adding each
+        parameter at the highest structure level. Parameter names and string
+        values are included as JSON strings. Numerical values are included as
+        JSON numbers. Each parameter may have JSON Structure as its value.</t>
+
+        <figure>
+          <preamble>Following is a non-normative example of such
+          serialization:</preamble>
+
+          <artwork><![CDATA[{
+  "access_token":"SlAV32hkKG",
+  "expires_in":3600,
+  "refresh_token":"8xLOxBtZp8",
+  "openid": {
+    "type": "http://openid.net/specs/ab/1.0#id_res",
+    "mode": "id_res",
+    "op_endpoint": "https://op.example.com/op_endpoint",
+    "client_id": "http://rp.example.com/",
+    "server_id": "http://op.example.com/",
+    "claimed_id": "https://example.com/alice#1234",
+    "identity": "alice",
+    "issued_at": 1274889460
+  }
+}]]></artwork>
+        </figure>
+      </section>
+    </section>
+
+    <section anchor="extensions" title="Extensions">
+      <t>
+	OpenID Connect supports OPTIONAL extension parameters such as
+	OpenID Request Object, ID Token, and UserInfo Response, as
+	defined in <xref target="OpenID.Framework">OpenID Connect Framework
+	1.0</xref>.
+      </t>
+    </section>
+
+    <section title="Related Specifications" anchor="related">
+      <t>
+	These related OpenID Connect specifications MAY OPTIONALLY be
+	used in combination with this specification to provide
+	additional functionality:
+	<list style='symbols'>
+	  <t>
+	    <xref target="OpenID.UserInfo">OpenID Connect UserInfo
+	    1.0</xref> - Schema and format of claims returned by the
+	    UserInfo endpoint of OpenID Connect
+	  </t>
+	  <t>
+	    <xref target="OpenID.HTTP-Redirect">OpenID Connect HTTP
+	    Redirect Binding 1.0</xref> - Concrete HTTP Redirect based
+	    protocol binding for OpenID Connect messages
+	  </t>
+	  <t>
+	    <xref target="OpenID.Discovery">OpenID Connect Discovery
+	    1.0</xref> - Dynamic discovery for user and server
+	    endpoints and information
+	  </t>
+	  <t>
+	    <xref target="OpenID.Registration">OpenID Connect Dynamic
+	    Client Registration 1.0</xref> - Dynamic registration of
+	    OpenID Connect clients with OpenID Providers
+	  </t>
+	  <t>
+	    <xref target="OpenID.Session">OpenID Connect Session
+	    Management 1.0</xref> - Session management for OpenID
+	    Connect sessions
+	  </t>
+	  <t>
+	    <xref target="OpenID.Framework">OpenID Connect Framework
+	    1.0</xref> - Extension and general claims framework
+	  </t>
+	</list>
+      </t>
+    </section>
+
+    <section anchor="security_considerations" title="Security Considerations">
+      <t>See <xref target="OAuth.2.0.SC">OAuth 2.0 Security
+      Considerations</xref>.</t>
+    </section>
+
+    <section anchor="iana" title="IANA Considerations">
+      <section anchor="oauth_params" title="OAuth Parameters Registry">
+
+        <section title="Scope Parameters">
+          <t>The following is the parameter registration request for the
+          "scope" parameter as defined in this specification:</t>
+
+          <t>
+            <list style="symbols">
+              <t>Parameter name: openid</t>
+
+              <t>Parameter usage location: The end-user authorization endpoint
+              request, the end-user authorization endpoint response, the token
+              endpoint request, the token endpoint response, and the <spanx
+              style="verb">WWW-Authenticate</spanx> header field.</t>
+
+              <t>Change controller: IETF</t>
+
+              <t>Specification document(s): [[ this document ]]</t>
+
+              <t>Related information: None</t>
+            </list>
+          </t>
+        </section>
+
+        <section title="Authorization Request Parameters">
+          <t>The following is the parameter registration request for the
+          Authorization Request in this specification:</t>
+
+          <t>
+            <list style="symbols">
+              <t>Parameter name: openid</t>
+
+              <t>Parameter usage location: Authorization Request</t>
+
+              <t>Change controller: IETF</t>
+
+              <t>Specification document(s): [[ this document ]]</t>
+
+              <t>Related information: None</t>
+            </list>
+          </t>
+        </section>
+
+        <section title="Access Token Response Parameters">
+          <t>The following is the parameter registration request for the
+          Access Token Response in this specification:</t>
+
+          <t>
+            <list style="symbols">
+              <t>Parameter name: openid</t>
+
+              <t>Parameter usage location: Access Token Response</t>
+
+              <t>Change controller: IETF</t>
+
+              <t>Specification document(s): [[ this document ]]</t>
+
+              <t>Related information: None</t>
+            </list>
+          </t>
+        </section>
+      </section>
+    </section>
+
+    <section title="Open Issues and Things To Be Done (TBD)">
+      <t>[[ To be removed from the final specification ]]</t>
+
+      <t>Following items remain to be done in this draft:</t>
+
+      <t>
+        <list style="symbols">
+          <t>Finish the security consideration section.</t>
+
+          <t>Properly capitalize the Defined Words.</t>
+
+          <t>Better to split the Authentication and Authorization server?
+          (Model-wise, yes, but it gets complicated. Current model is
+          implicitly assuming that the Authentication and Authorization server
+          are operated by the same entity and the protocol between them are
+          proprietary.)</t>
+        </list>
+      </t>
+    </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.3548"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.4627"?>
+      <?rfc include='http://xml.resource.org/public/rfc/bibxml4/reference.W3C.REC-html401-19991224.xml' ?>
+
+      <reference anchor="OpenID.HTTP-Redirect">
+        <front>
+          <title>OpenID Connect HTTP Redirect Binding 1.0</title>
+
+	  <author fullname="Nat Sakimura" initials="N." role="editor"
+		  surname="Sakimura">
+	    <organization abbrev="NRI">Nomura Research Institute,
+	    Ltd.</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Protiviti">Protiviti
+	    Government Services</organization>
+	  </author>
+
+	  <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+	    <organization abbrev="Google">Google</organization>
+	  </author>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft Corporation</organization>
+	  </author>
+
+	  <author fullname="Edmund Jay" initials="E." surname="Jay">
+	    <organization abbrev="MGI1">MGI1</organization>
+	  </author>
+
+          <date day="6" month="July" year="2011" />
+        </front>
+
+        <format target="http://openid.net/specs/openid-connect-http-redirect-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.Framework">
+	<front>
+	  <title abbrev="Abbreviated-Title">OpenID Connect Framework 1.0</title>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NRI">Nomura Research Institute,
+	    Ltd.</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Protiviti">Protiviti
+	    Government Services</organization>
+	  </author>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft Corporation</organization>
+	  </author>
+
+	  <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+	    <organization abbrev="">Google</organization>
+	  </author>
+
+	  <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+	    <organization abbrev="Salesforce">Salesforce</organization>
+	  </author>
+
+	  <author fullname="Edmund Jay" initials="E." surname="Jay">
+	    <organization abbrev="MGI1">MGI1</organization>
+	  </author>
+
+	  <date day="6" month="July" year="2011" />
+	</front>
+
+        <format target="http://openid.net/specs/openid-connect-framework-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.UserInfo">
+        <front>
+          <title>OpenID Connect UserInfo 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="protiviti">Protiviti Government
+            Services</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B."
+                  surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft Corporation</organization>
+          </author>
+
+          <date day="6" month="July" year="2011" />
+        </front>
+
+        <format target="http://openid.net/specs/openid-connect-userinfo-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.Discovery">
+        <front>
+          <title>OpenID Connect Discovery 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Protiviti">Protiviti Government
+            Services</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="MGI1">MGI1</organization>
+          </author>
+
+          <date day="6" month="July" year="2011" />
+        </front>
+
+        <format target="http://openid.net/specs/openid-connect-discovery-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.Registration">
+        <front>
+          <title abbrev="Abbreviated-Title">OpenID Connect Dynamic Client
+          Registration 1.0 - draft 02</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." role="editor"
+                  surname="Bradley">
+            <organization abbrev="Protiviti">Protiviti
+            Government Services</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft
+            Corporation</organization>
+          </author>
+
+          <date day="6" month="July" year="2011" />
+        </front>
+
+        <format target="http://openid.net/specs/openid-connect-registration-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.Session">
+	<front>
+	  <title abbrev="Abbreviated-Title">OpenID Connect Session Management 1.0</title>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NRI">Nomura Research Institute,
+	    Ltd.</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Protiviti">Protiviti
+	    Government Services</organization>
+	  </author>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft Corporation</organization>
+	  </author>
+
+	  <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+	    <organization abbrev="">Google</organization>
+	  </author>
+
+	  <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+	    <organization abbrev="Salesforce">Salesforce</organization>
+	  </author>
+
+	  <author fullname="Edmund Jay" initials="E." surname="Jay">
+	    <organization abbrev="MGI1">MGI1</organization>
+	  </author>
+
+	  <date day="6" month="July" year="2011" />
+	</front>
+
+        <format target="http://openid.net/specs/openid-connect-session-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OAuth.2.0">
+        <front>
+          <title>OAuth 2.0 Authorization Protocol</title>
+
+          <author fullname="Eran Hammer-Lahav" initials="E." role="editor"
+                  surname="Hammer-Lahav">
+            <organization abbrev="">Yahoo</organization>
+          </author>
+
+          <author fullname="David Recordon" initials="D." surname="Recordon">
+            <organization abbrev="">Facebook</organization>
+          </author>
+
+          <author fullname="Dick Hardt" initials="D." surname="Hardt">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <date day="19" month="May" year="2011" />
+        </front>
+
+        <format target="http://tools.ietf.org/html/draft-ietf-oauth-v2"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OAuth.2.0.SC">
+        <front>
+          <title>OAuth 2.0 Security Considerations</title>
+
+          <author fullname="Torsten Lodderstedt" initials="T." role="editor"
+                  surname="Lodderstedt">
+            <organization abbrev="">Deutsche Telekom AG</organization>
+          </author>
+
+          <author fullname="Mark McGloin" initials="M." surname="McGloin">
+            <organization abbrev="">IBM</organization>
+          </author>
+
+          <author fullname="Phil Hunt" initials="P." surname="Hunt">
+            <organization abbrev="">Oracle Corporation</organization>
+          </author>
+
+          <author fullname="Anthony Nadalin" initials="A." surname="Nadalin">
+            <organization abbrev="">Microsoft Corporation</organization>
+          </author>
+
+          <date day="7" month="April" year="2011" />
+        </front>
+
+        <format target="http://tools.ietf.org/html/draft-lodderstedt-oauth-securityconsiderations-02"
+                type="HTML" />
+      </reference>
+
+    </references>
+
+    <references title="Informative References">
+
+      <reference anchor="OpenID.2.0">
+        <front>
+          <title>OpenID Authentication 2.0</title>
+
+          <author fullname="specs@openid.net" initials=""
+                  surname="specs@openid.net">
+            <organization abbrev="oidf"></organization>
+          </author>
+
+          <date year="2007" />
+        </front>
+
+        <format target="http://www.openid.net/specs/openid-authentication-2_0.txt"
+                type="TXT" />
+
+        <format target="http://www.openid.net/specs/openid-authentication-2_0.html"
+                type="HTML" />
+      </reference>
+
+    </references>
+
+    <section title="Acknowledgements">
+      <t>As a successor version of OpenID,
+      this specification heavily relies on <xref
+      target="OpenID.2.0">OpenID Authentication 2.0</xref>.
+      Please refer to Appendix C of OpenID Authentication 2.0 for
+      the full list of the contributors for that specification.</t>
+
+      <t>This specification is largely compliant with OAuth 2.0 draft 16.
+      Please refer to the OAuth 2.0 specification for the
+      list of contributors.</t>
+
+      <t>In addition, the OpenID Community would like to thank the following
+      people for the work they've done in the drafting and editing of this
+      specification.</t>
+
+      <t>
+        <list style="empty">
+          <t>Anthony Nadalin (tonynad@microsoft.com), Microsoft</t>
+
+          <t>Breno de Medeiros (breno@gmail.com), Google</t>
+
+          <t>Chuck Mortimore (cmortimore@salesforce.com), Salesforce.com</t>
+
+          <t>David Recordon (dr@fb.com), Facebook</t>
+
+          <t>George Fletcher (george.fletcher@corp.aol.com), AOL</t>
+
+          <t>Hideki Nara (hideki.nara@gmail.com), Takt Communications</t>
+
+          <t>John Bradley (jbradely@mac.com), Protiviti
+          Government Services</t>
+
+          <t>Mike Jones (Michael.Jones@microsoft.com), Microsoft</t>
+
+          <t>Nat Sakimura (n-sakimura@nri.co.jp), Nomura
+          Research Institute, Ltd.</t>
+
+          <t>Paul Tarjan (pt@fb.com), Facebook</t>
+
+          <t>Ryo Itou (ritou@yahoo-corp.jp), Yahoo! Japan</t>
+        </list>
+      </t>
+    </section>
+
+    <section title="Document History">
+      <t>
+        [[ To be removed from the final specification ]]
+      </t>
+      <t>
+	-08
+	<list style='symbols'>
+	  <t>
+	    Consistency and cleanup pass, including removing unused references.
+	  </t>
+	  <t>
+	    Moved <spanx style="verb">display</spanx> and <spanx
+	    style="verb">prompt</spanx> parameter definitions from the
+	    Framework spec back to the Core spec.
+	  </t>
+	  <t>
+	    Removed obsolete OAuth 2.0-derived language about
+	    prefixing errors with <spanx style="verb">x_</spanx>.
+	  </t>
+	</list>
+      </t>
+      <t>
+	-07
+	<list style='symbols'>
+          <t>
+	    Moved optional features to new Framework specification and
+	    split session management into a separate Session
+	    Management specification.
+	  </t>
+	</list>
+      </t>
+      <t>
+	-06
+	<list style='symbols'>
+          <t>Claims Syntax. Session Token. Misc.</t>
+	</list>
+      </t>
+      <t>
+	-05
+	<list style='symbols'>
+          <t>Reference OAuth 2.0 now since it will be
+          stable.</t>
+	</list>
+      </t>
+      <t>
+	-04
+	<list style='symbols'>
+          <t>To keep the ID Token small so that it fits cookie
+          more easily, moved OPTIONAL parameters to UserInfo endpoint
+          response.</t>
+	</list>
+      </t>
+      <t>
+	-03
+	<list style='symbols'>
+          <t>Combined with Session Management. Moved "openid"
+          back to token endpoint. Renaming the sections according to the
+          endpoint names. Rewrote intro to the Messages section to be more
+          approachable.</t>
+	</list>
+      </t>
+      <t>
+	-02
+	<list style='symbols'>
+          <t>Catch up to OAuth 2.0 d15. Replaced JSS and JSE to
+          JWS and JWE. Section grouping and reorganizations. Added more
+          contributors.</t>
+	</list>
+      </t>
+      <t>
+	-01
+	<list style='symbols'>
+          <t>First Draft that incorporates the core of both
+          openidconnect.com proposal and OpenID Artifact Binding RC3 and
+          abstracted.</t>
+	</list>
+      </t>
+    </section>
+
+  </back>
+</rfc>

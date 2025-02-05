@@ -1,0 +1,952 @@
+
+
+
+
+                                                              D. McAdams
+                                                                  Amazon
+                                                           March 9, 2020
+
+
+               FastFed Basic SAML Profile 1.0 - draft 02
+                            fastfed-saml-1_0
+
+Abstract
+
+   This specification defines the requirements to implement the FastFed
+   Basic SAML Profile.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Notation and Conventions . . . . . . . . . .   2
+     1.2.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Overview  . . . . . . . . . . . . . . . . . . . . . . . . . .   2
+   3.  Protocol Extensions . . . . . . . . . . . . . . . . . . . . .   3
+     3.1.  FastFed Metadata  . . . . . . . . . . . . . . . . . . . .   3
+       3.1.1.  Authentication Profile URN  . . . . . . . . . . . . .   3
+       3.1.2.  Application Metadata  . . . . . . . . . . . . . . . .   3
+     3.2.  FastFed Handshake . . . . . . . . . . . . . . . . . . . .   6
+       3.2.1.  FastFed Registration Request  . . . . . . . . . . . .   6
+       3.2.2.  FastFed Registration Response . . . . . . . . . . . .   6
+   4.  Schema Binding  . . . . . . . . . . . . . . . . . . . . . . .   7
+     4.1.  SCIM-to-SAML Attribute Mapping  . . . . . . . . . . . . .   7
+       4.1.1.  SAML Subject  . . . . . . . . . . . . . . . . . . . .   7
+       4.1.2.  SAML Attributes . . . . . . . . . . . . . . . . . . .   8
+     4.2.  Privacy Considerations  . . . . . . . . . . . . . . . . .  10
+   5.  Interoperability Requirements . . . . . . . . . . . . . . . .  10
+     5.1.  Identity Provider Requirements  . . . . . . . . . . . . .  10
+     5.2.  Application Provider Requirements . . . . . . . . . . . .  11
+     5.3.  Login Hint  . . . . . . . . . . . . . . . . . . . . . . .  12
+     5.4.  Certificate Rotation  . . . . . . . . . . . . . . . . . .  12
+       5.4.1.  Certificate Rotation Requirements for an Identity
+               Provider  . . . . . . . . . . . . . . . . . . . . . .  12
+       5.4.2.  Certificate Rotation Requirements for an Application
+               Provider  . . . . . . . . . . . . . . . . . . . . . .  13
+   6.  Security Considerations . . . . . . . . . . . . . . . . . . .  14
+   7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  15
+   8.  Normative References  . . . . . . . . . . . . . . . . . . . .  15
+   Appendix A.  Acknowledgements . . . . . . . . . . . . . . . . . .  16
+   Appendix B.  Notices  . . . . . . . . . . . . . . . . . . . . . .  16
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  17
+
+
+
+
+
+McAdams                Expires September 10, 2020               [Page 1]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+1.  Introduction
+
+   This specification defines the functionality which a provider must
+   implement to satisfy the Basic SAMLProfile for FastFed.
+
+   It consists of the following extensions to the FastFed Core
+   [FastFed.Core] specification:
+
+   o  Additional metadata in the FastFed Handshake Flows to exchange
+      SAML Metadata URLs.
+
+   o  Mapping rules for generating SAML Attributes from a SCIM 2.0
+      schema.
+
+   o  An interoperability profile describing the subset of the SAML
+      specifications which must be implemented in order to be FastFed
+      Compatible.
+
+   o  The mechanics of certifcate rotation for SAML.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in RFC
+   2119 [RFC2119].
+
+   In the .txt version of this specification, values are quoted to
+   indicate that they are to be taken literally.  When using these
+   values in protocol messages, the quotes MUST NOT be used as part of
+   the value.  In the HTML version of this specification, values to be
+   taken literally are indicated by the use of "this fixed-width font".
+
+1.2.  Terminology
+
+   This FastFed Profile uses the terminology defined in Section 1.2 of
+   the FastFed Core [FastFed.Core] specification.
+
+2.  Overview
+
+   When using the SAML protocol, the FastFed Identity Provider and
+   Application Provider have various responsibilities to comply with the
+   protocol.
+
+   The Identity Provider fulfills the role of a SAML Identity Provider.
+   It has a responsibility to host a SAML Metadata file as described in
+   Section 5.1.
+
+
+
+
+McAdams                Expires September 10, 2020               [Page 2]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+   The Application Provider fulfills the role of a SAML Application
+   Provider.  It has a responsibility to host a SAML Metadata file as
+   described in Section 5.2
+
+   This specification extends the FastFed Core [FastFed.Core] handshake
+   messages with the additional attributes necessary for each party to
+   fulfill their respective obligations under SAML.
+
+3.  Protocol Extensions
+
+3.1.  FastFed Metadata
+
+3.1.1.  Authentication Profile URN
+
+   This specification extends the FastFed Core [FastFed.Core] Provider
+   Metadata (Section 3.3.1) with the following value for
+   "authentication_profiles":
+
+   urn:ietf:params:fastfed:1.0:authentication:saml:2.0:basic  A Provider
+      who includes this URN in their list of capabilities MUST comply
+      with the requirements described in this specification.
+
+   The following is a non-normative example of Provider Metadata showing
+   the usage of the value:
+
+ {
+   "application_provider": {
+     "capabilities": {
+       "authentication_profiles": ["urn:ietf:params:fastfed:1.0:authentication:saml:2.0:basic"],
+   ...
+ }
+
+3.1.2.  Application Metadata
+
+   This specification extends the Application Provider Metadata defined
+   in Section 3.3.8 of FastFed Core [FastFed.Core] with an additional
+   member having the name:
+   ""urn:ietf:params:fastfed:1.0:authentication:saml:2.0:basic"".
+
+   The value of the element is a structure containing the following
+   members:
+
+   desired_attributes  REQUIRED.  A structure specifying the attributes
+      to be provisioned, as described in Section 3.3.5 of FastFed Core
+      [FastFed.Core].
+
+
+
+
+
+
+McAdams                Expires September 10, 2020               [Page 3]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+      When using this profile, the Application Provider MUST include the
+      SCIM Core User attribute "userName" in the list of
+      "required_user_attributes".
+
+      The Application Provider MAY include additional attributes if a
+      mapping exists in the table in Section 4.1.2.  If a mapping does
+      not exist, the attribute MUST NOT be included in the desired
+      attributes.
+
+      Provisioning of Groups is not supported via SAML.  Therefore, the
+      following MUST be omitted from the desired attributes:
+
+      *  "required_group_attributes"
+
+      *  "optional_group_attributes"
+
+   The following is a non-normative example of Application Provider
+   Metadata with the profile extensions:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+McAdams                Expires September 10, 2020               [Page 4]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+ {
+   "application_provider": {
+     "entity_id": "https://tenant-67890.app.example.com/"
+     "provider_domain": "example.com",
+     "provider_contact_information": {
+       "organization": "Example Inc.",
+       "phone": "+1-800-555-5555",
+       "email": "support@example.com"
+     },
+     "display_settings": {
+       "display_name": "Example Application Provider",
+       "logo_uri": "https://app.example.com/images/logo.png",
+       "icon_uri": "https://app.example.com/images/icon.png",
+       "license": "https://openid.net/intellectual-property/licenses/fastfed/1.0/"
+     }
+     "capabilities": {
+       "provisioning_profiles": [
+         "urn:ietf:params:fastfed:1.0:provisioning:saml:2.0:basic"
+       ],
+       "schema_grammars": [
+         "urn:ietf:params:fastfed:1:0:schemas:scim:2.0"
+       ],
+       "signing_alg_values_supported": [
+         "ES512",
+         "RS256"
+       ]
+     },
+     "fastfed_handshake_register_uri": "https://tenant-67890.app.example.com/fastfed/register",
+
+     "urn:ietf:params:fastfed:1.0:provisioning:saml:2.0:basic": {
+       "desired_attributes": {
+         "urn:ietf:params:fastfed:1:0:schemas:scim:2.0": {
+           "required_user_attributes": [
+             "username",
+             "emails[primary eq true].value"
+           ],
+           "optional_user_attributes": [
+             "displayName",
+             "phoneNumbers[primary eq true].value"
+           ]
+         }
+      }
+   }
+ }
+
+
+
+
+
+
+
+McAdams                Expires September 10, 2020               [Page 5]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+3.2.  FastFed Handshake
+
+3.2.1.  FastFed Registration Request
+
+   This specification extends the JWT contents of the FastFed
+   Registration Request (Section 7.2.3.1 of FastFed Core [FastFed.Core])
+   with an additional member sharing the same name as the profile:
+   ""urn:ietf:params:fastfed:1.0:authentication:saml:2.0:basic"".
+
+   The value of the element is a structure with the following members:
+
+   saml_metadata_uri  REQUIRED.  Contains the URL of the Identity
+      Provider's SAML Metadata document.
+
+   The following is a non-normative example of the contents of a
+   registration request message prior to serialization:
+
+ {
+   "iss": "https://tenant-12345.idp.example.com",
+   "aud": "https://tenant-67890.app.example.com",
+   "exp": 1234567890,
+   "schema_grammar": "urn:ietf:params:fastfed:1:0:schemas:scim:2.0",
+   "authentication_profiles": [
+     "urn:ietf:params:fastfed:1.0:authentication:saml:2.0:basic"
+   ],
+   "urn:ietf:params:fastfed:1.0:authentication:saml:2.0:basic": {
+     "saml_metatadata_uri": "https://tenant-12345.idp.example.com/saml-metadata.xml",
+   }
+ }
+
+3.2.2.  FastFed Registration Response
+
+   This specification extends the contents of the FastFed Registration
+   Response (Section 7.2.3.3 of FastFed Core [FastFed.Core]) with an
+   additional member sharing the same name as the profile:
+   ""urn:ietf:params:fastfed:1.0:authentication:saml:2.0:basic"".
+
+   The value of the element is a structure with the following members:
+
+   saml_metadata_uri  REQUIRED.  Contains the URL of the Application
+      Provider's SAML Metadata document.
+
+   saml_response_attributes  OPTIONAL.  A list of Attribute References
+      (Section 3.3.4 of FastFed Core [FastFed.Core]) defining the user
+      attributes to be included in the SAML response.  See Section 4.1.2
+      for details.
+
+
+
+
+
+McAdams                Expires September 10, 2020               [Page 6]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+   The following is a non-normative example of the contents of a
+   registration response message:
+
+ {
+   "urn:ietf:params:fastfed:1.0:authentication:saml:2.0:basic": {
+     "saml_metatadata_uri": "https://tenant-56789.app.example.com/saml-metadata.xml"
+     "saml_response_attributes": [
+       "displayName",
+       "emails[primary eq true].value"
+     ]
+   }
+ }
+
+4.  Schema Binding
+
+   FastFed recommmends SCIM for user schemas.  However, neither SAML nor
+   SCIM specify how to represent SCIM attributes in the context of SAML
+   assertions.
+
+   This specification fills the gap and defines how FastFed compatible
+   Providers can use the SCIM 2.0 Schema Grammar (Section 3.3.4.1 of
+   FastFed Core [FastFed.Core]) with the SAML 2.0 protocol.
+
+4.1.  SCIM-to-SAML Attribute Mapping
+
+4.1.1.  SAML Subject
+
+   A SAML document contains a "Subject" element which identifies the
+   authenticated user.
+
+   The "Subject" element MUST contain a "NameID" with the following
+   properties:
+
+   o  A "Format" set to ""urn:oasis:names:tc:SAML:2.0:nameid-
+      format:persistent""
+
+   o  A value populated with the SCIM "userName".
+
+   The following is a non-normative example of a SAML Subject:
+
+ <saml:Subject>
+   <saml:NameID Format="urn:oasis:names:tc:SAML:2.0:nameid-format:persistent">babs@example.com</saml:NameID>
+ </saml:Subject>
+
+
+
+
+
+
+
+
+McAdams                Expires September 10, 2020               [Page 7]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+4.1.2.  SAML Attributes
+
+   If users have been pre-provisioned into the Application through
+   mechanisms such as SCIM, the SAML Subject alone can be sufficient to
+   correlate the incoming SAML message with the appropriate pre-existing
+   user.  However, there can be circumstances when additional user
+   attributes are necessary.
+
+   One such situation occurs when an application is using Just-In-Time
+   provisioning instead of pre-provisioning.  In this mode of behavior,
+   the incoming user attributes are used to auto-instantiate a user in
+   the Application.
+
+   To support these scenarios, FastFed allows a subset of user
+   attributes to be included in SAML response messages according to the
+   mapping rules below.  Any attributes not in the mapping table are
+   only accessible via SCIM provisioning and cannot be included in SAML
+   response messages.
+
+   Attributes are requested by populating the member
+   ""desired_attributes"" in the Application Provider Metadata
+   (Section 3.1.2).
+
+   If attributes are requested, and values exist for the user, then the
+   Identity Provider MUST include SAML Attribute elements in the
+   response message with the following properties:
+
+   o  "Name" set to the value in the mapping table below.
+
+   o  "NameFormat" set to ""urn:oasis:names:tc:SAML:2.0:attrname-
+      format:unspecified"".
+
+   o  "AttributeValue" element with "xsi:type="xs:string"" and the value
+      from the SCIM object according to the mapping table below.
+
+   Note: In the table below, SCIM attributes refer to the "User"
+   Resource Schema defined in Section 4.1 of the SCIM Core Specification
+   [RFC7643].  Individual members of a JSON structure are referenced in
+   the table using the JSON path syntax defined in Section 3.5.2 of the
+   SCIM Protocol [RFC7644].
+
+
+
+
+
+
+
+
+
+
+
+McAdams                Expires September 10, 2020               [Page 8]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+       +---------------------+-------------------------------------+
+       | SAML Attribute Name | SCIM Attribute                      |
+       +---------------------+-------------------------------------+
+       | externalId          | externalId                          |
+       |                     |                                     |
+       | displayName         | displayName                         |
+       |                     |                                     |
+       | givenName           | name.givenName                      |
+       |                     |                                     |
+       | familyName          | name.familyName                     |
+       |                     |                                     |
+       | middleName          | name.middleName                     |
+       |                     |                                     |
+       | email               | emails[primary eq true].value       |
+       |                     |                                     |
+       | phoneNumber         | phoneNumbers[primary eq true].value |
+       +---------------------+-------------------------------------+
+
+   The following is a non-normative example demonstrating a
+   transformation from a SCIM User to SAML Attributes:
+
+ <saml:AttributeStatement>
+   <saml:Attribute Name="externalId" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">1fc58220-7213-47bb-9161-bbd39ad75937</saml:AttributeValue>
+   </saml:Attribute>
+   <saml:Attribute Name="displayName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">Babs Jensen</saml:AttributeValue>
+   </saml:Attribute>
+   <saml:Attribute Name="givenName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">Barbara</saml:AttributeValue>
+   </saml:Attribute>
+   <saml:Attribute Name="familyName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">Jensen</saml:AttributeValue>
+   </saml:Attribute>
+   <saml:Attribute Name="middleName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">Jane</saml:AttributeValue>
+   </saml:Attribute>
+   <saml:Attribute Name="email" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">bjensen@example.com</saml:AttributeValue>
+   </saml:Attribute>
+   <saml:Attribute Name="phoneNumber" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">1-555-555-5555</saml:AttributeValue>
+   </saml:Attribute>
+ </saml:AttributeStatement>
+
+
+
+
+
+
+
+McAdams                Expires September 10, 2020               [Page 9]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+4.2.  Privacy Considerations
+
+   When exposing user information through SAML Attributes, FastFed
+   Identity Providers MUST NOT expose any attributes which were not in
+   the "desired_attributes" element of the Application Provider Metadata
+   (Section 3.1.2).
+
+5.  Interoperability Requirements
+
+   Each identity standard defines a set of optional features to enable
+   usage in a wide variety of circumstances.
+
+   However, a consequence of the flexibility is that two Providers may
+   find themselves incompabitible despite sharing the same protocols.
+
+   To deliver the simplified experience that is the goal of FastFed, it
+   is important that two FastFed-enabled Providers have confidence that
+   they can interoperate when sharing the same protocols.
+
+   The following sections describe the subset of the SAML specifications
+   that Providers MUST implement to be compatible with this profile.
+   Providers MAY support additional functionality, but MUST NOT require
+   the additional functionality when configuring federation with another
+   Provider using FastFed specifications.
+
+5.1.  Identity Provider Requirements
+
+   o  MUST implement the required functionality of a SAML Identity
+      Provider as defined in the SAML Web Browser SSO Profile
+      (Section 4.1 of [SAML.Profiles]).
+
+   o  MUST use the HTTP POST bindings for the authentication response of
+      the Web Browswer SSO Profile.
+
+   o  MUST use X509 Certificates for the Signature elements within the
+      SAML Response object.
+
+   o  MUST include a Signature element for the Assertion in the SAML
+      Response, and in addition, MAY include a Signature element for the
+      overall Response.
+
+   o  The minimum algorithm stregth for the Signature elements SHOULD be
+      SHA-256 for the hash digest, and either RSA with 2048 bit keys, or
+      ECDSA with Curve P-256, for the signature.
+
+   o  MUST include a "Conditions" element on the Assertion with
+      NotBefore and NotOnOrAfter properties that constrain the validity
+      period of the Assertion to the shortest feasible duration.  As a
+
+
+
+McAdams                Expires September 10, 2020              [Page 10]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+      reference to implementors, a 10 minute window is often sufficient
+      to reduce the risk of replays while still allowing a small degree
+      of clock skew between participants.
+
+   o  MUST host a SAML Metadata document at the location specified by
+      the "saml_metadata_uri" exchanged during the FastFed Handshake.
+
+   o  MUST include an IDPSSODescriptor element in the SAML Metadata
+      document as specified in [SAML.Metadata].
+
+   o  MUST populate the IDPSSODescriptor element with all values needed
+      by a SAML Service Provider to integrate with this SAML Identity
+      Provider using the capabilities described in this section.
+
+5.2.  Application Provider Requirements
+
+   SAML Requirements for Application Providers:
+
+   o  MUST implement the required functionality of a SAML Service
+      Provider as defined in the SAML Web Browser SSO Profile
+      (Section 4.1 of [SAML.Profiles]).
+
+   o  MUST use the HTTP Redirect binding for the authentication request
+      of the Web Browswer SSO Profile.
+
+   o  MUST accept X509 Certificates for the Signature elements
+      containined within the SAML Response object.
+
+   o  SHOULD support Signature elements generated using the SHA-256
+      algorithm for the hash digest, and either RSA with 2048 bit keys,
+      or ECDSA with Curve P-256, for the signature.
+
+   o  MUST host a SAML Metadata document at the location specified by
+      the "saml_metadata_uri" exchanged during the FastFed Handshake.
+
+   o  MUST include an SPSSODescriptor element in the SAML Metadata
+      document as specified in [SAML.Metadata].
+
+   o  MUST populate the SPSSODescriptor with all values needed by a SAML
+      Identity Provider to integrate with this SAML Service Provider
+      using the capabilities described in this section.
+
+   o  MAY use the information in the Identity Provider's corresponding
+      SAML Metadata document to decide whether to use additional SAML
+      capabilities, above and beyond the FastFed minimum interoperablity
+      requirements.  The additional capabilities must be optional and
+      the federation MUST still succeed if one Provider does not support
+      the additional capabilities.
+
+
+
+McAdams                Expires September 10, 2020              [Page 11]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+5.3.  Login Hint
+
+   The Application Provider MAY include the URL-encoded query parameter
+   "LoginHint={hint}" when initiating an authentication request via the
+   SAML HTTP Redirect binding.
+
+   The value is a hint to the Identity Provider about the login
+   identifier the end-user might use to log in.  This hint can be known
+   to the Application Provider, for example, if it first asks the end-
+   user for their e-mail address (or other identifier) in order to
+   discover the authentication provider to be used for sign-in.  It is
+   RECOMMENDED that the hint value match the value used for discovery.
+
+   The use of this parameter is left to the Identity Provider's
+   discretion.
+
+   The LoginHint MUST NOT be included in request signature for the HTTP
+   Redirect Binding.
+
+   The Identity Provider MUST ignore the LoginHint parameter if the SAML
+   Authentication Request message contains a "Subject" with an
+   identifier.
+
+   The following is a non-normative example of a SAML HTTP Redirect
+   request with a LoginHint:
+
+ HTTP/1.1 302 Found
+ Location http://idp.example.com/SAML?LoginHint=bjensen%40example.org&SAMLRequest=[...omitted for brevity...]
+
+5.4.  Certificate Rotation
+
+   While the full SAML specification supports a variety of key types,
+   the FastFed Profile defined herein restricts Providers to only X509
+   Keys for signing SAML Assertions in Web Browser SSO response messages
+   from the Identity Provider.
+
+   FastFed Providers MUST implement automatic rotation of the X509
+   Certificates.  This section describes the interoperability
+   requirements for certificate rotation.
+
+5.4.1.  Certificate Rotation Requirements for an Identity Provider
+
+   To rotate and publish new SAML signing certificates, the following
+   requirements apply to the Identity Provider:
+
+   o  MUST include new certificates in the response to queries against
+      the SAML Metadata URL that was exchanged during the FastFed
+      Handshake.
+
+
+
+McAdams                Expires September 10, 2020              [Page 12]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+   o  MUST publish the new certificate in the SAML Metadata at least 14
+      days before the currently active certificate will expire or be
+      revoked, where the expiration date is specified by the "notAfter"
+      attribute within the X.509 certificate.
+
+   o  MUST include the new certificate in the SAML Metadata, alongside
+      the currently active certificate, using the recommended technique
+      for multiple certificates defined in the SAML Metadata
+      Interoperability Profile [SAML.Interoperability].  As a reference,
+      this Interopability Profile specifies that each certificate MUST
+      be placed within its own "<KeyDescriptor>" element.
+
+   o  SHOULD continue using the original key for signing SAML Assertions
+      for at least 7 days after publishing the new certificate, to give
+      consumers time to read the new certificate from the SAML Metadata
+      and be ready to receive the new key.
+
+   o  SHOULD begin signing assertions with the new key if less than 7
+      days remains until the old certificate expires.  MAY continue
+      using the old key if problems arise with the new key, to give time
+      for diagnosis of the problems.
+
+   o  SHOULD stop using the old key for signing assertions when less
+      than 1 day remains until the old certificate expires.
+
+   o  MUST support HTTP 1.1 ETag semantics [RFC2616] for all requests to
+      the SAML Metadata URL, including:
+
+      *  Returning an ETag response header
+
+      *  Accepting an If-None-Match request header, and returning an
+         HTTP 304 response if the SAML Metadata is unmodified.
+
+   o  MAY return an HTTP 301 response code to indicate the SAML Metadata
+      has moved to a new location.
+
+5.4.2.  Certificate Rotation Requirements for an Application Provider
+
+   To consume rotated SAML signing certificates, the following options
+   are available to the Application Provider:
+
+   o  MAY retrieve new keys on demand by reloading the Identity
+      Provider's SAML Metadata file upon detecting a SAML authentication
+      response signed with an unrecognized key.
+
+   o  Alternatively, MAY preemptively retrieve new keys by querying the
+      Identity Provider's SAML Metadata file on a recurring basis to
+      check for updates.
+
+
+
+McAdams                Expires September 10, 2020              [Page 13]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+   When preemptively querying for updates on a recurring basis, the
+   following requirements apply to the Application Provider:
+
+   o  MUST re-query the Identity Provider's SAML Metadata URL to check
+      for new certificates at least once every 24 hours.  Because
+      certificates can be rotated at any time, the Application Provider
+      MUST NOT wait for the expiration date to check for updated
+      certificates.
+
+   o  MUST include the If-None-Match header in the request to download
+      the SAML Metadata, populated with the value of the ETag response
+      header received when previously downloading the SAML Metadata.
+
+   o  SHOULD alert the Administrator if the Identity Provider has not
+      published a new certificate and less than 14 days remains until
+      expiration of the current certificate.  The alert mechanism is an
+      implementation detail that is outside the scope of the
+      specification.
+
+   o  MUST handle an HTTP 304 response code which indicates that the
+      SAML Metadata is unchanged.
+
+   o  SHOULD handle an HTTP 301 response code and use the new location
+      for all future downloads of the Identity Provider's SAML Metadata.
+
+   In all cases of certificate refresh, both on-demand and preemptive,
+   the following requirements apply to the Application Provider:
+
+   o  MUST support the consumption of multiple certificates using the
+      recommended techniques defined in the SAML Metadata
+      Interoperability Profile [SAML.Interoperability].  As a reference,
+      this Interopability Profile specifies that each certificate MUST
+      be placed within its own "<KeyDescriptor>" element.
+
+   o  MUST ignore any changes in the SAML Metadata except for
+      "<KeyDescriptor>" elements.
+
+   o  MUST accept SAML assertions signed using any of the valid
+      certificates specified within the "<KeyDescriptor>" elements of
+      the Identity Provider SAML Metadata.
+
+6.  Security Considerations
+
+   For SAML security considerations, see SAML Security and Privacy
+   Considerations [SAML.SecurityConsiderations].
+
+   For FastFed security considerations, see Section 8 of FastFed Core
+   [FastFed.Core].
+
+
+
+McAdams                Expires September 10, 2020              [Page 14]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+7.  IANA Considerations
+
+   Pending
+
+8.  Normative References
+
+   [FastFed.Core]
+              McAdams, K., "FastFed Core 1.0", March 2020,
+              <http://openid.net/specs/fastfed-core-1_0.html>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC2616]  Fielding, R., Gettys, J., Mogul, J., Frystyk, H.,
+              Masinter, L., Leach, P., and T. Berners-Lee, "Hypertext
+              Transfer Protocol -- HTTP/1.1", RFC 2616,
+              DOI 10.17487/RFC2616, June 1999,
+              <https://www.rfc-editor.org/info/rfc2616>.
+
+   [RFC7643]  Hunt, P., Ed., Grizzle, K., Wahlstroem, E., and C.
+              Mortimore, "System for Cross-domain Identity Management:
+              Core Schema", RFC 7643, DOI 10.17487/RFC7643, September
+              2015, <https://www.rfc-editor.org/info/rfc7643>.
+
+   [RFC7644]  Hunt, P., Ed., Grizzle, K., Ansari, M., Wahlstroem, E.,
+              and C. Mortimore, "System for Cross-domain Identity
+              Management: Protocol", RFC 7644, DOI 10.17487/RFC7644,
+              September 2015, <https://www.rfc-editor.org/info/rfc7644>.
+
+   [SAML.Interoperability]
+              Cantor, S., Kemp, J., Philpott, R., and E. Maler, "SAML
+              V2.0 Metadata Interoperability Profile Version 1.0",
+              August 2009, <https://www.oasis-
+              open.org/committees/download.php/36645/
+              draft-sstc-metadata-iop-2.0-01.pdf>.
+
+   [SAML.Metadata]
+              Cantor, S., Moreh, J., Philpott, R., and E. Maler,
+              "Metadata for the OASIS Security Assertion Markup Language
+              (SAML) V2.0", March 2005, <http://docs.oasis-
+              open.org/security/saml/v2.0/saml-metadata-2.0-os.pdf>.
+
+
+
+
+
+
+
+
+McAdams                Expires September 10, 2020              [Page 15]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+   [SAML.Profiles]
+              Hughes, J., Cantor, S., Hodges, J., Hirsch, F., Mishra,
+              P., Philpott, R., and E. Maler, "Profiles for the OASIS
+              Security Assertion Markup Language (SAML) V2.0"", March
+              2005, <http://docs.oasis-open.org/security/saml/v2.0/
+              saml-profiles-2.0-os.pdf>.
+
+   [SAML.SecurityConsiderations]
+              Hirsch, F., Philpott, R., and E. Maler, "Security and
+              Privacy Considerations for the OASIS Security Assertion
+              Markup Language (SAML) V2.0", March 2005,
+              <http://docs.oasis-open.org/security/saml/v2.0/
+              saml-sec-consider-2.0-os.pdf>.
+
+Appendix A.  Acknowledgements
+
+   The OpenID Community would like to thank the following people for
+   their contributions to this specification:
+
+      Brian Campbell (bcampbell@pingidentity.com), Ping Identity
+
+      Zhen Chien Chia (chiazhenchien@outlook.com), Microsoft
+
+      Pamela Dingle (pamela.dingle@microsoft.com), Microsoft
+
+      Matt Domsch (matt.domsch@sailpoint.com), SailPoint
+
+      Wesley Dunnington (wesleydunnington@pingidentity.com), Ping
+      Identity
+
+      Erik Gustavson (erikgustavson@google.com), Google
+
+      Dick Hardt (dick.hardt@gmail.com), Independent
+
+      Romain Lenglet (rlenglet@google.com), Google
+
+      Karl McGuinness (kmcguinness@okta.com), Okta
+
+      Chuck Mortimore (cmortimore@salesforce.com), Salesforce
+
+      Brian Rose (brian.rose@sailpoint.com), SailPoint
+
+Appendix B.  Notices
+
+   Copyright (c) 2020 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+
+
+
+McAdams                Expires September 10, 2020              [Page 16]
+
+                     FastFed Basic SAML Profile 1.0           March 2020
+
+
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+Author's Address
+
+   Darin K. McAdams
+   Amazon
+
+   Email: darinm@amazon.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+McAdams                Expires September 10, 2020              [Page 17]

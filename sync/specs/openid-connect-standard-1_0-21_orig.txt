@@ -1,0 +1,3024 @@
+
+
+
+Draft                                                        N. Sakimura
+                                                                     NRI
+                                                              J. Bradley
+                                                           Ping Identity
+                                                                M. Jones
+                                                               Microsoft
+                                                          B. de Medeiros
+                                                                  Google
+                                                                  E. Jay
+                                                                Illumila
+                                                            June 7, 2013
+
+
+                 OpenID Connect Standard 1.0 - draft 21
+
+Abstract
+
+   OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+   protocol.  It allows Clients to verify the identity of the End-User
+   based on the authentication performed by an Authorization Server, as
+   well as to obtain basic profile information about the End-User in an
+   interoperable and REST-like manner.
+
+   OpenID Connect Standard 1.0 is an HTTP protocol binding for the
+   OpenID Connect Messages 1.0 request and response messages.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 1]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  4
+     1.1.  Requirements Notation and Conventions  . . . . . . . . . .  4
+     1.2.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  4
+   2.  Authorization Endpoint . . . . . . . . . . . . . . . . . . . .  6
+     2.1.  Protocol Flows . . . . . . . . . . . . . . . . . . . . . .  6
+       2.1.1.  Obtaining the Authorization Code, ID Token, and
+               Access Token . . . . . . . . . . . . . . . . . . . . .  7
+       2.1.2.  Authorization Code Flow  . . . . . . . . . . . . . . .  7
+       2.1.3.  Implicit Flow  . . . . . . . . . . . . . . . . . . . .  7
+     2.2.  Authorization Request  . . . . . . . . . . . . . . . . . .  8
+       2.2.1.  Client Prepares Authorization Request  . . . . . . . .  8
+         2.2.1.1.  Request Parameters . . . . . . . . . . . . . . . .  9
+       2.2.2.  Request Methods  . . . . . . . . . . . . . . . . . . . 11
+         2.2.2.1.  Simple Request Method  . . . . . . . . . . . . . . 11
+           2.2.2.1.1.  Client Sends Simple Request  . . . . . . . . . 12
+         2.2.2.2.  Request Parameter Method . . . . . . . . . . . . . 12
+           2.2.2.2.1.  Client Sends Request using "request"
+                       Parameter  . . . . . . . . . . . . . . . . . . 15
+         2.2.2.3.  Request File Method  . . . . . . . . . . . . . . . 16
+           2.2.2.3.1.  Client Generates the URL of the Request
+                       File . . . . . . . . . . . . . . . . . . . . . 17
+           2.2.2.3.2.  Client Sends Request using "request_uri"
+                       Parameter  . . . . . . . . . . . . . . . . . . 18
+           2.2.2.3.3.  Authorization Server Fetches Request File  . . 18
+       2.2.3.  Authorization Server Validates Request Object  . . . . 18
+       2.2.4.  Authorization Server Authenticates End-User  . . . . . 19
+       2.2.5.  Authorization Server Obtains End-User
+               Consent/Authorization  . . . . . . . . . . . . . . . . 19
+       2.2.6.  Authorization Server Sends End-User Back to Client . . 20
+         2.2.6.1.  End-User Grants Authorization  . . . . . . . . . . 20
+         2.2.6.2.  End-User Denies Authorization or Invalid
+                   Request  . . . . . . . . . . . . . . . . . . . . . 27
+   3.  Token Endpoint . . . . . . . . . . . . . . . . . . . . . . . . 29
+     3.1.  Requesting Access Token  . . . . . . . . . . . . . . . . . 29
+       3.1.1.  Access Token Request . . . . . . . . . . . . . . . . . 29
+       3.1.2.  Access Token Response  . . . . . . . . . . . . . . . . 30
+       3.1.3.  Access Token Error Response  . . . . . . . . . . . . . 31
+     3.2.  Refreshing Access Token  . . . . . . . . . . . . . . . . . 31
+       3.2.1.  Refresh Token Response . . . . . . . . . . . . . . . . 32
+       3.2.2.  Refresh Token Error Response . . . . . . . . . . . . . 32
+   4.  UserInfo Endpoint  . . . . . . . . . . . . . . . . . . . . . . 33
+     4.1.  UserInfo Request . . . . . . . . . . . . . . . . . . . . . 33
+     4.2.  UserInfo Response  . . . . . . . . . . . . . . . . . . . . 33
+     4.3.  UserInfo Error Response  . . . . . . . . . . . . . . . . . 34
+   5.  Self-Issued OpenID Provider  . . . . . . . . . . . . . . . . . 35
+   6.  Initiating Login at Client from Third Party  . . . . . . . . . 36
+
+
+
+Sakimura, et al.                                                [Page 2]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   7.  Serializations . . . . . . . . . . . . . . . . . . . . . . . . 37
+     7.1.  Query String Serialization . . . . . . . . . . . . . . . . 37
+     7.2.  Form Serialization . . . . . . . . . . . . . . . . . . . . 37
+     7.3.  JSON Serialization . . . . . . . . . . . . . . . . . . . . 38
+   8.  Implementation Considerations  . . . . . . . . . . . . . . . . 39
+     8.1.  Discovery and Registration . . . . . . . . . . . . . . . . 39
+   9.  Security Considerations  . . . . . . . . . . . . . . . . . . . 40
+     9.1.  Implicit Grant Flow Threats  . . . . . . . . . . . . . . . 40
+     9.2.  TLS Requirements . . . . . . . . . . . . . . . . . . . . . 40
+   10. IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 41
+   11. References . . . . . . . . . . . . . . . . . . . . . . . . . . 42
+     11.1. Normative References . . . . . . . . . . . . . . . . . . . 42
+     11.2. Informative References . . . . . . . . . . . . . . . . . . 43
+   Appendix A.  Acknowledgements  . . . . . . . . . . . . . . . . . . 44
+   Appendix B.  Notices . . . . . . . . . . . . . . . . . . . . . . . 45
+   Appendix C.  Document History  . . . . . . . . . . . . . . . . . . 46
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 54
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 3]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+1.  Introduction
+
+   The OAuth 2.0 Authorization Framework [RFC6749] and OAuth 2.0 Bearer
+   Token Usage [RFC6750] specifications provide a general framework for
+   third-party applications to obtain and use limited access to HTTP
+   resources.  They define mechanisms to obtain and use Access Tokens to
+   access resources but do not define standard methods to provide
+   identity information.  Notably, without profiling OAuth 2.0, it is
+   incapable of providing information about the authentication of an
+   End-User.
+
+   This specification is a binding of the messages defined in the OpenID
+   Connect Messages 1.0 [OpenID.Messages] specification to RFC6749 and
+   RFC6750, including messages that provide identity and authentication
+   information, allowing services to securely exchange identity
+   information.  This binding builds an identity layer on top of OAuth
+   2.0.  Using this specification, deployments are able to share
+   authentication and attributes on OAuth 2.0 based systems.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119] .
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+   All uses of JSON Web Signature (JWS) [JWS] and JSON Web Encryption
+   (JWE) [JWE] data structures in this specification utilize the JWS
+   Compact Serialization or the JWE Compact Serialization; the JWS JSON
+   Serialization and the JWE JSON Serialization are not used.
+
+1.2.  Terminology
+
+   This specification uses the terms "Access Token", "Refresh Token",
+   "Authorization Code", "Authorization Grant", "Authorization Server",
+   "Authorization Endpoint", "Client", "Client Identifier", "Client
+   Secret", "Protected Resource", "Resource Owner", "Resource Server",
+   and "Token Endpoint" defined by OAuth 2.0 [RFC6749], and the terms
+   defined by OpenID Connect Messages 1.0 [OpenID.Messages].
+
+   This specification also defines the following terms:
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 4]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   Request File  Document whose content is a Request Object representing
+      a set of Authorization Request parameters.
+
+   Request File URI  URL that references a Request File.  The Request
+      File contents MUST be retrievable by the Authorization Server.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 5]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+2.  Authorization Endpoint
+
+   The Authorization Endpoint performs authentication of the End-User
+   and requests authorization from the End-User to release information
+   to an OpenID Connect Relying Party (Client).  When an End-User
+   accesses a Relying Party application that requires the End-User's
+   identity and other information, it sends the End-User to the
+   Authorization Server's Authorization Endpoint for authentication and
+   authorization.  The Authorization Server then issues an ID Token that
+   asserts the End-User's identity and an Access Token that allows the
+   Client to access the End-User's information at Protected Resource
+   endpoints.  Protected Resource endpoints MAY perform different
+   actions or return different information based on the scopes
+   associated with the presented Access Token.  Clients MUST specify how
+   the Access Token and ID Token are to be returned by using the
+   "response_type" parameter in the Authorization Request.
+
+2.1.  Protocol Flows
+
+   Authorization Requests follow two main paths to obtain Access Tokens
+   and ID Tokens, the Implicit Flow and the Authorization Code Flow.
+   The flows determine how the Access Token and ID Token are returned to
+   the Client.  Access Tokens are credentials used to access Protected
+   Resources, as defined in Section 1.4 of OAuth 2.0 [RFC6749].  Access
+   Tokens represent a Resource Owner's authorization and MUST NOT be
+   exposed to unauthorized parties.
+
+   The Implicit Flow is mainly used by Clients implemented in a browser
+   using a scripting language.  The Access Token and ID Token are
+   returned directly to the Client, which MAY expose them to the
+   Resource Owner and other applications that have access to the
+   Resource Owner's User-Agent.  The Authorization Server does not
+   perform Client Authentication before issuing the Access Token.
+
+   The Authorization Code Flow returns an Authorization Code to the
+   Client, which can then exchange it for an Access Token directly.
+   This provides the added benefit of not exposing the Access Token to
+   the Resource Owner and possibly other malicious applications with
+   access to the Resource Owner's User-Agent.  The Authorization Server
+   can also authenticate the Client before exchanging the Authorization
+   Code for an Access Token.  The Authorization Code flow is suitable
+   for Clients that can securely maintain a Client Secret between
+   themselves and the Authorization Server whereas the Implicit flow is
+   suitable for Clients that cannot.
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 6]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+2.1.1.  Obtaining the Authorization Code, ID Token, and Access Token
+
+   In this specification, the Client sends the Authorization Request to
+   the Authorization Endpoint through the User-Agent to obtain the ID
+   Token and Access Token.  It can obtain them from the Token Endpoint
+   utilizing the Authorization Code that it obtained from the
+   Authorization Endpoint using the Authorization Code Flow or from the
+   Authorization Endpoint using the Implicit Flow.
+
+2.1.2.  Authorization Code Flow
+
+   The Authorization Code Flow goes through the following steps.
+
+   1.   Client prepares an Authorization Request containing the desired
+        request parameters.
+
+   2.   Client sends a request to the Authorization Server.
+
+   3.   Authorization Server Authenticates the End-User.
+
+   4.   Authorization Server Obtains the End-User Consent/Authorization.
+
+   5.   Authorization Server Sends the End-User back to the Client with
+        an Authorization Code.
+
+   6.   Client requests a response using the Authorization Code at the
+        Token Endpoint, per Section 3.
+
+   7.   Client receives a response that contains an Access Token and ID
+        Token in the response body.
+
+   8.   Client validates the ID Token and retrieves the End-User's
+        subject identifier.
+
+   9.   (OPTIONAL) Client accesses the UserInfo Endpoint with the Access
+        Token, per Section 4.
+
+   10.  (OPTIONAL) Client receives UserInfo Response.
+
+   Note that in each step, the party that receives a message MUST
+   validate it according to the validation rules in OpenID Connect
+   Messages 1.0 [OpenID.Messages].
+
+2.1.3.  Implicit Flow
+
+   The Implicit Flow follows the following steps:
+
+
+
+
+
+Sakimura, et al.                                                [Page 7]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   1.  Client prepares an Authorization Request containing the desired
+       request parameters.
+
+   2.  Client sends a request to the Authorization Server.
+
+   3.  Authorization Server Authenticates the End-User.
+
+   4.  Authorization Server Obtains the End-User Consent/Authorization.
+
+   5.  Authorization Server Sends the End-User back to the Client with
+       an Access Token and an ID Token if requested.
+
+   6.  Client validates the ID Token and retrieves the End-User's
+       subject identifier.
+
+   7.  (OPTIONAL) Client accesses the UserInfo Endpoint with the Access
+       Token, per Section 4.
+
+   8.  (OPTIONAL) Client receives UserInfo Response.
+
+   Note that in each step, the party that receives a message MUST
+   validate it according to the validation rules in OpenID Connect
+   Messages 1.0 [OpenID.Messages].
+
+2.2.  Authorization Request
+
+   When the Client wishes to access a Protected Resource and the End-
+   User Authorization has not yet been obtained, the Client prepares an
+   Authorization Request to the Authorization Endpoint.
+
+   Communication with the Authorization Endpoint MUST utilize TLS.  See
+   Section 9.2 for more information on using TLS.
+
+   Authorization Servers MUST support the use of the HTTP "GET" and
+   "POST" methods defined in RFC 2616 [RFC2616] at the Authorization
+   Endpoint.
+
+   Clients MAY use the HTTP "GET" or "POST" methods to send the
+   Authorization Request to the Authorization Server.  If using the HTTP
+   "GET" method, the request parameters are serialized using URI Query
+   String Serialization, per Section 7.1.  If using the HTTP "POST"
+   method, the request parameters are serialized using Form
+   Serialization, per Section 7.2.
+
+2.2.1.  Client Prepares Authorization Request
+
+   The Client prepares an Authorization Request to the Authorization
+   Endpoint with the request parameters using the HTTP "GET" or "POST"
+
+
+
+Sakimura, et al.                                                [Page 8]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   method.  The scheme used in the Authorization URL MUST be "https".
+
+2.2.1.1.  Request Parameters
+
+   OpenID Connect uses the following OAuth 2.0 request parameters:
+
+   response_type  REQUIRED.  OAuth 2.0 registered response type value
+      that determines how the Authorization Response is returned to the
+      Client.  As described in OAuth 2.0 Multiple Response Type Encoding
+      Practices [OAuth.Responses], the following registered values are
+      supported by OpenID Connect:
+
+      *  "code"
+
+      *  "code id_token"
+
+      *  "id_token"
+
+      *  "id_token token"
+
+      *  "code token"
+
+      *  "code id_token token"
+
+   client_id  REQUIRED.  OAuth 2.0 Client Identifier.
+
+   scope  REQUIRED.  Space delimited, case sensitive list of ASCII OAuth
+      2.0 scope values.  OpenID Connect requests MUST contain the
+      "openid" scope value.  OPTIONAL scope values of "profile",
+      "email", "address", "phone", and "offline_access" are also
+      defined.  Section 2.4 of OpenID Connect Messages 1.0
+      [OpenID.Messages] defines the OpenID Connect scope values.
+
+   redirect_uri  REQUIRED.  Redirection URI to which the response will
+      be sent.  This MUST be pre-registered with the OpenID Provider.
+      This URI MUST exactly match one of the "redirect_uris" registered
+      for the Client, with the matching performed as described in
+      Section 6.2.1 of [RFC3986] (Simple String Comparison).
+
+   state  RECOMMENDED.  Opaque value used to maintain state between the
+      request and the callback.  Typically, Cross-Site Request Forgery
+      (CSRF, XSRF) mitigation is done by cryptographically binding the
+      value of this parameter with the browser cookie.
+
+   This specification also uses the following request parameters.  Refer
+   to OpenID Connect Messages 1.0 [OpenID.Messages] for more information
+   about these parameters.
+
+
+
+
+Sakimura, et al.                                                [Page 9]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   nonce  REQUIRED or OPTIONAL.  String value used to associate a Client
+      session with an ID Token, and to mitigate replay attacks.  The
+      value is passed through unmodified from the Authorization Request
+      to the ID Token.  Use of the nonce is REQUIRED when using the
+      implicit flow and OPTIONAL when using the code flow.
+
+   display  OPTIONAL.  ASCII string value that specifies how the
+      Authorization Server displays the authentication and consent user
+      interface pages to the End-User.  The defined values are: "page",
+      "popup", "touch", and "wap".
+
+   prompt  OPTIONAL.  Space delimited, case sensitive list of ASCII
+      string values that specifies whether the Authorization Server
+      prompts the End-User for reauthentication and consent.  The
+      defined values are: "none", "login", "consent", and
+      "select_account".
+
+   max_age  OPTIONAL.  Maximum Authentication Age. Specifies the
+      allowable elapsed time in seconds since the last time the End-User
+      was actively authenticated.  If the elapsed time is greater than
+      this value, the OP MUST attempt to actively re-authenticate the
+      End-User.
+
+   ui_locales  OPTIONAL.  End-User's preferred languages and scripts for
+      the user interface, represented as a space-separated list of BCP47
+      [RFC5646] language tag values, ordered by preference.
+
+   claims_locales  OPTIONAL.  End-User's preferred languages and scripts
+      for Claims being returned, represented as a space-separated list
+      of BCP47 [RFC5646] language tag values, ordered by preference.
+
+   id_token_hint  OPTIONAL.  Previously issued ID Token passed to the
+      Authorization Server as a hint about the End-User's current or
+      past authenticated session with the Client.
+
+   login_hint  OPTIONAL.  Hint to the Authorization Server about the
+      login identifier the End-User might use to log in (if necessary).
+
+   acr_values  OPTIONAL.  Requested Authentication Context Class
+      Reference values.  Space-separated string that specifies the "acr"
+      values that the Authorization Server MUST use for processing
+      requests from this Client.
+
+   claims  OPTIONAL.  This parameter is used to request that specific
+      Claims be returned.  The value is a JSON object listing the
+      requested Claims.
+
+
+
+
+
+Sakimura, et al.                                               [Page 10]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   registration  OPTIONAL.  This parameter is used by the Client to
+      provide information about itself to a Self-Issued OP that would
+      normally be provided to an OP during Dynamic Client Registration.
+
+   request  OPTIONAL.  Request Object value.
+
+   request_uri  OPTIONAL.  URL that references a resource containing a
+      Request Object value.
+
+2.2.2.  Request Methods
+
+   There are three methods to construct and send the request to the
+   Authorization Endpoint:
+
+   1.  Simple Request Method
+
+   2.  Request Parameter Method
+
+   3.  Request File Method
+
+   The Simple Request Method can be used in cases where signed or
+   encrypted requests are not needed and where the size of the request
+   does not exceed limits imposed by User-Agents.
+
+   The Request Parameter Method is used when the Client wants or needs
+   to send an OpenID Connect request as a single, self-contained Request
+   Object value.  This method enables requests to be signed and
+   optionally encrypted.  Like the Simple Request Method, some requests
+   using this method can exceed limits imposed by User-Agents.
+
+   The Request File Method works similarly to the Request Parameter
+   Method but differs in that it sends a URL as a reference to the
+   Request Object.  It enables large requests to be sent securely and
+   compactly even on User-Agents with limited capabilities.  Clients MAY
+   use the Request File Method to minimize the request size.
+
+2.2.2.1.  Simple Request Method
+
+   The Client prepares an Authorization Request to the Authorization
+   Endpoint using the appropriate parameters.  If using the HTTP "GET"
+   method, the request parameters are serialized using URI Query String
+   Serialization, per Section 7.1.  If using the HTTP "POST" method, the
+   request parameters are serialized using Form Serialization, per
+   Section 7.2.
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 11]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   The following is a non-normative example of an Authorization Request
+   URL (with line wraps within values for display purposes only):
+
+     https://server.example.com/op/authorize?
+       response_type=code%20id_token
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+       &scope=openid%20profile%20email
+       &nonce=n-0S6_WzA2Mj
+       &state=af0ifjsldkj
+
+2.2.2.1.1.  Client Sends Simple Request
+
+   Having constructed the Authorization Request, the Client sends it to
+   the Authorization Endpoint using HTTPS.
+
+   Following is a non-normative example using HTTP redirect (with line
+   wraps within values for display purposes only):
+
+     HTTP/1.1 302 Found
+     Location: https://server.example.com/authorize?
+       response_type=code%20id_token
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+       &scope=openid%20profile%20email
+       &nonce=n-0S6_WzA2Mj
+       &state=af0ifjsldkj
+
+2.2.2.2.  Request Parameter Method
+
+   The Client prepares an Authorization Request to the Authorization
+   Endpoint using the appropriate HTTP parameter serialization.  The
+   Client SHOULD construct the request using the HTTP "POST" method, but
+   MAY use the HTTP "GET" method.
+
+   The Authorization Request MUST include the "request" parameter
+   defined in Section 2.2.1.1.  The Authorization Request MUST NOT
+   include the "request_uri" parameter.
+
+   The "request" parameter is a Request Object represented as a JWT
+   [JWT] containing a set of OpenID Connect request parameters.  The
+   Request Object MAY be a Plaintext JWT, signed, or signed and
+   encrypted using JWS [JWS] and/or JWE [JWE], thereby enabling
+   authentication, integrity, non-repudiation, and/or confidentiality to
+   be achieved.
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 12]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   The following is a non-normative example of the Claims in a Request
+   Object before base64url encoding and signing:
+
+     {
+      "response_type": "code id_token",
+      "client_id": "s6BhdRkqt3",
+      "redirect_uri": "https://client.example.org/cb",
+      "scope": "openid",
+      "state": "af0ifjsldkj",
+      "nonce": "n-0S6_WzA2Mj",
+      "max_age": 86400,
+      "claims":
+       {
+        "userinfo":
+         {
+          "given_name": {"essential": true},
+          "nickname": null,
+          "email": {"essential": true},
+          "email_verified": {"essential": true},
+          "picture": null
+         },
+        "id_token":
+         {
+          "gender": null,
+          "birthdate": {"essential": true},
+          "acr": {"values": ["urn:mace:incommon:iap:silver"]}
+         }
+       }
+     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 13]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   Signing it with the "RS256" algorithm results in this Request Object
+   value (with line wraps within values for display purposes only):
+
+     eyJhbGciOiJSUzI1NiJ9.ew0KICJyZXNwb25zZV90eXBlIjogImNvZGUgaWRfdG9rZW
+     4iLA0KICJjbGllbnRfaWQiOiAiczZCaGRSa3F0MyIsDQogInJlZGlyZWN0X3VyaSI6I
+     CJodHRwczovL2NsaWVudC5leGFtcGxlLm9yZy9jYiIsDQogInNjb3BlIjogIm9wZW5p
+     ZCIsDQogInN0YXRlIjogImFmMGlmanNsZGtqIiwNCiAibm9uY2UiOiAibi0wUzZfV3p
+     BMk1qIiwNCiAibWF4X2FnZSI6IDg2NDAwLA0KICJjbGFpbXMiOiANCiAgew0KICAgIn
+     VzZXJpbmZvIjogDQogICAgew0KICAgICAiZ2l2ZW5fbmFtZSI6IHsiZXNzZW50aWFsI
+     jogdHJ1ZX0sDQogICAgICJuaWNrbmFtZSI6IG51bGwsDQogICAgICJlbWFpbCI6IHsi
+     ZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJlbWFpbF92ZXJpZmllZCI6IHsiZXNzZW5
+     0aWFsIjogdHJ1ZX0sDQogICAgICJwaWN0dXJlIjogbnVsbA0KICAgIH0sDQogICAiaW
+     RfdG9rZW4iOiANCiAgICB7DQogICAgICJnZW5kZXIiOiBudWxsLA0KICAgICAiYmlyd
+     GhkYXRlIjogeyJlc3NlbnRpYWwiOiB0cnVlfSwNCiAgICAgImFjciI6IHsidmFsdWVz
+     IjogWyIyIl19DQogICAgfQ0KICB9DQp9.bOD4rUiQfzh4QPIs_f_R2GVBhNHcc1p2cQ
+     TgixB1tsYRs52xW4TO74USgb-nii3RPsLdfoPlsEbJLmtbxG8-TQBHqGAyZxMDPWy3p
+     hjeRt9ApDRnLQrjYuvsCj6byu9TVaKX9r1KDFGT-HLqUNlUTpYtCyM2B2rLkWM08ufB
+     q9JBCEzzaLRzjevYEPMaoLAOjb8LPuYOYTBqshRMUxy4Z380-FJ2Lc7VSfSu6HcB2nL
+     SjiKrrfI35xkRJsaSSmjasMYeDZarYCl7r4o17rFclk5KacYMYgAs-JYFkwab6Dd56Z
+     rAzakHt9cExMpg04lQIux56C-Qk6dAsB6W6W91AQ
+
+   The following is the RSA public key in JWK format that can be used to
+   validate the Request Object signature in this and subsequent Request
+   Object examples (with line wraps within values for display purposes
+   only):
+
+   {
+    "kty":"RSA",
+    "n":"y9Lqv4fCp6Ei-u2-ZCKq83YvbFEk6JMs_pSj76eMkddWRuWX2aBKG
+   HAtKlE5P7_vn__PCKZWePt3vGkB6ePgzAFu08NmKemwE5bQI0e6kIChtt_6KzT5OaaXDF
+   I6qCLJmk51Cc4VYFaxgqevMncYrzaW_50mZ1yGSFIQzLYP8bijAHGVjdEFgZaZEN9lsn_
+   GdWLaJpHrB3ROlS50E45wxrlg9xMncVb8qDPuXZarvghLL0HzOuYRadBJVoWZowDNTpKp
+   k2RklZ7QaBO7XDv3uR7s_sf2g-bAjSYxYUGsqkNA9b3xVW53am_UZZ3tZbFTIh557JICW
+   KHlWj5uzeJXaw",
+    "e":"AQAB"
+   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 14]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   The following is a non-normative example of an Authorization Request
+   using the "request" parameter (with line wraps within values for
+   display purposes only):
+
+     https://server.example.com/authorize?
+       response_type=code%20id_token
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+       &scope=openid
+       &state=af0ifjsldkj
+       &nonce=n-0S6_WzA2Mj
+       &request=eyJhbGciOiJSUzI1NiJ9.ew0KICJyZXNwb25zZV90eXBlIjogImNvZG
+       UgaWRfdG9rZW4iLA0KICJjbGllbnRfaWQiOiAiczZCaGRSa3F0MyIsDQogInJlZG
+       lyZWN0X3VyaSI6ICJodHRwczovL2NsaWVudC5leGFtcGxlLm9yZy9jYiIsDQogIn
+       Njb3BlIjogIm9wZW5pZCIsDQogInN0YXRlIjogImFmMGlmanNsZGtqIiwNCiAibm
+       9uY2UiOiAibi0wUzZfV3pBMk1qIiwNCiAibWF4X2FnZSI6IDg2NDAwLA0KICJjbG
+       FpbXMiOiANCiAgew0KICAgInVzZXJpbmZvIjogDQogICAgew0KICAgICAiZ2l2ZW
+       5fbmFtZSI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJuaWNrbmFtZSI6IG
+       51bGwsDQogICAgICJlbWFpbCI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgIC
+       JlbWFpbF92ZXJpZmllZCI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJwaW
+       N0dXJlIjogbnVsbA0KICAgIH0sDQogICAiaWRfdG9rZW4iOiANCiAgICB7DQogIC
+       AgICJnZW5kZXIiOiBudWxsLA0KICAgICAiYmlydGhkYXRlIjogeyJlc3NlbnRpYW
+       wiOiB0cnVlfSwNCiAgICAgImFjciI6IHsidmFsdWVzIjogWyIyIl19DQogICAgfQ
+       0KICB9DQp9.bOD4rUiQfzh4QPIs_f_R2GVBhNHcc1p2cQTgixB1tsYRs52xW4TO7
+       4USgb-nii3RPsLdfoPlsEbJLmtbxG8-TQBHqGAyZxMDPWy3phjeRt9ApDRnLQrjY
+       uvsCj6byu9TVaKX9r1KDFGT-HLqUNlUTpYtCyM2B2rLkWM08ufBq9JBCEzzaLRzj
+       evYEPMaoLAOjb8LPuYOYTBqshRMUxy4Z380-FJ2Lc7VSfSu6HcB2nLSjiKrrfI35
+       xkRJsaSSmjasMYeDZarYCl7r4o17rFclk5KacYMYgAs-JYFkwab6Dd56ZrAzakHt
+       9cExMpg04lQIux56C-Qk6dAsB6W6W91AQ
+
+2.2.2.2.1.  Client Sends Request using "request" Parameter
+
+   Having constructed the Authorization Request, the Client sends it to
+   the Authorization Endpoint using HTTPS.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 15]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   Following is a non-normative example using HTTP redirect (with line
+   wraps within values for display purposes only):
+
+     HTTP/1.1 302 Found
+     Location: https://server.example.com/authorize?
+       response_type=code%20id_token
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+       &scope=openid
+       &state=af0ifjsldkj
+       &nonce=n-0S6_WzA2Mj
+       &request=eyJhbGciOiJSUzI1NiJ9.ew0KICJyZXNwb25zZV90eXBlIjogImNvZG
+       UgaWRfdG9rZW4iLA0KICJjbGllbnRfaWQiOiAiczZCaGRSa3F0MyIsDQogInJlZG
+       lyZWN0X3VyaSI6ICJodHRwczovL2NsaWVudC5leGFtcGxlLm9yZy9jYiIsDQogIn
+       Njb3BlIjogIm9wZW5pZCIsDQogInN0YXRlIjogImFmMGlmanNsZGtqIiwNCiAibm
+       9uY2UiOiAibi0wUzZfV3pBMk1qIiwNCiAibWF4X2FnZSI6IDg2NDAwLA0KICJjbG
+       FpbXMiOiANCiAgew0KICAgInVzZXJpbmZvIjogDQogICAgew0KICAgICAiZ2l2ZW
+       5fbmFtZSI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJuaWNrbmFtZSI6IG
+       51bGwsDQogICAgICJlbWFpbCI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgIC
+       JlbWFpbF92ZXJpZmllZCI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJwaW
+       N0dXJlIjogbnVsbA0KICAgIH0sDQogICAiaWRfdG9rZW4iOiANCiAgICB7DQogIC
+       AgICJnZW5kZXIiOiBudWxsLA0KICAgICAiYmlydGhkYXRlIjogeyJlc3NlbnRpYW
+       wiOiB0cnVlfSwNCiAgICAgImFjciI6IHsidmFsdWVzIjogWyIyIl19DQogICAgfQ
+       0KICB9DQp9.bOD4rUiQfzh4QPIs_f_R2GVBhNHcc1p2cQTgixB1tsYRs52xW4TO7
+       4USgb-nii3RPsLdfoPlsEbJLmtbxG8-TQBHqGAyZxMDPWy3phjeRt9ApDRnLQrjY
+       uvsCj6byu9TVaKX9r1KDFGT-HLqUNlUTpYtCyM2B2rLkWM08ufBq9JBCEzzaLRzj
+       evYEPMaoLAOjb8LPuYOYTBqshRMUxy4Z380-FJ2Lc7VSfSu6HcB2nLSjiKrrfI35
+       xkRJsaSSmjasMYeDZarYCl7r4o17rFclk5KacYMYgAs-JYFkwab6Dd56ZrAzakHt
+       9cExMpg04lQIux56C-Qk6dAsB6W6W91AQ
+
+2.2.2.3.  Request File Method
+
+   The Request File Method differs from the other methods in that it
+   uses a Request File that contains a Request Object.  It then sends
+   the Request File URL as part of the Authorization Request.
+
+   The Client prepares an Authorization Request using the desired HTTP
+   "GET" or "POST" method.  The Client SHOULD use the HTTP "GET" method,
+   but MAY use the HTTP "POST" method.  The scheme used in the
+   Authorization URL MUST be "https".
+
+   The Authorization Request MUST NOT include the "request" parameter.
+   The Authorization Request MUST include the "request_uri" parameter.
+   The contents of the resource referenced by the URL MUST be a Request
+   Object.  The scheme used in the "request_uri" value MUST be "https",
+   unless the target Request Object is signed in a way that is
+   verifiable by the Authorization Server.  The "request_uri" value MUST
+   be reachable by the Authorization Server, and SHOULD be reachable by
+
+
+
+Sakimura, et al.                                               [Page 16]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   the Client.
+
+   Following is a non-normative example of the contents of a Request
+   File (with line wraps within values for display purposes only):
+
+     eyJhbGciOiJSUzI1NiJ9.ew0KICJyZXNwb25zZV90eXBlIjogImNvZGUgaWRfdG9rZ
+     W4iLA0KICJjbGllbnRfaWQiOiAiczZCaGRSa3F0MyIsDQogInJlZGlyZWN0X3VyaSI
+     6ICJodHRwczovL2NsaWVudC5leGFtcGxlLm9yZy9jYiIsDQogInNjb3BlIjogIm9wZ
+     W5pZCIsDQogInN0YXRlIjogImFmMGlmanNsZGtqIiwNCiAibm9uY2UiOiAibi0wUzZ
+     fV3pBMk1qIiwNCiAibWF4X2FnZSI6IDg2NDAwLA0KICJjbGFpbXMiOiANCiAgew0KI
+     CAgInVzZXJpbmZvIjogDQogICAgew0KICAgICAiZ2l2ZW5fbmFtZSI6IHsiZXNzZW5
+     0aWFsIjogdHJ1ZX0sDQogICAgICJuaWNrbmFtZSI6IG51bGwsDQogICAgICJlbWFpb
+     CI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJlbWFpbF92ZXJpZmllZCI6IHs
+     iZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJwaWN0dXJlIjogbnVsbA0KICAgIH0sD
+     QogICAiaWRfdG9rZW4iOiANCiAgICB7DQogICAgICJnZW5kZXIiOiBudWxsLA0KICA
+     gICAiYmlydGhkYXRlIjogeyJlc3NlbnRpYWwiOiB0cnVlfSwNCiAgICAgImFjciI6I
+     HsidmFsdWVzIjogWyIyIl19DQogICAgfQ0KICB9DQp9.bOD4rUiQfzh4QPIs_f_R2G
+     VBhNHcc1p2cQTgixB1tsYRs52xW4TO74USgb-nii3RPsLdfoPlsEbJLmtbxG8-TQBH
+     qGAyZxMDPWy3phjeRt9ApDRnLQrjYuvsCj6byu9TVaKX9r1KDFGT-HLqUNlUTpYtCy
+     M2B2rLkWM08ufBq9JBCEzzaLRzjevYEPMaoLAOjb8LPuYOYTBqshRMUxy4Z380-FJ2
+     Lc7VSfSu6HcB2nLSjiKrrfI35xkRJsaSSmjasMYeDZarYCl7r4o17rFclk5KacYMYg
+     As-JYFkwab6Dd56ZrAzakHt9cExMpg04lQIux56C-Qk6dAsB6W6W91AQ
+
+2.2.2.3.1.  Client Generates the URL of the Request File
+
+   The Client stores the Request File either locally or remotely at a
+   URL the Server can access.  This is the Request URI, "request_uri".
+   Servers MAY cache the contents of the files referenced by request
+   URIs.  If the contents of the Request File could ever change, the URI
+   SHOULD include the base64url encoded SHA-256 hash of the referenced
+   file contents as the fragment component of the URI.  If the fragment
+   value used for a URI changes, that signals the server that any cached
+   value for that URI with the old fragment value is no longer valid.
+
+   Note that Clients MAY pre-register "request_uri" values using the
+   "request_uris" parameter defined in Section 2 of the OpenID Connect
+   Dynamic Client Registration 1.0 [OpenID.Registration] specification.
+   OPs can require that "request_uri" values used be pre-registered with
+   the "require_request_uri_registration" discovery parameter.
+
+   If the Request File includes attribute values, it MUST NOT be
+   revealed to anybody but the Authorization Server.  As such, the
+   "request_uri" MUST have appropriate entropy for its lifetime.  It is
+   RECOMMENDED that it be removed if it is known that it will not be
+   used again or after a reasonable timeout unless access control
+   measures are taken.
+
+   The Client then records the Request File either locally or remotely
+
+
+
+Sakimura, et al.                                               [Page 17]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   and obtains the Request File URI, "request_uri".
+
+   Following is a non-normative example (with line wraps within values
+   for display purposes only):
+
+     https://client.example.org/rf.txt
+       #GkurKxf5T0Y-mnPFCHqWOMiZi4VS138cQO_V7PZHAdM
+
+2.2.2.3.2.  Client Sends Request using "request_uri" Parameter
+
+   The Client sends the Authorization Request to the Authorization
+   Endpoint.
+
+   The entire request URL MUST NOT exceed 512 ASCII characters.
+
+   Following is a non-normative example (with line wraps within values
+   for display purposes only):
+
+     HTTP/1.1 302 Found
+     Location: https://server.example.com/authorize
+       ?response_type=code%20id_token
+       &client_id=s6BhdRkqt3
+       &request_uri=https%3A%2F%2Fclient.example.org%2Frf.txt
+       %23GkurKxf5T0Y-mnPFCHqWOMiZi4VS138cQO_V7PZHAdM
+       &state=af0ifjsldkj&nonce=n-0S6_WzA2Mj
+       &scope=openid
+
+2.2.2.3.3.  Authorization Server Fetches Request File
+
+   Upon receipt of the Request, the Authorization Server MUST send a
+   "GET" request to the "request_uri" to retrieve the content unless it
+   is already cached and parse it to recreate the Authorization Request
+   parameters.
+
+   Note that the RP SHOULD use a unique URI for each request utilizing
+   distinct parameters, or otherwise prevent the Authorization Server
+   from caching the "request_uri".
+
+   Following is a non-normative example of this fetch process:
+
+     GET /rf.txt HTTP/1.1
+     Host: client.example.org
+
+2.2.3.  Authorization Server Validates Request Object
+
+   The Authorization Server validates the request according to Section
+   5.1 of OpenID Connect Messages 1.0 [OpenID.Messages].
+
+
+
+
+Sakimura, et al.                                               [Page 18]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+2.2.4.  Authorization Server Authenticates End-User
+
+   The Authorization Server validates the request to ensure all REQUIRED
+   parameters are present and all parameters are valid.  If the request
+   is valid, the Authorization Server attempts to log in the End-User or
+   determines whether he is logged in, depending upon the request
+   parameter values used.  The methods used by the Authorization Server
+   to log in the End-User (e.g. username and password, session cookies,
+   etc.) are beyond the scope of this specification.  An authentication
+   user interface MAY be displayed by the Authorization Server,
+   depending upon the request parameter values used and the
+   authentication methods used.
+
+   The Authorization Server MUST attempt to log in the End-User in the
+   following cases:
+
+   o  The End-User is not already logged in.
+
+   o  The Authorization Request contains the "prompt" parameter with the
+      value "login".  In this case, the Authorization Server MUST
+      reauthenticate the End-User even if the End-User is already
+      authenticated.
+
+   The Authorization Server MUST NOT interact with the End-User in the
+   following case:
+
+   o  The Authorization Request contains the "prompt" parameter with the
+      value "none".  In this case, the Authorization Server MUST return
+      an error if the End-User is not already logged in or could not be
+      silently logged in.
+
+   The Authorization Server MUST employ appropriate measures against
+   Cross-Site Request Forgery and Clickjacking as, described in Sections
+   10.12 and 10.13 of OAuth 2.0 [RFC6749].
+
+2.2.5.  Authorization Server Obtains End-User Consent/Authorization
+
+   Once the End-User is authenticated, the Authorization Server MUST
+   obtain an authorization decision.  This MAY be done by presenting the
+   End-User with a dialogue that allows the End-User to recognize what
+   he is consenting to and obtain his consent or by establishing consent
+   via conditions for processing or other means (for example, via
+   previous administrative consent).
+
+   The Authorization Server MUST attempt to request authorization from
+   the End-User in the following cases:
+
+
+
+
+
+Sakimura, et al.                                               [Page 19]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   o  The End-User has not pre-authorized the Client for the
+      Authorization Request.
+
+   o  The Authorization Request contains the "prompt" parameter with the
+      value "consent".  The Authorization Server SHOULD request End-User
+      authorization even if the End-User has previously authorized the
+      Client.
+
+   The Authorization Server MUST NOT request End-User authorization in
+   the following cases:
+
+   o  The Authorization Request contains the "prompt" parameter with the
+      value "none".  The Authorization Server MUST return an error if
+      the End-User has not pre-authorized the Client.
+
+   As in the previous section, the Authorization Server MUST employ
+   countermeasures against Cross-Site Request Forgery and Clickjacking
+   when interacting with the End-User.
+
+2.2.6.  Authorization Server Sends End-User Back to Client
+
+   Once the authorization is determined, the Authorization Server
+   returns a successful or error response.
+
+2.2.6.1.  End-User Grants Authorization
+
+   If the End-User grants the access request, the Authorization Server
+   issues an Authorization Response as described in Section 2.1.2 of
+   OpenID Connect Messages 1.0 [OpenID.Messages] to the Client by adding
+   the response parameters to "redirect_uri" specified in the
+   Authorization Request using the "application/x-www-form-urlencoded"
+   format.
+
+   Note that if the "response_type" parameter in the Authorization
+   Request includes the string value "token" or "id_token", all response
+   parameters are added to the fragment component of the redirection
+   URI, as specified in OAuth 2.0 Multiple Response Type Encoding
+   Practices [OAuth.Responses].  Otherwise, the response parameters are
+   added to the query component of the redirection URI.
+
+   The Client MUST validate the response as follows:
+
+   Case 1: response_type=code
+
+   1.  Validate the response according to RFC 6749, especially Sections
+       4.1.2 and 10.12.
+
+   Case 2: response_type=id_token token
+
+
+
+Sakimura, et al.                                               [Page 20]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   1.  Verify that the response conforms to Section 5 of
+       [OAuth.Responses].
+
+   2.  Follow the validation rules in RFC 6749, especially those in
+       Sections 4.2.2 and 10.12.
+
+   3.  Follow the validation rules in Sections 4.2 and 4.4 of
+       [OpenID.Messages].
+
+   Case 3: response_type=code id_token
+
+   1.  Verify that the response conforms to Section 5 of
+       [OAuth.Responses].
+
+   2.  Follow the validation rules in RFC 6749, especially those in
+       Sections 4.2.2 and 10.12.
+
+   3.  Follow the validation rules in Sections 4.2 and 4.5 of
+       [OpenID.Messages].
+
+   Case 4: response_type=code token
+
+   1.  Verify that the response conforms to Section 5 of
+       [OAuth.Responses].
+
+   2.  Follow the validation rules in RFC 6749, especially those in
+       Sections 4.2.2 and 10.12.
+
+   Case 5: response_type=code id_token token
+
+   1.  Verify that the response conforms to Section 5 of
+       [OAuth.Responses].
+
+   2.  Follow the validation rules in RFC 6749, especially those in
+       Sections 4.2.2 and 10.12.
+
+   3.  Follow the validation rules in Sections 4.2, 4.4, and 4.5 of
+       [OpenID.Messages].
+
+   Case 6: response_type=id_token
+
+   1.  Verify that the response conforms to Section 5 of
+       [OAuth.Responses].
+
+   2.  Follow the validation rules in RFC 6749, especially those in
+       Sections 4.2.2 and 10.12.
+
+
+
+
+
+Sakimura, et al.                                               [Page 21]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   3.  Follow the validation rules in Section 4.2 of [OpenID.Messages].
+
+   The following are non-normative examples of requests with differing
+   "response_type" values and their responses (with line wraps within
+   values for display purposes only):
+
+   Case 1: response_type=code
+
+     https://server.example.com/op/authorize?
+       response_type=code
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+       &scope=openid%20profile%20email
+       &nonce=n-0S6_WzA2Mj
+       &state=af0ifjsldkj
+
+     HTTP/1.1 302 Found
+     Location: https://client.example.org/cb?
+       code=Qcb0Orv1zh30vL1MPRsbm-diHiMwcLyZvn1arpZv-Jxf_11jnpEX3Tgfvk
+       &state=af0ifjsldkj
+
+   Case 2: response_type=id_token token
+
+     https://server.example.com/op/authorize?
+       response_type=id_token%20token
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+       &scope=openid%20profile%20email
+       &nonce=n-0S6_WzA2Mj
+       &state=af0ifjsldkj
+
+     HTTP/1.1 302 Found
+     Location: https://client.example.org/cb#
+       access_token=jHkWEdUXMU1BwAsC4vtUsZwnNvTIxEl0z9K3vx5KF0Y
+       &token_type=Bearer
+       &id_token=eyJhbGciOiJSUzI1NiJ9.ew0KICJpc3MiOiAiaHR0cDovL3NlcnZlc
+       i5leGFtcGxlLmNvbSIsDQogInN1YiI6ICIyNDgyODk3NjEwMDEiLA0KICJhdWQiO
+       iAiczZCaGRSa3F0MyIsDQogIm5vbmNlIjogIm4tMFM2X1d6QTJNaiIsDQogImV4c
+       CI6IDEzMTEyODE5NzAsDQogImlhdCI6IDEzMTEyODA5NzAsDQogImF0X2hhc2giO
+       iAiNzdRbVVQdGpQZnpXdEYyQW5wSzlSUSINCn0.g7UR4IDBNIjoPFV8exQCosUNV
+       eh8bNUTeL4wdQp-2WXIWnly0_4ZK0sh4A4uddfenzo4Cjh4wuPPrSw6lMeujYbGy
+       zKspJrRYL3iiYWc2VQcl8RKdHPz_G-7yf5enut1YE8v7PhKucPJCRRoobMjqD73f
+       1nJNwQ9KBrfh21Ggbx1p8hNqQeeLLXb9b63JD84hVOXwyHmmcVgvZskge-wExwnh
+       Ivv_cxTzxIXsSxcYlh3d9hnu0wdxPZOGjT0_nNZJxvdIwDD4cAT_LE5Ae447qB90
+       ZF89Nmb0Oj2b1GdGVQEIr8-FXrHlyD827f0N_hLYPdZ73YK6p10qY9oRtMimg
+       &state=af0ifjsldkj
+
+
+
+
+
+Sakimura, et al.                                               [Page 22]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   Verifying and decoding the ID Token will yield the following Claims:
+
+     {
+      "iss": "http://server.example.com",
+      "sub": "248289761001",
+      "aud": "s6BhdRkqt3",
+      "nonce": "n-0S6_WzA2Mj",
+      "exp": 1311281970,
+      "iat": 1311280970,
+      "at_hash": "77QmUPtjPfzWtF2AnpK9RQ"
+     }
+
+   Case 3: response_type=code id_token
+
+     https://server.example.com/op/authorize?
+       response_type=code%20id_token
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+       &scope=openid%20profile%20email
+       &nonce=n-0S6_WzA2Mj
+       &state=af0ifjsldkj
+
+     HTTP/1.1 302 Found
+     Location: https://client.example.org/cb#
+       code=Qcb0Orv1zh30vL1MPRsbm-diHiMwcLyZvn1arpZv-Jxf_11jnpEX3Tgfvk
+       &id_token=eyJhbGciOiJSUzI1NiJ9.ew0KICJpc3MiOiAiaHR0cDovL3NlcnZlc
+       i5leGFtcGxlLmNvbSIsDQogInN1YiI6ICIyNDgyODk3NjEwMDEiLA0KICJhdWQiO
+       iAiczZCaGRSa3F0MyIsDQogIm5vbmNlIjogIm4tMFM2X1d6QTJNaiIsDQogImV4c
+       CI6IDEzMTEyODE5NzAsDQogImlhdCI6IDEzMTEyODA5NzAsDQogImNfaGFzaCI6I
+       CJMRGt0S2RvUWFrM1BrMGNuWHhDbHRBIg0KfQ.dAVXerlNOJ_tqMUysD_k1Q_bRX
+       RJbLkTOsCPVxpKUis5V6xMRvtjfRg8gUfPuAMYrKQMEqZZmL87Hxkv6cFKavb4ft
+       BUrY2qUnrvqe_bNjVEz89QSdxGmdFwSTgFVGWkDf5dV5eIiRxXfIkmlgCltPNocR
+       AyvdNrsWC661rHz5F9MzBho2vgi5epUa_KAl6tK4ksgl68pjZqlBqsWfTbGEsWQX
+       Efu664dJkdXMLEnsPUeQQLjMhLH7qpZk2ry0nRx0sS1mRwOM_Q0Xmps0vOkNn284
+       pMUpmWEAjqklWITgtVYXOzF4ilbmZK6ONpFyKCpnSkAYtTEuqz-m7MoLCD_A
+       &state=af0ifjsldkj
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 23]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   Verifying and decoding the ID Token will yield the following Claims:
+
+     {
+      "iss": "http://server.example.com",
+      "sub": "248289761001",
+      "aud": "s6BhdRkqt3",
+      "nonce": "n-0S6_WzA2Mj",
+      "exp": 1311281970,
+      "iat": 1311280970,
+      "c_hash": "LDktKdoQak3Pk0cnXxCltA"
+     }
+
+   Case 4: response_type=code token
+
+     https://server.example.com/op/authorize?
+       response_type=code%20token
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+       &scope=openid%20profile%20email
+       &nonce=n-0S6_WzA2Mj
+       &state=af0ifjsldkj
+
+     HTTP/1.1 302 Found
+     Location: https://client.example.org/cb#
+       code=Qcb0Orv1zh30vL1MPRsbm-diHiMwcLyZvn1arpZv-Jxf_11jnpEX3Tgfvk
+       &access_token=jHkWEdUXMU1BwAsC4vtUsZwnNvTIxEl0z9K3vx5KF0Y
+       &token_type=Bearer
+       &state=af0ifjsldkj
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 24]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   Case 5: response_type=code id_token token
+
+     https://server.example.com/op/authorize?
+       response_type=code%20id_token%20token
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+       &scope=openid%20profile%20email
+       &nonce=n-0S6_WzA2Mj
+       &state=af0ifjsldkj
+
+     HTTP/1.1 302 Found
+     Location: https://client.example.org/cb#
+       code=Qcb0Orv1zh30vL1MPRsbm-diHiMwcLyZvn1arpZv-Jxf_11jnpEX3Tgfvk
+       &access_token=jHkWEdUXMU1BwAsC4vtUsZwnNvTIxEl0z9K3vx5KF0Y
+       &token_type=Bearer
+       &id_token=eyJhbGciOiJSUzI1NiJ9.ew0KICJpc3MiOiAiaHR0cDovL3NlcnZlc
+       i5leGFtcGxlLmNvbSIsDQogInN1YiI6ICIyNDgyODk3NjEwMDEiLA0KICJhdWQiO
+       iAiczZCaGRSa3F0MyIsDQogIm5vbmNlIjogIm4tMFM2X1d6QTJNaiIsDQogImV4c
+       CI6IDEzMTEyODE5NzAsDQogImlhdCI6IDEzMTEyODA5NzAsDQogImF0X2hhc2giO
+       iAiNzdRbVVQdGpQZnpXdEYyQW5wSzlSUSIsDQogImNfaGFzaCI6ICJMRGt0S2RvU
+       WFrM1BrMGNuWHhDbHRBIg0KfQ.JQthrBsOirujair9aD5gj1Yd5qEv0j4fhLgl8h
+       3RaH3soYhwPOiN2Iy_yb7wMCO6I3bPoGJc3zCkpjgUtdB4O2eEhFqXHdwnE4c0oV
+       TaTHJi_PdV2ox9g-1ikDB0ckWk0f0SzBd7yM2RoYYxJCiGBQlsSSRQz6ehykonI3
+       hLAhXFdpfbK-3_a3HBNKOv_9Mr_JJrz2pqSygk5IBNvwzf1ouVeM91KKvr7EdriK
+       N8ysk68fctbFAga1p8rE3cfBOX7Acn4p9QSNpUx0i_x4WHktyKDvH_hLdUw91Fql
+       _UOgMP_9h8TYdkAjcq8n1tFzaO7kVaazlZ5SM32J7OSDgNSA
+       &state=af0ifjsldkj
+
+   Verifying and decoding the ID Token will yield the following Claims:
+
+     {
+      "iss": "http://server.example.com",
+      "sub": "248289761001",
+      "aud": "s6BhdRkqt3",
+      "nonce": "n-0S6_WzA2Mj",
+      "exp": 1311281970,
+      "iat": 1311280970,
+      "at_hash": "77QmUPtjPfzWtF2AnpK9RQ",
+      "c_hash": "LDktKdoQak3Pk0cnXxCltA"
+     }
+
+   This following example makes a request using a "request" parameter
+   value requesting that specific Claims be returned in the ID Token.
+   The sample Request Object used is described in Section 2.2.2.2.
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 25]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   Case 6: response_type=id_token
+
+     https://server.example.com/op/authorize?
+       response_type=id_token
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+       &scope=openid%20profile%20email
+       &nonce=n-0S6_WzA2Mj
+       &state=af0ifjsldkj
+
+     HTTP/1.1 302 Found
+     Location: https://client.example.org/cb#
+       code=Qcb0Orv1zh30vL1MPRsbm-diHiMwcLyZvn1arpZv-Jxf_11jnpEX3Tgfvk
+       &token_type=Bearer
+       &id_token=eyJhbGciOiJSUzI1NiJ9.ew0KICJpc3MiOiAiaHR0cDovL3Nlc
+       nZlci5leGFtcGxlLmNvbSIsDQogInN1YiI6ICIyNDgyODk3NjEwMDEiLA0KI
+       CJhdWQiOiAiczZCaGRSa3F0MyIsDQogIm5vbmNlIjogIm4tMFM2X1d6QTJNa
+       iIsDQogImV4cCI6IDEzMTEyODE5NzAsDQogImlhdCI6IDEzMTEyODA5NzAsD
+       QogIm5hbWUiOiAiSmFuZSBEb2UiLA0KICJnaXZlbl9uYW1lIjogIkphbmUiL
+       A0KICJmYW1pbHlfbmFtZSI6ICJEb2UiLA0KICJnZW5kZXIiOiAiZmVtYWxlI
+       iwNCiAiYmlydGhkYXRlIjogIjAwMDAtMTAtMzEiLA0KICJlbWFpbCI6ICJqY
+       W5lZG9lQGV4YW1wbGUuY29tIiwNCiAicGljdHVyZSI6ICJodHRwOi8vZXhhb
+       XBsZS5jb20vamFuZWRvZS9tZS5qcGciDQp9.Bgdr1pzosIrnnnpIekmJ7ooe
+       DbXuA2AkwfMf90Po2TrMcl3NQzUE_9dcr9r8VOuk4jZxNpV5kCu0RwqqF11-
+       6pQ2KQx_ys2i0arLikdResxvJlZzSm_UG6-21s97IaXC97vbnTCcpAkokSe8
+       Uik6f8-U61zVmCBMJnpvnxEJllfV8fYldo8lWCqlOngScEbFQUh4fzRsH8O3
+       Znr20UZib4V4mGZqYPtPDVGTeu8xkty1t0aK-wEhbm6Hi-TQTi4kltJlw47M
+       cSVgF_8SswaGcW6Bf_954ir_ddi4Nexo9RBiWu4n3JMNcQvZU5xMPhu-EF-6
+       _nJNotp-lbnBUyxTSg
+       &state=af0ifjsldkj
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 26]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   Verifying and decoding the ID Token will yield the following Claims:
+
+     {
+      "iss": "http://server.example.com",
+      "sub": "248289761001",
+      "aud": "s6BhdRkqt3",
+      "nonce": "n-0S6_WzA2Mj",
+      "exp": 1311281970,
+      "iat": 1311280970,
+      "name": "Jane Doe",
+      "given_name": "Jane",
+      "family_name": "Doe",
+      "gender": "female",
+      "birthdate": "0000-10-31",
+      "email": "janedoe@example.com",
+      "picture": "http://example.com/janedoe/me.jpg"
+     }
+
+   The following is the RSA public key in JWK format that can be used to
+   validate the ID Token signatures in the above examples (with line
+   wraps within values for display purposes only):
+
+   {
+    "kty":"RSA",
+    "n":"zhEWTBJVTfcUeqnMzOQFMCEVQWOyOUZwP8LrBWh88tKrZyPGCvBkT
+   Dp-E2BzyHMQV4pK51Uys2YOwzL9se5THDWMda9rtsCJVcj1V7WaE7wPgl-kIIdWWf4o2g
+   6ZszOy_Fp4q0nG3OTtDRCkBu2iEP21j82pRSRrkCBxnzaChflA7KZbI1n_yhKtxyA7FdA
+   480LaSVZyKApvrKiYhocACSwf0y6CQ-wkEi6mVXRJt1aBSywlLYA08ojp5hkZQ39eCM2k
+   1EdXdhbar998Q9PZTwXA1cfvuGTZbDWxEKLjMKVuKrT1Yvs-2NTXhZAW1KjFS_3UwLkDk
+   -w4dVN-x5tDnw",
+    "e":"AQAB"
+   }
+
+2.2.6.2.  End-User Denies Authorization or Invalid Request
+
+   If the End-User denies the authorization or the user authentication
+   fails, the Authorization Server MUST return the Authorization Error
+   Response as defined in Section 2.1.3 of OpenID Connect Messages 1.0
+   [OpenID.Messages].  The Authorization Server returns the Client to
+   the redirection URI specified in the Authorization Request with the
+   appropriate error parameters.  No other parameters SHOULD be
+   returned.
+
+   The error response parameters are the following:
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 27]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   error  REQUIRED.  Error code.
+
+   error_description  OPTIONAL.  Human-readable ASCII encoded text
+      description of the error.
+
+   error_uri  OPTIONAL.  URI of a web page that includes additional
+      information about the error.
+
+   state  OAuth 2.0 state value.  REQUIRED if the Authorization Request
+      included the "state" parameter.  Set to the value received from
+      the Client.
+
+   If the "response_type" parameter in the Authorization Request
+   includes the string value "token" or "id_token", all error response
+   parameters are be added to the fragment component of the redirection
+   URI, as specified in OAuth 2.0 Multiple Response Type Encoding
+   Practices [OAuth.Responses].  Otherwise, the response parameters are
+   added to the query component of the redirection URI.
+
+   The following is a non-normative example (with line wraps within
+   values for the display purposes only):
+
+     HTTP/1.1 302 Found
+     Location: https://client.example.org/cb?
+       error=invalid_request
+       &error_description=
+         the%20request%20is%20not%20valid%20or%20malformed
+       &state=af0ifjsldkj
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 28]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+3.  Token Endpoint
+
+   The Token Endpoint handles requests for retrieving and refreshing
+   Access Tokens as well as ID Token and other variables.
+
+   Clients MUST use the HTTP "POST" method to make requests to the Token
+   Endpoint.  Request parameters are added using Form Serialization, per
+   Section 7.2.
+
+   Clients MAY provide authentication parameters in the request to the
+   Token Endpoint as described in Section 2.2.1 of OpenID Connect
+   Messages 1.0 [OpenID.Messages].
+
+   The Token Endpoint MUST support the use of the HTTP "POST" method
+   defined in RFC 2616 [RFC2616] at the Token Endpoint.
+
+   Communication with the Token Endpoint MUST utilize TLS.  See
+   Section 9.2 for more information on using TLS.
+
+   All Token Endpoint responses that contain tokens, secrets, or other
+   sensitive information MUST include the following HTTP response header
+   fields and values:
+
+                     +---------------+--------------+
+                     | Header Name   | Header Value |
+                     +---------------+--------------+
+                     | Cache-Control | no-store     |
+                     |               |              |
+                     | Pragma        | no-cache     |
+                     +---------------+--------------+
+
+                     HTTP Response Headers and Values
+
+3.1.  Requesting Access Token
+
+   To retrieve an Access Token when using the Authorization Code Flow, a
+   Client MUST have an Authorization Code obtained as described in
+   Section 2.1.2.
+
+3.1.1.  Access Token Request
+
+   To obtain an Access Token, Refresh Token or ID Token, the Client MUST
+   authenticate to the Token Endpoint using the authentication method
+   registered for its "client_id", as documented in Section 2.2.1 of
+   OpenID Connect Messages 1.0 [OpenID.Messages].  The Client sends the
+   parameters via HTTPS "POST" to the Token Endpoint using Form
+   Serialization, per Section 7.2, as described in Section 4.1.3 of
+   OAuth 2.0 [RFC6749].
+
+
+
+Sakimura, et al.                                               [Page 29]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   The following is a non-normative example of an Access Token Request:
+
+     POST /token HTTP/1.1
+     Host: server.example.com
+     Content-Type: application/x-www-form-urlencoded
+     Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
+
+     grant_type=authorization_code&code=SplxlOBeZQQYbYS6WxSbIA
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+
+   The Authorization Server MUST:
+
+   o  Authenticate any Clients that were issued Client Credentials (or
+      for which other Client Authentication methods can be used),
+
+   o  Ensure the Authorization Code was issued to the authenticated
+      Client,
+
+   o  Verify that the Authorization Code is valid, and
+
+   o  Ensure that the Scheme, Host, Path, and Query Parameter segments
+      in the "redirect_uri" parameter are identical to the
+      "redirect_uri" parameter value that was included in the initial
+      Authorization Request.  If the "redirect_uri" parameter value not
+      be present when there is only one registered "redirect_uri" value,
+      the Authorization Server MAY return an error (since the Client
+      should have included the parameter) or MAY proceed without an
+      error (since OAuth 2.0 permits the parameter to be omitted in this
+      case).
+
+3.1.2.  Access Token Response
+
+   Upon receipt of the Token Request, the Authorization Server MUST
+   return either a successful response or an error response that
+   corresponds to the received Authorization Code.
+
+   A successful response returns the "application/json" media type and
+   the response body is the Access Token Response documented in Section
+   2.2.3 of OpenID Connect Messages 1.0 [OpenID.Messages].
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 30]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   Following is a non-normative example of a successful response:
+
+     HTTP/1.1 200 OK
+     Content-Type: application/json
+     Cache-Control: no-store
+     Pragma: no-cache
+
+     {
+      "access_token": "SlAV32hkKG",
+      "token_type": "Bearer",
+      "refresh_token": "8xLOxBtZp8",
+      "expires_in": 3600,
+      "id_token": "eyJhbGciOiJSUzI1NiJ9.ew0KICAgICJpc3MiOiAiaHR0cDovL
+        3NlcnZlci5leGFtcGxlLmNvbSIsDQogICAgInVzZXJfaWQiOiAiMjQ4Mjg5NzYxM
+        DAxIiwNCiAgICAiYXVkIjogInM2QmhkUmtxdDMiLA0KICAgICJub25jZSI6ICJuL
+        TBTNl9XekEyTWoiLA0KICAgICJleHAiOiAxMzExMjgxOTcwLA0KICAgICJpYXQiO
+        iAxMzExMjgwOTcwDQp9.lsQI_KNHpl58YY24G9tUHXr3Yp7OKYnEaVpRL0KI4szT
+        D6GXpZcgxIpkOCcajyDiIv62R9rBWASV191Akk1BM36gUMm8H5s8xyxNdRfBViCa
+        xTqHA7X_vV3U-tSWl6McR5qaSJaNQBpg1oGPjZdPG7zWCG-yEJC4-Fbx2FPOS7-h
+        5V0k33O5Okd-OoDUKoFPMd6ur5cIwsNyBazcsHdFHqWlCby5nl_HZdW-PHq0gjzy
+        JydB5eYIvOfOHYBRVML9fKwdOLM2xVxJsPwvy3BqlVKc593p2WwItIg52ILWrc6A
+        tqkqHxKsAXLVyAoVInYkl_NDBkCqYe2KgNJFzfEC8g"
+     }
+
+3.1.3.  Access Token Error Response
+
+   If the Token Request is invalid or unauthorized, the Authorization
+   Server constructs the response by returning the Token Error Response
+   defined in OpenID Connect Messages 1.0 [OpenID.Messages] in the
+   entity body of the HTTP response using the "application/json" media
+   type with HTTP response code 400.
+
+   Following is a non-normative example:
+
+     HTTP/1.1 400 Bad Request
+     Content-Type: application/json
+     Cache-Control: no-store
+     Pragma: no-cache
+
+     {
+      "error": "invalid_request"
+     }
+
+3.2.  Refreshing Access Token
+
+   To refresh an Access Token, the Client MUST authenticate to the Token
+   Endpoint using the authentication method registered for its
+   "client_id", as documented in Section 2.2.1 of OpenID Connect
+
+
+
+Sakimura, et al.                                               [Page 31]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   Messages 1.0 [OpenID.Messages].  The Client sends the parameters via
+   HTTPS "POST" to the Token Endpoint using Form Serialization, per
+   Section 7.2, as described in Section 6 of OAuth 2.0 [RFC6749]:
+
+   The Authorization Server MUST validate the Refresh Token.
+
+3.2.1.  Refresh Token Response
+
+   Upon receipt of the Refresh Token Request, the Authorization Server
+   MUST return either a successful response or an error response that
+   corresponds to the received Refresh Token.
+
+   Upon successful validation of the Refresh Token, a successful
+   response returns the "application/json" media type and the response
+   body is the Access Token Response of Section 2.2.3 of OpenID Connect
+   Messages 1.0 [OpenID.Messages] except that it MUST NOT return an
+   "id_token".
+
+   Following is a non-normative example of a Refresh Token Request and
+   response:
+
+     POST /token HTTP/1.1
+     Host: server.example.com
+     Content-Type: application/x-www-form-urlencoded
+
+     client_id=s6BhdRkqt3
+       &client_secret=some_secret12345
+       &grant_type=refresh_token
+       &refresh_token=8xLOxBtZp8
+       &scope=openid%20profile
+
+     HTTP/1.1 200 OK
+     Content-Type: application/json
+     Cache-Control: no-store
+     Pragma: no-cache
+
+     {
+      "access_token": "TlBN45jURg",
+      "token_type": "Bearer",
+      "refresh_token": "9yNOxJtZa5",
+      "expires_in": 3600
+     }
+
+3.2.2.  Refresh Token Error Response
+
+   If the Refresh Token Request is invalid or unauthorized, the
+   Authorization Server returns the Token Error Response as defined in
+   Section 5.2 of OAuth 2.0 [RFC6749].
+
+
+
+Sakimura, et al.                                               [Page 32]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+4.  UserInfo Endpoint
+
+   The UserInfo Endpoint is an OAuth 2.0 Protected Resource that returns
+   Claims about the authenticated End-User.  To obtain the requested
+   Claims about the End-User, the Client makes a "GET" or "POST" request
+   to the UserInfo Endpoint as in Section 2.3.1 of OpenID Connect
+   Messages 1.0 [OpenID.Messages].
+
+   Communication with the UserInfo Endpoint MUST utilize TLS.  See
+   Section 9.2 for more information on using TLS.
+
+   The UserInfo Endpoint MUST support the use of the HTTP "GET" and HTTP
+   "POST" methods defined in RFC 2616 [RFC2616] at the UserInfo
+   Endpoint.
+
+   The UserInfo Endpoint MUST accept Access Tokens as OAuth 2.0 Bearer
+   Token Usage [RFC6750].
+
+   The UserInfo Endpoint SHOULD support the use of Cross Origin Resource
+   Sharing (CORS) [CORS] and or other methods as appropriate to enable
+   Java Script Clients to access the endpoint.
+
+4.1.  UserInfo Request
+
+   Client SHOULD send the UserInfo Request defined in Section 2.3.1 of
+   OpenID Connect Messages 1.0 [OpenID.Messages] either in an HTTPS
+   "GET" or HTTPS "POST" request.
+
+   The Access Token obtained from an OpenID Connect Authorization
+   Request MUST be sent as a Bearer Token.  Section 2 of the OAuth 2.0
+   Bearer Token Usage [RFC6750] specification documents the permissible
+   methods of sending the Access Token.
+
+   It is RECOMMENDED that the Client use the "Authorization" header
+   field method for all requests and that they use the "GET" method.
+
+   The following is a non-normative example of a UserInfo request:
+
+     GET /userinfo HTTP/1.1
+     Host: server.example.com
+     Authorization: Bearer SlAV32hkKG
+
+4.2.  UserInfo Response
+
+   The "sub" (subject) Claim in the UserInfo Endpoint response MUST
+   exactly match the "sub" Claim in the ID Token, before using
+   additional UserInfo Endpoint Claims.
+
+
+
+
+Sakimura, et al.                                               [Page 33]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   Upon receipt of the UserInfo request, the UserInfo Endpoint MUST
+   return the JSON Serialization of the UserInfo response as in Section
+   2.3.2 of OpenID Connect Messages 1.0 [OpenID.Messages] in the HTTP
+   response body unless a different format was specified during
+   Registration [OpenID.Registration].  The content-type of the HTTP
+   response MUST be set to "application/json" if the response body is a
+   text JSON structure; the response body SHOULD be encoded using UTF-8.
+   If the JSON response is signed or encrypted, then the content-type
+   MUST be set to "application/jwt".
+
+   Upon receipt of the UserInfo Response, the Client MUST verify the
+   response in accordance with Section 5.3 (UserInfo Response
+   Validation) of OpenID Connect Messages 1.0 [OpenID.Messages].
+
+   Following is a non-normative example of such response:
+
+     HTTP/1.1 200 OK
+     Content-Type: application/json
+
+     {
+      "sub": "248289761001",
+      "name": "Jane Doe",
+      "given_name": "Jane",
+      "family_name": "Doe",
+      "email": "janedoe@example.com",
+      "picture": "http://example.com/janedoe/me.jpg"
+     }
+
+4.3.  UserInfo Error Response
+
+   When an error condition occurs, the UserInfo Endpoint returns an
+   Error Response as defined in Section 3 of the OAuth 2.0 Bearer Token
+   Usage [RFC6750] specification utilizing an error code as specified in
+   Section 2.3.3 of OpenID Connect Messages 1.0 [OpenID.Messages].
+
+   Following is a non-normative example of an error response:
+
+     HTTP/1.1 401 Unauthorized
+     WWW-Authenticate: Bearer realm="example.com",
+                          error="invalid_token",
+                          error_description="The Access Token expired"
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 34]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+5.  Self-Issued OpenID Provider
+
+   OpenID Connect supports Self-Issued OpenID Providers - personal OPs
+   that issue self-signed ID Tokens.  Self-Issued OPs use the special
+   Issuer Identifier "https://self-issued.me".
+
+   The messages used to communicate with Self-Issued OPs are mostly the
+   same as those used to communicate with other OPs.  Specifications for
+   the few additional parameters used and for the values of some
+   parameters in the Self-Issued case are described in Section 7 of the
+   OpenID Connect Messages 1.0 [OpenID.Messages] specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 35]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+6.  Initiating Login at Client from Third Party
+
+   In some cases, the login flow can start at the Authorization Server
+   or another party by contacting the Client via a stored link.  The
+   target resource at the Client can be a deep link, rather than a
+   default landing page.
+
+   The Client MAY optionally register [OpenID.Registration] an
+   "initiate_login_uri" that can be used by the Authorization Server or
+   another party to initiate a login for an End-User at the Client.
+
+   The Authorization Server or a third party sends a Login Initiation
+   Request to the Client Initiation URI with the following parameters:
+
+   login_hint  REQUIRED.  Hint to the Authorization Server about the
+      login identifier the End-User might use to log in (if necessary).
+
+   iss  REQUIRED.  Issuer Identifier for the Issuer that the Client is
+      to send the authentication request to.  Its value MUST be a URL
+      using the "https" scheme.
+
+   target_link_uri  OPTIONAL.  URI that the Client is requested to
+      redirect to after authentication.  Clients MUST verify the value
+      of the "target_link_uri" to prevent being used as an open
+      redirector to external sites.
+
+   Other parameters MAY be sent, if defined by extensions.  Any
+   parameters used that are not understood MUST be ignored by the
+   Client.
+
+   Clients SHOULD employ frame busting and other techniques to prevent
+   End-Users from being logged in by third party sites without their
+   knowledge.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 36]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+7.  Serializations
+
+   Messages are serialized using one of the following methods:
+
+   1.  Query String Serialization
+
+   2.  Form Serialization
+
+   3.  JSON Serialization
+
+   Not all methods can be used for all messages.
+
+7.1.  Query String Serialization
+
+   In order to serialize the parameters using the Query String
+   Serialization, the Client constructs the string by adding the
+   parameters and values to the query component of a URL using the
+   "application/x-www-form-urlencoded" format as defined by
+   [W3C.REC-html401-19991224].  Query String Serialization is typically
+   used in HTTP "GET" requests.  The same serialization method is also
+   used when adding parameters to the fragment component of a URL.
+
+   Following is a non-normative example of this serialization (with line
+   wraps within values for display purposes only):
+
+     GET /authorize?scope=openid&response_type=code
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb HTTP/1.1
+     Host: server.example.com
+
+7.2.  Form Serialization
+
+   Parameters and their values are Form Serialized by adding the
+   parameter names and values to the entity body of the HTTP request
+   using the "application/x-www-form-urlencoded" format as defined by
+   [W3C.REC-html401-19991224].  Form Serialization is typically used in
+   HTTP "POST" requests.
+
+   Following is a non-normative example of this serialization (with line
+   wraps within values for display purposes only):
+
+     POST /authorize HTTP/1.1
+     Host: server.example.com
+     Content-Type: application/x-www-form-urlencoded
+
+     scope=openid&response_type=code
+       &client_id=s6BhdRkqt3
+       &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+
+
+
+Sakimura, et al.                                               [Page 37]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+7.3.  JSON Serialization
+
+   The parameters are serialized into a JSON structure by adding each
+   parameter at the highest structure level.  Parameter names and string
+   values are included as JSON strings.  Numerical values are included
+   as JSON numbers.  Each parameter MAY have a JSON structure as its
+   value.
+
+   Following is a non-normative example of this serialization:
+
+     {
+      "access_token":"SlAV32hkKG",
+      "expires_in":3600,
+      "refresh_token":"8xLOxBtZp8"
+     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 38]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+8.  Implementation Considerations
+
+   This specification defines features used by both Relying Parties and
+   OpenID Providers.  Features that are mandatory to implement for
+   Relying Parties are already described in the OpenID Connect Basic
+   Client Profile 1.0 [OpenID.Basic] and OpenID Connect Implicit Client
+   Profile 1.0 [OpenID.Implicit] specifications, and so are not
+   discussed again here.
+
+   All OpenID Providers MUST implement the features that are already
+   listed elsewhere in this specification as being "REQUIRED" or are
+   described with a "MUST".  Since this specification is a protocol
+   binding for the OpenID Connect Messages 1.0 [OpenID.Messages]
+   specification, all the implementation considerations described in
+   that specification also apply here.
+
+8.1.  Discovery and Registration
+
+   Some OpenID Connect installations can use a pre-configured set of
+   OpenID Providers and/or Relying Parties.  In those cases, it might
+   not be necessary to support dynamic discovery of information about
+   identities or services or dynamic registration of Clients.
+
+   However, if installations choose to support unanticipated
+   interactions between Relying Parties and OpenID Providers that do not
+   have pre-configured relationships, they SHOULD accomplish this by
+   implementing the facilities defined in the OpenID Connect Discovery
+   1.0 [OpenID.Discovery] and OpenID Connect Dynamic Client Registration
+   1.0 [OpenID.Registration] specifications.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 39]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+9.  Security Considerations
+
+   This specification references the security considerations defined in
+   OpenID Connect Messages 1.0 [OpenID.Messages], Section 10 of OAuth
+   2.0 [RFC6749], and Section 5 of OAuth 2.0 Bearer Token Usage
+   [RFC6750].  Furthermore, the OAuth 2.0 Threat Model and Security
+   Considerations [RFC6819] specification provides an extensive list of
+   threats and controls that apply to this specification as well, given
+   that it is an OAuth 2.0 binding of OpenID Connect Messages 1.0.
+   Implementers are highly advised to read these references in detail
+   and apply the countermeasures described therein.
+
+   In addition, the following list of attack vectors and remedies are
+   also considered.
+
+9.1.  Implicit Grant Flow Threats
+
+   In the implicit grant flow, the Access Token is returned in the
+   fragment component of the Client's "redirect_uri" through HTTPS, thus
+   it is protected between the OP and the User-Agent, and User-Agent and
+   the RP.  The only the place it can be captured is the User-Agent
+   where the TLS session is terminated, and is possible if the User-
+   Agent is infested by malware.
+
+9.2.  TLS Requirements
+
+   Implementations MUST support TLS.  Which version(s) ought to be
+   implemented will vary over time, and depend on the widespread
+   deployment and known security vulnerabilities at the time of
+   implementation.  At the time of this writing, TLS version 1.2
+   [RFC5246] is the most recent version, but has very limited actual
+   deployment, and might not be readily available in implementation
+   toolkits.  TLS version 1.0 [RFC2246] is the most widely deployed
+   version, and will give the broadest interoperability.
+
+   To protect against information disclosure and tampering,
+   confidentiality protection MUST be applied using TLS with a
+   ciphersuite that provides confidentiality and integrity protection.
+
+   Whenever TLS is used, a TLS server certificate check MUST be
+   performed, per RFC 6125 [RFC6125].
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 40]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+10.  IANA Considerations
+
+   This document makes no requests of IANA.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 41]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+11.  References
+
+11.1.  Normative References
+
+   [JWE]      Jones, M., Rescorla, E., and J. Hildebrand, "JSON Web
+              Encryption (JWE)", draft-ietf-jose-json-web-encryption
+              (work in progress), May 2013.
+
+   [JWS]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web
+              Signature (JWS)", draft-ietf-jose-json-web-signature (work
+              in progress), May 2013.
+
+   [JWT]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token
+              (JWT)", draft-ietf-oauth-json-web-token (work in
+              progress), May 2013.
+
+   [OAuth.Responses]
+              de Medeiros, B., Ed., Scurtescu, M., and P. Tarjan, "OAuth
+              2.0 Multiple Response Type Encoding Practices", June 2013.
+
+   [OpenID.Discovery]
+              Sakimura, N., Bradley, J., Jones, M., and E. Jay, "OpenID
+              Connect Discovery 1.0", June 2013.
+
+   [OpenID.Messages]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B.,
+              Mortimore, C., and E. Jay, "OpenID Connect Messages 1.0",
+              June 2013.
+
+   [OpenID.Registration]
+              Sakimura, N., Bradley, J., and M. Jones, "OpenID Connect
+              Dynamic Client Registration 1.0", June 2013.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC2246]  Dierks, T. and C. Allen, "The TLS Protocol Version 1.0",
+              RFC 2246, January 1999.
+
+   [RFC2616]  Fielding, R., Gettys, J., Mogul, J., Frystyk, H.,
+              Masinter, L., Leach, P., and T. Berners-Lee, "Hypertext
+              Transfer Protocol -- HTTP/1.1", RFC 2616, June 1999.
+
+   [RFC3986]  Berners-Lee, T., Fielding, R., and L. Masinter, "Uniform
+              Resource Identifier (URI): Generic Syntax", STD 66,
+              RFC 3986, January 2005.
+
+   [RFC5246]  Dierks, T. and E. Rescorla, "The Transport Layer Security
+
+
+
+Sakimura, et al.                                               [Page 42]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+              (TLS) Protocol Version 1.2", RFC 5246, August 2008.
+
+   [RFC5646]  Phillips, A. and M. Davis, "Tags for Identifying
+              Languages", BCP 47, RFC 5646, September 2009.
+
+   [RFC6125]  Saint-Andre, P. and J. Hodges, "Representation and
+              Verification of Domain-Based Application Service Identity
+              within Internet Public Key Infrastructure Using X.509
+              (PKIX) Certificates in the Context of Transport Layer
+              Security (TLS)", RFC 6125, March 2011.
+
+   [RFC6749]  Hardt, D., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, October 2012.
+
+   [RFC6750]  Jones, M. and D. Hardt, "The OAuth 2.0 Authorization
+              Framework: Bearer Token Usage", RFC 6750, October 2012.
+
+   [RFC6819]  Lodderstedt, T., McGloin, M., and P. Hunt, "OAuth 2.0
+              Threat Model and Security Considerations", RFC 6819,
+              January 2013.
+
+   [W3C.REC-html401-19991224]
+              Hors, A., Raggett, D., and I. Jacobs, "HTML 4.01
+              Specification", World Wide Web Consortium
+              Recommendation REC-html401-19991224, December 1999,
+              <http://www.w3.org/TR/1999/REC-html401-19991224>.
+
+11.2.  Informative References
+
+   [CORS]     Opera Software ASA, "Cross-Origin Resource Sharing",
+              July 2010.
+
+   [OpenID.Basic]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Basic Client Profile 1.0",
+              June 2013.
+
+   [OpenID.Implicit]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B.,
+              Mortimore, C., and E. Jay, "OpenID Connect Implicit Client
+              Profile 1.0", June 2013.
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 43]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+Appendix A.  Acknowledgements
+
+   The OpenID Community would like to thank the following people for the
+   work they've done in the drafting and editing of this specification.
+
+      Naveen Agarwal (naa@google.com), Google
+
+      Amanda Anganes (aanganes@mitre.org), Mitre
+
+      John Bradley (ve7jtb@ve7jtb.com), Ping Identity
+
+      Tim Bray (tbray@textuality.com), Google
+
+      Brian Campbell (bcampbell@pingidentity.com), Ping Identity
+
+      Blaine Cook (romeda@gmail.com), Independent
+
+      Breno de Medeiros (breno@gmail.com), Google
+
+      Vladimir Dzhuvinov (vladimir@nimbusds.com), Nimbus Directory
+      Services
+
+      George Fletcher (gffletch@aol.com), AOL
+
+      Roland Hedberg (roland.hedberg@adm.umu.se), University of Umea
+
+      Ryo Ito (ryo.ito@mixi.co.jp), mixi, Inc.
+
+      Michael B. Jones (mbj@microsoft.com), Microsoft
+
+      Torsten Lodderstedt (t.lodderstedt@telecom.de), Deutsche Telekom
+
+      Hideki Nara (hdknr@ic-tact.co.jp), Tact Communications
+
+      Axel Nennker (axel.nennker@telekom.de), Deutsche Telekom
+
+      Justin Richer (jricher@mitre.org), Mitre
+
+      Nat Sakimura (n-sakimura@nri.co.jp), Nomura Research Institute,
+      Ltd.
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 44]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+Appendix B.  Notices
+
+   Copyright (c) 2013 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 45]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+Appendix C.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -21
+
+   o  Fixed #839 - Described requirement to employ countermeasures
+      against Cross-Site Request Forgery and Clickjacking.
+
+   o  Fixed #841 - Described verification requirements for Authorization
+      Server responses.
+
+   o  Fixed #846 - Provided a more complete introduction to Standard.
+
+   o  Removed the Privacy Considerations section in Standard since it
+      was a duplicate of the one in Messages.
+
+   o  Stated that "redirect_uri" matches must be exact, with matching
+      performed as described in Section 6.2.1 of RFC 3986 (Simple String
+      Comparison).
+
+   -20
+
+   o  Changed from using the term "byte" to either "octet" or
+      "character".
+
+   o  Fixed #836 - Clarified language describing signing and encrypting
+      "request" parameter values.
+
+   o  Stated that the JWS Compact Serialization and the JWE Compact
+      Serialization are always used for JWS and JWE data structures.
+
+   -19
+
+   o  Fixed #821 - Moved definition of JSON Serialization to where it's
+      used.
+
+   -18
+
+   o  Fixed #801 - Removed "schema" and "id" parameters to UserInfo
+      Endpoint.  Also fixed related issue #791 - Removed
+      "invalid_schema" error.
+
+   -17
+
+   o  Fixed #715 - Delete "profile" from request object example.
+
+
+
+
+
+Sakimura, et al.                                               [Page 46]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   o  Fixed #722 - Text on "id_token_hint" needs to be clarified.
+
+   o  Fixed #718 - Text on re-encrypting should be clearer.
+
+   o  Fixed #714 - Clarified text specifying response_type behaviors,
+      including prohibiting the use of the "token" response_type, since
+      it returns no ID Token.
+
+   o  Added Security Considerations section about TLS version
+      requirements and usage.
+
+   o  Removed language about supporting other transport-layer mechanisms
+      with equivalent security to TLS.
+
+   o  State that when any validations fail, any operations requiring the
+      information that failed to correctly validate MUST be aborted and
+      the information that failed to validate MUST NOT be used.
+
+   o  Fixed #744 - Promoted "max_age" to being a top-level parameter.
+
+   o  Fixed #748 - Promoted "claims" to being a top-level parameter
+      separate from the OpenID Request Object.
+
+   o  Fixed #597 - Changed representation of omitted year in "birthdate"
+      from "9999" to "0000".
+
+   o  Fixed #773 - Added "request_uris" registration parameter to pre-
+      register "request_uri" values.  Also clarified that Request File
+      contents may be cached.
+
+   o  Deleted top-level "policy_url" parameter from the Self-Issued
+      case, since it is already a "registration" parameter member.
+
+   o  Fixed #778 - Added "registration" parameter to Self-Issued request
+      example.
+
+   o  Fixed #782 - Changed uses of "_url" in identifiers to "_uri".
+
+   o  Fixed #719 - Moved message definitions for Self-Issued OPs to the
+      Messages spec.
+
+   o  Fixed #788 - Renamed "OpenID Request Object" to "Request Object".
+
+   o  Use legal "acr" values in examples.
+
+   -16
+
+
+
+
+
+Sakimura, et al.                                               [Page 47]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   o  Added Implementation Considerations section.
+
+   o  Fixed #698 - Inconsistent use of articles.
+
+   o  Fixed #655 - Specify UTF-8 as encoding scheme whenever necessary.
+
+   o  To remove ambiguity in the self-issued "sub" computation, changed
+      the text "the concatenation of the key values" to "the
+      concatenation of the bytes of the UTF-8 representations of the
+      base64url encoded key values".
+
+   o  Renamed the "user_jwk" Claim to "sub_jwk", paralleling the change
+      from "user_id" to "sub".
+
+   o  Tracked JWK parameter name changes alg -> kty, mod -> n, exp -> e.
+
+   -15
+
+   o  Fixed #687 - Inconsistency between "user_id" and "prn" claims.
+      The fix changed these names: user_id -> sub,
+      user_id_types_supported -> subject_types_supported, user_id_type
+      -> subject_type, and prn -> sub.
+
+   o  Fixed #689 - Track JWT change that allows JWTs to have multiple
+      audiences.
+
+   o  Fixed #539 - Add scope for offline access.
+
+   o  Re #601 add Initiating login at a client from a third party
+
+   o  Made the OpenID Foundation Artifact Binding Working Group the
+      change controller for the values registered with IANA.
+
+   o  Moved OAuth error registrations from Standard to Messages since
+      the errors are defined in Messages and not in Standard.
+
+   o  Re #657 Changed id_token to id_token_hint in Sec 2.3.1
+
+   -14
+
+   o  Fixed #614 - Discovery - 3.2 Distinguishing between signature and
+      integrity parameters for HMAC algorithms.  This fix tracks the
+      parameter changes made to the JWE spec in
+      draft-ietf-jose-json-web-encryption-06.  It deletes the parameters
+      {userinfo,id_token}_encrypted_response_int.  It replaces the
+      parameters
+      {userinfo,id_token,request_object,token_endpoint}_algs_supported
+      with {userinfo,id_token,request_object,token_endpoint}_signing_alg
+
+
+
+Sakimura, et al.                                               [Page 48]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+      _values_supported and {userinfo,id_token,request_object,token_endp
+      oint}_encryption_{alg,enc}_values_supported.
+
+   o  Fixed #666 - JWS signature validation vs. verification.
+
+   o  Fixed #681 - Change remaining uses of "birthday" to "birthdate".
+
+   o  Fixed #669 - Inconsistent treatment of redirect_uri parameter.
+
+   o  Referenced OAuth 2.0 RFCs -- RFC 6749 and RFC 6750.
+
+   -13
+
+   o  Defined means of using a self-issued OP
+
+   -12
+
+   o  Updated matching of redirect URI to include query parameters to
+      match Google's implementation
+
+   -11
+
+   o  Removed "claims_in_id_token" scope value, per decision on June 15,
+      2012 special working group call
+
+   -10
+
+   o  Changed "verified" to "email_verified", per issue #564
+
+   o  Added scope value "claims_in_id_token" as a switch to indicate
+      that the UserInfo claims should be returned in the "id_token", per
+      issue #561
+
+   o  Changed "optional" claim request parameter to "essential", per
+      issue #577
+
+   o  Removed Check ID Endpoint, per issue #570
+
+   o  Specified that parameters present in both the OpenID Request
+      Object and the OAuth 2.0 Authorization Request MUST exactly match,
+      per issue #575
+
+   o  Changed OpenID Request Object from being specified as a JWT to
+      being specified as a JWS signed base64url encoded JSON object, per
+      issue #592
+
+   o  Made use of the nonce REQUIRED when using the implicit flow and
+      OPTIONAL when using the code flow, per issue #569
+
+
+
+Sakimura, et al.                                               [Page 49]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   o  Changed client.example.com to client.example.org, per issue #251
+
+   o  Removed example text for generating a nonce via a signed session
+      cookie, per issue #562
+
+   o  Use standards track version of JSON Web Token spec
+      (draft-ietf-oauth-json-web-token)
+
+   -09
+
+   o  Added error interaction_required and removed user_mismatched, per
+      issue #523
+
+   o  Changed invalid_request_request_uri to invalid_request_uri and
+      invalid_request_redirect_uri to invalid_redirect_uri, per issue
+      #553
+
+   o  Added optional id_token to authorization request parameters, per
+      issue #535
+
+   o  Removed use of non-existent scope parameters registry, per issue
+      #558
+
+   o  Updated Notices
+
+   o  Updated References
+
+   -08
+
+   o  Updated version number and date
+
+   o  Fix #543 Section 2.3.1.3 Request file requiring all request params
+      to be included is false
+
+   o  Fix Section 5.1 to reference Messages 2.4.1 rather than 3.3
+
+   o  Added reference to CORS for JS clients to userinfo and check_id
+      endpoints
+
+   -07
+
+   o  Removed definition and usage for assertion and claim object
+
+   o  Removed Request File Registration Service
+
+   o  Consistent use of End-User
+
+
+
+
+
+Sakimura, et al.                                               [Page 50]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   o  email scope allows access to the 'verified' claim
+
+   o  Removed language pertaining to custom userinfo schemas
+
+   o  Updated error section for refreshing access token
+
+   o  Remove 'audience' parameter from Authorization Request
+
+   o  Moved display=none to prompt=none
+
+   o  Moved IANA considerations from Messages
+
+   o  Check ID Endpoint returns only JSON
+
+   o  Removed PPID scope value
+
+   o  Reference Messages for validation of request object encryption and
+      signature
+
+   o  Redefined 'nonce' in Authorization Request.  Changed to REQUIRED
+      parameter.
+
+   o  Changed usage of "approval" to "consent"
+
+   o  Use RFC 6125 to verify TLS endpoints
+
+   o  Added Privacy considerations
+
+   o  Changed 'request_uri' to require HTTPS unless the referenced
+      content is signed and only needs to be reachable by AS
+
+   o  Added hash and entropy considerations to 'request_uri'
+
+   o  Added requirement to compare user_id from userinfo endpoint to
+      id_token
+
+   o  Check ID Endpoint SHOULD use POST
+
+   o  Changed UserInfo Error Response to augment and return OAuth 2.0
+      Bearer Token Error Response
+
+   o  Added section about string comparison rules needed
+
+   o  Added Response Encoding according to Multiple Response Types spec
+
+   o  Allows only 'id_token' for 'response_type' parameter in
+      Authorization Request
+
+
+
+
+Sakimura, et al.                                               [Page 51]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   o  Clarified redirect_uris matching
+
+   o  Added explanation of select_account
+
+   o  Changed Security Considerations to refer to corresponding section
+      in Messages
+
+   o  Check ID Endpoint uses ID Token as Access Token according to
+      Bearer Token spec
+
+   o  Update John Bradley email and affiliation for Implementer's Draft
+
+   o  Removed invalid_authorization_code, invalid_id_token error codes
+
+   -06
+
+   o  Reworked return type wording in section 4.4.1 per ticket #174.
+
+   o  Added reference to registered return types.
+
+   o  Bumped Version number and date.
+
+   o  Make clear the server passes the value of nonce through untouched.
+      Ticket #97.
+
+   o  Prevent caching of request_uri.  Ticket #148.
+
+   o  Add nonce to request examples.  Ticket #147.
+
+   o  Fixed 4.3.1.3 per ticket #150.
+
+   o  Fixed 4.3.2 to remove display scopes per ticket #172.
+
+   o  Make scope optional for refresh in 5.2.
+
+   o  Reference messages 3.2.2 for field definitions in section 5.2.1
+      per ticket #159.
+
+   o  Removed scopes from display value in 4.3.1 per ticket #172.
+
+   o  Make "code" and "id_token token" response types mandatory for
+      Authorization Servers to support.
+
+   -05
+
+   o  Changed check_session to check_id.
+
+
+
+
+
+Sakimura, et al.                                               [Page 52]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+   o  schema=openid now required when requesting UserInfo.
+
+   o  Removed display values popup, touch, and mobile, since not well
+      defined.
+
+   o  Resolve issue #135, clarifying that the access_token MAY be sent
+      in the message body.
+
+   -04
+
+   o  Changes associated with renaming "Lite" to "Basic Client" and
+      replacing "Core" and "Framework" with "Messages" and "Standard".
+
+   o  Numerous cleanups, including updating references.
+
+   -03
+
+   o  Added secret_type to the Token Endpoint.
+
+   o  Minor edits to the samples.
+
+   -02
+
+   o  Incorporates feedback from Nat Sakimura.
+
+   -01
+
+   o  First Draft that incorporates the merge of the Core and Framework
+      specs.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 53]
+
+                       OpenID Connect Standard 1.0             June 2013
+
+
+Authors' Addresses
+
+   Nat Sakimura
+   Nomura Research Institute, Ltd.
+
+   Email: n-sakimura@nri.co.jp
+
+
+   John Bradley
+   Ping Identity
+
+   Email: ve7jtb@ve7jtb.com
+
+
+   Michael B. Jones
+   Microsoft
+
+   Email: mbj@microsoft.com
+
+
+   Breno de Medeiros
+   Google
+
+   Email: breno@google.com
+
+
+   Edmund Jay
+   Illumila
+
+   Email: ejay@mgi1.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 54]
+

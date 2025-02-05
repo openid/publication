@@ -1,0 +1,788 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml.resource.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<rfc category="exp" docName="openid-connect-discovery-1_0" ipr="trust200902">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="3" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="no" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title abbrev="Abbreviated-Title">OpenID Connect Discovery 1.0 - draft 01</title>
+
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization abbrev="NRI">Nomura Research Institute,
+      Ltd.</organization>
+
+      <address>
+        <email>n-sakimura@nri.co.jp</email>
+      </address>
+    </author>
+
+    <author fullname="John Bradley" initials="J." role="editor"
+            surname="Bradley">
+      <organization abbrev="Protiviti">Protiviti
+      Government Services</organization>
+
+      <address>
+        <email>jbradley@mac.com</email>
+      </address>
+    </author>
+
+    <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      <organization abbrev="Microsoft">Microsoft Corporation</organization>
+
+      <address>
+        <email>mbj@microsoft.com</email>
+      </address>
+    </author>
+
+    <author fullname="Edmund Jay" initials="E." surname="Jay">
+      <organization abbrev="MGI1">MGI1</organization>
+
+      <address>
+        <email>ejay@mgi1.com</email>
+      </address>
+    </author>
+
+    <date day="6" month="July" year="2011" />
+
+    <abstract>
+      <t>OpenID Connect is an identity framework that provides authentication,
+      authorization, and attribute transmission capability. It allows third
+      party attested claims from distributed sources. The specification suite
+      consists of Core, UserInfo, Protocol Bindings, Discovery,
+      Dynamic Client Registration, Session Management, and Framework.
+      This specification is the "Discovery" part of the suite
+      that defines how user and server endpoints are discovered.</t>
+    </abstract>
+
+    <note title="Requirements Language">
+      <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+      "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+      document are to be interpreted as described in <xref
+      target="RFC2119">RFC 2119</xref>.</t>
+    </note>
+  </front>
+
+  <middle>
+    <section title="Introduction">
+      <t>In order for an OpenID client to utilize OpenID services for a user,
+      the client needs to know where the OpenID Provider is. OpenID Connect
+      uses <xref target="SWD">Simple Web Discovery</xref> to locate the OpenID
+      Connect provider for an end-user. This document describes the OpenID
+      Connect specific parts related to <xref target="SWD">Simple Web
+      Discovery</xref>.</t>
+
+      <t>Once an OpenID Provider is identified, the endpoint and other
+      configuration information for that provider is retrieved from a
+      well-known location as a JSON document.</t>
+    </section>
+
+    <section anchor="terminology" title="Terminology">
+      <t><list style="hanging">
+          <t hangText="Client">An application obtaining authorization and
+          making protected resource requests.</t>
+
+          <t hangText="End-user">A human resource owner.</t>
+
+          <t hangText="Principal">A human resource owner that is the target of
+          a request in Simple Web Discovery.</t>
+
+          <t hangText="OpenID Provider (OP)">Authorization Servers that are
+          able to support OpenID Connect Messages.</t>
+
+          <t hangText="Issuer ID">The unique identifier of the OpenID
+          Provider.</t>
+
+          <t hangText="Relying Party (RP)">Client and Resource Servers.</t>
+
+          <t hangText="End-User Authorization Endpoint">The Authorization
+          Server's endpoint capable of authenticating the End-User and
+          obtaining authorization.</t>
+
+          <t hangText="Client Identifier">A unique identifier that the client
+          uses to identify itself to the OP.</t>
+
+          <t hangText="Token Endpoint">The Authorization Server's HTTP
+          endpoint capable of issuing tokens.</t>
+
+          <t hangText="Authentication Endpoints">End-User Authentication and
+          Authorization endpoint.</t>
+
+          <t hangText="RP Endpoints">The endpoint to which the OP responses
+          are returned through redirect.</t>
+
+          <t hangText="UserInfo Endpoint">A protected resource that when
+          presented with a token by the client returns authorized information
+          about the current user.</t>
+
+          <t hangText="Introspection Endpoint">The Authorization Servers
+          endpoint that takes an ID_Token or access token as input and returns
+          an unpacked JSON representation of an ID_Token.</t>
+
+          <t hangText="Identifier">An Identifier is either an "http" or
+          "https" URI, (commonly referred to as a "URL" within this document),
+          or an account URI. This document defines various kinds of
+          Identifiers, designed for use in different contexts.</t>
+        </list></t>
+    </section>
+
+    <section anchor="ProviderDisc" title="Provider Discovery">
+      <t>Provider discovery is optional, If a RP knows through an out of band
+      mechanism that all identifiers containing particular have the same
+      issuer then they can ship this step and proceed to <xref
+      target="ProviderConfig"></xref>.</t>
+
+      <t>Provider discovery Simple Web Discovery requires the following
+      information to make a discovery request:</t>
+
+      <t><list style="symbols">
+          <t>principal - identifier of the target end user who is the subject
+          of the discovery request</t>
+
+          <t>host - server where a Simple Web Discovery service is hosted</t>
+
+          <t>service - URI of the service whose location is requested</t>
+        </list></t>
+
+      <t>OpenID Connect has the following discoverable service in Simple Web
+      Discovery:</t>
+
+      <texttable align="center" style="all">
+        <ttcol width="">Service Type</ttcol>
+
+        <ttcol>URI</ttcol>
+
+        <c>OpenID Issuer</c>
+
+        <c>http://openid.net/specs/connect/1.0/issuer</c>
+      </texttable>
+
+      <t>To start discovery of OpenID end points, the end-user supplies an
+      identifier to the client or relying party. The client performs
+      normalization rules to the identifier to extract the principal and host.
+      Then it makes a HTTPS request the host's Simple Web Discovery endpoint
+      with the <spanx style="verb">principal</spanx> and <spanx style="verb">service</spanx>
+      parameters to obtain the location of the requested service.</t>
+
+      <t>What MUST be returned in the response is the Java origin of the
+      Issuer. This includes URI scheme HOST and port.</t>
+
+      <section title="Identifier Normalization">
+        <t>The user identifier can be one of the following:</t>
+
+        <t><list style="symbols">
+            <t>Hostname</t>
+
+            <t>E-mail address</t>
+
+            <t>URL</t>
+          </list>Identifiers starting with the <xref
+        target="XRI_Syntax_2.0">XRI</xref> characters ('=','@', and '!') are
+        reserved. Any identifier that contains the character '@' in any other
+        position other than the first position must be treated as an e-mail
+        address.</t>
+
+        <section title="Hostname">
+          <t>If the identifier is the hostname, then the hostname is used as
+          both the principal and host in Simple Web Discovery request. This
+          results in a directed identity request.</t>
+        </section>
+
+        <section title="E-mail Address">
+          <t>If the identifier is an e-mail address, the principal is the
+          e-mail address and the host is the portion to the right of the '@'
+          character.</t>
+        </section>
+
+        <section title="URL">
+          <t>A URL identifier is normalized according to the following
+          rules:</t>
+
+          <t><list style="symbols">
+              <t>If the URL does not have an "http" or "https" scheme, the
+              string "https://" is prefixed to the URL.</t>
+
+              <t>If the URL contains a fragment part, it MUST be stripped off
+              together with the fragment delimiter character "#".</t>
+
+              <t>The resulting URL is used as the principal and the host is
+              extracted from it according to <xref target="RFC3986">URI</xref>
+              syntax rules.</t>
+            </list></t>
+        </section>
+      </section>
+
+      <section title="Non-Normative Examples">
+
+        <section title="Hostname">
+          <t>To find the authorization endpoint for the given hostname,
+          "example.com", the SWD parameters are as follows:</t>
+
+          <texttable>
+            <ttcol>SWD Parameter</ttcol>
+
+            <ttcol>Value</ttcol>
+
+            <c>principal</c>
+
+            <c>example.com</c>
+
+            <c>host</c>
+
+            <c>example.com</c>
+
+            <c>service</c>
+
+            <c>http://openid.net/specs/connect/1.0/issuer</c>
+          </texttable>
+
+          <t>Following the SWD specification, the client would make the
+          following request to get the discovery information:</t>
+
+          <t><figure>
+              <artwork><![CDATA[GET /.well-known/simple-web-discovery?principal=example.com&service=http://openid.net/specs/connect/1.0/issuer HTTP/1.1
+Host: example.com
+
+HTTP/1.1 200 O.K.
+Content-Type: application/json
+
+{
+ "locations":["https://example.com/auth"]
+}]]></artwork>
+            </figure></t>
+        </section>
+
+        <section title="E-Mail Address">
+          <t>To find the authorization endpoint for the given e-mail address,
+          "joe@example.com", the SWD parameters are as follows:</t>
+
+          <texttable>
+            <ttcol>SWD Parameter</ttcol>
+
+            <ttcol>Value</ttcol>
+
+            <c>principal</c>
+
+            <c>joe@example.com</c>
+
+            <c>host</c>
+
+            <c>example.com</c>
+
+            <c>service</c>
+
+            <c>http://openid.net/specs/connect/1.0/issuer</c>
+          </texttable>
+
+          <t>Following the SWD specification, the client would make the
+          following request to get the discovery information:</t>
+
+          <t><figure>
+              <artwork><![CDATA[GET /.well-known/simple-web-discovery?principal=joe@example.com&service=http://openid.net/specs/connect/1.0/issuer HTTP/1.1
+Host: example.com
+
+HTTP/1.1 200 O.K.
+Content-Type: application/json
+
+{
+ "locations":["https://example.com/auth"]
+}]]></artwork>
+            </figure></t>
+        </section>
+
+        <section title="URL">
+          <t>To find the authorization endpoint for the given URL,
+          'https://example.com/joe", the SWD parameters are as follows:</t>
+
+          <texttable>
+            <ttcol>SWD Parameter</ttcol>
+
+            <ttcol>Value</ttcol>
+
+            <c>principal</c>
+
+            <c>https://example.com/joe</c>
+
+            <c>host</c>
+
+            <c>example.com</c>
+
+            <c>service</c>
+
+            <c>http://openid.net/specs/connect/1.0/issuer</c>
+          </texttable>
+
+          <t>Following the SWD specification, the client would make the
+          following request to get the discovery information:</t>
+
+          <t><figure>
+              <artwork><![CDATA[GET /.well-known/simple-web-discovery?principal=https://example.com/joe&service=http://openid.net/specs/connect/1.0/issuer HTTP/1.1
+Host: example.com
+
+HTTP/1.1 200 O.K.
+Content-Type: application/json
+
+{
+ "locations":["https://example.com/auth"]
+}]]></artwork>
+            </figure></t>
+        </section>
+      </section>
+
+      <section title="Redirection">
+        <t>In cases where the SWD request is handled at a host or location
+        other than the one derived from the end-user's identifier, the host
+        will return a JSON object containing the new location.</t>
+
+        <t><figure>
+            <artwork><![CDATA[GET /.well-known/simple-web-discovery?principal=joe@example.com&service=http://openid.net/specs/connect/1.0/issuer HTTP/1.1
+Host: example.com
+
+HTTP/1.1 200 O.K.
+Content-Type: application/json
+
+{
+ "SWD_service_redirect":
+  {
+   "location":"https://example.net/swd_server"
+  }
+}
+
+GET /swd_server?principal=joe@example.com&service=http://openid.net/specs/cc/1.0/issuer HTTP/1.1
+Host: example.net
+
+HTTP/1.1 200 O.K.
+Content-Type: application/json
+
+{
+ "locations":["https://example.net/auth"]
+}]]></artwork>
+          </figure></t>
+      </section>
+    </section>
+
+    <section anchor="ProviderConfig"
+             title="Provider Configuration Information">
+      <t>This step is optional. The provider endpoints and configuration
+      information may be provided out of band.</t>
+
+      <t>Using the Issuer ID discovered in <xref target="ProviderDisc"></xref>
+      or through direct configuration the OpenID Provider's configuration can
+      be retrieved.</t>
+
+      <t>OpenID providers MUST make available a JSON document at the path
+      .well-known/openid-configuration. The syntax and semantics of
+      ".well-known" are defined in <xref target="RFC5785">RFC 5785</xref>.
+      "openid-configuration" MUST point to a JSON document compliant with this
+      specification.</t>
+
+      <t>OpenID providers MUST support receiving SWD requests via TLS 1.2 as
+      defined in <xref target="RFC5246">RFC 5246</xref> and MAY support other
+      transport layer security mechanisms of equivalent security.</t>
+
+      <section title="Provider Configuration Request">
+        <t>A Provider Configuration Document is queried using a HTTPS GET
+        request with the previously specified path.</t>
+
+        <t>The client would make the following request to get the
+        Configuration information</t>
+
+        <t><figure>
+            <artwork><![CDATA[GET /.well-known/openid-configuration HTTP/1.1
+Host: example.com
+]]></artwork>
+          </figure></t>
+      </section>
+
+      <section title="Provider Configuration Response">
+        <t>The response is a set of claims about the OpenID Provider's
+        configuration, including all necessary endpoint, supported scope, and
+        public key location information.</t>
+
+        <t>The response MUST return a plain text JSON object that contains a
+        set of claims that are a subset of those defined below. </t>
+
+        <t>Claims that return multiple values are JSON arrays. Claims with 0
+        elements must be omitted from the response.</t>
+
+        <t>Other claims MAY also be returned.</t>
+
+        <texttable anchor="ClaimTable" title="Reserved Claim Definitions">
+          <ttcol align="left">Claim</ttcol>
+
+          <ttcol align="left">Type</ttcol>
+
+          <ttcol align="left">Description</ttcol>
+
+          <c>version</c>
+
+          <c>string</c>
+
+          <c>Version of the provider response. "3.0" is the default.</c>
+
+          <c>issuer</c>
+
+          <c>string</c>
+
+          <c>The URI the Identity provider asserts as issuer</c>
+
+          <c>authorization_endpoint</c>
+
+          <c>string</c>
+
+          <c>URI of the provider's Authentication and Authorization
+          Endpoint.<xref target="OpenID.Core"></xref></c>
+
+          <c>token_endpoint</c>
+
+          <c>string</c>
+
+          <c>URI of the provider's Token Introspection Endpoint <xref
+          target="OpenID.Core"></xref> </c>
+
+          <c>introspection_endpoint</c>
+
+          <c>string</c>
+
+          <c>URI of the provider's ID_Token Introspection Endpoint<xref
+          target="OpenID.Core"></xref></c>
+
+          <c>user_info_endpoint</c>
+
+          <c>string</c>
+
+          <c>URI of the provider's User Information Endpoint<xref
+          target="OpenID.UserInfo"></xref></c>
+
+          <c>check_session_endpoint</c>
+
+          <c>string</c>
+
+          <c>URI of the provider's Check Session Endpoint<xref
+          target="OpenID.Core"></xref> </c>
+
+          <c>refresh_session_endpoint</c>
+
+          <c>string</c>
+
+          <c>Uri Of The Providers Refresh Session Endpoint<xref
+          target="OpenID.Core"></xref></c>
+
+          <c>end_session_endpoint</c>
+
+          <c>string</c>
+
+          <c>Uri Of The Providers End Session Endpoint<xref
+          target="OpenID.Core"></xref></c>
+
+          <c>jwk_endpoint</c>
+
+          <c>string</c>
+
+          <c>URI of the provider's JSON Web Key <xref target="JWK"></xref>
+          Document</c>
+
+          <c>registration_endpoint</c>
+
+          <c>string</c>
+
+          <c>URI of the provider's Dynamic Client Registration <xref
+          target="OpenID.Registration"></xref> endpoint</c>
+
+          <c>scopes_supported</c>
+
+          <c>array</c>
+
+          <c>A JSON array containing a list of the <xref
+          target="OAuth2.0">OAuth 2.0 </xref>.0 scopes that this server
+          supports. The server MUST support the <spanx style="verb">openid</spanx> scope.</c>
+
+          <c>flows_supported</c>
+
+          <c>array</c>
+
+          <c>A JSON array containing a list of the OAuth 2.0 flows that this
+          server supports. The server MUST support the code flow.</c>
+
+          <c>iso_29115_supported</c>
+
+          <c>array</c>
+
+          <c>A JSON array containing a list of the ISO 29115 assurance
+          contexts that this server supports.</c>
+
+          <c>identifiers_supported</c>
+
+          <c>array</c>
+
+          <c>A JSON array containing a list of the user identifier types that
+          this server supports</c>
+        </texttable>
+
+        <t>Example response</t>
+
+        <t><figure>
+            <artwork><![CDATA[{
+ "authorization_endpoint": "https://example.com/connect/authorize",
+ "token_endpoint": "https://example.com/connect/token"
+ "introspection_endpoint": "https://example.com/connect/introspection",
+ "user_info_endpoint": "https://example.com/connect/user",
+ "check_session_endpoint": "https://example.com/connect/check_session",
+ "refresh_session_endpoint": "https://example.com/connect/refresh_session",
+ "end_session_endpoint": "https://example.com/connect/end_session",
+ "jwk_endpoint": "https://example.com/jwk.json",
+ "registration_endpoint": "https://example.com/connect/register",
+ "scopes_supported": ["openid"],
+ "flows_supported": ["code", "token"],
+ "iso_29115_supported": ["http://www.idmanagement.gov/schema/2009/05/icam/openid-trust-level1.pdf"],
+ "identifiers_supported": ["omni", "ppid"]
+}]]></artwork>
+          </figure></t>
+      </section>
+    </section>
+
+    <section title="Other Items for Consideration">
+      <t><list style="numbers">
+          <t>Should issuer be in the Provider Configuration Response</t>
+
+          <t>Should issuer ID be explicitly restricted to the https://
+          scheme.</t>
+        </list></t>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>This document makes no request of IANA.</t>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t></t>
+    </section>
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.5785.xml"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml"?>
+      <?rfc include='http://xml.resource.org/public/rfc/bibxml/reference.RFC.3986.xml'?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.5246.xml"?>
+
+      <reference anchor="OpenID.Core">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="David Recordon" initials="D." surname="Recordon">
+            <organization abbrev="Facebook">Facebook</organization>
+          </author>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Protiviti">Protiviti Government
+            Service</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B."
+                  surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="MGI1">MGI1</organization>
+          </author>
+
+          <date day="6" month="July" year="2011" />
+        </front>
+
+        <format target="http://openid.net/specs/openid-connect-core-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="SWD">
+        <front>
+          <title>Simple Web Discovery</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." role="editor"
+                  surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Yaron Goland" initials="Y.Y." surname="Goland">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <date day="26" month="October" year="2010" />
+        </front>
+
+        <format target="http://self-issued.info/docs/draft-jones-simple-web-discovery.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="JWK">
+        <front>
+          <title>JSON Web Key (JWK)</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <date day="29" month="April" year="2011" />
+        </front>
+
+        <format target="http://self-issued.info/docs/draft-jones-json-web-key.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.Registration">
+        <front>
+          <title abbrev="Abbreviated-Title">OpenID Connect Dynamic Client
+          Registration 1.0 - draft 02</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." role="editor"
+                  surname="Bradley">
+            <organization abbrev="Protiviti">Protiviti
+            Government Services</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft
+            Corporation</organization>
+          </author>
+
+          <date day="6" month="July" year="2011" />
+        </front>
+
+        <format target="http://openid.net/specs/openid-connect-registration-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.UserInfo">
+        <front>
+          <title>OpenID Connect UserInfo 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." role="editor"
+                  surname="Bradley">
+            <organization abbrev="Protiviti">Protiviti
+            Government Services</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B."
+                  surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft Corporation</organization>
+          </author>
+
+          <date day="6" month="July" year="2011" />
+        </front>
+
+        <format target="http://openid.net/specs/openid-connect-userinfo-1_0.html"
+                type="HTML" />
+      </reference>
+    </references>
+
+    <references title="Informative References">
+      <reference anchor="OAuth2.0">
+        <front>
+          <title>OAuth 2.0 Authorization Protocol</title>
+
+          <author fullname="Eran Hammer-Lahav" initials="E." role="editor"
+                  surname="Hammer-Lahav">
+            <organization abbrev="">Yahoo</organization>
+          </author>
+
+          <author fullname="David Recordon" initials="D." surname="Recordon">
+            <organization abbrev="">Facebook</organization>
+          </author>
+
+          <author fullname="Dick Hardt" initials="D." surname="Hardt">
+            <organization abbrev="MSFT">Microsoft</organization>
+          </author>
+
+          <date day="19" month="May" year="2011" />
+        </front>
+
+        <format target="http://tools.ietf.org/html/draft-ietf-oauth-v2"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="XRI_Syntax_2.0">
+        <front>
+          <title>Extensible Resource Identifier (XRI) Syntax V2.0</title>
+
+          <author fullname="Drummond Reed " initials="D." surname="Reed">
+            <organization></organization>
+          </author>
+
+          <author fullname="Dave McAlpin" initials="D." surname="McAlpin">
+            <organization></organization>
+          </author>
+
+          <date day="14" month="November" year="2005" />
+        </front>
+
+        <format target="http://www.oasis-open.org/committees/download.php/15376/xri-syntax-V2.0-cs.html"
+                type="HTML" />
+
+        <format target="http://www.oasis-open.org/committees/download.php/15377/xri-syntax-V2.0-cs.pdf"
+                type="PDF" />
+      </reference>
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t></t>
+    </section>
+
+    <section title="Document History">
+      <t>
+        [[ To be removed from the final specification ]]
+      </t>
+
+      <t>
+	-01
+	<list style='symbols'>
+	  <t>
+	    Incorporate working group decisions from 5-Jul-11 spec call.
+	  </t>
+	  <t>
+	    Consistency and cleanup pass, including removing unused references.
+	  </t>
+	</list>
+      </t>
+      <t>
+	-00
+	<list style='symbols'>
+          <t>
+	    Initial version based upon former openid-connect-swd-1_0
+	    spec.
+	  </t>
+	</list>
+      </t>
+    </section>
+
+  </back>
+</rfc>

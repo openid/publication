@@ -1,0 +1,1271 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
+<rfc version="3" ipr="none" docName="openid-connect-4-verifiable-presentations-1_0-08" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" consensus="true">
+
+<front>
+<title abbrev="openid-4-vp">OpenID Connect for Verifiable Presentations</title><seriesInfo value="openid-connect-4-verifiable-presentations-1_0-08" status="standard" name="Internet-Draft"></seriesInfo>
+<author initials="O." surname="Terbu" fullname="Oliver Terbu"><organization>walt.id</organization><address><postal><street></street>
+</postal><email>o.terbu@gmail.com</email>
+</address></author>
+<author initials="T." surname="Lodderstedt" fullname="Torsten Lodderstedt"><organization>yes.com</organization><address><postal><street></street>
+</postal><email>torsten@lodderstedt.net</email>
+</address></author>
+<author initials="K." surname="Yasuda" fullname="Kristina Yasuda"><organization>Microsoft</organization><address><postal><street></street>
+</postal><email>kristina.yasuda@microsoft.com</email>
+</address></author>
+<author initials="A." surname="Lemmon" fullname="Adam Lemmon"><organization>Convergence.tech</organization><address><postal><street></street>
+</postal><email>adam@convergence.tech</email>
+</address></author>
+<author initials="T." surname="Looker" fullname="Tobias Looker"><organization>Mattr</organization><address><postal><street></street>
+</postal><email>tobias.looker@mattr.global</email>
+</address></author>
+<date/>
+<area>Internet</area>
+<workgroup>connect</workgroup>
+<keyword>security</keyword>
+<keyword>openid</keyword>
+<keyword>ssi</keyword>
+
+<abstract>
+<t>This specification defines an extension of OpenID Connect to allow presentation of claims in the form of W3C Verifiable Credentials as part of the protocol flow in addition to claims provided in the <tt>id_token</tt> and/or via UserInfo responses.</t>
+</abstract>
+
+</front>
+
+<middle>
+
+<section anchor="introduction"><name>Introduction</name>
+<t>This specification extends OpenID Connect with support for presentation of claims via W3C Verifiable Credentials. This allows existing OpenID Connect RPs to extend their reach towards claims sources asserting claims in this format. It also allows new applications built using verifiable credentials to utilize OpenID Connect as integration and interoperability layer towards credential holders.</t>
+<t>This specification enables requesting and delivery of verifiable presentations in conjunction with Self-Issued OpenID Providers (see <xref target="SIOPv2"></xref>) as well as traditional OpenID  Providers (see <xref target="OpenID.Core"></xref>).</t>
+</section>
+
+<section anchor="terminology"><name>Terminology</name>
+<t>Verifiable Credential (VC)</t>
+<t>A verifiable credential is a tamper-evident credential that has authorship that can be cryptographically verified. Verifiable credentials can be used to build verifiable presentations, which can also be cryptographically verified. The claims in a credential can be about different subjects. (see <xref target="VC_DATA"></xref>)
+Note that this specification uses a term &quot;credential&quot; as defined in Section 2 of <xref target="VC_DATA"></xref>, which is a different definition than in <xref target="OpenID.Core"></xref>.</t>
+<t>Presentation</t>
+<t>Data derived from one or more verifiable credentials, issued by one or more issuers, that is shared with a specific verifier. (see <xref target="VC_DATA"></xref>)</t>
+<t>Verifiable Presentation (VP)</t>
+<t>A verifiable presentation is a tamper-evident presentation encoded in such a way that authorship of the data can be trusted after a process of cryptographic verification. Certain types of verifiable presentations might contain data that is synthesized from, but do not contain, the original verifiable credentials (for example, zero-knowledge proofs). (see <xref target="VC_DATA"></xref>)</t>
+</section>
+
+<section anchor="use-cases"><name>Use Cases</name>
+
+<section anchor="verifier-accesses-wallet-via-openid-connect"><name>Verifier accesses Wallet via OpenID Connect</name>
+<t>A Verifier uses OpenID Connect to obtain verifiable presentations. This is a simple and mature way to obtain identity data. From a technical perspective, this also makes integration with OAuth-protected APIs easier as OpenID Connect is based on OAuth.</t>
+</section>
+
+<section anchor="existing-openid-connect-rp-integrates-ssi-wallets"><name>Existing OpenID Connect RP integrates SSI wallets</name>
+<t>An application currently utilizing OpenID Connect for accessing various federated identity providers can use the same protocol to also integrate with emerging SSI-based wallets. This is a convenient transition path leveraging existing expertise to protect investments made.</t>
+</section>
+
+<section anchor="existing-openid-connect-op-as-custodian-of-end-user-credentials"><name>Existing OpenID Connect OP as custodian of End-User Credentials</name>
+<t>An existing OpenID Connect may extend its service by maintaining credentials issued by other claims sources on behalf of its customers. Customers can mix claims of the OP and from their credentials to fulfil authentication requests.</t>
+</section>
+
+<section anchor="federated-openid-connect-op-adds-device-local-mode"><name>Federated OpenID Connect OP adds device-local mode</name>
+<t>An existing OpenID Connect OP with a native user experience (PWA or native app) issues Verifiable Credentials and stores them on the user's device linked to a private key residing on this device under the user's control. For every authentication request, the native user experience first checks whether this request can be fulfilled using the locally stored credentials. If so, it generates a presentation signed with the user's keys in order to prevent replay of the credential.</t>
+<t>This approach dramatically reduces latency and reduces load on the OP's servers. Moreover, the user identification, authentication, and authorization can be done even in situations with unstable or no internet connectivity.</t>
+</section>
+</section>
+
+<section anchor="overview"><name>Overview</name>
+<t>This specification defines mechanisms to allow RPs to request and OPs to provide verifiable presentations via OpenID Connect. The specification focuses on enabling request and presentation of W3C Verifiable Credentials but the authors also aim at enabling its use with other credential formats.</t>
+<t>Verifiable presentations are used to present claims along with cryptographic proofs of the link between presenter and subject of the verifiable credentials it contains. A verifiable presentation can contain a subset of claims asserted in a certain credential (selective disclosure) and it can assemble claims from different credentials.</t>
+<t>There are two credential formats for VCs and VPs: JSON and JSON-LD. There are also two proof formats for VCs and VPs: JWT and Linked Data Proofs. Each of those formats has different properties and capabilities and each of them comes with different proof types. Proof formats are agnostic to the credential format chosen. However, the JSON credential format is commonly used with JSON Web Signatures (see <xref target="VC_DATA"></xref>, section 6.3.1). JSON-LD is commonly used with different kinds of Linked Data Proofs and JSON Web Signatures (see <xref target="VC_DATA"></xref>, section 6.3.2). Applications can use all beforementioned assertion and proof formats with this specification.</t>
+<t>This specification introduces a new token type, &quot;VP Token&quot;, used as a generic container for verifiable presentation objects, that is returned in authentication and token responses, in addition to ID Tokens (see <xref target="vp_token"></xref>).</t>
+<t>Note that when both ID Token and VP Token are returned, each has a different function. The ID Token serves as an Authentication receipt that carries information regarding the Authentication Event of the End-user. The VP Token provides proof of possession of a third-party attested claims and carries claims about the user.</t>
+<t>Verifiers request verifiable presentations using the <tt>claims</tt> parameter as defined in (@!OpenID) and syntax as defined in DIF Presentation Exchange <xref target="DIF.PresentationExchange"></xref>.</t>
+</section>
+
+<section anchor="vp_token"><name>vp_token</name>
+<t>This specification defines the following parameter <tt>vp_token</tt> that is used to request and return VP Token as specified in <xref target="vp_token_request"></xref> and <xref target="vp_token_request"></xref>.</t>
+
+<ul>
+<li><t><tt>vp_token</tt>: a parameter that either directly contains a verifiable presentation or a JSON array with multiple verifiable presentations.</t>
+</li>
+</ul>
+
+<section anchor="vp_token_request"><name>Request</name>
+<t>A VP Token is requested by adding a new top-level element <tt>vp_token</tt> to the <tt>claims</tt> parameter. This element contains a <tt>presentation_definition</tt> element as defined in Section 4 of <xref target="DIF.PresentationExchange"></xref>.</t>
+<t>Please note this draft defines a profile of <xref target="DIF.PresentationExchange"></xref> as follows:</t>
+
+<ul>
+<li><t>The <tt>format</tt> element in the <tt>presentation_definition</tt> that represents supported presentation formats, proof types, and algorithms is not supported. Those are determined using new RP and OP metadata (see <xref target="metadata"></xref>).</t>
+</li>
+</ul>
+<t>RPs MUST send a <tt>nonce</tt> parameter complying with the security considerations given in <xref target="OpenID.Core"></xref>, Section 15.5.2., with every Authentication Request as a basis for replay detection. See <xref target="preventing-replay"></xref>.</t>
+<t>The request syntax is illustrated in the following example:</t>
+
+<sourcecode type="json">{
+    &quot;id_token&quot;: {
+        &quot;email&quot;: null
+    },
+    &quot;vp_token&quot;: {
+        &quot;presentation_definition&quot;: {
+            &quot;id&quot;: &quot;vp token example&quot;,
+            &quot;input_descriptors&quot;: [
+                {
+                    &quot;id&quot;: &quot;id card credential&quot;,
+                    &quot;format&quot;: {
+                        &quot;ldp_vc&quot;: {
+                            &quot;proof_type&quot;: [
+                                &quot;Ed25519Signature2018&quot;
+                            ]
+                        }
+                    },
+                    &quot;constraints&quot;: {
+                        &quot;fields&quot;: [
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.type&quot;
+                                ],
+                                &quot;filter&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;pattern&quot;: &quot;IDCardCredential&quot;
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
+</sourcecode>
+<t>This simple example requests the presentation of a credential of a certain type.</t>
+<t>The following example shows how the RP can request selective disclosure or certain claims from a credential of a particular type.</t>
+
+<sourcecode type="json">{
+    &quot;id_token&quot;: {
+        &quot;email&quot;: null
+    },
+    &quot;vp_token&quot;: {
+        &quot;presentation_definition&quot;: {
+            &quot;id&quot;: &quot;vp token example&quot;,
+            &quot;input_descriptors&quot;: [
+                {
+                    &quot;id&quot;: &quot;id card credential with constraints&quot;,
+                    &quot;format&quot;: {
+                        &quot;ldp_vc&quot;: {
+                            &quot;proof_type&quot;: [
+                                &quot;Ed25519Signature2018&quot;
+                            ]
+                        }
+                    },
+                    &quot;constraints&quot;: {
+                        &quot;limit_disclosure&quot;: &quot;required&quot;,
+                        &quot;fields&quot;: [
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.type&quot;
+                                ],
+                                &quot;filter&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;pattern&quot;: &quot;IDCardCredential&quot;
+                                }
+                            },
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.credentialSubject.given_name&quot;
+                                ]
+                            },
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.credentialSubject.family_name&quot;
+                                ]
+                            },
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.credentialSubject.birthdate&quot;
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
+</sourcecode>
+<t>RPs can also ask for alternative credentials being presented, which is shown in the next example:</t>
+
+<sourcecode type="json">{
+    &quot;id_token&quot;: {
+        &quot;email&quot;: null
+    },
+    &quot;vp_token&quot;: {
+        &quot;presentation_definition&quot;: {
+            &quot;id&quot;: &quot;alternative credentials&quot;,
+            &quot;submission_requirements&quot;: [
+                {
+                    &quot;name&quot;: &quot;Citizenship Information&quot;,
+                    &quot;rule&quot;: &quot;pick&quot;,
+                    &quot;count&quot;: 1,
+                    &quot;from&quot;: &quot;A&quot;
+                }
+            ],
+            &quot;input_descriptors&quot;: [
+                {
+                    &quot;id&quot;: &quot;id card credential&quot;,
+                    &quot;group&quot;: [
+                        &quot;A&quot;
+                    ],
+                    &quot;format&quot;: {
+                        &quot;ldp_vc&quot;: {
+                            &quot;proof_type&quot;: [
+                                &quot;Ed25519Signature2018&quot;
+                            ]
+                        }
+                    },
+                    &quot;constraints&quot;: {
+                        &quot;fields&quot;: [
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.type&quot;
+                                ],
+                                &quot;filter&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;pattern&quot;: &quot;IDCardCredential&quot;
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    &quot;id&quot;: &quot;passport credential&quot;,
+                    &quot;format&quot;: {
+                        &quot;jwt_vc&quot;: {
+                            &quot;alg&quot;: [
+                                &quot;RS256&quot;
+                            ]
+                        }
+                    },
+                    &quot;group&quot;: [
+                        &quot;A&quot;
+                    ],
+                    &quot;constraints&quot;: {
+                        &quot;fields&quot;: [
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.vc.type&quot;
+                                ],
+                                &quot;filter&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;pattern&quot;: &quot;PassportCredential&quot;
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
+</sourcecode>
+</section>
+
+<section anchor="vp_token_response"><name>Response</name>
+<t>A <tt>vp_token</tt> MUST be provided in the same response as the <tt>id_token</tt> of the respective OpenID Connect transaction. Depending on the response/grant type, this can be either the authentication response or the token response.</t>
+<t>The <tt>vp_token</tt> either contains a single verifiable presentation or an array of verifiable presentations.</t>
+<t>Each of those verifiable presentations MAY contain a <tt>presentation_submission</tt> element as defined in <xref target="DIF.PresentationExchange"></xref>. This <tt>presentation_submission</tt> element links the input descriptor identifiers as specified in the corresponding request to the respective verifiable presentations within the <tt>vp_token</tt> along with format information. The root of the path expressions in the descriptor map is the respective verifiable presentation, pointing to the respective Verifiable Credentials.</t>
+<t>This is shown in the following example:</t>
+
+<sourcecode type="json">{
+    &quot;@context&quot;: [
+        &quot;https://www.w3.org/2018/credentials/v1&quot;,
+        &quot;https://identity.foundation/presentation-exchange/submission/v1&quot;
+    ],
+    &quot;type&quot;: [
+        &quot;VerifiablePresentation&quot;,
+        &quot;PresentationSubmission&quot;
+    ],
+    &quot;verifiableCredential&quot;: [
+        {
+            &quot;@context&quot;: [
+                &quot;https://www.w3.org/2018/credentials/v1&quot;,
+                &quot;https://www.w3.org/2018/credentials/examples/v1&quot;
+            ],
+            &quot;id&quot;: &quot;https://example.com/credentials/1872&quot;,
+            &quot;type&quot;: [
+                &quot;VerifiableCredential&quot;,
+                &quot;IDCardCredential&quot;
+            ],
+            &quot;issuer&quot;: {
+                &quot;id&quot;: &quot;did:example:issuer&quot;
+            },
+            &quot;issuanceDate&quot;: &quot;2010-01-01T19:23:24Z&quot;,
+            &quot;credentialSubject&quot;: {
+                &quot;given_name&quot;: &quot;Fredrik&quot;,
+                &quot;family_name&quot;: &quot;Strömberg&quot;,
+                &quot;birthdate&quot;: &quot;1949-01-22&quot;
+            },
+            &quot;proof&quot;: {
+                &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+                &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+                &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..PT8yCqVjj5ZHD0W36zsBQ47oc3El07WGPWaLUuBTOT48IgKI5HDoiFUt9idChT_Zh5s8cF_2cSRWELuD8JQdBw&quot;,
+                &quot;proofPurpose&quot;: &quot;assertionMethod&quot;,
+                &quot;verificationMethod&quot;: &quot;did:example:issuer#keys-1&quot;
+            }
+        }
+    ],
+    &quot;id&quot;: &quot;ebc6f1c2&quot;,
+    &quot;holder&quot;: &quot;did:example:holder&quot;,
+    &quot;presentation_submission&quot;: {
+        &quot;id&quot;: &quot;Selective disclosure example presentation&quot;,
+        &quot;definition_id&quot;: &quot;Selective disclosure example&quot;,
+        &quot;descriptor_map&quot;: [
+            {
+                &quot;id&quot;: &quot;ID Card with constraints&quot;,
+                &quot;format&quot;: &quot;ldp_vc&quot;,
+                &quot;path&quot;: &quot;$.verifiableCredential[0]&quot;
+            }
+        ]
+    },
+    &quot;proof&quot;: {
+        &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+        &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+        &quot;challenge&quot;: &quot;n-0S6_WzA2Mj&quot;,
+        &quot;domain&quot;: &quot;https://client.example.org/cb&quot;,
+        &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..GF5Z6TamgNE8QjE3RbiDOj3n_t25_1K7NVWMUASe_OEzQV63GaKdu235MCS3hIYvepcNdQ_ZOKpGNCf0vIAoDA&quot;,
+        &quot;proofPurpose&quot;: &quot;authentication&quot;,
+        &quot;verificationMethod&quot;: &quot;did:example:holder#key-1&quot;
+    }
+}
+</sourcecode>
+<t>The OP MAY also add a <tt>_vp_token</tt> element to the corresponding ID Token, which is defined as follows:</t>
+<t><tt>_vp_token</tt>: JWT claim containing an element of type <tt>presentation_submission</tt> as defined in <xref target="DIF.PresentationExchange"></xref>. This <tt>presentation_submission</tt> element links the input descriptor identifiers as specified in the corresponding request to the respective verifiable presentations within the <tt>vp_token</tt> along with format information. The root of the path expressions in the descriptor map is the respective <tt>vp_token</tt>.</t>
+<t>This element might, for example, be used if the particular format of the provided presentations does not allow for the direct inclusion of <tt>presentation_submission</tt> elements or if the OP wants to provide the RP with additional information about the format and structure in advance of the processing of the <tt>vp_token</tt>.</t>
+<t>In case the OP returns a single verifiable presentation in the <tt>vp_token</tt>, the descriptor map would then contain a simple path expression &quot;$&quot;.</t>
+<t>This is an example of a <tt>vp_token</tt> containing a single verifiable presentation</t>
+
+<sourcecode type="json">{
+    &quot;@context&quot;: [
+        &quot;https://www.w3.org/2018/credentials/v1&quot;
+    ],
+    &quot;type&quot;: [
+        &quot;VerifiablePresentation&quot;
+    ],
+    &quot;verifiableCredential&quot;: [
+        {
+            &quot;@context&quot;: [
+                &quot;https://www.w3.org/2018/credentials/v1&quot;,
+                &quot;https://www.w3.org/2018/credentials/examples/v1&quot;
+            ],
+            &quot;id&quot;: &quot;https://example.com/credentials/1872&quot;,
+            &quot;type&quot;: [
+                &quot;VerifiableCredential&quot;,
+                &quot;IDCardCredential&quot;
+            ],
+            &quot;issuer&quot;: {
+                &quot;id&quot;: &quot;did:example:issuer&quot;
+            },
+            &quot;issuanceDate&quot;: &quot;2010-01-01T19:23:24Z&quot;,
+            &quot;credentialSubject&quot;: {
+                &quot;given_name&quot;: &quot;Fredrik&quot;,
+                &quot;family_name&quot;: &quot;Strömberg&quot;,
+                &quot;birthdate&quot;: &quot;1949-01-22&quot;
+            },
+            &quot;proof&quot;: {
+                &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+                &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+                &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..PT8yCqVjj5ZHD0W36zsBQ47oc3El07WGPWaLUuBTOT48IgKI5HDoiFUt9idChT_Zh5s8cF_2cSRWELuD8JQdBw&quot;,
+                &quot;proofPurpose&quot;: &quot;assertionMethod&quot;,
+                &quot;verificationMethod&quot;: &quot;did:example:issuer#keys-1&quot;
+            }
+        }
+    ],
+    &quot;id&quot;: &quot;ebc6f1c2&quot;,
+    &quot;holder&quot;: &quot;did:example:holder&quot;,
+    &quot;proof&quot;: {
+        &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+        &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+        &quot;challenge&quot;: &quot;n-0S6_WzA2Mj&quot;,
+        &quot;domain&quot;: &quot;https://client.example.org/cb&quot;,
+        &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..GF5Z6TamgNE8QjE3RbiDOj3n_t25_1K7NVWMUASe_OEzQV63GaKdu235MCS3hIYvepcNdQ_ZOKpGNCf0vIAoDA&quot;,
+        &quot;proofPurpose&quot;: &quot;authentication&quot;,
+        &quot;verificationMethod&quot;: &quot;did:example:holder#key-1&quot;
+    }
+}
+</sourcecode>
+<t>with a matching <tt>_vp_token</tt> in the corresponding <tt>id_token</tt>.</t>
+
+<sourcecode type="json">{
+    &quot;iss&quot;: &quot;https://self-issued.me/v2&quot;,
+    &quot;aud&quot;: &quot;https://book.itsourweb.org:3000/client_api/authresp/uhn&quot;,
+    &quot;iat&quot;: 1615910538,
+    &quot;exp&quot;: 1615911138,
+    &quot;sub&quot;: &quot;NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs&quot;,
+    &quot;sub_jwk&quot;: {
+        &quot;kty&quot;: &quot;RSA&quot;,
+        &quot;n&quot;: &quot;0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx...DKgw&quot;,
+        &quot;e&quot;: &quot;AQAB&quot;
+    },
+    &quot;auth_time&quot;: 1615910535,
+    &quot;nonce&quot;: &quot;960848874&quot;,
+    &quot;_vp_token&quot;: {
+        &quot;presentation_submission&quot;: {
+            &quot;id&quot;: &quot;Selective disclosure example presentation&quot;,
+            &quot;definition_id&quot;: &quot;Selective disclosure example&quot;,
+            &quot;descriptor_map&quot;: [
+                {
+                    &quot;id&quot;: &quot;ID Card with constraints&quot;,
+                    &quot;format&quot;: &quot;ldp_vp&quot;,
+                    &quot;path&quot;: &quot;$&quot;,
+                    &quot;path_nested&quot;: {
+                        &quot;format&quot;: &quot;ldp_vc&quot;,
+                        &quot;path&quot;: &quot;$.verifiableCredential[0]&quot;
+                    }
+                }
+            ]
+        }
+    }
+}
+</sourcecode>
+<t>A <tt>descriptor_map</tt> element MAY also contain a <tt>path_nested</tt> element referring to the actual credential carried in the respective verifiable presentation.</t>
+<t>This is an example of a <tt>vp_token</tt> containing multiple verifiable presentations,</t>
+
+<sourcecode type="json">[
+    {
+        &quot;@context&quot;: [
+            &quot;https://www.w3.org/2018/credentials/v1&quot;
+        ],
+        &quot;type&quot;: [
+            &quot;VerifiablePresentation&quot;
+        ],
+        &quot;verifiableCredential&quot;: [
+            {
+                &quot;@context&quot;: [
+                    &quot;https://www.w3.org/2018/credentials/v1&quot;,
+                    &quot;https://www.w3.org/2018/credentials/examples/v1&quot;
+                ],
+                &quot;id&quot;: &quot;https://example.com/credentials/1872&quot;,
+                &quot;type&quot;: [
+                    &quot;VerifiableCredential&quot;,
+                    &quot;IDCardCredential&quot;
+                ],
+                &quot;issuer&quot;: {
+                    &quot;id&quot;: &quot;did:example:issuer&quot;
+                },
+                &quot;issuanceDate&quot;: &quot;2010-01-01T19:23:24Z&quot;,
+                &quot;credentialSubject&quot;: {
+                    &quot;given_name&quot;: &quot;Fredrik&quot;,
+                    &quot;family_name&quot;: &quot;Strömberg&quot;,
+                    &quot;birthdate&quot;: &quot;1949-01-22&quot;
+                },
+                &quot;proof&quot;: {
+                    &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+                    &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+                    &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..PT8yCqVjj5ZHD0W36zsBQ47oc3El07WGPWaLUuBTOT48IgKI5HDoiFUt9idChT_Zh5s8cF_2cSRWELuD8JQdBw&quot;,
+                    &quot;proofPurpose&quot;: &quot;assertionMethod&quot;,
+                    &quot;verificationMethod&quot;: &quot;did:example:issuer#keys-1&quot;
+                }
+            }
+        ],
+        &quot;id&quot;: &quot;ebc6f1c2&quot;,
+        &quot;holder&quot;: &quot;did:example:holder&quot;,
+        &quot;proof&quot;: {
+            &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+            &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+            &quot;challenge&quot;: &quot;n-0S6_WzA2Mj&quot;,
+            &quot;domain&quot;: &quot;https://client.example.org/cb&quot;,
+            &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..GF5Z6TamgNE8QjE3RbiDOj3n_t25_1K7NVWMUASe_OEzQV63GaKdu235MCS3hIYvepcNdQ_ZOKpGNCf0vIAoDA&quot;,
+            &quot;proofPurpose&quot;: &quot;authentication&quot;,
+            &quot;verificationMethod&quot;: &quot;did:example:holder#key-1&quot;
+        }
+    },
+    {
+        &quot;presentation&quot;:
+        &quot;eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImRpZDpleGFtcGxlOmFiZmUxM2Y3MTIxMjA0
+        MzFjMjc2ZTEyZWNhYiNrZXlzLTEifQ.eyJzdWIiOiJkaWQ6ZXhhbXBsZTplYmZlYjFmNzEyZWJjNmYxY
+        zI3NmUxMmVjMjEiLCJqdGkiOiJodHRwOi8vZXhhbXBsZS5lZHUvY3JlZGVudGlhbHMvMzczMiIsImlzc
+        yI6Imh0dHBzOi8vZXhhbXBsZS5jb20va2V5cy9mb28uandrIiwibmJmIjoxNTQxNDkzNzI0LCJpYXQiO
+        jE1NDE0OTM3MjQsImV4cCI6MTU3MzAyOTcyMywibm9uY2UiOiI2NjAhNjM0NUZTZXIiLCJ2YyI6eyJAY
+        29udGV4dCI6WyJodHRwczovL3d3dy53My5vcmcvMjAxOC9jcmVkZW50aWFscy92MSIsImh0dHBzOi8vd
+        3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL2V4YW1wbGVzL3YxIl0sInR5cGUiOlsiVmVyaWZpYWJsZ
+        UNyZWRlbnRpYWwiLCJVbml2ZXJzaXR5RGVncmVlQ3JlZGVudGlhbCJdLCJjcmVkZW50aWFsU3ViamVjd
+        CI6eyJkZWdyZWUiOnsidHlwZSI6IkJhY2hlbG9yRGVncmVlIiwibmFtZSI6IjxzcGFuIGxhbmc9J2ZyL
+        UNBJz5CYWNjYWxhdXLDqWF0IGVuIG11c2lxdWVzIG51bcOpcmlxdWVzPC9zcGFuPiJ9fX19.KLJo5GAy
+        BND3LDTn9H7FQokEsUEi8jKwXhGvoN3JtRa51xrNDgXDb0cq1UTYB-rK4Ft9YVmR1NI_ZOF8oGc_7wAp
+        8PHbF2HaWodQIoOBxxT-4WNqAxft7ET6lkH-4S6Ux3rSGAmczMohEEf8eCeN-jC8WekdPl6zKZQj0YPB
+        1rx6X0-xlFBs7cl6Wt8rfBP_tZ9YgVWrQmUWypSioc0MUyiphmyEbLZagTyPlUyflGlEdqrZAv6eSe6R
+        txJy6M1-lD7a5HTzanYTWBPAUHDZGyGKXdJw-W_x0IWChBzI8t3kpG253fg6V3tPgHeKXE94fz_QpYfg
+        --7kLsyBAfQGbg&quot;
+    }
+]
+</sourcecode>
+<t>with a matching <tt>_vp_token</tt> in the corresponding <tt>id_token</tt>.</t>
+
+<sourcecode type="json">{
+    &quot;iss&quot;: &quot;https://self-issued.me/v2&quot;,
+    &quot;aud&quot;: &quot;https://book.itsourweb.org:3000/client_api/authresp/uhn&quot;,
+    &quot;iat&quot;: 1615910538,
+    &quot;exp&quot;: 1615911138,
+    &quot;sub&quot;: &quot;NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs&quot;,
+    &quot;sub_jwk&quot;: {
+        &quot;kty&quot;: &quot;RSA&quot;,
+        &quot;n&quot;: &quot;0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx...DKgw&quot;,
+        &quot;e&quot;: &quot;AQAB&quot;
+    },
+    &quot;auth_time&quot;: 1615910535,
+    &quot;nonce&quot;: &quot;960848874&quot;,
+    &quot;_vp_token&quot;: {
+        &quot;presentation_submission&quot;: {
+            &quot;id&quot;: &quot;Selective disclosure example presentation&quot;,
+            &quot;definition_id&quot;: &quot;Selective disclosure example&quot;,
+            &quot;descriptor_map&quot;: [
+                {
+                    &quot;id&quot;: &quot;ID Card with constraints&quot;,
+                    &quot;format&quot;: &quot;ldp_vp&quot;,
+                    &quot;path&quot;: &quot;$[0]&quot;,
+                    &quot;path_nested&quot;: {
+                        &quot;format&quot;: &quot;ldp_vc&quot;,
+                        &quot;path&quot;: &quot;$[0].verifiableCredential[0]&quot;
+                    }
+                },
+                {
+                    &quot;id&quot;: &quot;Ontario Health Insurance Plan&quot;,
+                    &quot;format&quot;: &quot;jwt_vp&quot;,
+                    &quot;path&quot;: &quot;$[1].presentation&quot;,
+                    &quot;path_nested&quot;: {
+                        &quot;format&quot;: &quot;jwt_vc&quot;,
+                        &quot;path&quot;: &quot;$[1].presentation.vp.verifiableCredential[0]&quot;
+                    }
+                }
+            ]
+        }
+    }
+}
+</sourcecode>
+<t>Note: Authentication event information is conveyed via the ID Token while it is up to the RP to determine what (additional) claims are allocated to <tt>id_token</tt> and <tt>vp_token</tt>, respectively, via the <tt>claims</tt> parameter.</t>
+</section>
+</section>
+
+<section anchor="metadata"><name>Metadata</name>
+<t>This specification introduces additional metadata to enable RP and OP to determine the verifiable presentation and verifiable credential formats, proof types and algorithms to be used in a protocol exchange.</t>
+
+<section anchor="rp-metadata"><name>RP Metadata</name>
+<t>This specification defines new client metadata parameters according to <xref target="OpenID.Registration"></xref>.</t>
+<t>RPs indicate the supported formats using the new parameter <tt>vp_formats</tt>.</t>
+
+<ul>
+<li><t><tt>vp_formats</tt>: REQUIRED. An object defining the formats, proof types and algorithms of verifiable presentation and verifiable credential that a RP supports. Valid values include <tt>jwt_vp</tt>, <tt>ldp_vp</tt>, <tt>jwt_vc</tt> and <tt>ldp_vc</tt>. Other formats may be supported.</t>
+</li>
+</ul>
+<t>The <tt>format</tt> property inside a <tt>presentation_definition</tt> object as defined in <xref target="DIF.PresentationExchange"></xref> MAY be used to specify concrete format in which the RP is requesting verifiable presentations to be presented. The OP MUST ignore <tt>format</tt> property inside a <tt>presentation_definition</tt> object if that <tt>format</tt> was not included in the <tt>vp_formats</tt> property of the client metadata.</t>
+<t>Note that version 2.0.0 of <xref target="DIF.PresentationExchange"></xref> allows the RP to specify format of each requested credential using the <tt>formats</tt> property inside the <tt>input_descriptor</tt> object, in addition to communicating the supported presentation formats using the <tt>vp_formats</tt> parameter in the RP metadata.</t>
+<t>Here is an example for an RP registering with a Standard OP via dynamic client registration:</t>
+
+<sourcecode type="json">{
+   &quot;client_id&quot;: &quot;s6BhdRkqt3&quot;,
+   &quot;redirect_uris&quot;: [
+      &quot;https://client.example.org/callback&quot;,
+      &quot;https://client.example.org/callback2&quot;
+   ],
+   &quot;client_name&quot;: &quot;My Example&quot;,
+   &quot;token_endpoint_auth_method&quot;: &quot;client_secret_basic&quot;,
+   &quot;application_type&quot;: &quot;web&quot;,
+   &quot;response_types&quot;: &quot;code&quot;,
+   &quot;grant_types&quot;: &quot;authorization_code&quot;,
+   &quot;vp_formats&quot;: {
+      &quot;jwt_vp&quot;: {
+         &quot;alg&quot;: [
+            &quot;EdDSA&quot;,
+            &quot;ES256K&quot;
+         ]
+      },
+      &quot;ldp_vp&quot;: {
+         &quot;proof_type&quot;: [
+            &quot;Ed25519Signature2018&quot;
+         ]
+      }
+   }
+}
+</sourcecode>
+<t>Here is an example for an RP registering with a SIOP (see <xref target="SIOPv2"></xref>) with the <tt>registration</tt> request parameter:</t>
+
+<sourcecode type="json">{
+   &quot;client_id&quot;: &quot;s6BhdRkqt3&quot;,
+   &quot;redirect_uris&quot;: [
+      &quot;https://client.example.org/callback&quot;
+   ],
+   &quot;client_name&quot;: &quot;My Example (SIOP)&quot;,
+   &quot;application_type&quot;: &quot;web&quot;,
+   &quot;response_types&quot;: &quot;id_token&quot;,
+   &quot;vp_formats&quot;: {
+      &quot;jwt_vp&quot;: {
+         &quot;alg&quot;: [
+            &quot;EdDSA&quot;,
+            &quot;ES256K&quot;
+         ]
+      },
+      &quot;ldp_vp&quot;: {
+         &quot;proof_type&quot;: [
+            &quot;Ed25519Signature2018&quot;
+         ]
+      }
+   }
+}
+</sourcecode>
+</section>
+
+<section anchor="rp-metadata-error-response"><name>RP Metadata Error Response</name>
+<t>Error response MUST be made in the same manner as defined in <xref target="OpenID.Core"></xref>.</t>
+</section>
+
+<section anchor="rp-metadata-error-response-codes"><name>RP Metadata Error Response Codes</name>
+<t>This extension defines the following error codes that MUST be returned when the OP does not support client metadata parameters:</t>
+
+<ul>
+<li><t><tt>vp_formats_not_supported</tt>: The OP does not support any of the VP formats supported by the RP such as those included in the <tt>vp_formats</tt> registration parameter.</t>
+</li>
+</ul>
+</section>
+
+<section anchor="op-metadata"><name>OP Metadata</name>
+<t>This specification defines new server metadata parameters according to <xref target="OpenID-Discovery"></xref>.</t>
+<t>The OP publishes the formats it supports using the <tt>vp_formats</tt> metadata parameter as defined above in its &quot;openid-configuration&quot;.</t>
+</section>
+</section>
+
+<section anchor="security_considerations"><name>Security Considerations</name>
+
+<section anchor="preventing-replay"><name>Preventing Replay Attacks</name>
+<t>To prevent replay attacks, verifiable presentation container objects MUST be linked to <tt>client_id</tt> and <tt>nonce</tt> from the Authentication Request. The <tt>client_id</tt> is used to detect presentation of credentials to a different party other than the intended. The <tt>nonce</tt> value binds the presentation to a certain authentication transaction and allows the verifier to detect injection of a presentation in the OpenID Connect flow, which is especially important in flows where the presentation is passed through the front-channel.</t>
+<t>Note: These values MAY be represented in different ways in a verifiable presentation (directly as claims or indirectly be incorporation in proof calculation) according to the selected proof format denoted by the format claim in the verifiable presentation container.</t>
+<t>Note: This specification assumes that a verifiable credential is always presented with a cryptographic proof of possession which can be a Verifiable presentation. This cryptographic proof of possession is bound to audience and transaction as described in this section.</t>
+<t>Here is a non-normative example for format=<tt>jwt_vp</tt> (only relevant part):</t>
+
+<sourcecode type="json">{
+  &quot;iss&quot;: &quot;did:example:ebfeb1f712ebc6f1c276e12ec21&quot;,
+  &quot;jti&quot;: &quot;urn:uuid:3978344f-8596-4c3a-a978-8fcaba3903c5&quot;,
+  &quot;aud&quot;: &quot;s6BhdRkqt3&quot;,
+  &quot;nonce&quot;: &quot;343s$FSFDa-&quot;,
+  &quot;nbf&quot;: 1541493724,
+  &quot;iat&quot;: 1541493724,
+  &quot;exp&quot;: 1573029723,
+  &quot;vp&quot;: {
+    &quot;@context&quot;: [
+      &quot;&lt;https://www.w3.org/2018/credentials/v1&quot;,&gt;
+      &quot;&lt;https://www.w3.org/2018/credentials/examples/v1&quot;&gt;
+    ],
+    &quot;type&quot;: [&quot;VerifiablePresentation&quot;],
+
+    &quot;verifiableCredential&quot;: [&quot;&quot;]
+  }
+}
+</sourcecode>
+<t>In the example above, the requested <tt>nonce</tt> value is included as the <tt>nonce</tt> and <tt>client_id</tt> as the <tt>aud</tt> value in the proof of the verifiable presentation.</t>
+<t>Here is a non-normative example for format=<tt>ldp_vp</tt> (only relevant part):</t>
+
+<sourcecode type="json">{
+  &quot;@context&quot;: [ ... ],
+  &quot;type&quot;: &quot;VerifiablePresentation&quot;,
+  &quot;verifiableCredential&quot;: [ ... ],
+  &quot;proof&quot;: {
+    &quot;type&quot;: &quot;RsaSignature2018&quot;,
+    &quot;created&quot;: &quot;2018-09-14T21:19:10Z&quot;,
+    &quot;proofPurpose&quot;: &quot;authentication&quot;,
+    &quot;verificationMethod&quot;: &quot;did:example:ebfeb1f712ebc6f1c276e12ec21#keys-1&quot;,    
+    &quot;challenge&quot;: &quot;343s$FSFDa-&quot;,
+    &quot;domain&quot;: &quot;s6BhdRkqt3&quot;,
+    &quot;jws&quot;: &quot;eyJhbGciOiJSUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..kTCYt5
+      XsITJX1CxPCT8yAV-TVIw5WEuts01mq-pQy7UJiN5mgREEMGlv50aqzpqh4Qq_PbChOMqs
+      LfRoPsnsgxD-WUcX16dUOqV0G_zS245-kronKb78cPktb3rk-BuQy72IFLN25DYuNzVBAh
+      4vGHSrQyHUGlcTwLtjPAnKb78&quot;
+  }
+}
+</sourcecode>
+<t>In the example above, the requested <tt>nonce</tt> value is included as the <tt>challenge</tt> and <tt>client_id</tt> as the <tt>domain</tt> value in the proof of the verifiable presentation.</t>
+</section>
+
+<section anchor="validation-of-verifiable-presentations"><name>Validation of Verifiable Presentations</name>
+<t>A verifier MUST validate the integrity, authenticity, and holder binding of any verifiable presentation provided by an OP according to the rules of the respective presentation format.</t>
+<t>This requirement holds true even if those verifiable presentations are embedded within a signed OpenID Connect assertion, such as an ID Token or a UserInfo response. This is required because verifiable presentations might be signed by the same holder but with different key material and/or the OpenID Connect assertions may be signed by a third party (e.g., a traditional OP). In both cases, just checking the signature of the respective OpenID Connect assertion does not, for example, check the holder binding.</t>
+<t>Note: Some of the available mechanisms are outlined in Section 4.3.2 of <xref target="DIF.PresentationExchange"></xref>.</t>
+<t>It is NOT RECOMMENDED for the Subject to delegate the presentation of the credential to a third party.</t>
+</section>
+</section>
+
+<section anchor="examples"><name>Examples</name>
+<t>This Section illustrates examples when W3C verifiable credentials objects are requested using the <tt>claims</tt> parameter and returned in a VP Token.</t>
+
+<section anchor="self-issued-openid-provider-siop"><name>Self-Issued OpenID Provider (SIOP)</name>
+<t>This Section illustrates the protocol flow for the case of communication through the front-channel with SIOP.</t>
+
+<section anchor="authentication-request"><name>Authentication request</name>
+<t>The following is a non-normative example of how an RP would use the <tt>claims</tt> parameter to request claims in the <tt>vp_token</tt>:</t>
+
+<artwork>  HTTP/1.1 302 Found
+  Location: openid://?
+    response_type=id_token
+    &amp;client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;scope=openid
+    &amp;claims=...
+    &amp;state=af0ifjsldkj
+    &amp;nonce=n-0S6_WzA2Mj
+    &amp;registration_uri=https%3A%2F%2F
+      client.example.org%2Frf.txt%22%7D
+      
+</artwork>
+
+<section anchor="claims-parameter"><name>claims parameter</name>
+
+<sourcecode type="json">{
+    &quot;id_token&quot;: {
+        &quot;email&quot;: null
+    },
+    &quot;vp_token&quot;: {
+        &quot;presentation_definition&quot;: {
+            &quot;id&quot;: &quot;vp token example&quot;,
+            &quot;input_descriptors&quot;: [
+                {
+                    &quot;id&quot;: &quot;id card credential with constraints&quot;,
+                    &quot;format&quot;: {
+                        &quot;ldp_vc&quot;: {
+                            &quot;proof_type&quot;: [
+                                &quot;Ed25519Signature2018&quot;
+                            ]
+                        }
+                    },
+                    &quot;constraints&quot;: {
+                        &quot;limit_disclosure&quot;: &quot;required&quot;,
+                        &quot;fields&quot;: [
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.type&quot;
+                                ],
+                                &quot;filter&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;pattern&quot;: &quot;IDCardCredential&quot;
+                                }
+                            },
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.credentialSubject.given_name&quot;
+                                ]
+                            },
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.credentialSubject.family_name&quot;
+                                ]
+                            },
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.credentialSubject.birthdate&quot;
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
+</sourcecode>
+</section>
+</section>
+
+<section anchor="authentication-response-including-vp-token"><name>Authentication Response (including vp_token)</name>
+<t>The successful authentication response contains a <tt>vp_token</tt> parameter along with  <tt>id_token</tt> and <tt>state</tt>.</t>
+
+<artwork>  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    id_token=eyJ0 ... NiJ9.eyJ1c ... I6IjIifX0.DeWt4Qu ... ZXso
+    &amp;vp_token=...
+    &amp;state=af0ifjsldkj
+      
+</artwork>
+
+<section anchor="id-token"><name>id_token</name>
+<t>This is the example ID Token:</t>
+
+<sourcecode type="json">{
+   &quot;iss&quot;:&quot;https://self-issued.me/v2&quot;,
+   &quot;aud&quot;:&quot;https://client.example.org/cb&quot;,
+   &quot;iat&quot;:1615910538,
+   &quot;exp&quot;:1615911138,
+   &quot;sub&quot;:&quot;NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs&quot;,
+   &quot;auth_time&quot;:1615910535,
+   &quot;nonce&quot;:&quot;n-0S6_WzA2Mj&quot;,
+   &quot;sub_jwk&quot;: {
+     &quot;kty&quot;:&quot;RSA&quot;,
+     &quot;n&quot;: &quot;0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx
+     4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMs
+     tn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2
+     QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbI
+     SD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqb
+     w0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw&quot;,
+     &quot;e&quot;:&quot;AQAB&quot;
+    }
+    &quot;_vp_token&quot;: {
+        &quot;presentation_submission&quot;: {
+            &quot;id&quot;: &quot;Selective disclosure example presentation&quot;,
+            &quot;definition_id&quot;: &quot;Selective disclosure example&quot;,
+            &quot;descriptor_map&quot;: [
+                {
+                    &quot;id&quot;: &quot;ID Card with constraints&quot;,
+                    &quot;format&quot;: &quot;ldp_vp&quot;,
+                    &quot;path&quot;: &quot;$&quot;,
+                    &quot;path_nested&quot;: {
+                        &quot;format&quot;: &quot;ldp_vc&quot;,
+                        &quot;path&quot;: &quot;$.verifiableCredential[0]&quot;
+                    }
+                }
+            ]
+        }
+    }
+}
+</sourcecode>
+</section>
+
+<section anchor="vp-token-content"><name>vp_token content</name>
+<t>This is the example <tt>vp_token</tt> containing a verifiable presentation (and credential) in LD Proof format.</t>
+<t>Note: in accordance with <xref target="security_considerations"></xref> the verifiable presentation's <tt>challenge</tt> claim is set to the value of the <tt>nonce</tt> request parameter value and the <tt>domain</tt> claim contains the RP's <tt>client_id</tt>.</t>
+
+<sourcecode type="json">{
+    &quot;@context&quot;: [
+        &quot;https://www.w3.org/2018/credentials/v1&quot;
+    ],
+    &quot;type&quot;: [
+        &quot;VerifiablePresentation&quot;
+    ],
+    &quot;verifiableCredential&quot;: [
+        {
+            &quot;@context&quot;: [
+                &quot;https://www.w3.org/2018/credentials/v1&quot;,
+                &quot;https://www.w3.org/2018/credentials/examples/v1&quot;
+            ],
+            &quot;id&quot;: &quot;https://example.com/credentials/1872&quot;,
+            &quot;type&quot;: [
+                &quot;VerifiableCredential&quot;,
+                &quot;IDCardCredential&quot;
+            ],
+            &quot;issuer&quot;: {
+                &quot;id&quot;: &quot;did:example:issuer&quot;
+            },
+            &quot;issuanceDate&quot;: &quot;2010-01-01T19:23:24Z&quot;,
+            &quot;credentialSubject&quot;: {
+                &quot;given_name&quot;: &quot;Fredrik&quot;,
+                &quot;family_name&quot;: &quot;Strömberg&quot;,
+                &quot;birthdate&quot;: &quot;1949-01-22&quot;
+            },
+            &quot;proof&quot;: {
+                &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+                &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+                &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..PT8yCqVjj5ZHD0W36zsBQ47oc3El07WGPWaLUuBTOT48IgKI5HDoiFUt9idChT_Zh5s8cF_2cSRWELuD8JQdBw&quot;,
+                &quot;proofPurpose&quot;: &quot;assertionMethod&quot;,
+                &quot;verificationMethod&quot;: &quot;did:example:issuer#keys-1&quot;
+            }
+        }
+    ],
+    &quot;id&quot;: &quot;ebc6f1c2&quot;,
+    &quot;holder&quot;: &quot;did:example:holder&quot;,
+    &quot;proof&quot;: {
+        &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+        &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+        &quot;challenge&quot;: &quot;n-0S6_WzA2Mj&quot;,
+        &quot;domain&quot;: &quot;https://client.example.org/cb&quot;,
+        &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..GF5Z6TamgNE8QjE3RbiDOj3n_t25_1K7NVWMUASe_OEzQV63GaKdu235MCS3hIYvepcNdQ_ZOKpGNCf0vIAoDA&quot;,
+        &quot;proofPurpose&quot;: &quot;authentication&quot;,
+        &quot;verificationMethod&quot;: &quot;did:example:holder#key-1&quot;
+    }
+}
+</sourcecode>
+</section>
+</section>
+</section>
+
+<section anchor="authorization-code-flow-with-vp-token"><name>Authorization Code Flow with vp_token</name>
+<t>This Section illustrates the protocol flow for the case of communication using front-channel and backchannel (utilizing the authorization code flow).</t>
+
+<section anchor="authentication-request-1"><name>Authentication Request</name>
+
+<artwork>  GET /authorize?
+    response_type=code
+    &amp;client_id=s6BhdRkqt3 
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;scope=openid
+    &amp;claims=...
+    &amp;state=af0ifjsldkj
+    &amp;nonce=n-0S6_WzA2Mj HTTP/1.1
+  Host: server.example.com
+</artwork>
+
+<section anchor="claims-parameter-1"><name>Claims parameter</name>
+
+<sourcecode type="json">{
+    &quot;id_token&quot;: {
+        &quot;email&quot;: null
+    },
+    &quot;vp_token&quot;: {
+        &quot;presentation_definition&quot;: {
+            &quot;id&quot;: &quot;vp token example&quot;,
+            &quot;input_descriptors&quot;: [
+                {
+                    &quot;id&quot;: &quot;id card credential with constraints&quot;,
+                    &quot;format&quot;: {
+                        &quot;ldp_vc&quot;: {
+                            &quot;proof_type&quot;: [
+                                &quot;Ed25519Signature2018&quot;
+                            ]
+                        }
+                    },
+                    &quot;constraints&quot;: {
+                        &quot;limit_disclosure&quot;: &quot;required&quot;,
+                        &quot;fields&quot;: [
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.type&quot;
+                                ],
+                                &quot;filter&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;pattern&quot;: &quot;IDCardCredential&quot;
+                                }
+                            },
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.credentialSubject.given_name&quot;
+                                ]
+                            },
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.credentialSubject.family_name&quot;
+                                ]
+                            },
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.credentialSubject.birthdate&quot;
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
+</sourcecode>
+</section>
+</section>
+
+<section anchor="authentication-response"><name>Authentication Response</name>
+
+<artwork>HTTP/1.1 302 Found
+  Location: https://client.example.org/cb?
+    code=SplxlOBeZQQYbYS6WxSbIA
+    &amp;state=af0ifjsldkj
+</artwork>
+</section>
+
+<section anchor="token-request"><name>Token Request</name>
+
+<artwork>  POST /token HTTP/1.1
+  Host: server.example.com
+  Content-Type: application/x-www-form-urlencoded
+  Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
+
+  grant_type=authorization_code
+  &amp;code=SplxlOBeZQQYbYS6WxSbIA
+  &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+</artwork>
+</section>
+
+<section anchor="token-response-including-vp-token"><name>Token Response (including vp_token)</name>
+<t>This is the example token response containing a <tt>vp_token</tt> which contains a verifiable presentation (and credential) in LD Proof format.</t>
+<t>Note: in accordance with <xref target="security_considerations"></xref> the verifiable presentation's <tt>challenge</tt> claim is set to the value of the <tt>nonce</tt> request parameter value and the <tt>domain</tt> claim contains the RP's <tt>client_id</tt>.</t>
+
+<sourcecode type="json">{
+   &quot;access_token&quot;: &quot;SlAV32hkKG&quot;,
+   &quot;token_type&quot;: &quot;Bearer&quot;,
+   &quot;refresh_token&quot;: &quot;8xLOxBtZp8&quot;,
+   &quot;expires_in&quot;: 3600,
+   &quot;id_token&quot;: &quot;eyJ0 ... NiJ9.eyJ1c ... I6IjIifX0.DeWt4Qu ... ZXso&quot;,
+   &quot;vp_token&quot;: {
+      &quot;@context&quot;: [
+         &quot;https://www.w3.org/2018/credentials/v1&quot;
+      ],
+      &quot;type&quot;: [
+         &quot;VerifiablePresentation&quot;
+      ],
+      &quot;verifiableCredential&quot;: [
+         {
+            &quot;@context&quot;: [
+               &quot;https://www.w3.org/2018/credentials/v1&quot;,
+               &quot;https://www.w3.org/2018/credentials/examples/v1&quot;
+            ],
+            &quot;id&quot;: &quot;https://example.com/credentials/1872&quot;,
+            &quot;type&quot;: [
+               &quot;VerifiableCredential&quot;,
+               &quot;IDCardCredential&quot;
+            ],
+            &quot;issuer&quot;: {
+               &quot;id&quot;: &quot;did:example:issuer&quot;
+            },
+            &quot;issuanceDate&quot;: &quot;2010-01-01T19:23:24Z&quot;,
+            &quot;credentialSubject&quot;: {
+               &quot;given_name&quot;: &quot;Fredrik&quot;,
+               &quot;family_name&quot;: &quot;Strömberg&quot;,
+               &quot;birthdate&quot;: &quot;1949-01-22&quot;
+            },
+            &quot;proof&quot;: {
+               &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+               &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+               &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..PT8yCqVjj5ZHD0W36zsBQ47oc3El07WGPWaLUuBTOT48IgKI5HDoiFUt9idChT_Zh5s8cF_2cSRWELuD8JQdBw&quot;,
+               &quot;proofPurpose&quot;: &quot;assertionMethod&quot;,
+               &quot;verificationMethod&quot;: &quot;did:example:issuer#keys-1&quot;
+            }
+         }
+      ],
+      &quot;id&quot;: &quot;ebc6f1c2&quot;,
+      &quot;holder&quot;: &quot;did:example:holder&quot;,
+      &quot;proof&quot;: {
+         &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+         &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+         &quot;challenge&quot;: &quot;n-0S6_WzA2Mj&quot;,
+         &quot;domain&quot;: &quot;s6BhdRkqt3&quot;,
+         &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..GF5Z6TamgNE8QjE3RbiDOj3n_t25_1K7NVWMUASe_OEzQV63GaKdu235MCS3hIYvepcNdQ_ZOKpGNCf0vIAoDA&quot;,
+         &quot;proofPurpose&quot;: &quot;authentication&quot;,
+         &quot;verificationMethod&quot;: &quot;did:example:holder#key-1&quot;
+      }
+   }
+}
+</sourcecode>
+
+<section anchor="id-token-1"><name>id_token</name>
+
+<sourcecode type="json">{
+    &quot;iss&quot;: &quot;http://server.example.com&quot;,
+    &quot;sub&quot;: &quot;248289761001&quot;,
+    &quot;aud&quot;: &quot;s6BhdRkqt3&quot;,
+    &quot;iat&quot;: 1615910538,
+    &quot;exp&quot;: 1615911138,
+    &quot;auth_time&quot;: 1615910535,
+    &quot;nonce&quot;: &quot;960848874&quot;,
+    &quot;_vp_token&quot;: {
+        &quot;presentation_submission&quot;: {
+            &quot;id&quot;: &quot;Selective disclosure example presentation&quot;,
+            &quot;definition_id&quot;: &quot;Selective disclosure example&quot;,
+            &quot;descriptor_map&quot;: [
+                {
+                    &quot;id&quot;: &quot;ID Card with constraints&quot;,
+                    &quot;format&quot;: &quot;ldp_vp&quot;,
+                    &quot;path&quot;: &quot;$&quot;,
+                    &quot;path_nested&quot;: {
+                        &quot;format&quot;: &quot;ldp_vc&quot;,
+                        &quot;path&quot;: &quot;$.verifiableCredential[0]&quot;
+                    }
+                }
+            ]
+        }
+    }
+}
+</sourcecode>
+</section>
+</section>
+</section>
+</section>
+
+</middle>
+
+<back>
+<references><name>Normative References</name>
+<reference anchor="OpenID.Registration" target="https://openid.net/specs/openid-connect-registration-1_0.html">
+  <front>
+    <title>OpenID Connect Dynamic Client Registration 1.0 incorporating errata set 1</title>
+    <author fullname="Nat Sakimura">
+      <organization>NRI</organization>
+    </author>
+    <author fullname="John Bradley">
+      <organization>Ping Identity</organization>
+    </author>
+    <author fullname="Michael B. Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <date year="2014" month="Nov" day="8"></date>
+  </front>
+</reference>
+<reference anchor="OpenID-Discovery" target="https://openid.net/specs/openid-connect-discovery-1_0.html">
+  <front>
+    <title>OpenID Connect Discovery 1.0 incorporating errata set 1</title>
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization>NRI</organization>
+    </author>
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization>Ping Identity</organization>
+    </author>
+    <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+      <organization>Google</organization>
+    </author>
+    <author fullname="Edmund Jay" initials="E." surname="Jay">
+      <organization> Illumila </organization>
+    </author>
+    <date year="2014" month="Nov" day="8"></date>
+  </front>
+</reference>
+<reference anchor="OpenID.Core" target="http://openid.net/specs/openid-connect-core-1_0.html">
+  <front>
+    <title>OpenID Connect Core 1.0 incorporating errata set 1</title>
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization>NRI</organization>
+    </author>
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization>Ping Identity</organization>
+    </author>
+    <author fullname="Michael B. Jones" initials="M." surname="Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+      <organization>Google</organization>
+    </author>
+    <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+      <organization>Salesforce</organization>
+    </author>
+    <date year="2014" month="Nov" day="8"></date>
+  </front>
+</reference>
+<reference anchor="DIF.PresentationExchange" target="https://identity.foundation/presentation-exchange">
+  <front>
+    <title>Presentation Exchange 2.0.0</title>
+    <author fullname="Daniel Buchner">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Brent Zundel">
+      <organization>Evernym</organization>
+    </author>
+    <author fullname="Martin Riedel">
+      <organization>Consensys Mesh</organization>
+    </author>
+    <author fullname="Kim Hamilton Duffy">
+      <organization>Centre Consortium</organization>
+    </author>
+    <date></date>
+  </front>
+</reference>
+</references>
+<references><name>Informative References</name>
+<reference anchor="SIOPv2" target="https://openid.bitbucket.io/connect/openid-connect-self-issued-v2-1_0.html">
+  <front>
+    <title>Self-Issued OpenID Provider V2</title>
+    <author>
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Michael B. Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Tobias Looker">
+      <organization>Mattr</organization>
+    </author>
+    <date year="2021" month="Jul" day="20"></date>
+  </front>
+</reference>
+<reference anchor="VC_DATA" target="https://www.w3.org/TR/vc-data-model">
+  <front>
+    <title>Verifiable Credentials Data Model 1.0</title>
+    <author fullname="Manu Sporny">
+      <organization>Digital Bazaar</organization>
+    </author>
+    <author fullname="Grant Noble">
+      <organization>ConsenSys</organization>
+    </author>
+    <author fullname="Dave Longley">
+      <organization>Digital Bazaar</organization>
+    </author>
+    <author fullname="Daniel C. Burnett">
+      <organization>ConsenSys</organization>
+    </author>
+    <author fullname="Brent Zundel">
+      <organization>Evernym</organization>
+    </author>
+    <author fullname="David Chadwick">
+      <organization>University of Kent</organization>
+    </author>
+    <date year="2019" month="Nov" day="19"></date>
+  </front>
+</reference>
+</references>
+
+<section anchor="iana-considerations"><name>IANA Considerations</name>
+<t>TBD</t>
+</section>
+
+<section anchor="Acknowledgements"><name>Acknowledgements</name>
+<t>We would like to thank Daniel Fett, Fabian Hauck, Alen Horvat, Edmund Jay, Ronald Koenig, and Michael B. Jones for their valuable feedback and contributions that helped to evolve this specification.</t>
+</section>
+
+<section anchor="notices"><name>Notices</name>
+<t>Copyright (c) 2022 The OpenID Foundation.</t>
+<t>The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer, or other interested party a non-exclusive, royalty free, worldwide copyright license to reproduce, prepare derivative works from, distribute, perform and display, this Implementers Draft or Final Specification solely for the purposes of (i) developing specifications, and (ii) implementing Implementers Drafts and Final Specifications based on such documents, provided that attribution be made to the OIDF as the source of the material, but that such attribution does not indicate an endorsement by the OIDF.</t>
+<t>The technology described in this specification was made available from contributions from various sources, including members of the OpenID Foundation and others. Although the OpenID Foundation has taken steps to help ensure that the technology is available for distribution, it takes no position regarding the validity or scope of any intellectual property or other rights that might be claimed to pertain to the implementation or use of the technology described in this specification or the extent to which any license under such rights might or might not be available; neither does it represent that it has made any independent effort to identify any such rights. The OpenID Foundation and the contributors to this specification make no (and hereby expressly disclaim any) warranties (express, implied, or otherwise), including implied warranties of merchantability, non-infringement, fitness for a particular purpose, or title, related to this specification, and the entire risk as to implementing this specification is assumed by the implementer. The OpenID Intellectual Property Rights policy requires contributors to offer a patent promise not to assert certain patent claims against other contributors and against implementers. The OpenID Foundation invites any interested party to bring to its attention any copyrights, patents, patent applications, or other proprietary rights that may cover technology that may be required to practice this specification.</t>
+</section>
+
+<section anchor="document-history"><name>Document History</name>
+<t>[[ To be removed from the final specification ]]</t>
+<t>-07</t>
+
+<ul>
+<li><t>added text on other credential formats</t>
+</li>
+<li><t>fixed inconsistency in security consideration regarding nonce</t>
+</li>
+</ul>
+<t>-06</t>
+
+<ul>
+<li><t>added additional security considerations</t>
+</li>
+<li><t>removed support for embedding verifiable presentations in ID Token or UserInfo response</t>
+</li>
+<li><t>migrated to Presentation Exchange 2.0</t>
+</li>
+</ul>
+<t>-05</t>
+
+<ul>
+<li><t>moved presentation submission elements outside of verifiable presentations (ID Token or UserInfo)</t>
+</li>
+</ul>
+<t>-04</t>
+
+<ul>
+<li><t>added presentation submission support</t>
+</li>
+<li><t>cleaned up examples to use <tt>nonce</tt> &amp; <tt>client_id</tt> instead of <tt>vp_hash</tt> for replay detection</t>
+</li>
+<li><t>fixed further nits in examples</t>
+</li>
+<li><t>added and reworked references to other specifications</t>
+</li>
+</ul>
+<t>-03</t>
+
+<ul>
+<li><t>aligned with SIOP v2 spec</t>
+</li>
+</ul>
+<t>-02</t>
+
+<ul>
+<li><t>added <tt>presentation_definition</tt> as sub element of <tt>verifiable_presentation</tt> and <tt>vp_token</tt></t>
+</li>
+</ul>
+<t>-01</t>
+
+<ul>
+<li><t>adopted DIF Presentation Exchange request syntax</t>
+</li>
+<li><t>added security considerations regarding replay detection for verifiable credentials</t>
+</li>
+</ul>
+<t>-00</t>
+
+<ul>
+<li><t>initial revision</t>
+</li>
+</ul>
+</section>
+
+</back>
+
+</rfc>

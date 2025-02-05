@@ -1,0 +1,896 @@
+
+
+
+Draft                                                           M. Jones
+                                                               Microsoft
+                                                              J. Bradley
+                                                             B. Campbell
+                                                           Ping Identity
+                                                            July 4, 2016
+
+
+        OpenID Connect Token Bound Authentication 1.0 - draft 00
+
+Abstract
+
+   OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+   protocol.  It enables Clients to verify the identity of the End-User
+   based on the authentication performed by an Authorization Server, as
+   well as to obtain basic profile information about the End-User in an
+   interoperable and REST-like manner.
+
+   This specification enables OpenID Connect implementations to apply
+   Token Binding to the OpenID Connect ID Token.  This cryptographically
+   binds the ID Token to the TLS connections over which the
+   authentication occurred.  This use of Token Binding protects the
+   authentication flow from man-in-the-middle and token export and
+   replay attacks.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 1]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
+     1.1.  Requirements Notation and Conventions  . . . . . . . . . .  3
+     1.2.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  3
+   2.  OpenID Connect Token Binding Representation  . . . . . . . . .  4
+   3.  OpenID Connect Token Binding Actions . . . . . . . . . . . . .  5
+   4.  Phasing in Token Binding and Preventing Downgrade Attacks  . .  6
+   5.  Token Binding Metadata . . . . . . . . . . . . . . . . . . . .  7
+     5.1.  Token Binding RP Metadata  . . . . . . . . . . . . . . . .  7
+     5.2.  Token Binding OP Metadata  . . . . . . . . . . . . . . . .  7
+   6.  Security Considerations  . . . . . . . . . . . . . . . . . . .  8
+   7.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . .  9
+     7.1.  JWT Confirmation Methods Registration  . . . . . . . . . .  9
+       7.1.1.  Registry Contents  . . . . . . . . . . . . . . . . . .  9
+     7.2.  OAuth Dynamic Client Registration Metadata Registration  .  9
+       7.2.1.  Registry Contents  . . . . . . . . . . . . . . . . . .  9
+     7.3.  OAuth Authorization Server Discovery Metadata
+           Registration . . . . . . . . . . . . . . . . . . . . . . .  9
+       7.3.1.  Registry Contents  . . . . . . . . . . . . . . . . . .  9
+   8.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 10
+     8.1.  Normative References . . . . . . . . . . . . . . . . . . . 10
+     8.2.  Informative References . . . . . . . . . . . . . . . . . . 11
+   Appendix A.  Acknowledgements  . . . . . . . . . . . . . . . . . . 12
+   Appendix B.  Notices . . . . . . . . . . . . . . . . . . . . . . . 13
+   Appendix C.  Open Issues . . . . . . . . . . . . . . . . . . . . . 14
+   Appendix D.  Document History  . . . . . . . . . . . . . . . . . . 15
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 16
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 2]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+1.  Introduction
+
+   OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+   [RFC6749] protocol.  It enables Clients to verify the identity of the
+   End-User based on the authentication performed by an Authorization
+   Server, as well as to obtain basic profile information about the End-
+   User in an interoperable and REST-like manner.
+
+   This specification enables OpenID Connect implementations to apply
+   Token Binding The Token Binding Protocol Version 1.0
+   [I-D.ietf-tokbind-protocol] Token Binding over HTTP
+   [I-D.ietf-tokbind-https] to the OpenID Connect ID Token defined by
+   OpenID Connect Core 1.0 [OpenID.Core].  This cryptographically binds
+   the ID Token to the TLS connections over which the authentication
+   occurred.  Token Binding is applied to OpenID Connect in the manner
+   described in Section 3 (Federation Use Cases) of Token Binding over
+   HTTP [I-D.ietf-tokbind-https].  As described in Section 4.4 (Securing
+   Federated Sign-On Protocols) of Token Binding over HTTP
+   [I-D.ietf-tokbind-https], this use of Token Binding protects the
+   authentication flow from man-in-the-middle and token export and
+   replay attacks.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in RFC
+   2119 [RFC2119].
+
+   In the .txt version of this specification, values are quoted to
+   indicate that they are to be taken literally.  When using these
+   values in protocol messages, the quotes MUST NOT be used as part of
+   the value.  In the HTML version of this specification, values to be
+   taken literally are indicated by the use of "this fixed-width font".
+
+1.2.  Terminology
+
+   This specification uses the terms "Authorization Endpoint",
+   "Authorization Server", "Client", "Response Type", and "Token
+   Endpoint" defined by OAuth 2.0 [RFC6749], the terms "Claim", "JSON
+   Web Token (JWT)", and "JWT Claims Set" defined by JSON Web Token
+   (JWT) [JWT], the term "User Agent" defined by RFC 7230 [RFC7230], the
+   terms "Provided", "Referred", "Token Binding" and "Token Binding ID"
+   defined by Token Binding over HTTP [I-D.ietf-tokbind-https], and the
+   terms defined by OpenID Connect Core 1.0 [OpenID.Core].
+
+
+
+
+
+
+Jones, et al.                                                   [Page 3]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+2.  OpenID Connect Token Binding Representation
+
+   Section 3 (Federation Use Cases) of Token Binding over HTTP
+   [I-D.ietf-tokbind-https] outlines how Token Binding is used with
+   federation protocols in the abstract.  This section defines the
+   concrete data structures for using Token Binding with OpenID Connect.
+
+   Section 3.2 of Token Binding over HTTP [I-D.ietf-tokbind-https]
+   suggests placing the public key of the Token Binding used to
+   communicate with the Relying Party in the ID Token.  A representation
+   of this key is communicated to the OpenID Provider in its Referred
+   Token Binding ID.  This specification utilizes a variant of this
+   approach in which a cryptographic hash of the Token Binding ID using
+   the SHA-256 hash function [SHS] is instead added to the ID Token.
+   This has the benefit of significantly reducing the size of the
+   information added to the ID Token from what it would otherwise have
+   been were the Token Binding ID to be included directly - particularly
+   in the RSA key case.
+
+   The recipient MUST verify that the SHA-256 hash of the Provided Token
+   Binding ID matches the SHA-256 hash contained in the ID Token.
+
+   This specification defines the new JWT Confirmation Method RFC 7800
+   [RFC7800] member "tbh" (token binding hash) to represent the SHA-256
+   hash of a Token Binding ID in an ID Token.  The value of the "tbh"
+   member is the base64url encoding of the SHA-256 hash of the Token
+   Binding ID.
+
+   The following example demonstrates the JWT Claims Set of an ID Token
+   containing the base64url encoding of the SHA-256 hash of a Token
+   Binding ID as the value of the "tbh" (token binding hash) element in
+   the "cnf" (confirmation) claim:
+
+     {
+      "iss": "https://server.example.com",
+      "sub": "0f6LkoE3KsPyxQ",
+      "aud": "0d8f597e-bc45-46b2-97cf-043c88aa5ecc",
+      "iat": 1467151051,
+      "exp": 1467151651,
+      "nonce": "1KjVsFnQRd4V2XC6",
+      "cnf":{
+        "tbh": "l1X0aVlpikNqDhaH92VwGgrFdAY0tSackYis1r_-fPo"
+       }
+     }
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 4]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+3.  OpenID Connect Token Binding Actions
+
+   This specification maps the abstract Token Binding actions specified
+   in Section 3 (Federation Use Cases) of Token Binding over HTTP
+   [I-D.ietf-tokbind-https] into concrete actions added to the
+   authentication steps specified in Section 3 (Authentication) of
+   OpenID Connect Core 1.0 [OpenID.Core].  Mapping the terminologies
+   used in the two specifications, the Relying Party is the Token
+   Consumer and the OpenID Provider is the Token Provider.
+
+   For OpenID Connect flows returning the ID Token directly from the
+   Authorization Endpoint -- the Implicit Flow defined in Section 3.2 of
+   OpenID Connect Core 1.0 [OpenID.Core] and the Hybrid Flow defined in
+   Section 3.3 of OpenID Connect Core 1.0 when using the "code id_token"
+   or "code id_token token" Response Types -- the actions described in
+   Section 3.5 of Token Binding over HTTP [I-D.ietf-tokbind-https] are
+   performed as described.  The one difference, as previously described,
+   is that a cryptographic hash using the SHA-256 hash function [SHS] of
+   the Token Binding ID is instead added to the ID Token, rather than
+   the Token Binding ID itself.
+
+   For OpenID Connect flows returning the ID Token from the Token
+   Endpoint -- the Authorization Code Flow defined in Section 3.1 of
+   OpenID Connect Core 1.0 [OpenID.Core] and the Hybrid Flow defined in
+   Section 3.3 of OpenID Connect Core 1.0 -- an additional step is
+   necessary beyond those in the previous case.  That step is for the RP
+   to record the Token Binding ID used when communicating between the
+   User Agent and the RP, saving it for later use after the Token
+   Response containing the ID Token returned from the Token Endpoint is
+   received.  This is needed because the ID Token will contain Token
+   Binding information from the TLS connection between the User Agent
+   and the Relying Party -- not information from the TLS connection
+   between the RP and the Token Endpoint.  In this case, even though the
+   ID Token is returned from the Token Endpoint, the Token Binding
+   validation steps are performed using the saved Token Binding ID,
+   rather than the Token Binding ID used when communicating with the
+   Token Endpoint.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 5]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+4.  Phasing in Token Binding and Preventing Downgrade Attacks
+
+   Many OpenID Connect implementations will be deployed in situations in
+   which not all participants support Token Binding.  Any of combination
+   of the Relying Party, the OpenID Provider, and the User Agent may not
+   yet support Token Binding, in which case it will not work end-to-end.
+
+   It is a context-dependent deployment choice whether to allow
+   authentications to proceed in which Token Binding is not supported or
+   whether to treat Token Binding failures at any step as fatal errors.
+   In dynamic deployment environments in which End Users have choices of
+   Relying Parties, the OpenID Providers, and/or User Agents, it is
+   RECOMMENDED that authentications using one or more components that do
+   not implement Token Binding be allowed to successfully proceed.  This
+   enables different components to be upgraded to supporting Token
+   Binding at different times, providing a smooth transition path for
+   phasing in Token Binding.  However, when Token Binding has been
+   performed, any Token Binding key mismatches MUST be treated as fatal
+   errors.
+
+   If all the participants in an OpenID Connect authentication support
+   Token Binding and yet one or more of them does not use it, this is
+   likely evidence of a downgrade attack.  In this case, the
+   authentication SHOULD be aborted with an error.  For instance, if the
+   RP knows that the OP and the User Agent both support Token Binding
+   and yet the ID Token received does not contain Token Binding
+   information, this is almost certainly a sign of an attack.
+
+   The OP and RP can determine whether the other supports Token Binding
+   using the metadata values defined in the next section.  They can
+   determine whether the User Agent supports Token Binding by whether it
+   negotiated Token Binding for the TLS connection.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 6]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+5.  Token Binding Metadata
+
+5.1.  Token Binding RP Metadata
+
+   Relying Parties supporting Token Binding that also support OpenID
+   Connect Dynamic Client Registration 1.0 [OpenID.Registration] use
+   this metadata value to register their support for Token Binding:
+
+   rp_id_token_token_binding_supported
+      OPTIONAL.  Boolean value specifying whether the Relying Party
+      supports Token Binding of ID Tokens.  If omitted, the default
+      value is "false".
+
+5.2.  Token Binding OP Metadata
+
+   OpenID Providers supporting Token Binding that also support OpenID
+   Connect Discovery 1.0 [OpenID.Discovery] use this metadata value to
+   register their support for Token Binding:
+
+   op_id_token_token_binding_supported
+      OPTIONAL.  Boolean value specifying whether the OpenID Provider
+      supports Token Binding of ID Tokens.  If omitted, the default
+      value is "false".
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 7]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+6.  Security Considerations
+
+   OpenID Connect implementations employing Token Binding benefit from
+   the protections described in Section 8 (Security Considerations) of
+   The Token Binding Protocol Version 1.0 [I-D.ietf-tokbind-protocol].
+   Obtaining these protections requires performing the proofs of
+   possession described in Section 4.4 (Securing Federated Sign-On
+   Protocols) of Token Binding over HTTP [I-D.ietf-tokbind-https].
+
+   It is largely the RP's responsibility to detect attempted man-in-the-
+   middle attacks.  This is possible after the RP first determines that
+   all parties support Token Binding.  When all parties support Token
+   Binding and there is either a Token Binding mismatch or if Token
+   Binding information should be present but is missing, either in the
+   TLS information or in the ID Token, then the RP SHOULD reject the
+   authentication.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 8]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+7.  IANA Considerations
+
+7.1.  JWT Confirmation Methods Registration
+
+   This specification registers the following confirmation method member
+   in the IANA "JWT Confirmation Methods" registry [IANA.JWT.Claims] for
+   JWT "cnf" member values established by [RFC7800]:
+
+7.1.1.  Registry Contents
+
+   o  Confirmation Method Value: "tbh"
+   o  Confirmation Method Description: Token Binding Hash
+   o  Change Controller: IESG
+   o  Specification Document(s): Section 2 of [[ this specification ]]
+
+7.2.  OAuth Dynamic Client Registration Metadata Registration
+
+   This specification registers the following client metadata definition
+   in the IANA "OAuth Dynamic Client Registration Metadata" registry
+   [IANA.OAuth.Parameters] established by [RFC7591]:
+
+7.2.1.  Registry Contents
+
+   o  Client Metadata Name: "rp_id_token_token_binding_supported"
+   o  Client Metadata Description: Boolean value specifying whether the
+      Relying Party supports Token Binding of ID Tokens
+   o  Change Controller: OpenID Foundation Extended Authentication
+      Profile (EAP) Working Group - openid-specs-eap@lists.openid.net
+   o  Specification Document(s): Section 5.1 of [[ this specification ]]
+
+7.3.  OAuth Authorization Server Discovery Metadata Registration
+
+   This specification registers the following discovery metadata
+   definition in the IANA "OAuth Authorization Server Discovery
+   Metadata" registry established by [OAuth.Discovery]:
+
+7.3.1.  Registry Contents
+
+   o  Discovery Metadata Name: "op_id_token_token_binding_supported"
+   o  Discovery Metadata Description: Boolean value specifying whether
+      the OpenID Provider supports Token Binding of ID Tokens
+   o  Change Controller: OpenID Foundation Extended Authentication
+      Profile (EAP) Working Group - openid-specs-eap@lists.openid.net
+   o  Specification Document(s): Section 5.2 of [[ this specification ]]
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 9]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+8.  References
+
+8.1.  Normative References
+
+   [I-D.ietf-tokbind-https]
+              Popov, A., Nystrom, M., Balfanz, D., Langley, A., and J.
+              Hodges, "Token Binding over HTTP",
+              draft-ietf-tokbind-https-03 (work in progress),
+              March 2016.
+
+   [I-D.ietf-tokbind-protocol]
+              Popov, A., Nystrom, M., Balfanz, D., Langley, A., and J.
+              Hodges, "The Token Binding Protocol Version 1.0",
+              draft-ietf-tokbind-protocol-06 (work in progress),
+              May 2016.
+
+   [IANA.JWT.Claims]
+              IANA, "JSON Web Token Claims",
+              <http://www.iana.org/assignments/jwt>.
+
+   [IANA.OAuth.Parameters]
+              IANA, "OAuth Parameters",
+              <http://www.iana.org/assignments/oauth-parameters>.
+
+   [JWT]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token
+              (JWT)", RFC 7519, DOI 10.17487/RFC7519, May 2015,
+              <http://tools.ietf.org/html/rfc7519>.
+
+   [OpenID.Core]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Core 1.0", November 2014,
+              <http://openid.net/specs/openid-connect-core-1_0.html>.
+
+   [OpenID.Discovery]
+              Sakimura, N., Bradley, J., Jones, M., and E. Jay, "OpenID
+              Connect Discovery 1.0", November 2014, <http://openid.net/
+              specs/openid-connect-discovery-1_0.html>.
+
+   [OpenID.Registration]
+              Sakimura, N., Bradley, J., and M. Jones, "OpenID Connect
+              Dynamic Client Registration 1.0", November 2014, <http://
+              openid.net/specs/openid-connect-registration-1_0.html>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, DOI 10.17487/
+              RFC2119, March 1997,
+              <http://www.rfc-editor.org/info/rfc2119>.
+
+
+
+
+Jones, et al.                                                  [Page 10]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <http://www.rfc-editor.org/info/rfc6749>.
+
+   [RFC7230]  Fielding, R., Ed. and J. Reschke, Ed., "Hypertext Transfer
+              Protocol (HTTP/1.1): Message Syntax and Routing",
+              RFC 7230, DOI 10.17487/RFC7230, June 2014,
+              <http://www.rfc-editor.org/info/rfc7230>.
+
+   [RFC7800]  Jones, M., Bradley, J., and H. Tschofenig, "Proof-of-
+              Possession Key Semantics for JSON Web Tokens (JWTs)",
+              RFC 7800, DOI 10.17487/RFC7800, April 2016,
+              <http://www.rfc-editor.org/info/rfc7800>.
+
+   [SHS]      National Institute of Standards and Technology, "Secure
+              Hash Standard (SHS)", FIPS PUB 180-4, March 2012, <http://
+              csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf>.
+
+8.2.  Informative References
+
+   [OAuth.Discovery]
+              Jones, M., Sakimura, N., and J. Bradley, "OAuth 2.0
+              Discovery", draft-ietf-oauth-discovery-02 (work in
+              progress), March 2016,
+              <http://tools.ietf.org/html/
+              draft-ietf-oauth-discovery-02>.
+
+   [RFC7591]  Richer, J., Ed., Jones, M., Bradley, J., Machulak, M., and
+              P. Hunt, "OAuth 2.0 Dynamic Client Registration Protocol",
+              RFC 7591, DOI 10.17487/RFC7591, July 2015,
+              <http://www.rfc-editor.org/info/rfc7591>.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                  [Page 11]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+Appendix A.  Acknowledgements
+
+   The OpenID Community would like to thank the following people for
+   their contributions to this specification:
+
+      Dirk Balfanz (balfanz@google.com), Google
+
+      John Bradley (ve7jtb@ve7jtb.com), Ping Identity
+
+      Brian Campbell (bcampbell@pingidentity.com), Ping Identity
+
+      William Denniss (wdenniss@google.com), Google
+
+      Michael B. Jones (mbj@microsoft.com), Microsoft
+
+      Andrei Popov (Andrei.Popov@microsoft.com), Microsoft
+
+      Nat Sakimura (n-sakimura@nri.co.jp), Nomura Research Institute,
+      Ltd.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                  [Page 12]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+Appendix B.  Notices
+
+   Copyright (c) 2016 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                  [Page 13]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+Appendix C.  Open Issues
+
+   o  How should we support crypto agility for the hash function?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                  [Page 14]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+Appendix D.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -00
+
+   o  Created initial version.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                  [Page 15]
+
+              OpenID Connect Token Bound Authentication 1.0    July 2016
+
+
+Authors' Addresses
+
+   Michael B. Jones
+   Microsoft
+
+   Email: mbj@microsoft.com
+   URI:   http://self-issued.info/
+
+
+   John Bradley
+   Ping Identity
+
+   Email: ve7jtb@ve7jtb.com
+   URI:   http://www.thread-safe.com/
+
+
+   Brian Campbell
+   Ping Identity
+
+   Email: brian.d.campbell@gmail.com
+   URI:   https://twitter.com/__b_c
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                  [Page 16]
+

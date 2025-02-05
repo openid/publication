@@ -1,0 +1,2139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type='text/xsl' href='http://xml.resource.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN"
+"http://xml.resource.org/authoring/rfc2629.dtd">
+<rfc category="std" docName="draft-openid-connect-registration-1_0"
+     ipr="trust200902">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="5" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="yes" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title abbrev="OpenID Connect Registration 1.0">OpenID Connect
+    Dynamic Client Registration 1.0 - draft 23</title>
+
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+      <address>
+        <email>n-sakimura@nri.co.jp</email>
+	<uri>http://nat.sakimura.org/</uri>
+      </address>
+    </author>
+
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization abbrev="Ping Identity">Ping Identity</organization>
+      <address>
+        <email>ve7jtb@ve7jtb.com</email>
+	<uri>http://www.thread-safe.com/</uri>
+      </address>
+    </author>
+
+    <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      <organization abbrev="Microsoft">Microsoft</organization>
+      <address>
+        <email>mbj@microsoft.com</email>
+	<uri>http://self-issued.info/</uri>
+      </address>
+    </author>
+
+    <date day="19" month="December" year="2013" />
+
+    <workgroup>OpenID Connect Working Group</workgroup>
+
+    <abstract>
+      <t>OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+      protocol. It enables Clients to verify the identity of the End-User based
+      on the authentication performed by an Authorization Server, as well as to
+      obtain basic profile information about the End-User in an interoperable and 
+      REST-like manner.</t>
+
+      <t>
+	This specification defines how an OpenID Connect Relying Party
+	can dynamically register with the End-User's OpenID Provider,
+	providing information about itself to the OpenID Provider,
+	and obtaining information needed to use it,
+	including the OAuth 2.0 Client ID for this Relying Party.
+      </t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+
+      <t>
+	OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+	<xref target="RFC6749"/>
+	protocol. It enables Clients to verify the identity of the End-User based
+	on the authentication performed by an Authorization Server, as well as to
+	obtain basic profile information about the End-User in an interoperable and 
+	REST-like manner.
+      </t>
+      <t>
+	In order for an OpenID Connect Relying Party to utilize OpenID Connect services for
+	an End-User, the RP needs to register with the OpenID Provider
+	to provide the OP information about itself and
+	to obtain information needed to use it,
+	including an OAuth 2.0 Client ID.
+	This document describes how an RP
+	can register with an OP, and how registration information
+	for the RP can be retrieved.
+      </t>
+
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+	<t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+	"SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+	document are to be interpreted as described in <xref
+	target="RFC2119">RFC 2119</xref>.</t>
+
+	<t>
+	  In the .txt version of this document,
+	  values are quoted to indicate that they are to be taken literally.
+	  When using these values in protocol messages,
+	  the quotes MUST NOT be used as part of the value.
+	  In the HTML version of this document,
+	  values to be taken literally are indicated by
+	  the use of <spanx style="verb">this fixed-width font</spanx>.
+	</t>
+	<t>
+	  All uses of <xref target="JWS">JSON Web Signature (JWS)</xref>
+	  and <xref target="JWE">JSON Web Encryption (JWE)</xref>
+	  data structures in this specification utilize
+	  the JWS Compact Serialization or the JWE Compact Serialization;
+	  the JWS JSON Serialization and the JWE JSON Serialization are not used.
+	</t>
+      </section>
+
+      <section anchor="Terminology" title="Terminology">
+	<t>
+	  This specification uses the terms "Access Token", "Authorization Code",
+	  "Authorization Endpoint", "Authorization Grant", "Authorization Server",
+	  "Client", "Client Authentication", "Client Identifier", "Client Secret",
+	  "Grant Type", "Protected Resource", "Redirection URI", "Refresh Token",
+	  "Resource Owner", "Resource Server", "Response Type", and "Token Endpoint"
+	  defined by <xref target="RFC6749">OAuth 2.0</xref>,
+	  the terms "JSON Web Token (JWT)" and "Nested JWT"
+	  defined by <xref target="JWT">JSON Web Token (JWT)</xref>,
+	  and the terms defined by
+	  <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	</t>
+
+	<t>This specification defines the following additional terms:</t>
+
+	<t><list style="hanging">
+          <t hangText="Client Registration Endpoint">
+	    OAuth 2.0 Protected Resource through which a Client
+	    can be registered at an Authorization Server.
+	  </t>
+
+	  <t hangText="Client Configuration Endpoint">
+	    OAuth 2.0 Endpoint through
+	    which registration information for a registered Client can be managed.
+            This URL for this endpoint is returned by the Authorization
+            Server in the Client Information Response.
+	  </t>
+
+          <t hangText="Registration Access Token">
+	    OAuth 2.0 Bearer Token issued by the Authorization Server
+	    through the Client Registration Endpoint that is used
+	    to authenticate the caller when accessing the Client's
+	    registration information at the Client Configuration Endpoint.
+	    This Access Token is associated with a particular registered Client.
+	  </t>
+
+	  <t hangText="Initial Access Token">
+	    OAuth 2.0 Access Token optionally issued by an Authorization Server
+	    granting access to its Client Registration Endpoint.
+	    The contents
+	    of this token are service-specific and are out of scope for this 
+            specification. The means by which the Authorization Server issues this
+            token and the means by which the Registration Endpoint validates
+            it are also out of scope.
+	  </t>
+        </list>
+	</t>
+	<t>
+	  IMPORTANT NOTE TO READERS: The terminology definitions in
+	  this section are a normative portion of this specification,
+	  imposing requirements upon implementations.  All the
+	  capitalized words in the text of this specification, such as
+	  "Client Registration Endpoint", reference these defined terms.
+	  Whenever the reader encounters them, their definitions
+	  found in this section must be followed.
+	</t>
+      </section>
+    </section>
+
+
+    <section anchor="ClientMetadata" title="Client Metadata">
+      <t>Clients have metadata associated with their
+      unique Client Identifier at the Authorization Server. These can range
+      from human-facing display strings, such as a Client name, to items that
+      impact the security of the protocol, such as the list of valid redirect
+      URIs.</t>
+      <t>The Client Metadata values are used in two ways:</t>
+      <t>
+	<list style="symbols">
+	  <t>
+	    as input values to registration requests, and
+	  </t>
+	  <t>
+	    as output values in registration responses and read responses.
+	  </t>
+	</list>
+      </t>
+      <t>
+	These Client Metadata values are used by OpenID Connect:
+
+	<list style="hanging">
+
+	  <t hangText="redirect_uris">
+	    REQUIRED.
+	    Array of Redirection URI values used by the Client.
+	    One of these registered Redirection URI values MUST exactly match
+	    the <spanx style="verb">redirect_uri</spanx> parameter
+	    value used in each Authorization Request,
+	    with the matching performed as described in
+	    Section 6.2.1 of <xref target="RFC3986"/> (Simple String Comparison).
+	  </t>
+
+	  <t hangText="response_types">
+	    OPTIONAL.
+	    JSON array containing a list of the OAuth 2.0
+	    <spanx style="verb">response_type</spanx> values that
+	    the Client is declaring that it will restrict itself to using.
+	    If omitted, the default is that the Client will use only the
+	    <spanx style="verb">code</spanx> Response Type.
+	  </t>
+
+          <t hangText="grant_types">
+	    OPTIONAL.
+	    JSON array containing a list of the OAuth 2.0 Grant Types that
+	    the Client is declaring that it will restrict itself to using.
+	    The Grant Type values used by OpenID Connect are:
+
+	    <list style="symbols">
+	      <t><spanx style="verb">authorization_code</spanx>: The
+	      Authorization Code Grant Type described in OAuth 2.0 Section 4.1.</t>
+
+	      <t><spanx style="verb">implicit</spanx>: The Implicit Grant Type
+	      described in OAuth 2.0 Section 4.2.</t>
+
+	      <t><spanx style="verb">refresh_token</spanx>: The Refresh Token Grant Type
+	      described in OAuth 2.0 Section 6.</t>
+            </list>
+
+	    The following table lists the correspondence between
+	    <spanx style="verb">response_type</spanx> values that the Client will use and
+	    <spanx style="verb">grant_type</spanx> values that MUST be included
+	    in the registered <spanx style="verb">grant_types</spanx> list:
+
+	    <list style="symbols">
+
+	      <t>
+		<spanx style="verb">code</spanx>:
+		<spanx style="verb">authorization_code</spanx>
+	      </t>
+	      <t>
+		<spanx style="verb">id_token</spanx>:
+		<spanx style="verb">implicit</spanx>
+	      </t>
+	      <t>
+		<spanx style="verb">token id_token</spanx>:
+		<spanx style="verb">implicit</spanx>
+	      </t>
+	      <t>
+		<spanx style="verb">code id_token</spanx>:
+		<spanx style="verb">authorization_code</spanx>,
+		<spanx style="verb">implicit</spanx>
+	      </t>
+	      <t>
+		<spanx style="verb">code token</spanx>:
+		<spanx style="verb">authorization_code</spanx>,
+		<spanx style="verb">implicit</spanx>
+	      </t>
+	      <t>
+		<spanx style="verb">code token id_token</spanx>:
+		<spanx style="verb">authorization_code</spanx>,
+		<spanx style="verb">implicit</spanx>
+	      </t>
+
+	    </list>
+
+	    If omitted, the default is that the Client will use only the
+	    <spanx style="verb">authorization_code</spanx> Grant Type.
+	  </t>
+
+	  <t hangText="application_type">OPTIONAL.
+	  Kind of the application.
+	  The default, if omitted, is 
+	  <spanx style="verb">web</spanx>.  The defined values are
+	  <spanx style="verb">native</spanx>
+	  or <spanx style="verb">web</spanx>.
+	  Web Clients using the OAuth Implicit Grant Type
+	  MUST only register URLs using the <spanx style="verb">https</spanx> scheme as
+	  <spanx style="verb">redirect_uris</spanx>;
+	  they MUST NOT use <spanx style="verb">localhost</spanx> as the hostname.
+	  Native Clients MUST only register <spanx style="verb">redirect_uris</spanx> using custom 
+	  URI schemes or URLs using the <spanx style="verb">http:</spanx> scheme with
+	  <spanx style="verb">localhost</spanx> as the hostname.
+	  Authorization Servers MAY place additional constraints on Native Clients.
+	  Authorization Servers MAY reject Redirection URI values
+	  using the <spanx style="verb">http</spanx> scheme, other than the
+	  <spanx style="verb">localhost</spanx> case for Native Clients.
+	  The Authorization Server MUST verify that all the registered 
+	  <spanx style="verb">redirect_uris</spanx> conform to these constraints.  
+	  This prevents sharing a Client ID across different types of Clients.</t>
+
+	  <t hangText="contacts">OPTIONAL.
+	  Array of e-mail addresses of people responsible for this Client.
+	  This might be used by some providers to enable a Web user interface to modify the 
+	  Client information.</t>
+
+	  <t hangText="client_name">OPTIONAL.
+	  Name of the Client
+	  to be presented to the End-User. If desired, representation of 
+	  this Claim in different languages and scripts is represented
+	  as described in <xref target="LanguagesAndScripts"/>.</t>
+
+	  <t hangText="logo_uri">OPTIONAL.
+	  URL that references a logo for the Client application.
+	  If present, the server SHOULD display this image to the End-User during approval.
+	  The value of this field MUST point to a valid image file.
+	  If desired, representation of 
+	  this Claim in different languages and scripts is represented
+	  as described in <xref target="LanguagesAndScripts"/>.
+	  </t>
+
+          <t hangText="client_uri">OPTIONAL.
+	  URL of the home page of the Client.
+	  The value of this field MUST point to a valid Web page.
+          If present, the server SHOULD display this URL to the End-User in a
+          followable fashion.
+	  If desired, representation of 
+	  this Claim in different languages and scripts is represented
+	  as described in <xref target="LanguagesAndScripts"/>.
+	  </t>
+
+	  <t hangText="policy_uri">OPTIONAL.
+	  URL that the Relying 
+	  Party Client provides to the End-User to read about the how the
+	  profile data will be used.
+	  The value of this field MUST point to a valid web page.
+	  The OpenID Provider SHOULD display this
+	  URL to the End-User if it is given.
+	  If desired, representation of 
+	  this Claim in different languages and scripts is represented
+	  as described in <xref target="LanguagesAndScripts"/>.
+	  </t>
+
+	  <t hangText="tos_uri">OPTIONAL.
+	  URL that the Relying 
+	  Party Client provides to the End-User to read about
+	  the Relying Party's terms of service.
+	  The value of this field MUST point to a valid web page.
+	  The OpenID Provider SHOULD display this
+	  URL to the End-User if it is given.
+	  If desired, representation of 
+	  this Claim in different languages and scripts is represented
+	  as described in <xref target="LanguagesAndScripts"/>.
+	  </t>
+
+	  <t hangText="jwks_uri">
+	    OPTIONAL.
+	    URL for the Client's JSON Web Key Set <xref target="JWK"/> document.
+	    If the Client signs requests to the Server,
+	    it contains the signing key(s) the Server uses to validate signatures from the Client.
+	    The JWK Set MAY also contain the Client's encryption keys(s),
+	    which are used by the Server to encrypt responses to the Client.
+	    When both signing and encryption keys are made available,
+	    a <spanx style="verb">use</spanx> (Key Use) parameter
+	    value is REQUIRED for all keys in the referenced JWK Set
+	    to indicate each key's intended usage.
+	    Although some algorithms allow the same key to be used for
+	    both signatures and encryption, doing so is
+	    NOT RECOMMENDED, as it is less secure.
+	    The JWK <spanx style="verb">x5c</spanx> parameter MAY be used
+	    to provide X.509 representations of keys provided.  When used, the bare key
+	    values MUST still be present and MUST match those in the certificate.
+	  </t>
+
+	  <t hangText="jwks">
+	    OPTIONAL.
+	    Client's JSON Web Key Set <xref target="JWK"/> document, passed by value.
+	    The semantics of the <spanx style="verb">jwk</spanx> parameter are the same
+	    as the <spanx style="verb">jwk_uri</spanx> parameter, other than that
+	    The JWK Set is passed by value, rather than by reference.
+	    This parameter is intended only to be used by Clients that, for some reason,
+	    are unable to use the <spanx style="verb">jwk_uri</spanx> parameter,
+	    for instance, by native applications that might not have a location
+	    to host the contents of the JWK Set.
+	    If a Client can use <spanx style="verb">jwk_uri</spanx>,
+	    it MUST NOT use <spanx style="verb">jwk</spanx>.
+	    One significant downside of <spanx style="verb">jwk</spanx> is that it
+	    does not enable key rotation
+	    (which <spanx style="verb">jwk_uri</spanx> does, as described in
+	    Section 10 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>).
+	    The <spanx style="verb">jwk_uri</spanx> and <spanx style="verb">jwk</spanx>
+	    parameters MAY NOT be used together.
+	  </t>
+
+	  <t hangText="sector_identifier_uri">OPTIONAL.
+	  URL using the <spanx style="verb">https</spanx> scheme to be used in
+	  calculating Pseudonymous Identifiers by the OP. The URL references a
+	  file with a single JSON array of <spanx style="verb">redirect_uri</spanx> values.
+	  Please see <xref target="SectorIdentifierValidation" />.
+	  Providers that use pairwise <spanx style="verb">sub</spanx> (subject) values
+	  SHOULD utilize the <spanx style="verb">sector_identifier_uri</spanx> value
+	  provided in the Subject Identifier calculation for pairwise identifiers.
+	  </t>
+	  
+	  <t hangText="subject_type">OPTIONAL.
+	  <spanx style="verb">subject_type</spanx> requested for 
+	  responses to this Client.
+	  The <spanx style="verb">subject_types_supported</spanx> Discovery parameter
+	  contains a list of the supported <spanx style="verb">subject_type</spanx>
+	  values for this server. Valid types include
+	  <spanx style="verb">pairwise</spanx> and
+	  <spanx style="verb">public</spanx>.</t>
+
+	  <t hangText="id_token_signed_response_alg">OPTIONAL.
+	  JWS <spanx style="verb">alg</spanx>
+	  algorithm <xref target="JWA" /> REQUIRED for signing the ID Token
+	  issued to this Client.
+	  The value <spanx style="verb">none</spanx>
+	  MUST NOT be used as the ID Token <spanx style="verb">alg</spanx> value
+	  unless the Client uses only Response Types that return no ID Token from the
+	  Authorization Endpoint
+	  (such as when only using the Authorization Code Flow).
+	  The default, if omitted, is <spanx style="verb">RS256</spanx>.
+	  The public key for validating the signature is provided by retrieving the 
+	  JWK Set referenced by the
+	  <spanx style="verb">jwks_uri</spanx> element from
+	  <xref target="OpenID.Discovery">OpenID Connect Discovery 1.0</xref>.</t>
+	  
+	  <t hangText="id_token_encrypted_response_alg">OPTIONAL.
+	  JWE <spanx style="verb">alg</spanx>
+	  algorithm <xref target="JWA" /> REQUIRED for encrypting the ID Token
+	  issued to this Client.
+	  If this is requested, the response will be signed then encrypted,
+	  with the result being a Nested JWT, as defined in <xref target="JWT"/>.
+	  The default, if omitted, is that no encryption is performed.
+	  </t>
+	  
+	  <t hangText="id_token_encrypted_response_enc">OPTIONAL.
+	  JWE <spanx style="verb">enc</spanx>
+	  algorithm <xref target="JWA" /> REQUIRED for encrypting the ID Token
+	  issued to this Client. 
+	  If <spanx style="verb">id_token_encrypted_response_alg</spanx> is specified,
+	  the default for this value is <spanx style="verb">A128CBC-HS256</spanx>.
+	  When <spanx style="verb">id_token_encrypted_response_enc</spanx> is included,
+	  <spanx style="verb">id_token_encrypted_response_alg</spanx> MUST also be provided.
+	  </t>
+
+	  <t hangText="userinfo_signed_response_alg">OPTIONAL.
+	  JWS <spanx style="verb">alg</spanx>
+	  algorithm <xref target="JWA" /> REQUIRED for signing UserInfo Responses. 
+	  If this is specified, the response will be 
+	  <xref target="JWT">JWT</xref> serialized, and signed using JWS.
+	  The default, if omitted, is for the UserInfo Response to
+	  return the Claims as a UTF-8 encoded JSON object using the
+	  <spanx style="verb">application/json</spanx> content-type.
+	  </t>
+
+	  <t hangText="userinfo_encrypted_response_alg">OPTIONAL.
+	  <xref target="JWE">JWE</xref> <spanx style="verb">alg</spanx> 
+	  algorithm <xref target="JWA" /> REQUIRED for encrypting UserInfo Responses. 
+	  If both signing and encryption are requested,
+	  the response will be signed then encrypted,
+	  with the result being a Nested JWT, as defined in <xref target="JWT"/>.
+	  The default, if omitted, is that no encryption is performed.
+	  </t>
+	  
+	  <t hangText="userinfo_encrypted_response_enc">OPTIONAL.
+	  JWE <spanx style="verb">enc</spanx>
+	  algorithm <xref target="JWA" /> REQUIRED for encrypting UserInfo Responses.
+	  If <spanx style="verb">userinfo_encrypted_response_alg</spanx> is specified,
+	  the default for this value is <spanx style="verb">A128CBC-HS256</spanx>.
+	  When <spanx style="verb">userinfo_encrypted_response_enc</spanx> is included,
+	  <spanx style="verb">userinfo_encrypted_response_alg</spanx> MUST also be provided.
+	  </t>
+
+	  <t hangText="request_object_signing_alg">OPTIONAL.
+	  <xref target="JWS">JWS</xref> <spanx style="verb">alg</spanx>
+	  algorithm <xref target="JWA" /> that MUST be used for
+	  signing Request Objects sent to the OP.
+	  All Request Objects from
+	  this Client MUST be rejected,
+	  if not signed with this algorithm.
+	  Request Objects are described in
+	  Section 6.1 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	  This algorithm MUST be used both when the Request Object is passed by value
+	  (using the <spanx style="verb">request</spanx> parameter)
+	  and when it is passed by reference
+	  (using the <spanx style="verb">request_uri</spanx> parameter).
+	  Servers SHOULD support <spanx style="verb">RS256</spanx>.
+	  The value <spanx style="verb">none</spanx> MAY be used.
+	  The default, if omitted, is that any algorithm supported by
+	  the OP and the RP MAY be used.
+	  </t>
+
+	  <t hangText="request_object_encryption_alg">OPTIONAL.
+	  <xref target="JWE">JWE</xref> <spanx style="verb">alg</spanx> 
+	  algorithm <xref target="JWA" /> the RP is declaring that it may use for
+	  encrypting Request Objects sent to the OP.
+	  This parameter SHOULD be included when symmetric encryption will be used,
+	  since this signals to the OP that a <spanx style="verb">client_secret</spanx>
+	  value needs to be returned from which the symmetric key will be derived,
+	  that might not otherwise be returned.
+	  The RP MAY still use other supported encryption algorithms
+	  or send unencrypted Request Objects, even when this parameter is present.
+	  If both signing and encryption are requested,
+	  the Request Object will be signed then encrypted,
+	  with the result being a Nested JWT, as defined in <xref target="JWT"/>.
+	  The default, if omitted, is that the RP is not declaring whether
+	  it might encrypt any Request Objects.
+	  </t>
+	  
+	  <t hangText="request_object_encryption_enc">OPTIONAL.
+	  JWE <spanx style="verb">enc</spanx>
+	  algorithm <xref target="JWA" /> the RP is declaring that it may use for
+	  encrypting Request Objects sent to the OP.
+	  If <spanx style="verb">request_object_encryption_alg</spanx> is specified,
+	  the default for this value is <spanx style="verb">A128CBC-HS256</spanx>.
+	  When <spanx style="verb">request_object_encryption_enc</spanx> is included,
+	  <spanx style="verb">request_object_encryption_alg</spanx> MUST also be provided.
+	  </t>
+
+	  <t hangText="token_endpoint_auth_method">OPTIONAL.
+	  Requested Client Authentication method for the Token Endpoint.
+	  The options are 
+	  <spanx style="verb">client_secret_post</spanx>, 
+	  <spanx style="verb">client_secret_basic</spanx>, 
+	  <spanx style="verb">client_secret_jwt</spanx>, 
+	  <spanx style="verb">private_key_jwt</spanx>,
+	  and <spanx style="verb">none</spanx>, as described in
+	  Section 9 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	  Other authentication methods MAY be defined by extensions.
+	  If omitted, the default is <spanx style="verb">client_secret_basic</spanx> --
+	  the HTTP Basic Authentication Scheme specified in
+	  Section 2.3.1 of <xref target="RFC6749">OAuth 2.0</xref>.
+	  </t>
+
+	  <t hangText="token_endpoint_auth_signing_alg">OPTIONAL.
+	  <xref target="JWS">JWS</xref> <spanx style="verb">alg</spanx>
+	  algorithm <xref target="JWA" /> that MUST be used for signing
+	  the JWT <xref target="JWT" /> used to authenticate the Client
+	  at the Token Endpoint for the <spanx style="verb">private_key_jwt</spanx> 
+	  and <spanx style="verb">client_secret_jwt</spanx> authentication methods.
+	  All Token Requests using these authentication methods from
+	  this Client MUST be rejected,
+	  if the JWT is not signed with this algorithm.
+	  Servers SHOULD support <spanx style="verb">RS256</spanx>.
+	  The value <spanx style="verb">none</spanx> MUST NOT be used.
+	  The default, if omitted, is that any algorithm supported by
+	  the OP and the RP MAY be used.
+	  </t>
+
+	  <t hangText="default_max_age">OPTIONAL.
+	  Default Maximum Authentication Age.
+	  Specifies that the End-User MUST be actively authenticated if the
+	  End-User was authenticated longer ago than the specified number of seconds.
+	  The <spanx style="verb">max_age</spanx> request parameter
+	  overrides this default value.
+	  If omitted, no default Maximum Authentication Age is specified.
+	  </t>
+	  
+	  <t hangText="require_auth_time">OPTIONAL.
+	  Boolean value specifying whether the <spanx style="verb">auth_time</spanx> 
+	  Claim in the ID Token is REQUIRED.
+	  It is REQUIRED when the value is <spanx style="verb">true</spanx>.
+	  (If this is <spanx style="verb">false</spanx>, the
+	  <spanx style="verb">auth_time</spanx> Claim can still be dynamically requested
+	  as an individual Claim for the ID Token
+	  using the <spanx style="verb">claims</spanx> request parameter described in
+	  Section 5.5.1 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.)
+	  If omitted, the default value is <spanx style="verb">false</spanx>.
+	  </t>
+	  
+	  <t hangText="default_acr_values">
+	    OPTIONAL.
+	    Default requested Authentication Context Class Reference values. 
+	    Array of strings that 
+	    specifies the default <spanx style="verb">acr</spanx>
+	    values that the OP is being requested to use 
+	    for processing requests from this Client,
+	    with the values appearing in order of preference.
+	    The Authentication Context Class satisfied by the authentication
+	    performed is returned as the <spanx style="verb">acr</spanx> Claim Value
+	    in the issued ID Token.
+	    The <spanx style="verb">acr</spanx> Claim is requested as
+	    a Voluntary Claim by this parameter.
+	    The <spanx style="verb">acr_values_supported</spanx> discovery element 
+	    contains a list of the supported <spanx style="verb">acr</spanx>
+	    values supported by this server.
+	    Values specified in the <spanx style="verb">acr_values</spanx> request parameter
+	    or an individual <spanx style="verb">acr</spanx> Claim request
+	    override these default values.
+	  </t>
+
+	  <t hangText="initiate_login_uri">OPTIONAL. 
+	  URI using the <spanx style="verb">https</spanx> scheme that a third party
+	  can use to initiate a login by the RP, as specified in
+	  Section 4 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	  The URI MUST accept requests via both <spanx style="verb">GET</spanx> and <spanx style="verb">POST</spanx>.
+	  The Client MUST understand the 
+	  <spanx style="verb">login_hint</spanx> and <spanx style="verb">iss</spanx> parameters and 
+	  SHOULD support the <spanx style="verb">target_link_uri</spanx> parameter.
+	  </t>
+
+	  <t hangText="request_uris">
+	    OPTIONAL.
+	    Array of <spanx style="verb">request_uri</spanx> values that are
+	    pre-registered by the RP for use at the OP.
+	    Servers MAY cache the contents of the files referenced by these URIs and not
+	    retrieve them at the time they are used in a request.
+	    OPs can require that <spanx style="verb">request_uri</spanx> values used
+	    be pre-registered with the <spanx style="verb">require_request_uri_registration</spanx>
+	    discovery parameter.
+	  </t>
+	  <t>
+	    If the contents of the request file could ever change,
+	    these URI values SHOULD include the base64url encoded SHA-256 hash value of
+	    the file contents referenced by the URI as the value of the URI fragment.
+	    If the fragment value used for a URI changes, that signals the server
+	    that its cached value for that URI with the old fragment value
+	    is no longer valid.
+	  </t>
+	</list>
+      </t>
+      <t>
+	Additional Client Metadata parameters MAY also be used.
+	Some are defined by other specifications,
+	such as
+	<xref target="OpenID.Session">OpenID Connect Session Management 1.0</xref>.
+      </t>
+
+      <section anchor="LanguagesAndScripts" title="Metadata Languages and Scripts">
+	<t>
+	  Human-readable Client Metadata values and Client Metadata values
+	  that reference human-readable values MAY be represented in
+	  multiple languages and scripts.
+	  For example, values such as <spanx style="verb">client_name</spanx>,
+	  <spanx style="verb">tos_uri</spanx>, <spanx style="verb">policy_uri</spanx>,
+	  <spanx style="verb">logo_uri</spanx>, and <spanx style="verb">client_uri</spanx>
+	  might have multiple locale-specific values in some Client registrations.
+	</t>
+	<t>
+	  To specify the languages and scripts, <xref target="RFC5646">BCP47</xref>
+	  language tags are added to Client Metadata member names,
+	  delimited by a <spanx style="verb">#</spanx> character.
+	  The same syntax is used for representing languages and scripts for
+	  Client Metadata as is used for Claims, as described in  
+	  Section 5.2 (Claims Languages and Scripts) of 
+	  <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	</t>
+	<t>
+	  If such a human-readable field is sent without a language tag,
+	  parties using it MUST NOT make any assumptions about the language,
+	  character set, or script of the string value, and the string value
+	  MUST be used as-is wherever it is presented in a user interface.
+	  To facilitate interoperability, it is RECOMMENDED that
+	  any human-readable fields sent without language tags contain values
+	  suitable for display on a wide variety of systems.
+	</t>
+      </section>
+    </section>
+
+    <section anchor="ClientRegistration" title="Client Registration Endpoint">
+      <t>The Client Registration Endpoint is an
+      OAuth 2.0 Protected Resource through which
+      a new Client registration can be requested.
+      The OpenID Provider MAY require an Initial Access Token that is
+      provisioned out-of-band (in a manner that is out of scope for
+      this specification) to restrict registration requests
+      to only authorized Clients or developers.</t>
+
+      <t>To support open Dynamic Registration, the Client
+      Registration Endpoint SHOULD accept registration requests without OAuth 2.0
+      Access Tokens.
+      These requests MAY be rate-limited or otherwise limited to prevent
+      a denial-of-service attack on the Client Registration Endpoint.
+      If an Initial Access Token is required for Client registration, the Client Registration Endpoint
+      MUST be able to accept these Access Tokens in the manner described in the
+      <xref target="RFC6750">OAuth 2.0 Bearer Token Usage</xref>
+      specification.</t>
+
+      <section anchor="RegistrationRequest" title="Client Registration Request">
+        <t>
+	  To register a new Client at the Authorization Server, the Client
+	  sends an HTTP <spanx style="verb">POST</spanx> message to the Client Registration Endpoint with
+	  any Client Metadata parameters
+	  that the Client chooses
+	  to specify for itself during the registration.
+	  The Authorization Server assigns this Client a unique Client
+	  Identifier, optionally assigns a Client Secret, and associates the
+	  Metadata given in the request with the issued Client Identifier. The
+	  Authorization Server MAY provision default values for any items
+	  omitted in the Client Metadata.
+	</t>
+        <t>
+	  The Client sends an HTTP <spanx style="verb">POST</spanx> to the Client Registration Endpoint
+	  with a content type of <spanx style="verb">application/json</spanx>
+	  with the parameters represented as top-level members of the root JSON object.
+	</t>
+        <t>
+	  <figure>
+	    <preamble>
+	      The following is a non-normative example registration request
+	      (with line wraps within values for display purposes only):
+	    </preamble>
+          
+            <artwork><![CDATA[
+  POST /connect/register HTTP/1.1
+  Content-Type: application/json
+  Accept: application/json
+  Host: server.example.com
+  Authorization: Bearer eyJhbGciOiJSUzI1NiJ9.eyJ ...
+
+  {
+   "application_type": "web",
+   "redirect_uris":
+     ["https://client.example.org/callback",
+      "https://client.example.org/callback2"],
+   "client_name": "My Example",
+   "client_name#ja-Jpan-JP":
+     "クライアント名",
+   "logo_uri": "https://client.example.org/logo.png",
+   "subject_type": "pairwise",
+   "sector_identifier_uri":
+     "https://other.example.net/file_of_redirect_uris.json",
+   "token_endpoint_auth_method": "client_secret_basic",
+   "jwks_uri": "https://client.example.org/my_public_keys.jwks",
+   "userinfo_encrypted_response_alg": "RSA1_5",
+   "userinfo_encrypted_response_enc": "A128CBC-HS256",
+   "contacts": ["ve7jtb@example.org", "mary@example.org"],
+   "request_uris":
+     ["https://client.example.org/rf.txt
+       #qpXaRLh_n93TTR9F252ValdatUQvQiJi5BDub2BeznA"]
+  }
+]]></artwork>
+	  </figure>
+	</t>
+      </section>
+
+      <section anchor="RegistrationResponse" title="Client Registration Response">
+        <t>Upon successful registration, the Client Registration Endpoint
+        returns the newly-created Client Identifier and, if applicable, a
+        Client Secret, along with all registered Metadata about this Client,
+        including any fields provisioned by the Authorization Server itself.
+        The Authorization Server MAY reject or replace any of the Client's
+        requested field values and substitute them with suitable values. If
+        this happens, the Authorization Server MUST include these fields in
+        the response to the Client.
+	An Authorization Server MAY ignore values provided by the client,
+	and MUST ignore any fields sent by the Client that it does not understand.
+	</t>
+
+        <t>
+	  The response MAY contain a Registration Access Token that can be
+	  used by the Client to perform subsequent operations upon
+	  the resulting Client registration.
+	</t>
+
+	<t>
+	  A successful response SHOULD use the HTTP 201 Created status code
+	  and return a JSON document <xref target="RFC4627"/>
+	  using the <spanx style="verb">application/json</spanx> content type
+	  with the following fields and the Client Metadata parameters as
+	  top-level members of the root JSON object:
+	</t>
+
+        <t>
+	  <list style="hanging">
+            <t hangText="client_id"><vspace/>REQUIRED. Unique Client Identifier.
+	    It MUST NOT be currently valid for any other registered
+            Client.</t>
+
+            <t hangText="client_secret"><vspace/>OPTIONAL. Client Secret.
+            The same Client Secret value MUST NOT be assigned to multiple Clients.
+            This value is used by Confidential Clients to authenticate to the
+            Token Endpoint, as described in Section 2.3.1 of OAuth 2.0,
+	    and for the derivation of symmetric encryption key values,
+	    as described in
+	    Section 10.2 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	    It is not needed for
+	    Clients selecting a <spanx style="verb">token_endpoint_auth_method</spanx> of
+	    <spanx style="verb">private_key_jwt</spanx>
+	    unless symmetric encryption will be used.
+	    </t>
+
+            <t hangText="registration_access_token"><vspace/>OPTIONAL.
+	    Registration Access Token that can be used at the Client Configuration Endpoint to
+	    perform subsequent operations upon the Client registration.</t>
+
+            <t hangText="registration_client_uri"><vspace/>OPTIONAL.
+	    Location of the Client Configuration Endpoint
+	    where the Registration Access Token can be used to perform subsequent
+	    operations upon the resulting Client registration.
+	    Implementations MUST either return both
+	    a Client Configuration Endpoint and a Registration Access Token
+	    or neither of them.
+	    </t>
+
+            <t hangText="client_id_issued_at"><vspace/>OPTIONAL.
+	    Time at which the Client Identifier was issued.
+	    Its value is a JSON number representing the number of seconds from
+	    1970-01-01T0:0:0Z as measured in UTC until the date/time.
+	    </t>
+
+            <t hangText="client_secret_expires_at"><vspace/>
+	    REQUIRED if <spanx style="verb">client_secret</spanx> is issued.
+	    Time at which the <spanx style="verb">client_secret</spanx> will expire
+	    or 0 if it will not expire.
+	    Its value is a JSON number representing the number of seconds from
+	    1970-01-01T0:0:0Z as measured in UTC until the date/time.
+	    </t>
+          </list></t>
+
+        <t><figure>
+          <preamble>
+	    The following is a non-normative example registration response
+	    (with line wraps within values for display purposes only):
+	  </preamble>
+	  <artwork><![CDATA[
+  HTTP/1.1 201 Created
+  Content-Type: application/json
+  Cache-Control: no-store
+  Pragma: no-cache
+
+  {
+   "client_id": "s6BhdRkqt3",
+   "client_secret":
+     "ZJYCqe3GGRvdrudKyZS0XhGv_Z45DuKhCUk0gBR1vZk",
+   "client_secret_expires_at": 1577858400,
+   "registration_access_token":
+     "this.is.an.access.token.value.ffx83",
+   "registration_client_uri":
+     "https://server.example.com/connect/register?client_id=s6BhdRkqt3",
+   "token_endpoint_auth_method":
+     "client_secret_basic",
+   "application_type": "web",
+   "redirect_uris":
+     ["https://client.example.org/callback",
+      "https://client.example.org/callback2"],
+   "client_name": "My Example",
+   "client_name#ja-Jpan-JP":
+     "クライアント名",
+   "logo_uri": "https://client.example.org/logo.png",
+   "subject_type": "pairwise",
+   "sector_identifier_uri":
+     "https://other.example.net/file_of_redirect_uris.json",
+   "jwks_uri": "https://client.example.org/my_public_keys.jwks",
+   "userinfo_encrypted_response_alg": "RSA1_5",
+   "userinfo_encrypted_response_enc": "A128CBC-HS256",
+   "contacts": ["ve7jtb@example.org", "mary@example.org"],
+   "request_uris":
+     ["https://client.example.org/rf.txt
+       #qpXaRLh_n93TTR9F252ValdatUQvQiJi5BDub2BeznA"]
+  }
+]]></artwork>
+        </figure>
+	</t>
+      </section>
+
+
+      <section anchor="RegistrationError" title="Client Registration Error Response">
+	<t>When an OAuth error condition occurs, the Client Registration Endpoint returns
+	an Error Response as defined in Section 3 of
+	the <xref target="RFC6750">OAuth 2.0 Bearer Token Usage</xref> specification.</t>
+	
+	<t>When a registration error condition occurs, the Client Registration Endpoint returns
+	a HTTP 400 Bad Request status code
+	including a JSON object describing the error in the response body.</t>
+
+	<t>
+	  The JSON object describing the error contains two members:
+
+	  <list style="hanging">
+	    <t hangText="error">Error code.</t>
+
+	    <t hangText="error_description">Additional text description of the error for debugging.</t>
+	  </list>
+
+	  Other members MAY also be used.
+	</t>
+	
+	<t>
+	  This specification defines the following error codes:
+
+	  <list style="hanging">
+	    <t hangText="invalid_redirect_uri">The value of one or
+	    more <spanx style="verb">redirect_uris</spanx> is invalid.</t>
+
+            <t hangText="invalid_client_metadata"><vspace/>The value of one of
+            the Client Metadata fields
+            is invalid and the server has rejected this request. Note that an
+            Authorization Server MAY choose to substitute a valid value for
+            any requested parameter of a Client's Metadata.</t>
+	  </list>
+
+	  Other error codes MAY also be used.
+	</t>
+
+	<t>
+	  <figure>
+	    <preamble>
+	      The following is a non-normative example error response:
+	    </preamble>
+
+	    <artwork><![CDATA[
+  HTTP/1.1 400 Bad Request
+  Content-Type: application/json
+  Cache-Control: no-store
+  Pragma: no-cache
+   
+  {
+   "error": "invalid_redirect_uri",
+   "error_description": "One or more redirect_uri values are invalid"
+  }
+]]></artwork>
+	  </figure>
+	</t>
+      </section>
+    </section>
+
+    <section anchor="ClientConfigurationEndpoint" title="Client Configuration Endpoint">
+      <t>The Client Configuration Endpoint is an OAuth 2.0 Protected Resource
+      that MAY be provisioned by the server for a specific Client to be able to
+      view and update its registered information. The Client MUST use its
+      Registration Access Token in all calls to this endpoint as an
+      OAuth 2.0 Bearer Token <xref target="RFC6750"/>.</t>
+
+      <t>Operations on this endpoint are switched through the use of different
+      HTTP methods <xref target="RFC2616"/>.
+      The only method defined for use at this endpoint by this specification
+      is the HTTP <spanx style="verb">GET</spanx> method.</t>
+
+      <section anchor="AccessURL"
+               title="Forming the Client Configuration Endpoint URL">
+        <t>
+	  If a Client Configuration Endpoint and a Registration Access Token
+	  are returned by the initial registration of the Client,
+	  the Authorization Server MUST provide the Client with the fully
+        qualified URL in the <spanx style="verb">registration_client_uri</spanx>
+        element of the Client Registration Response, per <xref target="RegistrationResponse"/>.
+	The Authorization Server MUST NOT expect the Client
+        to construct or discover this URL on its own. The Client MUST use the
+        URL as given by the server and MUST NOT construct this URL from
+        component pieces.</t>
+
+        <t>Depending on deployment characteristics, the Client Configuration
+        Endpoint URL can take any number of forms. It is RECOMMENDED that this
+        endpoint URL be formed through the use of a server-constructed URL
+        string which combines the Client Registration Endpoint's URL and the
+        issued Client ID for this Client, with the latter as either a path
+        parameter or a query parameter. For example, a Client with the Client
+        ID <spanx style="verb">s6BhdRkqt3</spanx> could be given a Client
+        Configuration Endpoint URL of <spanx style="verb">https://server.example.com/register/s6BhdRkqt3</spanx>
+        (path parameter) or of <spanx style="verb">https://server.example.com/register?client_id=s6BhdRkqt3</spanx>
+        (query parameter). In both of these cases, the Client simply uses
+        the URL as given.</t>
+
+        <t>These common patterns can help the Server to more easily determine
+        the Client to which the request pertains, which MUST be matched
+        against the Client to which the Registration Access Token was issued.
+        If desired, the Server MAY simply return the Client Registration
+        Endpoint URL as the Client Configuration Endpoint URL and change
+        behavior based on the authentication context provided by the
+        Registration Access Token.</t>
+      </section>
+
+      <section anchor="ReadRequest" title="Client Read Request">
+        <t>
+	  If the initial registration of the Client returned
+	  a Client Configuration Endpoint and a Registration Access Token,
+	  the current configuration of the Client on the Authorization Server
+	  can be read by making an HTTP <spanx style="verb">GET</spanx> request to the
+	  Client Configuration Endpoint with the Registration Access Token.
+	  This operation SHOULD be idempotent --
+	  not causing changes to the Client configuration.
+	</t>
+
+        <figure>
+          <preamble>
+	    The following is a non-normative example read request:
+	  </preamble>
+
+          <artwork><![CDATA[
+  GET /connect/register?client_id=s6BhdRkqt3 HTTP/1.1
+  Accept: application/json
+  Host: server.example.com
+  Authorization: Bearer this.is.an.access.token.value.ffx83
+]]></artwork>
+        </figure>
+      </section>
+
+      <section anchor="ReadResponse" title="Client Read Response">
+        <t>
+	  Upon a successful read operation, the Authorization Server
+	  SHOULD return all registered Metadata about this Client, including
+	  any fields provisioned by the Authorization Server itself.
+	  Note that some values, including the <spanx style="verb">client_secret</spanx>
+	  value, might have been updated since the initial registration.
+	  The mechanisms for such updates are beyond the scope of this specification.
+	  However, since Read operations are intended to be idempotent,
+	  the Client Read Request itself SHOULD NOT cause changes
+	  to the Client's registered Metadata values.
+	</t>
+
+        <t>The Authorization Server need not include the
+	<spanx style="verb">registration_access_token</spanx> or
+	<spanx style="verb">registration_client_uri</spanx>
+        value in this response unless they have been updated.</t>
+
+	<t>
+	  A successful response SHOULD use the HTTP 200 OK status code
+	  and return a JSON document <xref target="RFC4627"/>
+	  using the <spanx style="verb">application/json</spanx> content type with
+	  the Client Metadata values as top-level members of the root JSON object.
+
+        <figure>
+          <preamble>
+	    The following is a non-normative example read response
+	    (with line wraps within values for display purposes only):
+	  </preamble>
+
+          <artwork><![CDATA[
+  HTTP/1.1 200 OK
+  Content-Type: application/json
+  Cache-Control: no-store
+  Pragma: no-cache
+  {
+   "client_id": "s6BhdRkqt3",
+   "client_secret":
+     "OylyaC56ijpAQ7G5ZZGL7MMQ6Ap6mEeuhSTFVps2N4Q",
+   "client_secret_expires_at": 17514165600,
+   "registration_client_uri":
+     "https://server.example.com/connect/register?client_id=s6BhdRkqt3",
+   "token_endpoint_auth_method":
+     "client_secret_basic",
+   "application_type": "web",
+   "redirect_uris":
+     ["https://client.example.org/callback",
+      "https://client.example.org/callback2"],
+   "client_name": "My Example",
+   "client_name#ja-Jpan-JP":
+     "クライアント名",
+   "logo_uri": "https://client.example.org/logo.png",
+   "subject_type": "pairwise",
+   "sector_identifier_uri":
+     "https://other.example.net/file_of_redirect_uris.json",
+   "jwks_uri": "https://client.example.org/my_public_keys.jwks",
+   "userinfo_encrypted_response_alg": "RSA1_5",
+   "userinfo_encrypted_response_enc": "A128CBC-HS256",
+   "contacts": ["ve7jtb@example.org", "mary@example.org"],
+   "request_uris":
+     ["https://client.example.org/rf.txt
+       #qpXaRLh_n93TTR9F252ValdatUQvQiJi5BDub2BeznA"]
+  }
+]]></artwork>
+        </figure>
+	</t>
+      </section>
+
+      <section anchor="ReadError" title="Client Read Error Response">
+
+	<t>
+	  If the Registration Access Token used to make this request is 
+	  not valid, the server MUST respond with an error as described in 
+	  <xref target="RFC6750">OAuth Bearer Token Usage</xref>.
+	</t>
+
+	<t>
+	  If the Client does not exist on this server, the Client is invalid,
+	  or the Registration Access Token used is invalid,
+	  the server MUST respond with the HTTP 401 Unauthorized status code.
+	  If the Client does not have permission to read its record,
+	  the server MUST return an HTTP 403 Forbidden.
+	  Note that for security reasons, to inhibit brute force attacks,
+	  endpoints MUST NOT return the HTTP 404 Not Found status code.
+	</t>
+	
+	<t>
+	  <figure>
+	    <preamble>
+	      The following is a non-normative example error response:
+	    </preamble>
+
+	    <artwork><![CDATA[
+  HTTP/1.1 401 Unauthorized
+  WWW-Authenticate: Bearer error="invalid_token",
+    error_description="The access token expired"
+  Cache-Control: no-store
+  Pragma: no-cache
+]]></artwork>
+	  </figure>
+	</t>
+	</section>
+    </section>
+
+    <section anchor="SectorIdentifierValidation" title="&quot;sector_identifier_uri&quot; Validation">
+      <t>The sector identifier list provides a way for a group of Web sites under
+      single administrative control
+      to have consistent pairwise <spanx style="verb">sub</spanx> values,
+      independent of their domain names, as described in
+      Section 8.1 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+      It also provides a way for Clients to change
+      <spanx style="verb">redirect_uri</spanx> domains without having to 
+      re-register all of their users.</t>
+
+      <t>
+	The value of the <spanx style="verb">sector_identifier_uri</spanx>
+	MUST be a URL using the <spanx style="verb">https</spanx> scheme that references
+	a JSON file containing an array of <spanx style="verb">redirect_uri</spanx> values.
+	The values registered in <spanx style="verb">redirect_uris</spanx>
+	MUST be included in the elements of the array,
+	or registration MUST fail.
+	This MUST be validated at registration time;
+	there is no requirement for the OP to retain the contents of this JSON file
+	or to retrieve or revalidate its contents in the future.
+      </t>
+
+      <t><figure>
+	<preamble>
+	  The following is a non-normative example request to and reply from
+	  a <spanx style="verb">sector_identifier_uri</spanx>:
+	</preamble>
+	<artwork><![CDATA[
+  GET /file_of_redirect_uris.json HTTP/1.1
+  Accept: application/json
+  Host: other.example.net
+
+  HTTP/1.1 200 OK
+  Content-Type: application/json
+  Cache-Control: no-store
+  Pragma: no-cache
+
+  [ "https://client.example.org/callback",
+    "https://client.example.org/callback2",
+    "https://client.other_company.example.net/callback" ]
+]]></artwork>
+      </figure></t>
+    </section>
+
+    <section anchor="StringOps" title="String Operations">
+
+      <t>
+	Processing some OpenID Connect messages requires comparing
+	values in the messages to known values. For example, the
+	member names in the Client registration response might be
+	compared to specific member names such as <spanx
+	style="verb">client_id</spanx>.  Comparing Unicode strings,
+	however, has significant security implications.
+       </t>
+      <t>
+	Therefore, comparisons between JSON strings and other Unicode
+	strings MUST be performed as specified below:
+
+	<list style="numbers">
+
+          <t>
+	    Remove any JSON applied escaping to produce an array of
+	    Unicode code points.
+	  </t>
+          <t>
+	    Unicode Normalization <xref target="USA15"/> MUST NOT
+	    be applied at any point to either the JSON string or to
+	    the string it is to be compared against.
+	  </t>
+          <t>
+	    Comparisons between the two strings MUST be performed as a
+	    Unicode code point to code point equality comparison.
+	  </t>
+
+        </list>
+      </t>
+
+    </section>
+
+    <section anchor="Validation" title="Validation">
+
+      <t>
+	If any of the validation procedures defined in this specification fail, any operations requiring
+	the information that failed to correctly validate MUST be aborted and
+	the information that failed to validate MUST NOT be used.
+      </t>
+
+    </section>
+
+    <section anchor="ImplementationConsiderations" title="Implementation Considerations">
+      <t>
+	This specification defines features used by both Relying Parties and
+	OpenID Providers that choose to implement Dynamic Client Registration.
+	All of these Relying Parties and OpenID Providers
+	MUST implement the features that are listed
+	in this specification as being "REQUIRED" or are described with a "MUST".
+      </t>
+      <t>
+	As of the time of this writing,
+	this specification is compatible with the current version of
+	<xref target="I-D.ietf-oauth-dyn-reg">OAuth 2.0 Dynamic Client Registration Protocol</xref>, draft -14.
+	The Dynamic Client Registration work is still ongoing at the IETF
+	and changes may or may not be made there
+	that cause it to diverge from this specification
+	during the standardization process.
+      </t>
+      <t>
+	Implementations wanting to support additional operations
+	defined in <xref target="I-D.ietf-oauth-dyn-reg"/>, such as Update,
+	can do so using that specification,
+	while being mindful that the specification is a work in progress, and may change.
+      </t>
+
+      <section anchor="PreFinalIETFSpecs" title="Pre-Final IETF Specifications">
+
+	<t>
+	  Implementers should be aware that 
+	  this specification uses several IETF specifications that are
+	  not yet final specifications.  Those specifications are:
+	  <list style="symbols">
+	    <t><xref target="JWT">JSON Web Token (JWT) draft -13</xref></t>
+	    <t><xref target="JWS">JSON Web Signature (JWS) draft -18</xref></t>
+	    <t><xref target="JWE">JSON Web Encryption (JWE) draft -18</xref></t>
+	    <t><xref target="JWK">JSON Web Key (JWK) draft -18</xref></t>
+	    <t><xref target="JWA">JSON Web Algorithms draft -18</xref></t>
+	    
+	  </list>
+	</t>
+	<t>
+	  While every effort will be made to prevent breaking
+	  changes to these specifications, should they occur,
+	  OpenID Connect implementations should continue to use the
+	  specifically referenced draft versions above in preference
+	  to the final versions, unless using a possible future
+	  OpenID Connect profile or specification that
+	  updates some or all of these references.
+	</t>
+      </section>
+
+      <section anchor="StatelessRegistration" title="Implementation Notes on Stateless Dynamic Client Registration">
+	<t>
+	  In some deployments, it is advantageous to enable Clients to obtain
+	  the information necessary to interact with the Authorization Server,
+	  such as a Client Identifier,
+	  without the requirement that state about the Client be stored at the
+	  Authorization Server.
+	  The interfaces defined by this specification can be used for
+	  stateless dynamic client registration.
+	</t>
+	<t>
+	  One means of doing this is to encode necessary registration information
+	  about the Client into the <spanx style="verb">client_id</spanx>
+	  value returned by the initial registration of the Client.
+	  This has the effect of having the Client store this information,
+	  rather than the Authorization Server.
+	  The particular encodings used by different Authorization Servers will differ.
+	</t>
+	<t>
+	  When stateless dynamic client registration is used by the Authorization Server,
+	  read operations are likely to not be possible,
+	  because issuing a Registration Access Token might require
+	  per-Client state at the Authorization Server.
+	  In that case, no Client Configuration Endpoint or Registration Access Token
+	  will be returned by the initial registration of the Client.
+	</t>
+      </section>
+
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>Since requests to the Client Registration Endpoint result in the
+      transmission of clear-text credentials (in the HTTP request and
+      response),
+      all communication with the Registration Endpoint MUST utilize TLS.
+      See <xref target="TLSRequirements"/> for more information on using TLS.
+      </t>
+
+      <section anchor="Impersonation" title="Impersonation">
+
+	<t>
+	  A rogue RP might use the logo for the legitimate RP, which it
+	  is trying to impersonate. An OP needs to take steps to
+	  mitigate this phishing risk, since the logo could confuse
+	  users into thinking they're logging in to the legitimate
+	  RP. An OP could also warn if the domain/site of the logo
+	  doesn't match the domain/site of registered Redirection URIs. An OP can also
+	  make warnings against untrusted RPs in all cases, especially
+	  if they're dynamically registered, have not been trusted by
+	  any users at the OP before, and want to use the logo feature.
+	</t>
+	<t>
+	  In a situation where the Authorization Server is supporting open Client 
+	  registration, 
+	  it needs to be extremely careful with any URL provided by the Client that will 
+	  be displayed to the End-User (e.g. <spanx style="verb">logo_uri</spanx> and
+	  <spanx style="verb">policy_uri</spanx>). A rogue Client could 
+	  specify a registration request with a reference to a drive-by download in the 
+	  <spanx style="verb">policy_uri</spanx>. The Authorization Server SHOULD check to see if the
+	  <spanx style="verb">logo_uri</spanx> and <spanx style="verb">policy_uri</spanx> have the 
+	  same host as the hosts defined in the array of <spanx style="verb">redirect_uris</spanx>.
+	</t>
+
+      </section>
+
+      <section anchor="NativeCodeLeakage" title="Native Code Leakage">
+
+	<t>
+	  Implementers should be aware that on iOS, information is
+	  returned to native applications using custom URI schemes,
+	  but multiple applications can register the same URI scheme.
+	  In this case, it is nondeterministic which application
+	  receives the information.
+	  This can result in an Authorization Code being leaked to
+	  the wrong application.
+	  Several possible solutions to this have been proposed
+	  and are being discussed in the IETF OAuth working group.
+	  It is expected that a standard solution to this problem
+	  will be developed there.
+	  At that point, an extension to OpenID Connect may
+	  be published describing how to apply that solution
+	  to OpenID Connect.
+	</t>
+      </section>
+
+      <section anchor="TLSRequirements" title="TLS Requirements">
+	<t>
+	  Implementations MUST support TLS.
+	  Which version(s) ought to be implemented will vary over
+	  time, and depend on the widespread deployment and known
+	  security vulnerabilities at the time of implementation.
+	  At the time of this writing,
+	  TLS version 1.2 <xref target='RFC5246' />
+	  is the most recent version, but has very limited actual
+	  deployment, and might not be readily available in
+	  implementation toolkits.
+	  TLS version 1.0 <xref target='RFC2246' />
+	  is the most widely deployed version, and will give the
+	  broadest interoperability.
+	</t>
+	<t>
+	  To protect against information disclosure and tampering,
+	  confidentiality protection MUST be applied using TLS
+	  with a ciphersuite that provides confidentiality and
+	  integrity protection.
+	</t>
+	<t>
+	  Whenever TLS is used, a TLS server certificate check
+	  MUST be performed, per <xref target="RFC6125">RFC 6125</xref>.
+	</t>
+      </section>      
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>This document makes no requests of IANA.</t>
+    </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2246"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2616"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.3986"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.4627"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.5246"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.5646"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.6125"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.6749"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.6750"?>
+
+      <reference anchor="USA15">
+        <front>
+          <title>Unicode Normalization Forms</title>
+
+          <author fullname="Mark Davis" initials="M." surname="Davis">
+            <address>
+              <email>markdavis@google.com</email>
+            </address>
+          </author>
+
+          <author fullname="Ken Whistler" initials="K." surname="Whistler">
+            <address>
+              <email>ken@unicode.org</email>
+            </address>
+          </author>
+
+          <author fullname="Martin D&uuml;rst" initials="M."
+                  surname="D&uuml;rst"></author>
+
+          <date day="03" month="09" year="2009" />
+        </front>
+
+        <seriesInfo name="Unicode Standard Annex" value="15" />
+      </reference>
+
+      <reference anchor="OpenID.Core">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+	  <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+	    <organization abbrev="Salesforce">Salesforce</organization>
+	  </author>
+
+          <date day="18" month="December" year="2013"/>
+        </front>
+
+	<format target="http://openid.net/specs/openid-connect-core-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.Discovery">
+        <front>
+          <title>OpenID Connect Discovery 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="Illumila">Illumila</organization>
+          </author>
+
+          <date day="18" month="December" year="2013"/>
+        </front>
+
+	<format target="http://openid.net/specs/openid-connect-discovery-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="JWA">
+        <front>
+          <title>JSON Web Algorithms (JWA)</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <date day="12" month="November" year="2013" />
+        </front>
+
+	<seriesInfo value="draft-ietf-jose-json-web-algorithms" name="Internet-Draft"/>
+	<format target="http://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms-18"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="JWT">
+        <front>
+          <title>JSON Web Token (JWT)</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization>Ping Identity</organization>
+          </author>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <date day="12" month="November" year="2013" />
+        </front>
+
+	<seriesInfo value="draft-ietf-oauth-json-web-token" name="Internet-Draft"/>
+	<format target="http://tools.ietf.org/html/draft-ietf-oauth-json-web-token-13"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="JWS">
+        <front>
+          <title>JSON Web Signature (JWS)</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization>Ping Identity</organization>
+          </author>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <date day="12" month="November" year="2013" />
+        </front>
+
+	<seriesInfo value="draft-ietf-jose-json-web-signature" name="Internet-Draft"/>
+	<format target="http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-18"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="JWE">
+        <front>
+          <title>JSON Web Encryption (JWE)</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization>Microsoft</organization>
+	  </author>
+
+	  <author fullname="Eric Rescorla" initials="E." surname="Rescorla">
+	    <organization>RTFM, Inc.</organization>
+	  </author>
+
+	  <author fullname="Joe Hildebrand" initials="J." surname="Hildebrand">
+	    <organization>Cisco Systems, Inc.</organization>
+	  </author>
+
+	  <date day="12" month="November" year="2013" />
+        </front>
+
+	<seriesInfo value="draft-ietf-jose-json-web-encryption" name="Internet-Draft"/>
+	<format target="http://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-18" type="HTML" />
+      </reference>
+
+      <reference anchor="JWK">
+        <front>
+	  <title>JSON Web Key (JWK)</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization>Microsoft</organization>
+	  </author>
+
+	  <date day="12" month="November" year="2013" />
+        </front>
+
+	<seriesInfo value="draft-ietf-jose-json-web-key" name="Internet-Draft"/>
+	<format target="http://tools.ietf.org/html/draft-ietf-jose-json-web-key-18" type="HTML" />
+      </reference>
+
+    </references>
+
+    <references title="Informative References">
+      <?rfc include='http://xml.resource.org/public/rfc/bibxml3/reference.I-D.draft-ietf-oauth-dyn-reg-14.xml' ?>
+
+      <reference anchor="OpenID.Session">
+        <front>
+          <title>OpenID Connect Session Management 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+          <author fullname="Naveen Agarwal" initials="N." surname="Agarwal">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+          <date day="18" month="December" year="2013"/>
+        </front>
+
+	<format target="http://openid.net/specs/openid-connect-session-1_0.html"
+                type="HTML" />
+      </reference>
+
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>
+	The OpenID Community would like to thank the following people for
+	their contributions to this specification:
+      </t>
+      <t>
+	<list style="empty">
+
+	  <t>Amanda Anganes (aanganes@mitre.org), MITRE</t>
+          <t>John Bradley (ve7jtb@ve7jtb.com), Ping Identity</t>
+	  <t>Brian Campbell (bcampbell@pingidentity.com), Ping Identity</t>
+	  <t>Vladimir Dzhuvinov (vladimir@nimbusds.com), Nimbus Directory Services</t>
+	  <t>George Fletcher (george.fletcher@corp.aol.com), AOL</t>
+          <t>Roland Hedberg (roland.hedberg@adm.umu.se), University of Umea</t>
+          <t>Edmund Jay (ejay@mgi1.com), Illumila</t>
+          <t>Michael B. Jones (mbj@microsoft.com), Microsoft</t>
+	  <t>Torsten Lodderstedt (t.lodderstedt@telekom.de), Deutsche Telekom</t>
+          <t>Justin Richer (jricher@mitre.org), MITRE</t>
+          <t>Nat Sakimura (n-sakimura@nri.co.jp), Nomura Research Institute, Ltd.</t>
+
+        </list>
+      </t>
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2013 The OpenID Foundation.</t>
+      <t>
+	The OpenID Foundation (OIDF) grants to any Contributor, developer, 
+	implementer, or other interested party a non-exclusive, royalty free, 
+	worldwide copyright license to reproduce, prepare derivative works from, 
+	distribute, perform and display, this Implementers Draft or 
+	Final Specification solely for the purposes of (i) developing 
+	specifications, and (ii) implementing Implementers Drafts and 
+	Final Specifications based on such documents, provided that attribution 
+	be made to the OIDF as the source of the material, but that such attribution 
+	does not indicate an endorsement by the OIDF.
+      </t>
+      <t>
+	The technology described in this specification was 
+	made available from contributions from various sources, 
+	including members of the OpenID Foundation and others.  
+	Although the OpenID Foundation has taken steps to help ensure 
+	that the technology is available for distribution, it takes 
+	no position regarding the validity or scope of any intellectual 
+	property or other rights that might be claimed to pertain to 
+	the implementation or use of the technology described in 
+	this specification or the extent to which any license under 
+	such rights might or might not be available; neither does it 
+	represent that it has made any independent effort to identify 
+	any such rights.  The OpenID Foundation and the contributors 
+	to this specification make no (and hereby expressly disclaim any) 
+	warranties (express, implied, or otherwise), including implied 
+	warranties of merchantability, non-infringement, fitness for 
+	a particular purpose, or title, related to this specification, 
+	and the entire risk as to implementing this specification is 
+	assumed by the implementer.  The OpenID Intellectual 
+	Property Rights policy requires contributors to offer 
+	a patent promise not to assert certain patent claims against 
+	other contributors and against implementers.  The OpenID Foundation invites 
+	any interested party to bring to its attention any copyrights, 
+	patents, patent applications, or other proprietary rights 
+	that may cover technology that may be required to practice 
+	this specification.
+      </t>
+    </section>
+
+    <section anchor="History" title="Document History">
+      <t>[[ To be removed from the final specification ]]</t>
+
+      <t>
+	-23
+	<list style="symbols">
+	  <t>
+	    Refined description of
+	    the <spanx style="verb">request_object_encryption_alg</spanx> parameter.
+	  </t>
+	</list>
+      </t>
+      <t>
+	-22
+	<list style="symbols">
+	  <t>
+	    Applied Registration review comments from George Fletcher
+	    and Torsten Lodderstedt.
+	  </t>
+	  <t>
+	    Fixed #903 - Added the <spanx style="verb">jwk</spanx> Registration parameter
+	    to enable the Client's JWK Set to be passed by value, if necessary.
+	  </t>
+	  <t>
+	    Modified an error response example to use WWW-Authenticate.
+	  </t>
+	  <t>
+	    Added missing <spanx style="verb">request_object_encryption_alg</spanx> and
+	    <spanx style="verb">request_object_encryption_enc</spanx> parameters.
+	  </t>
+	  <t>
+	    Incorporated terms defined by the JWT specification.
+	  </t>
+	  <t>
+	    Applied proofreading corrections by Michael B. Jones.
+	  </t>
+	</list>
+      </t>
+
+      <t>
+	-21
+        <list style="symbols">
+	  <t>
+	    Updated the OAuth 2.0 terminology list.
+	  </t>
+	  <t>
+	    Fixed #899 - Removed urn:ietf:params:oauth:grant-type:jwt-bearer.
+	  </t>
+	  <t>
+	    Added Pre-Final IETF Specifications section.
+	  </t>
+	</list>
+      </t>
+
+      <t>
+	-20
+	<list style="symbols">
+	  <t>
+	    Fixed #867 - Allow ID Tokens to use "alg":"none" when using the
+	    Authorization Code Flow and when explicitly requested at registration time.
+	  </t>
+	  <t>
+	    Fixed #868 - Clarified when "alg":"none" can and cannot be used.
+	  </t>
+	  <t>
+	    Fixed #875 - Added <spanx style="verb">token_endpoint_auth_signing_alg</spanx>
+	    parameter.
+	  </t>
+	  <t>
+	    Fixed #881 - Updated statement about relationship to OAuth Dynamic Registration.
+	  </t>
+	  <t>
+	    Fixed #865 - Described the possibility of implementations using the
+	    update operation defined by the OAuth Dynamic Registration spec.
+	  </t>
+	  <t>
+	    Fixed #863 - Described how to perform stateless dynamic client registration.
+	    This included making the
+	    Client Configuration Endpoint and Registration Access Token optional.
+	  </t>
+	  <t>
+	    Fixed #864 - Described Native application code leakage problem on iOS.
+	  </t>
+	  <t>
+	    Replaced uses of the OpenID Connect Messages and OpenID Connect Standard
+	    specifications with OpenID Connect Core.
+	  </t>
+	  <t>
+	    Fixed #885 - Removed normative Session Management definitions.
+	    When Session Management is supported, the Session Management
+	    registration parameters defined in that specification are used.
+	  </t>
+	  <t>
+	    Defined the HTTP status code values for responses.
+	  </t>
+	  <t>
+	    Added internationalization to the <spanx style="verb">logo_uri</spanx>,
+	    <spanx style="verb">tos_uri</spanx>, and
+	    <spanx style="verb">policy_uri</spanx> fields.
+	  </t>
+	</list>
+      </t>
+
+      <t>
+	-19
+        <list style="symbols">
+	  <t>
+	    Fixed #842 - Made <spanx style="verb">post_logout_redirect_uri</spanx>
+	    treatment parallel to <spanx style="verb">redirect_uri</spanx>.
+	  </t>
+	  <t>
+	    Corrected <spanx style="verb">error_code</spanx> to
+	    <spanx style="verb">error</spanx>.
+	  </t>
+	  <t>
+	    Stated that <spanx style="verb">redirect_uri</spanx> matches must be exact,
+	    with matching performed as described in
+	    Section 6.2.1 of RFC 3986 (Simple String Comparison).
+	  </t>
+	  <t>
+	    Fixed #854 - Clarified that the <spanx style="verb">default_acr_values</spanx> values
+	    are in order of preference and that <spanx style="verb">default_acr_values</spanx>
+	    requests the <spanx style="verb">acr</spanx> Claim as a Voluntary Claim.
+	  </t>
+	  <t>
+	    Fixed #859 - Added IMPORTANT NOTE TO READERS about the terminology
+	    definitions being a normative part of the specification.
+	  </t>
+	</list>
+      </t>
+
+      <t>-18
+        <list style="symbols">
+	  <t>
+	    Added subsection on Forming the Client Configuration Endpoint URL
+	    to help clarify its semantics to developers.  This was explained
+	    in the OAuth Registration spec but wasn't previously explained here.
+	  </t>
+          <t>
+	    Renamed <spanx style="verb">expires_at</spanx> to
+	    <spanx style="verb">client_secret_expires_at</spanx> and
+	    <spanx style="verb">issued_at</spanx> to
+	    <spanx style="verb">client_id_issued_at</spanx>,
+	    tracking OAuth Registration changes.
+	  </t>
+	  <t>
+	    Stated that the JWS Compact Serialization and the JWE Compact Serialization
+	    are always used for JWS and JWE data structures.
+	  </t>
+	</list>
+      </t>
+
+      <t>-17
+        <list style="symbols">
+	  <t>
+	    Fixed #820 - Removed assumption that Clients that want encrypted responses also sign requests.
+	  </t>
+	</list>
+      </t>
+
+      <t>-16
+        <list style="symbols">
+	  <t>
+	    Fixed #803 - No longer use <spanx style="verb">client_id</spanx> query parameter.
+	  </t>
+	  <t>
+	    Fixed #804 - Removed <spanx style="verb">access_token</spanx> from client metadata.
+	  </t>
+	</list>
+      </t>
+
+      <t>-15
+        <list style="symbols">
+	  <t>
+	    Fixed #708 - Registration access token requirement.
+	  </t>
+	  <t>
+	    Fixed #734 - Invalid JSON in examples.
+	  </t>
+	  <t>
+	    Fixed #736 - Client Update Operation Response: expires_at should be removed from example.
+	  </t>
+	  <t>
+	    Fixed #735 - Require expires_at value in Client Register response.
+	  </t>
+	  <t>
+	    Added Security Considerations section about TLS version requirements and usage.
+	  </t>
+	  <t>
+	    State that when any validations fail, any operations requiring
+	    the information that failed to correctly validate MUST be aborted and
+	    the information that failed to validate MUST NOT be used.
+	  </t>
+          <t>
+	    Fixed #746 - Deleted the <spanx style="verb">operation</spanx> parameter.
+	  </t>
+          <t>
+	    Fixed #745 - Deleted the <spanx style="verb">rotate_secret</spanx> operation.
+	  </t>
+          <t>
+	    Changed the Japanese client name to make it sound more natural.
+	  </t>
+          <t>
+	    Added optional <spanx style="verb">issued_at</spanx> response value.
+	  </t>
+	  <t>
+	    Added client update example.
+	  </t>
+	  <t>
+	    Fixed #727 - Deleted invalid_client_secret error.
+	  </t>
+	  <t>
+	    Fixed #744 - Promoted <spanx style="verb">max_age</spanx>
+	    to being a top-level parameter.
+	  </t>
+	  <t>
+	    Fixed #765 - Created <spanx style="verb">acr_values</spanx> top-level
+	    request parameter and changed <spanx style="verb">default_acr</spanx>
+	    registration parameter to <spanx style="verb">default_acr_values</spanx>.
+	  </t>
+	  <t>
+	    Fixed #747 - Changed requests from being form-urlencoded to JSON.
+	  </t>
+	  <t>
+	    Fixed #755 - Removed client update operation.
+	  </t>
+	  <t>
+	    Fixed #751 - Added client read operation.
+	  </t>
+	  <t>
+	    Fixed #749 - Added <spanx style="verb">registration_access_url</spanx>.
+	  </t>
+	  <t>
+	    Fixed #756 - State that an updated <spanx style="verb">client_secret</spanx>
+	    value can be returned by a read operation.
+	  </t>
+	  <t>
+	    Fixed #774 - Moved invalid client_id from 3.3 to 4.3 and fixed example.
+	  </t>
+	  <t>
+	    Fixed #774 - Removed invalid client_id and made GET return 403 Forbidden.
+	  </t>
+	  <t>
+	    Fixed missing registration_access_url in GET example response.
+	  </t>
+	  <t>
+	    Fixed #776 - Removed client adding client_id query parameter but make
+	    the examples include it as part of the registration_access_url.
+	  </t>
+	  <t>
+	    Fixed #775 - Made redirects_uri, contacts, and default_acr_values arrays to match the examples.
+	  </t>
+	  <t>
+	    Changed <spanx style="verb">invalid_configuration_parameter</spanx> error to
+	    <spanx style="verb">invalid_client_metadata</spanx> to match the OAuth Registration spec.
+	  </t>
+	  <t>
+	    Fixed #777 - Added <spanx style="verb">Pragma: no-cache</spanx>
+	    to the example responses that were missing it.
+	  </t>
+	  <t>
+	    Fixed #773 - Added <spanx style="verb">request_uris</spanx>
+	    registration parameter to pre-register
+	    <spanx style="verb">request_uri</spanx> values.
+	    Also clarified that Request File contents may be cached.
+	  </t>
+	  <t>
+	    Fixed #758 - State the registration requests can be rate-limited to prevent a DoS attack.
+	  </t>
+	  <t>
+	    Fixed #782 - Changed uses of "_url" in identifiers to "_uri".
+	  </t>
+	  <t>
+	    Fixed #783 - Changed <spanx style="verb">registration_access_url</spanx>
+	    to <spanx style="verb">registered_client_uri</spanx>.
+	  </t>
+	  <t>
+	    Fixed #703 - Added the PKIX JWK key type
+	    for X.509 certificates and consolidated the
+	    <spanx style="verb">x509_uri</spanx>,
+	    <spanx style="verb">x509_encryption_uri</spanx>, and
+	    <spanx style="verb">jwk_encryption_uri</spanx> parameters into
+	    a combined <spanx style="verb">jwk_uri</spanx> parameter.
+	  </t>
+	  <t>
+	    Fixed #786 - Changed the name of <spanx style="verb">jwk_uri</spanx>
+	    to <spanx style="verb">jwks_uri</spanx>.
+	  </t>
+	  <t>
+	    Added the <spanx style="verb">response_types</spanx> registration parameter.
+	  </t>
+ 	  <t>
+	    Added the <spanx style="verb">grant_types</spanx> registration parameter.
+	  </t>
+	  <t>
+	    Added table documenting correspondence between
+	    <spanx style="verb">response_type</spanx> values used and
+	    <spanx style="verb">grant_type</spanx> values used.
+	  </t>
+	  <t>
+	    Fixed #788 - Renamed "OpenID Request Object" to "Request Object".
+	  </t>
+        </list>
+      </t>
+
+      <t>-14
+        <list style="symbols">
+	  <t>
+	    Changed the syntax of some elements to match the syntax used in the
+	    OAuth Dynamic Client Registration draft.  Specifically, 
+	    changed <spanx style="verb">type</spanx> to <spanx style="verb">operation</spanx>,
+	    changed <spanx style="verb">associate</spanx> to <spanx style="verb">register</spanx>, and
+	    changed <spanx style="verb">application_name</spanx> to <spanx style="verb">client_name</spanx>.
+	    Also changed the responses of <spanx style="verb">client_register</spanx>
+	    and <spanx style="verb">client_update</spanx> to include full
+	    client information instead of just the Client ID.
+	  </t>
+	  <t>
+	    Added Implementation Considerations section.
+	  </t>
+	  <t>
+	    Fixed #656 - Changed
+	    <spanx style="verb">token_endpoint_auth_type</spanx> to
+	    <spanx style="verb">token_endpoint_auth_method</spanx> and
+	    <spanx style="verb">token_endpoint_auth_types_supported</spanx> to
+	    <spanx style="verb">token_endpoint_auth_methods_supported</spanx>.
+	  </t>
+	  <t>
+	    Fixed #698 - Inconsistent use of articles.
+	  </t>
+	  <t>
+	    Deleted <spanx style="verb">javascript_origin_uris</spanx>, which is no longer present in Session.
+	  </t>
+	  <t>
+	    Reference and provide note to implementers about
+	    <xref target="I-D.ietf-oauth-dyn-reg">OAuth Dynamic Client Registration Protocol</xref>.
+	  </t>
+	  <t>
+	    Changed token_endpoint_auth_method example result value from
+	    "client_secret_basic client_secret_post" to "client_secret_basic"
+	    since the definition requires the value to be a single method.
+	  </t>
+        </list>
+      </t>
+
+      <t>-13
+        <list style="symbols">
+	  <t>
+	    Fixed #687 - Inconsistency between <spanx style="verb">user_id</spanx>
+	    and <spanx style="verb">prn</spanx> claims.  The fix changed these names:
+	    user_id -> sub, user_id_types_supported -> subject_types_supported,
+	    user_id_type -> subject_type, and prn -> sub.
+	  </t>
+	  <t>
+	    Renamed <spanx style="verb">acrs_supported</spanx> to
+	    <spanx style="verb">acr_values_supported</spanx> for naming consistency.
+	  </t>
+	  <t>
+	    Fixed #685 - The policy URL should be different from the terms-of-service URL.
+	    A new <spanx style="verb">tos_url</spanx> registration parameter was added.
+	  </t>
+	  <t>
+	    Clarified that <spanx style="verb">jwk_url</spanx> and
+	    <spanx style="verb">jwk_encryption_url</spanx> refer to
+	    documents containing JWK Sets - not single JWK keys.
+	  </t>
+	  <t>Re #601 add initiate_login_uri for unsolicited request</t>
+        </list></t>
+
+      <t>-12<list style="symbols">
+      <t>Made application_type REQUIRED and added an explanation about redirect_uris registration</t>
+      <t>Section 2.1 clarification that updates replace all parameters previously set.</t>
+      <t>Section 2.3 add rotate_secret to invalid client_id error</t> 
+      <t>Added registration_access_token for updating and made client secret optional</t>
+      <t>added registration_access_token to example response</t>
+      <t>removed client_id from request as the client_id is implicit in the access token for updates</t>
+      <t>Changed redirect_uris from RECOMMENDED for code and REQUIRED for implicit to REQUIRED</t>
+      <t>Changed 2.1 to only allow access_token as a parameter if type is rotate_secret</t>
+      <t>Fixed reference in application_name and added example of ja-Hani-JP encoded name.</t>
+      <t>Made application_type OPTIONAL with web as the default</t>
+      <t>Fixes #642 - Registration separates application errors from bearer.</t>
+      <t>Updated references to OAuth and Bearer to reflect current drafts</t>
+      <t>Fix typo error_description</t>
+      <t>Re #642 change error to error_code in 2.3 example</t>
+	  <t>
+	    Fixed #614 - Discovery - 3.2 Distinguishing between signature and integrity parameters for HMAC algorithms.
+	    This fix tracks the parameter changes made to the JWE spec in draft-ietf-jose-json-web-encryption-06.
+	    It deletes the parameters {userinfo,id_token}_encrypted_response_int.
+	    It replaces the parameters {userinfo,id_token,request_object,token_endpoint}_algs_supported
+	    with {userinfo,id_token,request_object,token_endpoint}_signing_alg_values_supported
+	    and {userinfo,id_token,request_object,token_endpoint}_encryption_{alg,enc}_values_supported.
+	  </t>
+	  <t>
+	    Fixed #673 - Registration 2.1: Rename require_signed_request_object to request_object_alg.
+	    The actual change was to rename
+	    require_signed_request_object to request_object_signing_alg,
+	    following the naming convention used in the resolution to issue #614.
+	  </t>
+	  <t>Fixed #666 - JWS signature validation vs. verification.</t>
+          <t>Referenced OAuth 2.0 RFCs -- RFC 6749 and RFC 6750.</t>
+	  <t>Fixed #674 - Description of require_auth_time.</t>
+      </list></t>
+      
+      <t>-11<list style="symbols">
+	  <t>Made <spanx style="verb">rotate_secret</spanx> a separate registration
+	  request type and stop client secret changing with every response, per issue #363</t>
+	  <t>Changed default ID Token signing algorithm to RS256, per issue #571</t>
+          <t>Changed client.example.com to client.example.org, per issue #251</t>
+          <t>Added text for authz to the registration endpoint, per issue #587</t>
+	  <t>Use standards track version of JSON Web Token spec
+	  (draft-ietf-oauth-json-web-token)</t>
+      	</list></t>
+      
+      <t>-10<list style="symbols">
+	  <t>Split encrypted response configurations into separate parameters for alg, enc, int</t>
+	  <t>Removed extra "s" from signed response parameter names</t>
+	  <t>Add reference to JWA</t>
+	  <t>Updated Notices</t>
+	  <t>Updated References</t>
+	</list></t>
+
+      <t>-09<list style="symbols">
+          <t>Removed erroneous spanx declarations from example</t>
+          <t>Fixed example in Sec 2.2 to show expires_at</t>
+          <t>Fixed Sec 2.1.1 to clarify it is the registration server doing the certificate check</t>
+          <t>Fixed Sec 2.1.1 example to include http portion of response</t>
+          <t>Fixed #542 Sec 2.1 userinfo_signed_response_algs fixed to say signature. Clarify response is signed.</t>
+          <t>Fixed Sec 2.1 userinfo_encrypted_response_algs Clarify response is JWE containing JWT</t>
+          <t>Fixes #529 Sec 2.3 Clarify error response is Bearer and fix example</t>
+          <t>Add default_max_age registration parameter</t>
+          <t>Add default_acr registration parameter</t>
+          <t>Add require_auth_time registration parameter</t>
+        </list></t>
+
+      <t>-08<list style="symbols">
+          <t>Replaced token_endpoint with a defined term Token Endpoint [OAuth 2.0]</t>
+	  <t>Added policy_url parameter</t>
+	  <t>Renamed expires_in to expires_at</t>
+	  <t>Registration Endpoint can be OAuth Protected</t>
+	  <t>Added parameters for requiring encryption and/or signing of OpenID Request Object, UserInfo and ID Token</t>
+	  <t>Added token_endpoint_auth_type and list of valid authentication types</t>
+	  <t>Added JWK and X509 URLs for signature and encryption</t>
+	  <t>Added user_id_type </t>
+	  <t>Changed sector_identifier to sector_identifier_url and added URL verification</t>
+	  <t>Use RFC 6125 to verify TLS endpoints</t>
+	  <t>Changed 'contact' to 'contacts', 'redirect_uri' to 'redirect_uris'</t>
+	  <t>Changed redirect_uris to RECOMMENDED for code flow and REQUIRED for implicit flow Clients</t>
+	  <t>Removed js_origin_uri</t>
+	  <t>Added section about string comparison rules needed</t>
+	  <t>Clarified redirect_uris matching</t>
+          <t>Update John Bradley email and affiliation for Implementer's Draft</t>
+        </list></t>
+
+      <t>-07<list style="symbols">
+          <t>Changed request from posting a JSON object to being HTTP
+          Form encoded.</t>
+
+          <t>Added x509_url to support optional encryption.</t>
+        </list></t>
+
+      <t>-06 <list style="symbols">
+          <t>Changes associated with renaming "Lite" to "Basic Client" and
+          replacing "Core" and "Framework" with "Messages" and "Standard".</t>
+
+          <t>Numerous cleanups, including updating references.</t>
+        </list></t>
+
+      <t>-05 <list style="symbols">
+          <t>Changed <spanx style="verb">redirect_url</spanx> to <spanx
+          style="verb">redirect_uri</spanx> and <spanx style="verb">js_origin_url</spanx>
+          to <spanx style="verb">js_origin_uri</spanx>.</t>
+        </list></t>
+
+      <t>-04 <list style="symbols">
+          <t>Correct issues raised by Johnny Bufu and discussed on the
+          7-Jul-11 working group call.</t>
+        </list></t>
+
+      <t>-03 <list style="symbols">
+          <t>Incorporate working group decisions from 5-Jul-11 spec call.</t>
+
+          <t>Consistency and cleanup pass, including removing unused
+          references.</t>
+        </list></t>
+
+      <t>-02 <list style="symbols">
+          <t>Incorporate working group decisions from 23-Jun-11 spec call.</t>
+        </list></t>
+
+      <t>-01 <list style="symbols">
+          <t>Initial version.</t>
+        </list></t>
+    </section>
+  </back>
+</rfc>

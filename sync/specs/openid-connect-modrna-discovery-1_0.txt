@@ -1,0 +1,1064 @@
+
+
+
+
+                                                          T. Lodderstedt
+                                                                 yes.com
+                                                              J. Bradley
+                                                                  Yubico
+                                                       November 12, 2018
+
+
+          OpenID Connect MODRNA Discovery Profile 1.0 draft-05
+                   openid-connect-modrna-discovery-05
+
+Abstract
+
+   OpenID Connect Discovery 1.0 [OpenID.Discovery] section 2.1 specifies
+   a way to normalize a user identifier to derive a resource and
+   especially a host for OpenID Provider Issuer Discovery.  While this
+   works well for identifiers as email addresses and urls, it does not
+   work for typical identifiers from the mobile network space.  In a
+   mobile environment, MSISDN's or ip-addresses are typical resources
+   identifying a user or the respective mobile network operator (MNO).
+   The structure of those identifiers does not allow for an algorithmic
+   normalization.  Thus it will be necessary to have a specific service
+   to perform the normalization.
+
+   The OpenID Connect Mobile Discovery Profile specifies the interface
+   of this service.  Part of the interface specification will be the
+   identification of possible user input identifier types relevant in
+   the Mobile Connect scenario.  Remark: Some of those user input
+   identifier types may not identify a single user/device but may be
+   sufficient to identify the right mobile operator.  An example for
+   this is the MNC/MCC tuple (mobile network code/ mobile contry code)
+   or the IP address range.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Notation and Conventions . . . . . . . . . .   2
+     1.2.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Overview  . . . . . . . . . . . . . . . . . . . . . . . . . .   3
+     2.1.  Redirect-based flow . . . . . . . . . . . . . . . . . . .   3
+     2.2.  POST-based flow . . . . . . . . . . . . . . . . . . . . .   5
+   3.  Mobile Issuer Discovery Service . . . . . . . . . . . . . . .   6
+     3.1.  User Interaction Endpoint . . . . . . . . . . . . . . . .   6
+       3.1.1.  Request . . . . . . . . . . . . . . . . . . . . . . .   7
+       3.1.2.  Response  . . . . . . . . . . . . . . . . . . . . . .   7
+       3.1.3.  Error Response  . . . . . . . . . . . . . . . . . . .   8
+     3.2.  Issuer Endpoint . . . . . . . . . . . . . . . . . . . . .   9
+       3.2.1.  Request . . . . . . . . . . . . . . . . . . . . . . .   9
+       3.2.2.  Response  . . . . . . . . . . . . . . . . . . . . . .  10
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                  [Page 1]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+       3.2.3.  Error Response  . . . . . . . . . . . . . . . . . . .  11
+   4.  Security Considerations . . . . . . . . . . . . . . . . . . .  12
+   5.  Privacy Considerations  . . . . . . . . . . . . . . . . . . .  13
+   6.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  13
+   7.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  13
+     7.1.  Normative References  . . . . . . . . . . . . . . . . . .  13
+     7.2.  Informative References  . . . . . . . . . . . . . . . . .  14
+   Appendix A.  Account Chooser  . . . . . . . . . . . . . . . . . .  14
+     A.1.  AC Client . . . . . . . . . . . . . . . . . . . . . . . .  14
+     A.2.  AC Identity Provider  . . . . . . . . . . . . . . . . . .  15
+   Appendix B.  Acknowledgements . . . . . . . . . . . . . . . . . .  16
+   Appendix C.  Notices  . . . . . . . . . . . . . . . . . . . . . .  17
+   Appendix D.  Document History . . . . . . . . . . . . . . . . . .  17
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  19
+
+1.  Introduction
+
+   OpenID Connect Mobile Discovery Profile 1.0 is a profile of the
+   OpenID Connect Discovery 1.0 [OpenID.Discovery] specification that
+   stipulates how a OpenID Connect relying party (RP) can use mobile
+   network specific identifiers to determine the OpenID OP authoritive
+   for a certain mobile subscription.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119].
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+1.2.  Terminology
+
+   This specification uses the terms "Refresh Token", "Client
+   Identifier",and "Client Secret" defined by OAuth 2.0 [RFC6749].  This
+   specification uses the terms "OpenID Provider (OP)" and Relying Party
+   (RP) defined by OpenID Connect Core [OpenID.Core].
+
+   This specification also defines the following terms:
+
+      Mobile Network Operator (MNO): is a provider of wireless
+      communication services.  For the purpose of this specification,
+      the MNO also offers identity services for its subscribers
+      represented by a OpenID Connect OP.
+
+
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                  [Page 2]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+2.  Overview
+
+   This specification defines two different discovery flows intended to
+   fit the needs of both server-based web as well as native applications
+   residing on mobile devices.
+
+   The protocol design is guided by to following requirements:
+
+   o  A user's MSISDN can be used to determine the respective MNO.  In
+      order to preserve privacy of the user's MSISDN, it is assumed that
+      it is typically entered in the user interface provided by the
+      trusted discovery service.  From a practial perspective, some RPs
+      will either already are in posession of MSISDNs or may obtain it
+      from the mobile device's operating system (which tyically also
+      requires user consent).  Therefore this specification will allow
+      RPs to pass MSISDNs to the discovery service in general.  It is at
+      the discretion of the respective discovery service to authorize
+      certain RPs to use this feature.
+
+   o  Due to privacy reasons and the cost risk for MNOs associated with
+      it, it must be ensured that the discovery service cannot be abused
+      as a mobile phone number lookup service by unauthorized parties.
+
+   This specification assumes the RP established a trust relationship
+   with the discovery service before the actual discovery flow starts.
+   The RP is required to send a client_id with every requests.  A
+   mechanism similar to [OpenID.Registration] could be utilized
+   automatically setup the client.
+
+   Depending on the client type, it might also be required to
+   authenticate towards the Issuer Endpoint.  Any client authentication
+   method defined for OAuth and OpenID Connect could be used to
+   authenticate.
+
+2.1.  Redirect-based flow
+
+   This section gives an overview on the redirect-based flow, which is
+   intended to be used by server-side web application.  The design of
+   this flow is inspired by the OAuth 2.0 authorization code flow
+   [RFC6749].
+
+   Note: This flow, in contrast to the POST-based flow, does support
+   lookup of the MNO based on the user's MSISDN.
+
+
+
+
+
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                  [Page 3]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+   The following figure shows the message flow during the discovery
+   process.
+
+     +---------+                               +---------------------------------+
+     |         |                               | Mobile Issuer Discovery Service |
+     |         |                               |                                 |
+     |         |                               +------------------+              |
+     |         |--(A)-- Discovery Request ---->| User Interaction |              |
+     | Relying |<-(B)----- Code ---------------|     Endpoint     |              |
+     | Party   |                               +------------------+              |
+     |         |                               +------------------+              |
+     |         |--(C)----- Code -------------->|   Issuer         |              |
+     |         |<-(D)--- Issuer ---------------|   Endpoint       |              |
+     |         |                               +------------------+              |
+     |         |                               +---------------------------------+
+     |         |                               +---------------+
+     |         |--(E)----- Issuer ------------>|   MNO's OP    |
+     |         |<-(F)--- openid configuration -|               |
+     +---------+                               +---------------+
+
+   Figure 1 Redirect-based flow (Abstract Protocol Flow)
+
+      (A) The RP starts the issuer discovery by sending a discovery
+      request to the User Interaction endpoint of the Mobile Issuer
+      Discovery Service.  The RP identifies itself by way of an client
+      id and indicates the URI the user interaction service shall send
+      the user agent to after processing the request.  Moreover, the RP
+      may pass MCC/MNC, IMSI, or MSISDN as part of the discovery
+      request.  If this data is available, it is used to determine the
+      MNO.  Otherwise or if this attempt fails, the user interaction
+      service first tries to deduce the MNO from source IP address range
+      of the request.  If that's impossible, the user is asked for her
+      MSISDN, which is used to lookup the respective MNO from a
+      database.
+
+      (B) The User Interaction Endpoint does not directly respond to the
+      RP with the Issuer of the MNO's OP.  Instead, it creates a code,
+      which is associated with the ongoing transaction and sends it back
+      to the RP using the redirect URI passed by the RP.  This
+      indirection allows to authenticate and authorize the RP at the
+      Issuer endpoint before the process is completed.
+
+      (C) The RP sends the code along with its credentials to the Issuer
+      Endpoint.
+
+      (D) The endpoint validates the client credentials and responds
+      with the OpenID Issuer associated with the user's MNO.  If the
+      user provided the discovery service with her MSISDN in order to
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                  [Page 4]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+      determine the MNO, this MSISDN is encrypted and also returned to
+      the RP.  The RP is supposed to pass this encrypted MSISDN as
+      additional hint to the authentication process in order to spare
+      the user to enter the MSISDN twice.
+
+      (E) The RP builds the URL refering to the OpenID configuration of
+      the MNO's OpenID server by appending ".well-known/openid-
+      configuration" to the issuer URL (see [OpenID.Discovery]) and
+      sends a GET request to it.
+
+      (F) The OP provides the RP with a JSON document containing meta
+      data regarding endpoints, capabilities and policies.  The RP is
+      now fully equipped to start interaction with the respective OP.
+
+   The User Interaction and Issuer Endpoints are specified in sections
+   Section 3.1 and Section 3.2 , respectively.
+
+   Access to the OP's meta data (steps (E) and (F)) is defined in
+   [OpenID.Discovery], section 4, and is therefore outside of the scope
+   of this specification.
+
+   Note: After the RP logged the user in sucessfully with a particular
+   OP (and has remembered the respective Issuer URL), there is no need
+   to conduct the full issuer process again.  The RP can instead
+   directly obtain the OP's meta data using the openid configuration
+   (steps G and H).
+
+   Deployments may consider to use the OpenID Account chooser service
+   [Account.Chooser] as described in Appendix A in order to bypass steps
+   (A) to (D) for users that already have account information cached.
+   Alternatively, a discovery service implementation may also maintain
+   an account list internally and let the users pick a user account
+   identifier instead of entering a MSISDN.
+
+2.2.  POST-based flow
+
+   This section gives an overview on the POST-based flow, which is
+   intended to be used by native apps residing on mobile devices.  The
+   rationale is to allow apps to conduct issuer discovery without the
+   need to use a web browser, which would degrade user experience and
+   increase complexity and implementation effort.  The assumption is
+   that such apps cannot reliably be authenticated and authorized, so
+   MSISDN-based lookup is not offered.
+
+
+
+
+
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                  [Page 5]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+   The following figure shows the message flow during the discovery
+   process.
+
+     +---------+                               +---------------------------------+
+     |         |                               | Mobile Issuer Discovery Service |
+     |         |                               +------------------+              |
+     |         |--(A)---discovery data ------->|   Issuer         |              |
+     |         |<-(B)--- Issuer ---------------|   Endpoint       |              |
+     | Relying |                               +------------------+              |
+     | Party   |                               +---------------------------------+
+     |         |                               +---------------+
+     |         |--(C)----- Issuer ------------>|   MNO's OP    |
+     |         |<-(D)--- openid configuration -|               |
+     +---------+                               +---------------+
+
+   Figure 2 POST-based flow (Abstract Protocol Flow)
+
+      (A) In contrast to the web-based flow, the RP typically provides
+      data (MNC/MCC,IMSI, or MSISDN) to determine the user's MNO to the
+      discovery process.  The service tries to determine the MNO based
+      on this data.  If this data is not present, the discovery service
+      attempts to determine the MNO based on the RP's IP address.  If
+      that fails, the discovery process fails.
+
+      (B) The Issuer Endpoint responds with the OpenID Issuer or an
+      error message.
+
+      (C) The RP builds the URL refering to the OpenID configuration of
+      the MNO and sends a GET request to it.
+
+      (D) The OP provides the RP with a JSON document containing meta
+      data regarding endpoints, capabilities and policies.  The RP is
+      now fully equipped to start interaction with the respective OP.
+
+3.  Mobile Issuer Discovery Service
+
+   The Mobile Issuer Discovery Service exposes the user interaction and
+   issuer endpoint, which are specified in this section.
+
+3.1.  User Interaction Endpoint
+
+   The User Interaction Endpoint provides the user interface to the
+   discovery service.  It is used to enter the MSISDN, let the user
+   select her MNO and automatically determining the RP device's IP
+   address.  The RP is supposed to redirect the user agent to this
+   endpoint.  If the interactive process succeeds, the RP is provided
+   with a code, which it then exchanges at the Issuer Endpoint for the
+   actual Issuer data and (optionally) user-specific data.
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                  [Page 6]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+3.1.1.  Request
+
+   The request to the User Interaction endpoint contains the following
+   parameters:
+
+   client_id  REQUIRED.  The identifier of the respective RP.  This RP
+      must be known to the discovery service in advance.
+
+   redirect_uri  REQUIRED.  The URI the user agent shall be sent to
+      after the discovery process has been completed.  The RP must
+      register its URIs in advance, the redirect_uri parameter must
+      exactly match one of those URIs.
+
+   state  OPTIONAL.  Value used by the RP to preserve state of a
+      discovery transaction and to prevent XSRF attacks.  The discovery
+      service includes this value when redirecting the user-agent back
+      to the RP.
+
+   mcc  OPTIONAL.  The Mobile Country Code as defined by ITU-T E.212
+
+   mnc  REQUIRED.  If the parameter "mcc" is present.  The Mobile
+      Network Code as defined by ITU-T E.212
+
+   imsi  OPTIONAL.  The International Mobile Subscriber Identity.
+
+   msisdn  OPTIONAL.  Mobile phone number of the subscriber.
+
+   For example, the RP could ask for discovery with the following
+   request (line breaks are for display purposes only):
+
+     GET /discovery_ui?client_id=example_client&
+         redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fdiscovery&
+         state=xy&mcc=901&mnc=99 HTTP/1.1
+     Host: discovery.example.com
+
+3.1.2.  Response
+
+   The discovery service returns the following parameters:
+
+   code  REQUIRED.  The code is a temporary credential associated with
+      the ongoing discovery transaction.  The RP is supposed to exchange
+      this code for the actual discovery results at the issuer endpoint.
+
+   state  REQUIRED if the "state" parameter was present in the discovery
+      request.  The exact value received from the RP.
+
+
+
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                  [Page 7]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+   The following shows how the discovery service redirects the user
+   agent back to the RP:
+
+ HTTP/1.1 302 Found
+     Location: https://client.example.com/discovery?code=SplxlOBeZQQYbYS6WxSbIA
+               &state=xyz
+
+3.1.3.  Error Response
+
+   If the request fails due to a missing, invalid, or mismatching
+   redirection URI, or if the client identifier is missing or invalid,
+   the discovery server SHOULD inform the end-user of the error and MUST
+   NOT automatically redirect the user-agent to the invalid redirection
+   URI.  If the request fails for reasons other than a missing or
+   invalid redirection URI, the discovery server informs the RP by
+   adding the following parameters to the query component of the
+   redirection URI using the "application/x-www-form-urlencoded" format:
+
+   error  REQUIRED.  A single US ASCII error code from the following:
+
+      invalid_request  The request is missing a required parameter,
+         includes an invalid parameter value, includes a parameter more
+         than once, or is otherwise malformed.
+
+      unauthorized_client  The RP is not authorized to request disovery
+         using this method.
+
+      access_denied  The discovery server denied the request.
+
+      server_error  The discovery server encountered an unexpected
+         condition that prevented it from fulfilling the request.  (This
+         error code is needed because a 500 Internal Server Error HTTP
+         status code cannot be returned to the client via an HTTP
+         redirect.)
+
+      temporarily_unavailable  The discovery server is currently unable
+         to handle the request due to a temporary overloading or
+         maintenance of the server.  (This error code is needed because
+         a 503 Service Unavailable HTTP status code cannot be returned
+         to the client via an HTTP redirect.)
+
+      Values for the "error" parameter MUST NOT include characters
+                outside the set %x20-21 / %x23-5B / %x5D-7E.
+
+   error_description  OPTIONAL.  Human-readable US ASCII [USASCII] text
+      providing additional information, used to assist the RP developer
+      in understanding the error that occurred.  Values for the
+
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                  [Page 8]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+      "error_description" parameter MUST NOT include characters outside
+      the set %x20-21 / %x23-5B / %x5D-7E.
+
+   error_uri  OPTIONAL.  A URI identifying a human-readable web page
+      with information about the error, used to provide the client
+      developer with additional information about the error.  Values for
+      the "error_uri" parameter MUST conform to the URI-reference syntax
+      and thus MUST NOT include characters outside the set %x21 /
+      %x23-5B / %x5D-7E.
+
+   state  REQUIRED if the "state" parameter was present in the discovery
+      request.  The exact value received from the RP.
+
+3.2.  Issuer Endpoint
+
+   This endpoint provides the RP with issuer data.  It supports two use
+   cases:
+
+   1.  It exchanges the code created by the User Interaction Endpoint
+       for issuer data.
+
+   2.  RPs may directly request issuer data by passing mobile network
+       data.
+
+3.2.1.  Request
+
+   This is reflected in the "signature" of the request:
+
+   client_id  REQUIRED.  The identifier of the respective RP.  This RP
+      must be known to the discovery service in advance.
+
+   code  OPTIONAL. code value issued by the User Interaction Endpoint to
+      this particular RP.
+
+   redirect_uri  REQUIRED.  If the parameter "code is present.  The
+      actual URI used to invoke the user interaction endpoint.
+
+   mcc  OPTIONAL.  The Mobile Country Code as defined by ITU-T E.212
+
+   mnc  REQUIRED.  If the parameter "mcc" is present.  The Mobile
+      Network Code as defined by ITU-T E.212
+
+   imsi  OPTIONAL.  The International Mobile Subscriber Identity.
+
+   msisdn  OPTIONAL.  Mobile phone number of the subscriber.
+
+
+
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                  [Page 9]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+   Either code, mcc, imsi, or msisdn must be present in the request.
+   The discovery service first validates the client credentials and the
+   RP's authorization to perform the request.
+
+   If code is present, the discovery service verifies, whether (1) this
+   code had been issued to this RP and (2) whether "redirect_uri"
+   matches the redirect URI used in the original request to the User
+   Interaction Endpoint.
+
+   If "msisdn" is present, this parameter takes precedence and is used
+   to determine the MNO.  Otherwise and if "mcc" and "mnc" are present,
+   the discovery service tries to determine the MNO based on this data.
+   If neiter "msisdn" nor "mcc" is present but "imsi", then this
+   parameter is used to determine the MNO.
+
+   Depending on the client authentication method, the client will be
+   required to send additional parameters in header or body of the
+   request.  For example, if the RP is setup as confidential client with
+   a client secret, it MUST authenticate using a Basic authorization
+   header as defined in [RFC6749].
+
+   For example, the RP could send the following request (line breaks are
+   for display purposes only):
+
+   POST /discovery_issuer HTTP/1.1
+   Host: discovery.example.com
+   Authorization: Basic czZCaGRSa3F0Mzo3RmpmcDBaQnIxS3REUmJuZlZkbUl3
+
+   client_id=example_client&code=SplxlOBeZQQYbYS6WxSbIA&
+   redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fdiscovery
+
+3.2.2.  Response
+
+   The response from the issuer endpoint is a JSON object containing the
+   following top level elements:
+
+   iss  The Issuer URI "iss" for the user who has authorized discovery.
+
+   login_hint_token  A Encrypted JSON web token (JWE) that contains the
+      user hint for the issuer.  This token is returned, if the user has
+      entered her MSISDN in the user interaction endpoint.  The token
+      MUST be encrypted with the public key of the issuer.  This token
+      is passed to the issuer in the authentication request.  Usage,
+      structure, and processing rules of the login hint token are
+      specified in [MODRNA.Authentication]
+
+
+
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                 [Page 10]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+   The following is a non-normative example of the Issuer response:
+
+ HTTP/1.1 200 OK
+ Content-Type: application/json;charset=UTF-8
+ Cache-Control: no-store
+ Pragma: no-cache
+
+ {
+    "iss": "https://example_provider.com",
+    "login_hint_token": "eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.
+      OKOawDo13gRp2ojaHV7LFpZcgV7T6DVZKTyKOMTYUmKoTCVJRgckCL9kiMT03JGe
+      ipsEdY3mx_etLbbWSrFr05kLzcSr4qKAq7YN7e9jwQRb23nfa6c9d-StnImGyFDb
+      Sv04uVuxIp5Zms1gNxKKK2Da14B8S4rzVRltdYwam_lDp5XnZAYpQdb76FdIKLaV
+      mqgfwX7XWRxv2322i-vDxRfqNzo_tETKzpVLzfiwQyeyPGLBIO56YJ7eObdv0je8
+      1860ppamavo35UgoRdbYaBcoh9QcfylQr66oc6vFWXRcZ_ZT2LawVCWTIy3brGPi
+      6UklfCpIMfIjf7iGdXKHzg.
+      48V1_ALb6US04U3b.
+      5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4vpzs9tX_EFShS8iB7j6ji
+      SdiwkIr3ajwQzaBtQD_A.
+      XFBoMYUZodetZdvTiFvSkQ"
+ }
+
+3.2.3.  Error Response
+
+   The discovery server respondes with an HTTP 401 status code if the
+   client credentials are invalid and an HTTP 403 status code if the RP
+   is not authorized to request the particular service.
+
+   In all other error conditions, the discovery server responds with an
+   HTTP 400 (Bad Request) status code and includes a JSON object
+   containing the following top level elements:
+
+   error  REQUIRED.  A single US ASCII error code from the following:
+
+      invalid_request  The request is missing a required parameter,
+         includes an invalid parameter value, includes a parameter more
+         than once, or is otherwise malformed.
+
+      server_error  The discovery server encountered an unexpected
+         condition that prevented it from fulfilling the request.  (This
+         error code is needed because a 500 Internal Server Error HTTP
+         status code cannot be returned to the client via an HTTP
+         redirect.)
+
+      temporarily_unavailable  The discovery server is currently unable
+         to handle the request due to a temporary overloading or
+         maintenance of the server.  (This error code is needed because
+
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                 [Page 11]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+         a 503 Service Unavailable HTTP status code cannot be returned
+         to the client via an HTTP redirect.)
+
+      invalid_code  RP tried to exchange an invalid code for discovery
+         data (TBD: better HTTP status code 403?)
+
+      discovery_failed  TBD
+
+      Values for the "error" parameter MUST NOT include characters
+                outside the set %x20-21 / %x23-5B / %x5D-7E.
+
+   error_description  OPTIONAL.  Human-readable US ASCII [USASCII] text
+      providing additional information, used to assist the RP developer
+      in understanding the error that occurred.  Values for the
+      "error_description" parameter MUST NOT include characters outside
+      the set %x20-21 / %x23-5B / %x5D-7E.
+
+   error_uri  OPTIONAL.  A URI identifying a human-readable web page
+      with information about the error, used to provide the client
+      developer with additional information about the error.  Values for
+      the "error_uri" parameter MUST conform to the URI-reference syntax
+      and thus MUST NOT include characters outside the set %x21 /
+      %x23-5B / %x5D-7E.
+
+   The following is a non-normative example of a error response:
+
+   HTTP/1.1 400 Bad Request
+   Content-Type: application/json;charset=UTF-8
+   Cache-Control: no-store
+   Pragma: no-cache
+
+   {
+      "error":"invalid_request"
+   }
+
+4.  Security Considerations
+
+   The user interaction endpoint of the discovery service could be
+   subject to open redirection attacks.  The discovery service MUST take
+   precautions to prevent this threat.  Based on its risk assessment the
+   discovery service needs to decide whether it can trust the redirect
+   URI or not and SHOULD only automatically redirect the user agent, if
+   it trusts the redirect URI.  If not, it MAY inform the user that it
+   is about to redirect her to the another site and rely on the user to
+   decide or MAY just inform the user about the error.
+
+   The RP's redirect endpoint could be subject to CSRF attacks.  It MUST
+   therefore implement suitable countermeasures.  It is recommended to
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                 [Page 12]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+   use the state parameter for that purpose.  The RP shall bind the
+   state value to the particular user agent before it sends the user
+   agent to the discovery services and check this binding when it
+   receives a response.
+
+5.  Privacy Considerations
+
+   The privacy of MSISDNs is ensured by this specification by not
+   exposing it to the RP.  If a RP is entitled to handle the MSISDN it
+   MUST ensure its privacy preserving handling.
+
+6.  IANA Considerations
+
+   This document makes no requests of IANA.
+
+7.  References
+
+7.1.  Normative References
+
+   [MODRNA.Authentication]
+              Connotte, J. and J. Bradley, "OpenID Connect Mobile
+              Authentication Profile 1.0", March 2017,
+              <https://openid.net/specs/openid-connect-modrna-
+              authentication-1_0.html>.
+
+   [OpenID.Core]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Core 1.0", November 2014,
+              <http://openid.net/specs/openid-connect-core-1_0.html>.
+
+   [OpenID.Discovery]
+              Sakimura, N., Bradley, J., Jones, M., and E. Jay, "OpenID
+              Connect Discovery 1.0", November 2014,
+              <http://openid.net/specs/openid-connect-discovery-
+              1_0.html>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <https://www.rfc-editor.org/info/rfc6749>.
+
+
+
+
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                 [Page 13]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+7.2.  Informative References
+
+   [Account.Chooser]
+              "Account Chooser Developer Guide",
+              <http://accountchooser.net/developers>.
+
+   [OpenID.Registration]
+              Sakimura, N., Bradley, J., and M. Jones, "OpenID Connect
+              Dynamic Client Registration 1.0", November 2014,
+              <https://openid.net/specs/openid-connect-registration-
+              1_0.html>.
+
+Appendix A.  Account Chooser
+
+   This section describes how MODRNA RPs and OPs could utilize the
+   account chooser.
+
+   The account chooser allows users to, with the support of the OPs,
+   maintain a list of their accounts in a certain user agent.  With the
+   support of the RP the user then may select one of them for subsequent
+   logins without the need to determine the IDP or to enter the user id
+   again.
+
+   Note: In addition or as an alternative, deployments of the discovery
+   service may also decide to maintain such a list within the discovery
+   service.
+
+A.1.  AC Client
+
+   It is recommended that Web server clients use the Account Chooser
+   Central Data Store (CDS) for discovering the users preferred account.
+
+   Account Chooser [Account.Chooser] is invoked with the following
+   script:
+
+   <script type="text/javascript"
+        src="https://www.accountchooser.com/ac.js" />
+   <script>
+    accountchooser.CONFIG.uiConfig = {
+           title: 'Sign in to Example.com',
+           favicon: 'http://example.com/favicon.ico',
+           branding: 'http://example.com/branding/ac-blurb.html'
+        };
+   </script>
+
+   If the user clicks on one of the accounts, ac.js sends an HTTP POST
+   to a status checker (userStatusUrl:/account-status) that the client
+
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                 [Page 14]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+   has to to implement.  The status checker will receive up to five
+   arguments as URL query parameters.
+
+   The paramaters if available are:
+
+   email
+      x
+
+   displayName
+      x
+
+   photoUrl
+      x
+
+   providerId
+      x
+
+   login_hint_token
+      x
+
+   For example (with line wraps within values for display purposes
+   only):
+
+   POST /token HTTP/1.1
+     Host: server.example.com
+     Content-Type: application/x-www-form-urlencoded
+
+       email=555-1212@babytel.com&
+       displayName=i1WsRn1uB1&
+       photoUrl=s6BhdRkqt3&
+       providerId=babytel.com&
+       login_hint_token=eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.
+        OKOawDo13gRp2ojaHV7LFpZcgV7T6DVZKTyKOMTYUmKoTCVJRgckCL9kiMT03JGe
+        ipsEdY3mx_etLbbWSrFr05kLzcSr4qKAq7YN7e9jwQRb23nfa6c9d-StnImGyFDb
+        Sv04uVuxIp5Zms1gNxKKK2Da14B8S4rzVRltdYwam_lDp5XnZAYpQdb76FdIKLaV
+        mqgfwX7XWRxv2322i-vDxRfqNzo_tETKzpVLzfiwQyeyPGLBIO56YJ7eObdv0je8
+        1860ppamavo35UgoRdbYaBcoh9QcfylQr66oc6vFWXRcZ_ZT2LawVCWTIy3brGPi
+        6UklfCpIMfIjf7iGdXKHzg.
+        48V1_ALb6US04U3b.
+        5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4vpzs9tX_EFShS8iB7j6ji
+        SdiwkIr3ajwQzaBtQD_A.
+        XFBoMYUZodetZdvTiFvSkQ
+
+A.2.  AC Identity Provider
+
+   Identity providers will populate the account information in Account
+   Chooser's browser local storrage as the result of a successful loggin
+   before redirecting the user back to the RP.
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                 [Page 15]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+   If the user account has not been provisioned in the Browsers local
+   storage, the OP MUST offer to store the account before redirecting
+   the user back to the RP.
+
+   The following is an example of the script elements invoking ac.js
+   offering to store an account:
+
+   <script type="text/javascript"
+           src="https://www.accountchooser.com/ac.js" />
+   <script type="text/javascript">
+           accountchooser.CONFIG = {
+           // Sets the home-page URL to "/top"
+           homeUrl: '/top',
+
+           // Instructs ac.js to offer storage of an account via
+           // accountchooser.com
+           storeAccount: {
+                   email: "555-1212@babytel.com",
+                   displayName: "Santa Claus",
+                   providerId: : "babytel.com",
+                   login_hint_token:
+                   "eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.
+        OKOawDo13gRp2ojaHV7LFpZcgV7T6DVZKTyKOMTYUmKoTCVJRgckCL9kiMT03JGe
+        ipsEdY3mx_etLbbWSrFr05kLzcSr4qKAq7YN7e9jwQRb23nfa6c9d-StnImGyFDb
+        Sv04uVuxIp5Zms1gNxKKK2Da14B8S4rzVRltdYwam_lDp5XnZAYpQdb76FdIKLaV
+        mqgfwX7XWRxv2322i-vDxRfqNzo_tETKzpVLzfiwQyeyPGLBIO56YJ7eObdv0je8
+        1860ppamavo35UgoRdbYaBcoh9QcfylQr66oc6vFWXRcZ_ZT2LawVCWTIy3brGPi
+        6UklfCpIMfIjf7iGdXKHzg.
+        48V1_ALb6US04U3b.
+        5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4vpzs9tX_EFShS8iB7j6ji
+        SdiwkIr3ajwQzaBtQD_A.
+        XFBoMYUZodetZdvTiFvSkQ",
+                   providerId: "babytel.com"
+           }
+   };
+   </script>
+
+Appendix B.  Acknowledgements
+
+   The OpenID Community would like to thank the following people for
+   their contributions to the development of this specification:
+
+      Sebastian Ebling (s.ebling@telekom.de), Deutsche Telekom
+
+      Philippe Clement (philippe.clement@orange.com), Orange
+
+      Matthieu Verdier (matthieu.verdier@orange.com), Orange
+
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                 [Page 16]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+Appendix C.  Notices
+
+   Copyright (c) 2020 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+Appendix D.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -05
+
+   o  moved section on use of account chooser to appendix
+
+   o  updated author's affiliations
+
+   o  removed account chooser steps from sequence diagram
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                 [Page 17]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+   o  added note on use of account chooser and alternatives to flow
+      description
+
+   o  replaced section on client registration by text regarding need to
+      establish trust relationship upfront including pointer to dynamic
+      client registration
+
+   o  added text to security and privacy considerations
+
+   -04
+
+   o  added MSISDN as parameter to both endpoints
+
+   -03
+
+   o  corrected typos
+
+   o  cleaned up terminology section
+
+   o  cleaned up and repaired references (e.g.  URLs now work)
+
+   o  replaced all occurrences of IDP, Authorization Server, and client
+      by OP and RP, respectively
+
+   -02
+
+   o  completely reworked document to reflect latest discovery design
+      and support for different flows
+
+   o  extended Overview section to describe overall flows for web and
+      native apps
+
+   o  split discovery service into different endpoints and adopted the
+      document structure accordingly
+
+   o  added example requests and responses
+
+   o  added reference to authentication profile
+
+   -01
+
+   o  Initial draft
+
+   o  Added OIDF Standard Notice
+
+   o  moved the definition of the encrypted id_token_int to login
+
+
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                 [Page 18]
+
+                    OIDC MODRNA Discovery Profile 1.0      November 2018
+
+
+Authors' Addresses
+
+   Torsten Lodderstedt
+   yes.com
+
+   Email: torsten@lodderstedt.net
+
+
+   John Bradley
+   Yubico
+
+   Email: ve7jtb@ve7jtb.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lodderstedt & Bradley     Expires May 16, 2019                 [Page 19]

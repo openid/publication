@@ -1,0 +1,2404 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml2rfc.tools.ietf.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN"
+"http://xml2rfc.tools.ietf.org/authoring/rfc2629.dtd">
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="openid-connect-discovery-1_0" ipr="none">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="5" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="yes" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Final" ?>
+
+  <front>
+    <title abbrev="OpenID Connect Discovery 1.0">OpenID Connect Discovery 1.0 incorporating errata set 2</title>
+
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization abbrev="NAT.Consulting (was at NRI)">NAT.Consulting</organization>
+      <address>
+        <email>nat@nat.consulting</email>
+	<uri>https://nat.sakimura.org/</uri>
+      </address>
+    </author>
+
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization abbrev="Yubico (was at Ping Identity)">Yubico</organization>
+      <address>
+        <email>ve7jtb@ve7jtb.com</email>
+	<uri>http://www.thread-safe.com/</uri>
+      </address>
+    </author>
+
+    <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      <organization abbrev="Self-Issued Consulting (was at Microsoft)">Self-Issued Consulting</organization>
+      <address>
+        <email>michael_b_jones@hotmail.com</email>
+	<uri>https://self-issued.info/</uri>
+      </address>
+    </author>
+
+    <author fullname="Edmund Jay" initials="E." surname="Jay">
+      <organization abbrev="Illumila">Illumila</organization>
+      <address>
+        <email>ejay@mgi1.com</email>
+      </address>
+    </author>
+
+    <date day="15" month="December" year="2023" />
+
+    <workgroup>OpenID Connect Working Group</workgroup>
+
+    <abstract>
+      <t>OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+      protocol. It enables Clients to verify the identity of the End-User based
+      on the authentication performed by an Authorization Server, as well as to
+      obtain basic profile information about the End-User in an interoperable and
+      REST-like manner.</t>
+
+      <t>
+	This specification defines a mechanism for an OpenID Connect Relying Party
+	to discover the End-User's OpenID Provider
+	and obtain information needed to interact with it,
+	including its OAuth 2.0 endpoint locations.
+      </t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+
+      <t>
+	OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+	<xref target="RFC6749"/>
+	protocol. It enables Clients to verify the identity of the End-User based
+	on the authentication performed by an Authorization Server, as well as to
+	obtain basic profile information about the End-User in an interoperable and
+	REST-like manner.
+      </t>
+      <t>
+	In order for an OpenID Connect Relying Party to utilize OpenID Connect services for
+	an End-User, the RP needs to know where the OpenID Provider is.
+	OpenID Connect uses <xref target="RFC7033">WebFinger</xref> to locate
+	the OpenID Provider for an End-User.
+	This process is described in <xref target="IssuerDiscovery"/>.
+      </t>
+      <t>
+	Once the OpenID Provider has been identified,
+	the configuration information for that OP
+	is retrieved from a well-known location as a JSON <xref target="RFC8259"/> document,
+	including its OAuth 2.0 endpoint locations.
+	This process is described in <xref target="ProviderConfig"/>.
+      </t>
+
+      <t>
+	The previous versions of this specification are:
+	<list style="symbols">
+	  <t><xref target="OpenID.Discovery.Errata1">OpenID Connect Discovery 1.0 incorporating errata set 1</xref></t>
+	  <t><xref target="OpenID.Discovery.Final">OpenID Connect Discovery 1.0 (final)</xref></t>
+	</list>
+      </t>
+
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+	<t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+	"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
+	document are to be interpreted as described in <xref
+	target="RFC2119">RFC 2119</xref>.</t>
+
+	<t>
+	  In the .txt version of this specification,
+	  values are quoted to indicate that they are to be taken literally.
+	  When using these values in protocol messages,
+	  the quotes MUST NOT be used as part of the value.
+	  In the HTML version of this specification,
+	  values to be taken literally are indicated by
+	  the use of <spanx style="verb">this fixed-width font</spanx>.
+	</t>
+	<t>
+	  All uses of <xref target="JWS">JSON Web Signature (JWS)</xref>
+	  and <xref target="JWE">JSON Web Encryption (JWE)</xref>
+	  data structures in this specification utilize
+	  the JWS Compact Serialization or the JWE Compact Serialization;
+	  the JWS JSON Serialization and the JWE JSON Serialization are not used.
+	</t>
+      </section>
+
+      <section anchor="Terminology" title="Terminology">
+	<t>
+	  This specification uses the terms "Authorization Code",
+	  "Authorization Endpoint", "Authorization Server",
+	  "Client", "Client Authentication", "Client Secret",
+	  "Grant Type",
+	  "Response Type", and "Token Endpoint"
+	  defined by <xref target="RFC6749">OAuth 2.0</xref>,
+	  the terms "Claim Name", "Claim Value", and "JSON Web Token (JWT)"
+	  defined by <xref target="JWT">JSON Web Token (JWT)</xref>,
+	  and the terms defined by
+	  <xref target="OpenID.Core">OpenID Connect Core 1.0</xref> and
+	  <xref target="OAuth.Responses">OAuth 2.0 Multiple Response Type Encoding Practices</xref>.
+	</t>
+	<t>
+	  This specification also defines the following terms:
+	  <list style="hanging">
+
+	    <t hangText="Resource">
+	      <vspace/>
+	      Entity that is the target of a request in WebFinger.
+	    </t>
+	    <t hangText="Host">
+	      <vspace/>
+	      Server where a WebFinger service is hosted.
+	    </t>
+            <t hangText="Identifier">
+	      <vspace/>
+	     Value that uniquely characterizes an Entity in a specific context.
+	    </t>
+	    <t>
+	      NOTE: This specification defines various kinds of Identifiers, designed for use in different contexts.
+	      Examples include URLs using the <spanx style="verb">https</spanx> scheme and e-mail addresses.
+	    </t>
+
+	  </list>
+	</t>
+	<t>
+	  IMPORTANT NOTE TO READERS: The terminology definitions in
+	  this section are a normative portion of this specification,
+	  imposing requirements upon implementations.  All the
+	  capitalized words in the text of this specification, such as
+	  "Identifier", reference these defined terms.
+	  Whenever the reader encounters them, their definitions
+	  found in this section must be followed.
+	</t>
+      </section>
+    </section>
+
+    <section anchor="IssuerDiscovery" title="OpenID Provider Issuer Discovery">
+      <t>
+	OpenID Provider Issuer discovery is the process of determining
+	the location of the OpenID Provider.
+      </t>
+      <t>
+	Issuer discovery is OPTIONAL; if a Relying Party knows the
+	OP's Issuer location through an out-of-band mechanism, it can skip this step
+	and proceed to <xref target="ProviderConfig"/>.
+      </t>
+      <t>
+	The following information is needed to perform issuer discovery
+	using <xref target="RFC7033">WebFinger</xref>:
+      </t>
+
+      <t><list style="hanging">
+          <t hangText="resource">
+	    <vspace/>
+	    Identifier for the target End-User that is the
+	    subject of the discovery request.
+	  </t>
+
+          <t hangText="host">
+	    <vspace/>
+	    Server where a WebFinger service is hosted.
+	  </t>
+
+          <t hangText="rel">
+	    <vspace/>
+	    URI identifying the type of service whose location is being requested.
+	  </t>
+        </list></t>
+
+      <t>OpenID Connect uses the following discoverable
+      <spanx style="verb">rel</spanx> value in
+      <xref target="RFC7033">WebFinger</xref>:</t>
+
+      <texttable align="center" style="all">
+        <ttcol>Rel Type</ttcol>
+        <ttcol>URI</ttcol>
+
+        <c>OpenID Connect Issuer</c>
+        <c>http://openid.net/specs/connect/1.0/issuer</c>
+      </texttable>
+
+      <t>
+	To start discovery of OpenID endpoints, the End-User supplies an
+	Identifier to the Relying Party.
+	Any Web input form MUST employ Cross-Site Request Forgery (CSRF) prevention <xref target="OWASP.CSRF"/>.
+      </t>
+      <t>
+      The RP applies
+      normalization rules to the Identifier to determine the Resource and Host.
+      Then it makes an HTTP <spanx style="verb">GET</spanx> request to the Host's
+      <xref target="RFC7033">WebFinger</xref>
+      endpoint with the <spanx style="verb">resource</spanx>
+      parameter to obtain the location of the
+      requested service.
+      Use of the <spanx style="verb">rel</spanx> parameter in the request with a value of
+      <spanx style="verb">http://openid.net/specs/connect/1.0/issuer</spanx>
+      is also RECOMMENDED to narrow the response to the specific link relation type needed.
+      </t>
+      <t>
+      All WebFinger communication MUST utilize TLS
+      in the manner described in <xref target="TLSRequirements"/>.
+      The WebFinger endpoint SHOULD support the use of
+      <xref target="CORS">Cross-Origin Resource Sharing (CORS)</xref>
+      and/or other methods as appropriate
+      to enable JavaScript Clients and other Browser-Based Clients to access it.
+      </t>
+
+      <t>
+	The Issuer location MUST be returned in the WebFinger response
+	as the value of the <spanx style="verb">href</spanx> member of
+	a <spanx style="verb">links</spanx> array element
+	with <spanx style="verb">rel</spanx> member value
+	<spanx style="verb">http://openid.net/specs/connect/1.0/issuer</spanx>.
+	(Per Section 7 of <xref target="RFC7033">WebFinger</xref>, obtaining the
+	WebFinger response may first involve following some redirects.)
+      </t>
+      <t>
+	The returned Issuer location MUST be a URI <xref target="RFC3986">RFC 3986</xref>
+	with a scheme component that MUST be <spanx style="verb">https</spanx>,
+	a host component, and optionally, port and path components
+	and no query or fragment components.
+	Note that since the Host and Resource values determined from
+	the user input Identifier,
+	as described in <xref target="IdentifierNormalization"/>,
+	are used as input to a WebFinger request,
+	which can return an Issuer value using a completely different
+	scheme, host, port, and path, no relationship can be assumed between
+	the user input Identifier string and the resulting Issuer location.
+      </t>
+
+      <section anchor="IdentifierNormalization" title="Identifier Normalization">
+        <t>
+	  The purpose of Identifier normalization is to determine normalized
+	  Resource and Host values from the user input Identifier.
+	  These are then used as WebFinger request parameters
+	  to discover the Issuer location.
+	</t>
+
+        <t>
+          The user input Identifier SHOULD be a URL or URI relative reference
+          defined in <xref target="RFC3986">RFC 3986</xref>.
+          The user input Identifier MUST
+          include the authority component.
+        </t>
+        <t>
+          NOTE: A URI relative reference includes a string that looks like
+          an e-mail address in the form of <spanx style="verb">userinfo@host</spanx>.
+          This is a valid authority component of a URI
+          but excludes various possible extra strings allowed in
+          <spanx style="verb">addr-spec</spanx> syntax of
+          <xref target="RFC5322">RFC 5322</xref>.
+        </t>
+
+        <t>
+	  The Identifier normalization rules MAY be extended by
+	  additional specifications to enable other identifier types
+	  such as telephone numbers or <xref
+	  target="XRI_Syntax_2.0">XRIs</xref> to also be used.
+	</t>
+
+        <section anchor="IdentifierTypes" title="User Input Identifier Types">
+          <t>
+            A user input Identifier can be categorized into the following
+            types, which require different normalization processes:
+          </t>
+
+          <t>
+            <list style="numbers">
+              <t>User input Identifiers starting with the <xref
+              target="XRI_Syntax_2.0">XRI</xref> global context
+              symbols ('=','@', and '!') are RESERVED.  Processing of
+              these identifiers is out of scope for this
+              specification.</t>
+
+              <t>All other user input Identifiers MUST be treated as
+	      a URI in one of the forms
+            <spanx style="verb">scheme "://" authority path-abempty [ "?" query ] [ "#" fragment ]</spanx>
+            or
+            <spanx style="verb">authority path-abempty [ "?" query ] [ "#" fragment ]</spanx>
+	    or
+	    <spanx style="verb">scheme ":" path-rootless</spanx>,
+            per <xref target="RFC3986">RFC 3986</xref>.
+              </t>
+            </list>
+          </t>
+
+          <t>
+	    NOTE: The user input Identifier MAY be in the form
+            of <spanx style="verb">userinfo@host</spanx>.
+            For the End-User, this would normally be perceived as being an e-mail address.
+	    However, it is also
+            a valid userpart "@" host section of an <spanx style="verb">acct</spanx> URI
+	    <xref target="RFC7565"/>,
+	    and this specification
+            treats it such as to exclude various
+            extra strings allowed in <spanx style="verb">addr-spec</spanx> of
+            <xref target="RFC5322">RFC 5322</xref>.
+          </t>
+        </section>
+
+        <section anchor="NormalizationSteps" title="Normalization Steps">
+          <t>
+            A string of any other type is interpreted as
+            a URI in one of the forms
+            <spanx style="verb">scheme "://" authority path-abempty [ "?" query ] [ "#" fragment ]</spanx>
+            or
+            <spanx style="verb">authority path-abempty [ "?" query ] [ "#" fragment ]</spanx>
+	    or
+	    <spanx style="verb">scheme ":" path-rootless</spanx>
+            per <xref target="RFC3986">RFC 3986</xref>
+            and is normalized according to the following rules:
+          </t>
+
+          <t>
+            <list style="numbers">
+              <t>
+                If the user input Identifier does not have an
+                <xref target="RFC3986">RFC 3986</xref> scheme component,
+                the string is interpreted as
+                <spanx style="verb">[userinfo "@"] host [":" port] path-abempty [ "?" query ] [ "#" fragment ]</spanx>
+                per <xref target="RFC3986">RFC 3986</xref>.
+		Examples are
+		<spanx style="verb">example.com</spanx>,
+		<spanx style="verb">joe@example.com</spanx>,
+		<spanx style="verb">example.com/joe</spanx>, and
+		<spanx style="verb">example.com:8080</spanx>.
+	      </t>
+	      <t>
+		If the userinfo and host components are present and all of the
+		scheme, path, query, port, and fragment components are absent,
+                the <spanx style="verb">acct</spanx> scheme is assumed.
+                In this case, the normalized URI is formed by
+                prefixing <spanx style="verb">acct:</spanx> to the string as the scheme.
+                Per <xref target="RFC7565">The 'acct' URI Scheme</xref>,
+                if there is an at-sign character ('@') in the userinfo component, it needs to be
+                percent-encoded, as described in <xref target="RFC3986">RFC 3986</xref>.
+		Examples are
+		<spanx style="verb">joe@example.com</spanx> and
+		<spanx style="verb">Jane.Doe@example.com</spanx>.
+	      </t>
+	      <t>
+		For all other inputs without a scheme component,
+		the <spanx style="verb">https</spanx> scheme is assumed,
+                and the normalized URI is formed by
+                prefixing <spanx style="verb">https://</spanx> to the string as the scheme.
+		Examples are
+		<spanx style="verb">example.com</spanx>,
+		<spanx style="verb">example.com/joe</spanx>,
+		<spanx style="verb">example.com:8080</spanx>, and
+		<spanx style="verb">joe@example.com:8080</spanx>.
+              </t>
+	      <t>
+		When the input contains an explicit scheme such as
+		<spanx style="verb">acct</spanx> or <spanx style="verb">https</spanx>
+		that matches the RFC 3986
+		<spanx style="verb">scheme ":" path-rootless</spanx> syntax,
+		no input normalization is performed.
+		Examples are
+		<spanx style="verb">https://example.com</spanx>,
+		<spanx style="verb">https://example.com/joe</spanx>,
+		<spanx style="verb">https://joe@example.com:8080</spanx>, and
+		<spanx style="verb">acct:joe@example.com</spanx>.
+	      </t>
+              <t>
+		If the resulting URI contains a fragment component, it MUST be
+		stripped off, together with the fragment delimiter
+		character "#".
+	      </t>
+            </list>
+          </t>
+          <t>
+            The <xref target="RFC7033">WebFinger</xref> Resource
+	    in this case is the resulting URI, and
+            the WebFinger Host is the authority component.
+          </t>
+          <t>
+            NOTE: Since the definition of <spanx style="verb">authority</spanx>
+            in <xref target="RFC3986">RFC 3986</xref>
+            is <spanx style="verb">[ userinfo "@" ] host [ ":" port ]</spanx>,
+            it is legal to have a user input identifier like
+            <spanx style="verb">userinfo@host:port</spanx>, e.g.,
+            <spanx style="verb">alice@example.com:8080</spanx>.
+          </t>
+        </section>
+      </section>
+
+      <section anchor="Examples" title="Non-Normative Examples">
+
+        <section anchor="EmailSyntax" title="User Input using E-Mail Address Syntax">
+          <t>To find the Issuer for the given user input
+          in the form of an e-mail address <spanx style="verb">joe@example.com</spanx>,
+	  the WebFinger parameters are as follows:</t>
+
+          <texttable>
+            <ttcol>WebFinger Parameter</ttcol>
+            <ttcol>Value</ttcol>
+
+            <c>resource</c>
+            <c>acct:joe@example.com</c>
+
+            <c>host</c>
+            <c>example.com</c>
+
+            <c>rel</c>
+            <c>http://openid.net/specs/connect/1.0/issuer</c>
+          </texttable>
+
+	  <t>
+	    Note that in this case, the <spanx style="verb">acct:</spanx> scheme
+	    <xref target="RFC7565"/> is prepended to the Identifier.
+	  </t>
+
+          <t>
+	    <figure>
+	      <preamble>The RP would make the
+	      following WebFinger request to discover the Issuer location
+	      (with line wraps within lines for display purposes only):</preamble>
+
+              <artwork><![CDATA[
+  GET /.well-known/webfinger
+    ?resource=acct%3Ajoe%40example.com
+    &rel=http%3A%2F%2Fopenid.net%2Fspecs%2Fconnect%2F1.0%2Fissuer
+    HTTP/1.1
+  Host: example.com
+
+  HTTP/1.1 200 OK
+  Content-Type: application/jrd+json
+
+  {
+   "subject": "acct:joe@example.com",
+   "links":
+    [
+     {
+      "rel": "http://openid.net/specs/connect/1.0/issuer",
+      "href": "https://server.example.com"
+     }
+    ]
+  }
+]]></artwork>
+            </figure>
+	  </t>
+        </section>
+
+        <section anchor="URLSyntax" title="User Input using URL Syntax">
+          <t>To find the Issuer for the given URL,
+          <spanx style="verb">https://example.com/joe</spanx>, the WebFinger
+          parameters are as follows:</t>
+
+          <texttable>
+            <ttcol>WebFinger Parameter</ttcol>
+            <ttcol>Value</ttcol>
+
+            <c>resource</c>
+            <c>https://example.com/joe</c>
+
+            <c>host</c>
+            <c>example.com</c>
+
+            <c>rel</c>
+            <c>http://openid.net/specs/connect/1.0/issuer</c>
+          </texttable>
+
+          <t><figure>
+	    <preamble>The RP would make the
+	    following WebFinger request to discover the Issuer location
+	    (with line wraps within lines for display purposes only):</preamble>
+
+              <artwork><![CDATA[
+  GET /.well-known/webfinger
+    ?resource=https%3A%2F%2Fexample.com%2Fjoe
+    &rel=http%3A%2F%2Fopenid.net%2Fspecs%2Fconnect%2F1.0%2Fissuer
+    HTTP/1.1
+  Host: example.com
+
+  HTTP/1.1 200 OK
+  Content-Type: application/jrd+json
+
+  {
+   "subject": "https://example.com/joe",
+   "links":
+    [
+     {
+      "rel": "http://openid.net/specs/connect/1.0/issuer",
+      "href": "https://server.example.com"
+     }
+    ]
+  }
+]]></artwork>
+            </figure></t>
+        </section>
+
+        <section anchor="HostPortExample" title="User Input using Hostname and Port Syntax">
+          <t>
+            If the user input is in the form of
+            <spanx style="verb">host:port</spanx>, e.g., example.com:8080,
+            then it is assumed as the authority component of the URL.
+          </t>
+
+          <t>To find the Issuer for the given
+          hostname, <spanx style="verb">example.com:8080</spanx>, the WebFinger
+          parameters are as follows:</t>
+
+          <texttable>
+            <ttcol>WebFinger Parameter</ttcol>
+            <ttcol>Value</ttcol>
+
+            <c>resource</c>
+            <c>https://example.com:8080/</c>
+
+            <c>host</c>
+            <c>example.com:8080</c>
+
+            <c>rel</c>
+            <c>http://openid.net/specs/connect/1.0/issuer</c>
+          </texttable>
+
+          <t><figure>
+	    <preamble>The RP would make the
+	    following WebFinger request to discover the Issuer location
+	    (with line wraps within lines for display purposes only):</preamble>
+
+              <artwork><![CDATA[
+  GET /.well-known/webfinger
+    ?resource=https%3A%2F%2Fexample.com%3A8080%2F
+    &rel=http%3A%2F%2Fopenid.net%2Fspecs%2Fconnect%2F1.0%2Fissuer
+    HTTP/1.1
+  Host: example.com:8080
+
+  HTTP/1.1 200 OK
+  Content-Type: application/jrd+json
+
+  {
+   "subject": "https://example.com:8080/",
+   "links":
+    [
+     {
+      "rel": "http://openid.net/specs/connect/1.0/issuer",
+      "href": "https://server.example.com"
+     }
+    ]
+  }
+]]></artwork>
+            </figure></t>
+        </section>
+
+        <section anchor="AcctURISyntax" title='User Input using "acct" URI Syntax'>
+          <t>To find the Issuer for the given user input
+          in the form of an account URI
+          <spanx style="verb">acct:juliet%40capulet.example@shopping.example.com</spanx>,
+	  the WebFinger parameters are as follows:</t>
+
+          <texttable>
+            <ttcol>WebFinger Parameter</ttcol>
+            <ttcol>Value</ttcol>
+
+            <c>resource</c>
+            <c>acct:juliet%40capulet.example@shopping.example.com</c>
+
+            <c>host</c>
+            <c>shopping.example.com</c>
+
+            <c>rel</c>
+            <c>http://openid.net/specs/connect/1.0/issuer</c>
+          </texttable>
+
+          <t>
+	    <figure>
+	      <preamble>The RP would make the
+	      following WebFinger request to discover the Issuer location
+	      (with line wraps within lines for display purposes only):</preamble>
+
+              <artwork><![CDATA[
+  GET /.well-known/webfinger
+    ?resource=acct%3Ajuliet%2540capulet.example%40shopping.example.com
+    &rel=http%3A%2F%2Fopenid.net%2Fspecs%2Fconnect%2F1.0%2Fissuer
+    HTTP/1.1
+  Host: shopping.example.com
+
+  HTTP/1.1 200 OK
+  Content-Type: application/jrd+json
+
+  {
+   "subject": "acct:juliet%40capulet.example@shopping.example.com",
+   "links":
+    [
+     {
+      "rel": "http://openid.net/specs/connect/1.0/issuer",
+      "href": "https://server.example.com"
+     }
+    ]
+  }
+]]></artwork>
+            </figure>
+	  </t>
+	  <t>
+	    NOTE:  It is common for sites to use e-mail addresses as local identifiers
+	    for accounts at those sites, even though the domain in the e-mail address
+	    is not one controlled by the site.
+	    For instance, the site <spanx style="verb">example.org</spanx>
+	    might have a local account named <spanx style="verb">joe@example.com</spanx>.
+	    This specification uses <spanx style="verb">acct:</spanx> URIs
+	    as defined by <xref target="RFC7565"/> to represent such accounts
+	    during WebFinger discovery.
+	    Such an example is
+	    <spanx style="verb">acct:joe%40example.com@example.org</spanx>.
+	    End-Users MAY input
+	    values like <spanx style="verb">joe@example.com@example.org</spanx>
+	    to initiate discovery on such accounts.
+	  </t>
+        </section>
+      </section>
+    </section>
+
+    <section anchor="ProviderMetadata" title="OpenID Provider Metadata">
+      <t>
+	OpenID Providers have metadata describing their configuration.
+	These OpenID Provider Metadata values are used by OpenID Connect:
+
+	<list style="hanging">
+
+	  <t hangText="issuer">
+	    <vspace/>
+	    REQUIRED.
+	    URL using the <spanx style="verb">https</spanx> scheme with no query or fragment components that the OP asserts as its
+	    Issuer Identifier.
+	    If Issuer discovery is supported (see <xref target="IssuerDiscovery"/>),
+	    this value MUST be identical to the issuer value returned by WebFinger.
+	    This also MUST be identical to the <spanx style="verb">iss</spanx> Claim value
+	    in ID Tokens issued from this Issuer.
+	  </t>
+
+	  <t hangText="authorization_endpoint">
+	    <vspace/>
+	    REQUIRED.
+	    URL of the OP's OAuth 2.0 Authorization Endpoint
+	    <xref target="OpenID.Core"/>.
+	    This URL MUST use the <spanx style="verb">https</spanx> scheme and MAY contain
+	    port, path, and query parameter components.
+	  </t>
+
+	  <t hangText="token_endpoint">
+	    <vspace/>
+	    URL of the OP's OAuth 2.0 Token Endpoint
+	    <xref target="OpenID.Core"/>.
+	    This is REQUIRED unless only the Implicit Flow is used.
+	    This URL MUST use the <spanx style="verb">https</spanx> scheme and MAY contain
+	    port, path, and query parameter components.
+	  </t>
+
+	  <t hangText="userinfo_endpoint">
+	    <vspace/>
+	    RECOMMENDED.
+	    URL of the OP's UserInfo Endpoint <xref target="OpenID.Core"/>.
+	    This URL MUST use the <spanx style="verb">https</spanx> scheme and MAY contain
+	    port, path, and query parameter components.
+	  </t>
+
+	  <t hangText="jwks_uri">
+	    <vspace/>
+	    REQUIRED.
+	    URL of the OP's JWK Set <xref target="JWK"/> document,
+	    which MUST use the <spanx style="verb">https</spanx> scheme.
+	    This contains the signing key(s) the RP uses to validate signatures from the OP.
+	    The JWK Set MAY also contain the Server's encryption key(s),
+	    which are used by RPs to encrypt requests to the Server.
+	    When both signing and encryption keys are made available,
+	    a <spanx style="verb">use</spanx> (public key use) parameter
+	    value is REQUIRED for all keys in the referenced JWK Set
+	    to indicate each key's intended usage.
+	    Although some algorithms allow the same key to be used for
+	    both signatures and encryption, doing so is
+	    NOT RECOMMENDED, as it is less secure.
+	    The JWK <spanx style="verb">x5c</spanx> parameter MAY be used
+	    to provide X.509 representations of keys provided.  When used, the bare key
+	    values MUST still be present and MUST match those in the certificate.
+	    The JWK Set MUST NOT contain private or symmetric key values.
+	  </t>
+
+	  <t hangText="registration_endpoint">
+	    <vspace/>
+	    RECOMMENDED.
+	    URL of the OP's Dynamic Client Registration Endpoint <xref
+	    target="OpenID.Registration"/>,
+	    which MUST use the <spanx style="verb">https</spanx> scheme.
+	  </t>
+
+	  <t hangText="scopes_supported">
+	    <vspace/>
+	    RECOMMENDED.
+	    JSON array containing a list of the <xref
+	    target="RFC6749">OAuth 2.0</xref> scope values that this server
+	    supports. The server MUST support the <spanx style="verb">openid</spanx>
+	    scope value.
+	    Servers MAY choose not to advertise some supported scope values
+	    even when this parameter is used, although those defined in
+	    <xref target="OpenID.Core"/> SHOULD be listed, if supported.
+	  </t>
+
+	  <t hangText="response_types_supported">
+	    <vspace/>
+	    REQUIRED.
+	    JSON array containing a list of the OAuth 2.0
+	    <spanx style="verb">response_type</spanx> values that this
+	    OP supports.
+	    Dynamic OpenID Providers MUST support the <spanx style="verb">code</spanx>,
+	    <spanx style="verb">id_token</spanx>, and the <spanx style="verb">id_token token</spanx>
+	    Response Type values.
+	  </t>
+
+	  <t hangText="response_modes_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the OAuth 2.0
+	    <spanx style="verb">response_mode</spanx> values that this
+	    OP supports, as specified in
+	    <xref target="OAuth.Responses">OAuth 2.0 Multiple Response Type Encoding Practices</xref>.
+	    If omitted, the default for Dynamic OpenID Providers is
+	    <spanx style="verb">["query", "fragment"]</spanx>.
+	  </t>
+
+	  <t hangText="grant_types_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the OAuth 2.0
+	    Grant Type values that this
+	    OP supports. Dynamic OpenID Providers MUST support the
+	    <spanx style="verb">authorization_code</spanx> and
+	    <spanx style="verb">implicit</spanx> Grant Type values
+	    and MAY support other Grant Types.
+	    If omitted, the default value is
+	    <spanx style="verb">["authorization_code", "implicit"]</spanx>.
+	  </t>
+
+	  <t hangText="acr_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the Authentication Context Class References
+	    that this OP supports.
+	  </t>
+
+	  <t hangText="subject_types_supported">
+	    <vspace/>
+	    REQUIRED.
+	    JSON array containing a list of the Subject Identifier types that
+	    this OP supports. Valid types include
+	    <spanx style="verb">pairwise</spanx> and
+	    <spanx style="verb">public</spanx>.
+	  </t>
+
+	  <t hangText="id_token_signing_alg_values_supported">
+	    <vspace/>
+	    REQUIRED.
+	    JSON array containing a list of the JWS signing algorithms
+	    (<spanx style="verb">alg</spanx> values)
+	    supported by the OP for the ID Token
+	    to encode the Claims in a JWT <xref target="JWT" />.
+	    The algorithm <spanx style="verb">RS256</spanx> MUST be included.
+	    The value <spanx style="verb">none</spanx> MAY be supported
+	    but MUST NOT be used
+	    unless the Response Type used returns no ID Token from the
+	    Authorization Endpoint
+	    (such as when using the Authorization Code Flow).
+	  </t>
+
+	  <t hangText="id_token_encryption_alg_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the JWE encryption algorithms
+	    (<spanx style="verb">alg</spanx> values)
+	    supported by the OP for the ID Token
+	    to encode the Claims in a JWT <xref target="JWT" />.
+	  </t>
+
+	  <t hangText="id_token_encryption_enc_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the JWE encryption algorithms
+	    (<spanx style="verb">enc</spanx> values)
+	    supported by the OP for the ID Token
+	    to encode the Claims in a JWT <xref target="JWT" />.
+	  </t>
+
+	  <t hangText="userinfo_signing_alg_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the JWS <xref target="JWS" /> signing algorithms
+	    (<spanx style="verb">alg</spanx> values) <xref target="JWA" />
+	    supported by the UserInfo Endpoint
+	    to encode the Claims in a JWT <xref target="JWT" />.
+	    The value <spanx style="verb">none</spanx> MAY be included.
+	  </t>
+
+	  <t hangText="userinfo_encryption_alg_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the JWE <xref target="JWE" /> encryption algorithms
+	    (<spanx style="verb">alg</spanx> values) <xref target="JWA" />
+	    supported by the UserInfo Endpoint
+	    to encode the Claims in a JWT <xref target="JWT" />.
+	  </t>
+
+	  <t hangText="userinfo_encryption_enc_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the JWE encryption algorithms
+	    (<spanx style="verb">enc</spanx> values) <xref target="JWA" />
+	    supported by the UserInfo Endpoint
+	    to encode the Claims in a JWT <xref target="JWT" />.
+	  </t>
+
+	  <t hangText="request_object_signing_alg_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the JWS signing algorithms
+	    (<spanx style="verb">alg</spanx> values)
+	    supported by the OP for Request Objects, which are described in
+	    Section 6.1 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	    These algorithms are used both when the Request Object is passed by value
+	    (using the <spanx style="verb">request</spanx> parameter)
+	    and when it is passed by reference
+	    (using the <spanx style="verb">request_uri</spanx> parameter).
+	    Servers SHOULD support <spanx style="verb">none</spanx> and <spanx style="verb">RS256</spanx>.
+	  </t>
+
+	  <t hangText="request_object_encryption_alg_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the JWE encryption algorithms
+	    (<spanx style="verb">alg</spanx> values)
+	    supported by the OP for Request Objects.
+	    These algorithms are used both when the Request Object is passed by value
+	    and when it is passed by reference.
+	  </t>
+
+	  <t hangText="request_object_encryption_enc_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the JWE encryption algorithms
+	    (<spanx style="verb">enc</spanx> values)
+	    supported by the OP for Request Objects.
+	    These algorithms are used both when the Request Object is passed by value
+	    and when it is passed by reference.
+	  </t>
+
+	  <t hangText="token_endpoint_auth_methods_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of Client Authentication
+	    methods supported by this Token Endpoint. The options are
+	    <spanx style="verb">client_secret_post</spanx>,
+	    <spanx style="verb">client_secret_basic</spanx>,
+	    <spanx style="verb">client_secret_jwt</spanx>, and
+	    <spanx style="verb">private_key_jwt</spanx>, as described in
+	    Section 9 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	    Other authentication methods MAY be defined by extensions.
+	    If omitted, the default is <spanx style="verb">client_secret_basic</spanx> --
+	    the HTTP Basic Authentication Scheme specified in
+	    Section 2.3.1 of <xref target="RFC6749">OAuth 2.0</xref>.
+	  </t>
+
+	  <t hangText="token_endpoint_auth_signing_alg_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the JWS signing algorithms
+	    (<spanx style="verb">alg</spanx> values)
+	    supported by the Token Endpoint for the signature on
+	    the JWT <xref target="JWT" /> used to authenticate the Client
+	    at the Token Endpoint for the <spanx style="verb">private_key_jwt</spanx>
+	    and <spanx style="verb">client_secret_jwt</spanx> authentication methods.
+	    Servers SHOULD support <spanx style="verb">RS256</spanx>.
+	    The value <spanx style="verb">none</spanx> MUST NOT be used.
+	  </t>
+
+	  <t hangText="display_values_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the <spanx style="verb">display</spanx>
+	    parameter values that the OpenID Provider supports.
+	    These values are described in
+	    Section 3.1.2.1 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	  </t>
+
+	  <t hangText="claim_types_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    JSON array containing a list of the Claim Types
+	    that the OpenID Provider supports.
+	    These Claim Types are described in
+	    Section 5.6 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	    Values defined by this specification are <spanx style="verb">normal</spanx>,
+	    <spanx style="verb">aggregated</spanx>, and <spanx style="verb">distributed</spanx>.
+	    If omitted, the implementation supports
+	    only <spanx style="verb">normal</spanx> Claims.
+	  </t>
+
+	  <t hangText="claims_supported">
+	    <vspace/>
+	    RECOMMENDED.
+	    JSON array containing a list of the Claim Names of the Claims
+	    that the OpenID Provider MAY be able to supply values for.
+	    Note that for privacy or other reasons, this might not be an exhaustive list.
+	  </t>
+
+	  <t hangText="service_documentation">
+	    <vspace/>
+	    OPTIONAL.
+	    URL of a page containing human-readable information that
+	    developers might want or need to know when using the OpenID Provider.
+	    In particular, if the OpenID Provider does not support Dynamic Client Registration,
+	    then information on how to register Clients needs to be provided in this documentation.
+	  </t>
+
+	  <t hangText="claims_locales_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    Languages and scripts supported for values in Claims being returned,
+	    represented as a JSON array of
+	    <xref target="RFC5646">BCP47</xref> language tag values.
+	    Not all languages and scripts are necessarily supported for all Claim values.
+	  </t>
+
+	  <t hangText="ui_locales_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    Languages and scripts supported for the user interface,
+	    represented as a JSON array of
+	    <xref target="RFC5646">BCP47</xref> language tag values.
+	  </t>
+
+	  <t hangText="claims_parameter_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    Boolean value specifying whether the OP supports use of the
+	    <spanx style="verb">claims</spanx> parameter,
+	    with <spanx style="verb">true</spanx> indicating support.
+	    If omitted, the default value is <spanx style="verb">false</spanx>.
+	  </t>
+
+	  <t hangText="request_parameter_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    Boolean value specifying whether the OP supports use of the
+	    <spanx style="verb">request</spanx> parameter,
+	    with <spanx style="verb">true</spanx> indicating support.
+	    If omitted, the default value is <spanx style="verb">false</spanx>.
+	  </t>
+
+	  <t hangText="request_uri_parameter_supported">
+	    <vspace/>
+	    OPTIONAL.
+	    Boolean value specifying whether the OP supports use of the
+	    <spanx style="verb">request_uri</spanx> parameter,
+	    with <spanx style="verb">true</spanx> indicating support.
+	    If omitted, the default value is <spanx style="verb">true</spanx>.
+	  </t>
+
+	  <t hangText="require_request_uri_registration">
+	    <vspace/>
+	    OPTIONAL.
+	    Boolean value specifying whether the OP requires any
+	    <spanx style="verb">request_uri</spanx> values used to be pre-registered
+	    using the <spanx style="verb">request_uris</spanx> registration parameter.
+	    Pre-registration is REQUIRED when the value is <spanx style="verb">true</spanx>.
+	    If omitted, the default value is <spanx style="verb">false</spanx>.
+	  </t>
+
+	  <t hangText="op_policy_uri">
+	    <vspace/>
+	    OPTIONAL.
+	    URL that the OpenID Provider provides to the person registering
+	    the Client to read about the OP's requirements on how
+	    the Relying Party can use the data provided by the OP.
+	    The registration process SHOULD display this
+	    URL to the person registering the Client if it is given.
+	  </t>
+
+	  <t hangText="op_tos_uri">
+	    <vspace/>
+	    OPTIONAL.
+	    URL that the OpenID Provider provides to the person registering
+	    the Client to read about the OpenID Provider's terms of service.
+	    The registration process SHOULD display this
+	    URL to the person registering the Client if it is given.
+	  </t>
+
+	</list>
+      </t>
+      <t>
+	The
+	Token Endpoint,
+	UserInfo Endpoint,
+	<spanx style="verb">jwks_uri</spanx> endpoint,
+	Dynamic Client Registration Endpoint,
+	and any other endpoints directly accessed by Clients
+	SHOULD support the use of
+	<xref target="CORS">Cross-Origin Resource Sharing (CORS)</xref>
+	and/or other methods as appropriate
+	to enable JavaScript Clients and other Browser-Based Clients to access them.
+	The use of CORS at the Authorization Endpoint is NOT RECOMMENDED
+	as it is redirected to by the client and not directly accessed.
+      </t>
+      <t>
+	Additional OpenID Provider Metadata parameters MAY also be used.
+	Some are defined by other specifications,
+	such as
+	<xref target="OpenID.Session">OpenID Connect Session Management 1.0</xref>.
+      </t>
+
+    </section>
+
+    <section anchor="ProviderConfig"
+             title="Obtaining OpenID Provider Configuration Information">
+
+      <t>
+	Using the Issuer location discovered
+	as described in <xref target="IssuerDiscovery"/> or by other means,
+	the OpenID Provider's configuration information can be retrieved.
+      </t>
+
+      <t>
+	OpenID Providers supporting Discovery
+	MUST make a JSON document available at the path formed by
+	concatenating the string
+	<spanx style="verb">/.well-known/openid-configuration</spanx> to the
+	Issuer.
+	The syntax and semantics of <spanx
+	style="verb">.well-known</spanx> are defined in <xref
+	target="RFC5785">RFC 5785</xref> and apply to the Issuer value
+	when it contains no path component. <spanx style="verb">openid-configuration</spanx>
+	MUST point to a JSON document compliant with this specification and
+	MUST be returned using the <spanx style="verb">application/json</spanx> content type.
+	The <spanx style="verb">openid-configuration</spanx> endpoint SHOULD support the use of
+	<xref target="CORS">Cross-Origin Resource Sharing (CORS)</xref>
+	and/or other methods as appropriate
+	to enable JavaScript Clients and other Browser-Based Clients to access it.
+      </t>
+
+      <section anchor="ProviderConfigurationRequest"
+	       title="OpenID Provider Configuration Request">
+        <t>
+	  An OpenID Provider's configuration information MUST be retrieved using an HTTP
+	  <spanx style="verb">GET</spanx> request at the previously specified path.
+	</t>
+
+        <t>
+	  The RP would make the following request to the
+	  Issuer <spanx style="verb">https://example.com</spanx>
+	  to obtain its Configuration information,
+	  since the Issuer contains no path component:
+	</t>
+        <t>
+	  <figure>
+            <artwork><![CDATA[
+  GET /.well-known/openid-configuration HTTP/1.1
+  Host: example.com
+]]></artwork>
+          </figure>
+	</t>
+
+	<t>
+	  If the
+	  Issuer value contains a path component, any terminating
+	  <spanx style="verb">/</spanx> MUST be removed before appending
+	  <spanx style="verb">/.well-known/openid-configuration</spanx>.
+	  The RP would make the following request to the
+	  Issuer <spanx style="verb">https://example.com/issuer1</spanx>
+	  to obtain its configuration information,
+	  since the Issuer contains a path component:
+	</t>
+        <t>
+	  <figure>
+            <artwork><![CDATA[
+  GET /issuer1/.well-known/openid-configuration HTTP/1.1
+  Host: example.com
+]]></artwork>
+          </figure>
+	</t>
+
+	<t>
+	  Using path components enables supporting multiple issuers per host.
+	  This is required in some multi-tenant hosting configurations.
+	  This use of <spanx style="verb">.well-known</spanx> is for supporting
+	  multiple issuers per host; unlike its use in
+	  <xref target="RFC5785">RFC 5785</xref>, it does not provide
+	  general information about the host.
+	</t>
+
+      </section>
+
+      <section anchor="ProviderConfigurationResponse"
+	       title="OpenID Provider Configuration Response">
+        <t>The response is a set of Claims about the OpenID Provider's
+        configuration, including all necessary endpoints and
+        public key location information.
+        A successful response MUST use the 200 OK HTTP status code and return
+	a JSON object using the <spanx style="verb">application/json</spanx> content type
+	that contains a set of Claims as its members
+	that are a subset of the Metadata values defined in
+	<xref target="ProviderMetadata"/>.
+	Other Claims MAY also be returned.</t>
+
+        <t>Claims that return multiple values are represented as JSON arrays.
+	Claims with zero elements MUST be omitted from the response.</t>
+
+	<t>
+	  An error response uses the applicable HTTP status code value.
+	</t>
+        <t>
+	  <figure>
+	    <preamble>The following is a non-normative example response:</preamble>
+
+            <artwork><![CDATA[
+  HTTP/1.1 200 OK
+  Content-Type: application/json
+
+  {
+   "issuer":
+     "https://server.example.com",
+   "authorization_endpoint":
+     "https://server.example.com/connect/authorize",
+   "token_endpoint":
+     "https://server.example.com/connect/token",
+   "token_endpoint_auth_methods_supported":
+     ["client_secret_basic", "private_key_jwt"],
+   "token_endpoint_auth_signing_alg_values_supported":
+     ["RS256", "ES256"],
+   "userinfo_endpoint":
+     "https://server.example.com/connect/userinfo",
+   "check_session_iframe":
+     "https://server.example.com/connect/check_session",
+   "end_session_endpoint":
+     "https://server.example.com/connect/end_session",
+   "jwks_uri":
+     "https://server.example.com/jwks.json",
+   "registration_endpoint":
+     "https://server.example.com/connect/register",
+   "scopes_supported":
+     ["openid", "profile", "email", "address",
+      "phone", "offline_access"],
+   "response_types_supported":
+     ["code", "code id_token", "id_token", "id_token token"],
+   "acr_values_supported":
+     ["urn:mace:incommon:iap:silver",
+      "urn:mace:incommon:iap:bronze"],
+   "subject_types_supported":
+     ["public", "pairwise"],
+   "userinfo_signing_alg_values_supported":
+     ["RS256", "ES256", "HS256"],
+   "userinfo_encryption_alg_values_supported":
+     ["RSA-OAEP-256", "A128KW"],
+   "userinfo_encryption_enc_values_supported":
+     ["A128CBC-HS256", "A128GCM"],
+   "id_token_signing_alg_values_supported":
+     ["RS256", "ES256", "HS256"],
+   "id_token_encryption_alg_values_supported":
+     ["RSA-OAEP-256", "A128KW"],
+   "id_token_encryption_enc_values_supported":
+     ["A128CBC-HS256", "A128GCM"],
+   "request_object_signing_alg_values_supported":
+     ["none", "RS256", "ES256"],
+   "display_values_supported":
+     ["page", "popup"],
+   "claim_types_supported":
+     ["normal", "distributed"],
+   "claims_supported":
+     ["sub", "iss", "auth_time", "acr",
+      "name", "given_name", "family_name", "nickname",
+      "profile", "picture", "website",
+      "email", "email_verified", "locale", "zoneinfo",
+      "http://example.info/claims/groups"],
+   "claims_parameter_supported":
+     true,
+   "service_documentation":
+     "http://server.example.com/connect/service_documentation.html",
+   "ui_locales_supported":
+     ["en-US", "en-GB", "en-CA", "fr-FR", "fr-CA"]
+  }
+]]></artwork>
+          </figure>
+	</t>
+      </section>
+
+      <section anchor="ProviderConfigurationValidation"
+	       title="OpenID Provider Configuration Validation">
+
+	<t>
+	  If any of the validation procedures defined in this specification fail, any operations requiring
+	  the information that failed to correctly validate MUST be aborted and
+	  the information that failed to validate MUST NOT be used.
+	</t>
+        <t>
+	  The <spanx style="verb">issuer</spanx> value returned MUST be identical to
+	  the Issuer URL that was used as the prefix
+	  to <spanx style="verb">/.well-known/openid-configuration</spanx>
+	  to retrieve the configuration information.
+	  This MUST also be identical to the <spanx style="verb">iss</spanx> Claim value
+	  in ID Tokens issued from this Issuer.
+	</t>
+      </section>
+    </section>
+
+    <section anchor="StringOps" title="String Operations">
+
+      <t>
+	Processing some OpenID Connect messages requires comparing
+	values in the messages to known values. For example, the
+	member names in the provider configuration response might be
+	compared to specific member names such as <spanx
+	style="verb">issuer</spanx>.  Comparing Unicode <xref target="UNICODE"/> strings,
+	however, has significant security implications.
+      </t>
+      <t>
+	Therefore, comparisons between JSON strings and other Unicode
+	strings MUST be performed as specified below:
+
+	<list style="numbers">
+
+          <t>
+	    Remove any JSON applied escaping to produce an array of
+	    Unicode code points.
+	  </t>
+          <t>
+	    Unicode Normalization <xref target="USA15"/> MUST NOT
+	    be applied at any point to either the JSON string or to
+	    the string it is to be compared against.
+	  </t>
+          <t>
+	    Comparisons between the two strings MUST be performed as a
+	    Unicode code point to code point equality comparison.
+	  </t>
+
+        </list>
+      </t>
+
+    </section>
+
+    <section anchor="ImplementationConsiderations" title="Implementation Considerations">
+      <t>
+	This specification defines features used by both Relying Parties and
+	OpenID Providers that choose to implement Discovery.
+	All of these Relying Parties and OpenID Providers
+	MUST implement the features that are listed
+	in this specification as being "REQUIRED" or are described with a "MUST".
+	No other implementation considerations for implementations of
+	Discovery are defined by this specification.
+      </t>
+
+      <section anchor="CompatibilityNotes" title="Compatibility Notes">
+
+	<t>
+	  NOTE: Potential compatibility issues that were previously described in
+	  the original version of this specification have since been addressed.
+	</t>
+
+      </section>
+
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+
+      <section anchor="TLSRequirements" title="TLS Requirements">
+	<t>
+	  Implementations MUST support TLS.
+	  Which version(s) ought to be implemented will vary over
+	  time and depend on the widespread deployment and known
+	  security vulnerabilities at the time of implementation.
+	  Implementations SHOULD follow the guidance in
+	  BCP 195 <xref target="RFC8996"/> <xref target="RFC9325"/>,
+	  which provides recommendations and requirements
+	  for improving the security of deployed services that use TLS.
+	</t>
+	<t>
+	  To protect against information disclosure and tampering,
+	  confidentiality protection MUST be applied using TLS
+	  with a ciphersuite that provides confidentiality and
+	  integrity protection.
+	</t>
+	<t>
+	  Whenever TLS is used, a TLS server certificate check
+	  MUST be performed, per <xref target="RFC6125">RFC 6125</xref>.
+	</t>
+      </section>
+
+      <section anchor="Impersonation" title="Impersonation Attacks">
+	<t>
+	  TLS certificate checking MUST be performed by the RP,
+	  as described in <xref target="TLSRequirements"/>,
+	  when making an OpenID Provider Configuration Request.
+	  Checking that the server certificate is valid for the Issuer URL
+	  prevents man-in-middle and DNS-based attacks.
+	  These attacks could cause an RP to be tricked into using an attacker's
+	  keys and endpoints, which would enable impersonation of the legitimate Issuer.
+	  If an attacker can accomplish this, they can access the accounts
+	  of any existing users at the affected RP that can be logged into
+	  using the OP that they are impersonating.
+	</t>
+	<t>
+	  An attacker may also attempt to impersonate an OpenID Provider by publishing
+	  a Discovery document that contains an <spanx style="verb">issuer</spanx> Claim
+	  using the Issuer URL of the OP being impersonated,
+	  but with its own endpoints and signing keys.
+	  This would enable it to issue ID Tokens as that OP, if accepted by the RP.
+	  To prevent this, RPs MUST ensure that the Issuer URL they are using
+	  for the Configuration Request exactly matches the value of
+	  the <spanx style="verb">issuer</spanx> Claim
+	  in the OP Metadata document received by the RP
+	  and that this also exactly matches the <spanx style="verb">iss</spanx> Claim
+	  value in ID Tokens that are supposed to be from that Issuer.
+	</t>
+      </section>
+
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+
+      <section anchor="WellKnownRegistry" title="Well-Known URI Registry">
+	<t>
+	  This specification registers the well-known URI defined in
+	  <xref target="ProviderConfig"/> in the IANA
+	  "Well-Known URIs" registry <xref target="IANA.well-known"/>
+	  established by <xref target="RFC5785">RFC 5785</xref>.
+	</t>
+
+	<section anchor='WellKnownContents' title='Registry Contents'>
+	  <t> <?rfc subcompact="yes"?>
+            <list style='symbols'>
+	      <t>
+		URI suffix: <spanx style="verb">openid-configuration</spanx>
+	      </t>
+	      <t>
+		Change controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification document: <xref target="ProviderConfig"/> of this specification
+	      </t>
+	      <t>
+		Related information: (none)
+	      </t>
+	    </list>
+	  </t>
+	</section>
+	<?rfc subcompact="no"?>
+
+      </section>
+
+      <section anchor="MetadataRegistry" title="OAuth Authorization Server Metadata Registry">
+	<t>
+	  This specification registers the following metadata names in the
+	  IANA "OAuth Authorization Server Metadata" registry <xref target="IANA.OAuth.Parameters"/>
+	  established by <xref target="RFC8414"/>.
+	</t>
+
+	<section anchor='MetadataContents' title='Registry Contents'>
+	  <t>
+	    <?rfc subcompact="yes"?>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">userinfo_endpoint</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		URL of the OP's UserInfo Endpoint
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">acr_values_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the Authentication Context Class References
+		that this OP supports
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">subject_types_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the Subject Identifier types that
+		this OP supports
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">id_token_signing_alg_values_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the JWS "alg" values
+		supported by the OP for the ID Token
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">id_token_encryption_alg_values_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the JWE "alg" values
+		supported by the OP for the ID Token
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">id_token_encryption_enc_values_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the JWE "enc" values
+		supported by the OP for the ID Token
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">userinfo_signing_alg_values_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the JWS "alg" values
+		supported by the UserInfo Endpoint
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">userinfo_encryption_alg_values_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the JWE "alg" values
+		supported by the UserInfo Endpoint
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">userinfo_encryption_enc_values_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the JWE "enc" values
+		supported by the UserInfo Endpoint
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">request_object_signing_alg_values_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the JWS "alg" values
+		supported by the OP for Request Objects
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">request_object_encryption_alg_values_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the JWE "alg" values
+		supported by the OP for Request Objects
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">request_object_encryption_enc_values_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the JWE "enc" values
+		supported by the OP for Request Objects
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">display_values_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the "display"
+		parameter values that the OpenID Provider supports
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">claim_types_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the Claim Types
+		that the OpenID Provider supports
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">claims_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		JSON array containing a list of the Claim Names of the Claims
+		that the OpenID Provider MAY be able to supply values for
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">claims_locales_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		Languages and scripts supported for values in Claims being returned,
+		represented as a JSON array of BCP 47 language tag values
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">claims_parameter_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		Boolean value specifying whether the OP supports use of the
+		"claims" parameter
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">request_parameter_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		Boolean value specifying whether the OP supports use of the
+		"request" parameter
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">request_uri_parameter_supported</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		Boolean value specifying whether the OP supports use of the
+		"request_uri" parameter
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	  <t>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">require_request_uri_registration</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		Boolean value specifying whether the OP requires any
+		"request_uri" values used to be pre-registered
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="ProviderMetadata"/> of this specification
+              </t>
+	    </list>
+	  </t>
+	</section>
+	<?rfc subcompact="no"?>
+
+      </section>
+
+    </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml -->
+
+<reference anchor="RFC2119" target="https://www.rfc-editor.org/info/rfc2119">
+  <front>
+    <title>Key words for use in RFCs to Indicate Requirement Levels</title>
+    <author fullname="S. Bradner" initials="S" surname="Bradner"/>
+    <date month="March" year="1997"/>
+    <abstract>
+      <t>In many standards track documents several words are used to signify the requirements in the specification.  These words are often capitalized.  This document defines these words as they should be interpreted in IETF documents.  This document specifies an Internet Best Current Practices for the Internet Community, and requests discussion and suggestions for improvements.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="BCP" value="14"/>
+  <seriesInfo name="RFC" value="2119"/>
+  <seriesInfo name="DOI" value="10.17487/RFC2119"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.3986.xml -->
+
+<reference anchor="RFC3986" target="https://www.rfc-editor.org/info/rfc3986">
+  <front>
+    <title>Uniform Resource Identifier (URI): Generic Syntax</title>
+    <author fullname="T. Berners-Lee" initials="T" surname="Berners-Lee"/>
+    <author fullname="R. Fielding" initials="R" surname="Fielding"/>
+    <author fullname="L. Masinter" initials="L" surname="Masinter"/>
+    <date month="January" year="2005"/>
+    <abstract>
+      <t>A Uniform Resource Identifier (URI) is a compact sequence of characters that identifies an abstract or physical resource.  This specification defines the generic URI syntax and a process for resolving URI references that might be in relative form, along with guidelines and security considerations for the use of URIs on the Internet.  The URI syntax defines a grammar that is a superset of all valid URIs, allowing an implementation to parse the common components of a URI reference without knowing the scheme-specific requirements of every possible identifier.  This specification does not define a generative grammar for URIs; that task is performed by the individual specifications of each URI scheme. [STANDARDS-TRACK]</t>
+    </abstract>
+  </front>
+  <seriesInfo name="STD" value="66"/>
+  <seriesInfo name="RFC" value="3986"/>
+  <seriesInfo name="DOI" value="10.17487/RFC3986"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.5322.xml -->
+
+<reference anchor="RFC5322" target="https://www.rfc-editor.org/info/rfc5322">
+  <front>
+    <title>Internet Message Format</title>
+    <author fullname="P. Resnick" initials="P" role="editor" surname="Resnick"/>
+    <date month="October" year="2008"/>
+    <abstract>
+      <t>This document specifies the Internet Message Format (IMF), a syntax for text messages that are sent between computer users, within the framework of "electronic mail" messages.  This specification is a revision of Request For Comments (RFC) 2822, which itself superseded Request For Comments (RFC) 822, "Standard for the Format of ARPA Internet Text Messages", updating it to reflect current practice and incorporating incremental changes that were specified in other RFCs. [STANDARDS-TRACK]</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="5322"/>
+  <seriesInfo name="DOI" value="10.17487/RFC5322"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.5646.xml -->
+
+<reference anchor="RFC5646" target="https://www.rfc-editor.org/info/rfc5646">
+  <front>
+    <title>Tags for Identifying Languages</title>
+    <author fullname="A. Phillips" initials="A" role="editor" surname="Phillips"/>
+    <author fullname="M. Davis" initials="M" role="editor" surname="Davis"/>
+    <date month="September" year="2009"/>
+    <abstract>
+      <t>This document describes the structure, content, construction, and semantics of language tags for use in cases where it is desirable to indicate the language used in an information object.  It also describes how to register values for use in language tags and the creation of user-defined extensions for private interchange.  This document specifies an Internet Best Current Practices for the Internet Community, and requests discussion and suggestions for improvements.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="BCP" value="47"/>
+  <seriesInfo name="RFC" value="5646"/>
+  <seriesInfo name="DOI" value="10.17487/RFC5646"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.5785.xml -->
+
+<reference anchor="RFC5785" target="https://www.rfc-editor.org/info/rfc5785">
+  <front>
+    <title>Defining Well-Known Uniform Resource Identifiers (URIs)</title>
+    <author fullname="M. Nottingham" initials="M" surname="Nottingham"/>
+    <author fullname="E. Hammer-Lahav" initials="E" surname="Hammer-Lahav"/>
+    <date month="April" year="2010"/>
+    <abstract>
+      <t>This memo defines a path prefix for "well-known locations", "/.well-known/", in selected Uniform Resource Identifier (URI) schemes. [STANDARDS-TRACK]</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="5785"/>
+  <seriesInfo name="DOI" value="10.17487/RFC5785"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.6125.xml -->
+
+<reference anchor="RFC6125" target="https://www.rfc-editor.org/info/rfc6125">
+  <front>
+    <title>Representation and Verification of Domain-Based Application Service Identity within Internet Public Key Infrastructure Using X.509 (PKIX) Certificates in the Context of Transport Layer Security (TLS)</title>
+    <author fullname="P. Saint-Andre" initials="P" surname="Saint-Andre"/>
+    <author fullname="J. Hodges" initials="J" surname="Hodges"/>
+    <date month="March" year="2011"/>
+    <abstract>
+      <t>Many application technologies enable secure communication between two entities by means of Internet Public Key Infrastructure Using X.509 (PKIX) certificates in the context of Transport Layer Security (TLS).  This document specifies procedures for representing and verifying the identity of application services in such interactions. [STANDARDS-TRACK]</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="6125"/>
+  <seriesInfo name="DOI" value="10.17487/RFC6125"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.6749.xml -->
+
+<reference anchor="RFC6749" target="https://www.rfc-editor.org/info/rfc6749">
+  <front>
+    <title>The OAuth 2.0 Authorization Framework</title>
+    <author fullname="D. Hardt" initials="D" role="editor" surname="Hardt"/>
+    <date month="October" year="2012"/>
+    <abstract>
+      <t>The OAuth 2.0 authorization framework enables a third-party application to obtain limited access to an HTTP service, either on behalf of a resource owner by orchestrating an approval interaction between the resource owner and the HTTP service, or by allowing the third-party application to obtain access on its own behalf.  This specification replaces and obsoletes the OAuth 1.0 protocol described in RFC 5849. [STANDARDS-TRACK]</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="6749"/>
+  <seriesInfo name="DOI" value="10.17487/RFC6749"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7033.xml -->
+
+<reference anchor="RFC7033" target="https://www.rfc-editor.org/info/rfc7033">
+  <front>
+    <title>WebFinger</title>
+    <author fullname="P. Jones" initials="P" surname="Jones"/>
+    <author fullname="G. Salgueiro" initials="G" surname="Salgueiro"/>
+    <author fullname="M. Jones" initials="M" surname="Jones"/>
+    <author fullname="J. Smarr" initials="J" surname="Smarr"/>
+    <date month="September" year="2013"/>
+    <abstract>
+      <t>This specification defines the WebFinger protocol, which can be used to discover information about people or other entities on the Internet using standard HTTP methods.  WebFinger discovers information for a URI that might not be usable as a locator otherwise, such as account or email URIs.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="7033"/>
+  <seriesInfo name="DOI" value="10.17487/RFC7033"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8259.xml -->
+
+<reference anchor="RFC8259" target="https://www.rfc-editor.org/info/rfc8259">
+  <front>
+    <title>The JavaScript Object Notation (JSON) Data Interchange Format</title>
+    <author fullname="T. Bray" initials="T." role="editor" surname="Bray"/>
+    <date month="December" year="2017"/>
+    <abstract>
+      <t>JavaScript Object Notation (JSON) is a lightweight, text-based, language-independent data interchange format. It was derived from the ECMAScript Programming Language Standard. JSON defines a small set of formatting rules for the portable representation of structured data.</t>
+      <t>This document removes inconsistencies with other specifications of JSON, repairs specification errors, and offers experience-based interoperability guidance.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="STD" value="90"/>
+  <seriesInfo name="RFC" value="8259"/>
+  <seriesInfo name="DOI" value="10.17487/RFC8259"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7565.xml -->
+
+<reference anchor="RFC7565" target="https://www.rfc-editor.org/info/rfc7565">
+  <front>
+    <title>The 'acct' URI Scheme</title>
+    <author fullname="P. Saint-Andre" initials="P" surname="Saint-Andre"/>
+    <date month="May" year="2015"/>
+    <abstract>
+      <t>This document defines the 'acct' Uniform Resource Identifier (URI) scheme as a way to identify a user's account at a service provider, irrespective of the particular protocols that can be used to interact with the account.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="7565"/>
+  <seriesInfo name="DOI" value="10.17487/RFC7565"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8996.xml -->
+
+<reference anchor="RFC8996" target="https://www.rfc-editor.org/info/rfc8996">
+  <front>
+    <title>Deprecating TLS 1.0 and TLS 1.1</title>
+    <author fullname="K. Moriarty" initials="K." surname="Moriarty"/>
+    <author fullname="S. Farrell" initials="S." surname="Farrell"/>
+    <date month="March" year="2021"/>
+    <abstract>
+      <t>
+	This document formally deprecates Transport Layer Security (TLS) versions 1.0 (RFC 2246) and 1.1 (RFC 4346). Accordingly, those documents have been moved to Historic status. These versions lack support for current and recommended cryptographic algorithms and mechanisms, and various government and industry profiles of applications using TLS now mandate avoiding these old TLS versions. TLS version 1.2 became the recommended version for IETF protocols in 2008 (subsequently being obsoleted by TLS version 1.3 in 2018), providing sufficient time to transition away from older versions. Removing support for older versions from implementations reduces the attack surface, reduces opportunity for misconfiguration, and streamlines library and product maintenance.
+      </t>
+      <t>
+	This document also deprecates Datagram TLS (DTLS) version 1.0 (RFC 4347) but not DTLS version 1.2, and there is no DTLS version 1.1.
+      </t>
+      <t>
+	This document updates many RFCs that normatively refer to TLS version 1.0 or TLS version 1.1, as described herein. This document also updates the best practices for TLS usage in RFC 7525; hence, it is part of BCP 195.
+      </t>
+    </abstract>
+  </front>
+  <seriesInfo name="BCP" value="195"/>
+  <seriesInfo name="RFC" value="8996"/>
+  <seriesInfo name="DOI" value="10.17487/RFC8996"/>
+</reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.9325.xml -->
+
+<reference anchor="RFC9325" target="https://www.rfc-editor.org/info/rfc9325">
+  <front>
+    <title>
+      Recommendations for Secure Use of Transport Layer Security (TLS) and Datagram Transport Layer Security (DTLS)
+    </title>
+    <author fullname="Y. Sheffer" initials="Y." surname="Sheffer"/>
+    <author fullname="P. Saint-Andre" initials="P." surname="Saint-Andre"/>
+    <author fullname="T. Fossati" initials="T." surname="Fossati"/>
+    <date month="November" year="2022"/>
+    <abstract>
+      <t>
+	Transport Layer Security (TLS) and Datagram Transport Layer Security (DTLS) are used to protect data exchanged over a wide range of application protocols and can also form the basis for secure transport protocols. Over the years, the industry has witnessed several serious attacks on TLS and DTLS, including attacks on the most commonly used cipher suites and their modes of operation. This document provides the latest recommendations for ensuring the security of deployed services that use TLS and DTLS. These recommendations are applicable to the majority of use cases.
+      </t>
+      <t>
+	RFC 7525, an earlier version of the TLS recommendations, was published when the industry was transitioning to TLS 1.2. Years later, this transition is largely complete, and TLS 1.3 is widely available. This document updates the guidance given the new environment and obsoletes RFC 7525. In addition, this document updates RFCs 5288 and 6066 in view of recent attacks.
+      </t>
+    </abstract>
+  </front>
+  <seriesInfo name="BCP" value="195"/>
+  <seriesInfo name="RFC" value="9325"/>
+  <seriesInfo name="DOI" value="10.17487/RFC9325"/>
+</reference>
+
+      <reference anchor="USA15" target="https://www.unicode.org/reports/tr15/">
+	<front>
+	  <title>Unicode Normalization Forms</title>
+
+	  <author fullname="Ken Whistler" initials="K." surname="Whistler">
+	  </author>
+
+	  <date day="12" month="August" year="2023" />
+	</front>
+
+	<seriesInfo name="Unicode Standard Annex" value="15" />
+      </reference>
+
+      <reference anchor="OpenID.Core" target="https://openid.net/specs/openid-connect-core-1_0.html">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NAT.Consulting (was at NRI)">NAT.Consulting</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Yubico (was at Ping Identity)">Yubico</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Self-Issued Consulting (was at Microsoft)">Self-Issued Consulting</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+	  <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+	    <organization abbrev="Disney (was at Salesforce)">Disney</organization>
+	  </author>
+
+          <date day="15" month="December" year="2023"/>
+        </front>
+      </reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7519.xml with change to anchor="JWT" -->
+
+      <reference anchor="JWT" target="https://www.rfc-editor.org/info/rfc7519">
+	<front>
+	  <title>JSON Web Token (JWT)</title>
+	  <author fullname="M. Jones" initials="M." surname="Jones"/>
+	  <author fullname="J. Bradley" initials="J." surname="Bradley"/>
+	  <author fullname="N. Sakimura" initials="N." surname="Sakimura"/>
+	  <date month="May" year="2015"/>
+	  <abstract>
+	    <t>JSON Web Token (JWT) is a compact, URL-safe means of representing claims to be transferred between two parties. The claims in a JWT are encoded as a JSON object that is used as the payload of a JSON Web Signature (JWS) structure or as the plaintext of a JSON Web Encryption (JWE) structure, enabling the claims to be digitally signed or integrity protected with a Message Authentication Code (MAC) and/or encrypted.</t>
+	  </abstract>
+	</front>
+	<seriesInfo name="RFC" value="7519"/>
+	<seriesInfo name="DOI" value="10.17487/RFC7519"/>
+      </reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7515.xml with change to anchor="JWS" -->
+
+      <reference anchor="JWS" target="https://www.rfc-editor.org/info/rfc7515">
+	<front>
+	  <title>JSON Web Signature (JWS)</title>
+	  <author fullname="M. Jones" initials="M." surname="Jones"/>
+	  <author fullname="J. Bradley" initials="J." surname="Bradley"/>
+	  <author fullname="N. Sakimura" initials="N." surname="Sakimura"/>
+	  <date month="May" year="2015"/>
+	  <abstract>
+	    <t>JSON Web Signature (JWS) represents content secured with digital signatures or Message Authentication Codes (MACs) using JSON-based data structures. Cryptographic algorithms and identifiers for use with this specification are described in the separate JSON Web Algorithms (JWA) specification and an IANA registry defined by that specification. Related encryption capabilities are described in the separate JSON Web Encryption (JWE) specification.</t>
+	  </abstract>
+	</front>
+	<seriesInfo name="RFC" value="7515"/>
+	<seriesInfo name="DOI" value="10.17487/RFC7515"/>
+      </reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7516.xml with change to anchor="JWE" -->
+
+      <reference anchor="JWE" target="https://www.rfc-editor.org/info/rfc7516">
+	<front>
+	  <title>JSON Web Encryption (JWE)</title>
+	  <author fullname="M. Jones" initials="M." surname="Jones"/>
+	  <author fullname="J. Hildebrand" initials="J." surname="Hildebrand"/>
+	  <date month="May" year="2015"/>
+	  <abstract>
+	    <t>JSON Web Encryption (JWE) represents encrypted content using JSON-based data structures. Cryptographic algorithms and identifiers for use with this specification are described in the separate JSON Web Algorithms (JWA) specification and IANA registries defined by that specification. Related digital signature and Message Authentication Code (MAC) capabilities are described in the separate JSON Web Signature (JWS) specification.</t>
+	  </abstract>
+	</front>
+	<seriesInfo name="RFC" value="7516"/>
+	<seriesInfo name="DOI" value="10.17487/RFC7516"/>
+      </reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7517.xml with change to anchor="JWK" -->
+
+      <reference anchor="JWK" target="https://www.rfc-editor.org/info/rfc7517">
+	<front>
+	  <title>JSON Web Key (JWK)</title>
+	  <author fullname="M. Jones" initials="M." surname="Jones"/>
+	  <date month="May" year="2015"/>
+	  <abstract>
+	    <t>A JSON Web Key (JWK) is a JavaScript Object Notation (JSON) data structure that represents a cryptographic key. This specification also defines a JWK Set JSON data structure that represents a set of JWKs. Cryptographic algorithms and identifiers for use with this specification are described in the separate JSON Web Algorithms (JWA) specification and IANA registries established by that specification.</t>
+	  </abstract>
+	</front>
+	<seriesInfo name="RFC" value="7517"/>
+	<seriesInfo name="DOI" value="10.17487/RFC7517"/>
+      </reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.7518.xml with change to anchor="JWA" -->
+
+      <reference anchor="JWA" target="https://www.rfc-editor.org/info/rfc7518">
+	<front>
+	  <title>JSON Web Algorithms (JWA)</title>
+	  <author fullname="M. Jones" initials="M." surname="Jones"/>
+	  <date month="May" year="2015"/>
+	  <abstract>
+	    <t>This specification registers cryptographic algorithms and identifiers to be used with the JSON Web Signature (JWS), JSON Web Encryption (JWE), and JSON Web Key (JWK) specifications. It defines several IANA registries for these identifiers.</t>
+	  </abstract>
+	</front>
+	<seriesInfo name="RFC" value="7518"/>
+	<seriesInfo name="DOI" value="10.17487/RFC7518"/>
+      </reference>
+
+      <reference anchor="OpenID.Registration" target="https://openid.net/specs/openid-connect-registration-1_0.html">
+        <front>
+          <title>OpenID Connect Dynamic Client Registration 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NAT.Consulting (was at NRI)">NAT.Consulting</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Yubico (was at Ping Identity)">Yubico</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Self-Issued Consulting (was at Microsoft)">Self-Issued Consulting</organization>
+          </author>
+
+          <date day="15" month="December" year="2023"/>
+        </front>
+      </reference>
+
+      <reference anchor="OAuth.Responses" target="https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html">
+        <front>
+	  <title>OAuth 2.0 Multiple Response Type Encoding Practices</title>
+
+	  <author fullname="Breno de Medeiros" initials="B." role="editor" surname="de Medeiros">
+	    <organization abbrev="Google">Google</organization>
+	  </author>
+
+	  <author fullname="Marius Scurtescu" initials="M." surname="Scurtescu">
+	    <organization abbrev="Google">Google</organization>
+	  </author>
+
+	  <author fullname="Paul Tarjan" initials="P." surname="Tarjan">
+	    <organization abbrev="Facebook"> Facebook</organization>
+	  </author>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+	  <date day="25" month="February" year="2014" />
+        </front>
+      </reference>
+
+      <reference anchor="IANA.well-known" target="https://www.iana.org/assignments/well-known-uris">
+        <front>
+          <title>Well-Known URIs</title>
+          <author>
+            <organization>IANA</organization>
+          </author>
+	  <date/>
+        </front>
+      </reference>
+
+      <reference anchor="UNICODE" target="http://www.unicode.org/versions/latest/">
+	<front>
+	  <title abbrev="Unicode">The Unicode Standard</title>
+	  <author>
+	    <organization>The Unicode Consortium</organization>
+	    <address />
+	  </author>
+	  <date />
+	</front>
+	<!--
+	  Note that this reference is to the latest version of Unicode,
+	  rather than to a specific release.  It is not expected that future changes in
+	  the UNICODE specification will impact the syntax of JSON or the UTF-8 encoding.
+	-->
+      </reference>
+
+      <reference anchor="CORS" target="http://www.w3.org/TR/access-control/">
+        <front>
+	  <title>Cross-Origin Resource Sharing</title>
+	  <author fullname="Anne van Kesteren">
+	    <organization abbrev="Opera">Opera Software ASA</organization>
+	  </author>
+	  <date day="27" month="July" year="2010"></date>
+        </front>
+      </reference>
+
+    </references>
+
+    <references title="Informative References">
+
+      <reference anchor="OpenID.Discovery.Errata1" target="https://openid.net/specs/openid-connect-discovery-1_0-errata1.html">
+	<front>
+	  <title>OpenID Connect Discovery 1.0 incorporating errata set 1</title>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Ping Identity">Ping Identity</organization>
+	  </author>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+	  <author fullname="Edmund Jay" initials="E." surname="Jay">
+	    <organization abbrev="Illumila">Illumila</organization>
+	  </author>
+
+	  <date day="8" month="November" year="2014"/>
+	</front>
+      </reference>
+
+      <reference anchor="OpenID.Discovery.Final" target="https://openid.net/specs/openid-connect-discovery-1_0-final.html">
+	<front>
+	  <title>OpenID Connect Discovery 1.0 (final)</title>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Ping Identity">Ping Identity</organization>
+	  </author>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+	  <author fullname="Edmund Jay" initials="E." surname="Jay">
+	    <organization abbrev="Illumila">Illumila</organization>
+	  </author>
+
+	  <date day="25" month="February" year="2014"/>
+	</front>
+      </reference>
+
+      <reference anchor="OWASP.CSRF" target="https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html">
+        <front>
+          <title>Cross-Site Request Forgery Prevention Cheat Sheet</title>
+          <author>
+            <organization>OWASP</organization>
+          </author>
+	  <date/>
+        </front>
+      </reference>
+
+      <!-- Reference from https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8414.xml -->
+
+<reference anchor="RFC8414" target="https://www.rfc-editor.org/info/rfc8414">
+  <front>
+    <title>OAuth 2.0 Authorization Server Metadata</title>
+    <author fullname="M. Jones" initials="M" surname="Jones"/>
+    <author fullname="N. Sakimura" initials="N" surname="Sakimura"/>
+    <author fullname="J. Bradley" initials="J" surname="Bradley"/>
+    <date month="June" year="2018"/>
+    <abstract>
+      <t>This specification defines a metadata format that an OAuth 2.0 client can use to obtain the information needed to interact with an OAuth 2.0 authorization server, including its endpoint locations and authorization server capabilities.</t>
+    </abstract>
+  </front>
+  <seriesInfo name="RFC" value="8414"/>
+  <seriesInfo name="DOI" value="10.17487/RFC8414"/>
+</reference>
+
+      <reference anchor="OpenID.Session" target="https://openid.net/specs/openid-connect-session-1_0.html">
+        <front>
+          <title>OpenID Connect Session Management 1.0</title>
+
+	  <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+	    <organization>Google</organization>
+	  </author>
+
+	  <author fullname="Naveen Agarwal" initials="N." surname="Agarwal">
+	    <organization>Microsoft</organization>
+	  </author>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NAT.Consulting">NAT.Consulting</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Yubico">Yubico</organization>
+	  </author>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+          <date day="12" month="September" year="2022" />
+        </front>
+      </reference>
+
+      <reference anchor="XRI_Syntax_2.0" target="https://www.oasis-open.org/committees/download.php/15377/xri-syntax-V2.0-cs.pdf">
+        <front>
+          <title>Extensible Resource Identifier (XRI) Syntax V2.0</title>
+
+          <author fullname="Drummond Reed " initials="D." surname="Reed">
+            <organization></organization>
+          </author>
+
+          <author fullname="Dave McAlpin" initials="D." surname="McAlpin">
+            <organization></organization>
+          </author>
+
+          <date day="14" month="November" year="2005" />
+        </front>
+      </reference>
+
+      <reference anchor="IANA.OAuth.Parameters" target="https://www.iana.org/assignments/oauth-parameters">
+        <front>
+          <title>OAuth Parameters</title>
+          <author>
+            <organization>IANA</organization>
+          </author>
+	  <date/>
+        </front>
+      </reference>
+
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+
+      <t>
+	The OpenID Community would like to thank the following people for
+	their contributions to this specification:
+      </t>
+      <t>
+	<list style="empty">
+	  <t>Andrew Arnott (andarno@microsoft.com), Microsoft</t>
+	  <t>Dirk Balfanz (balfanz@google.com), Google</t>
+	  <t>Casper Biering (cb@peercraft.com), Peercraft</t>
+	  <t>John Bradley (ve7jtb@ve7jtb.com), Yubico (was at Ping Identity)</t>
+	  <t>Johnny Bufu (johnny.bufu@gmail.com), independent (was at Janrain)</t>
+	  <t>Brian Campbell (bcampbell@pingidentity.com), Ping Identity</t>
+	  <t>Blaine Cook (romeda@gmail.com), independent</t>
+	  <t>Breno de Medeiros (breno@google.com), Google</t>
+	  <t>Pamela Dingle (Pamela.Dingle@microsoft.com), Microsoft (was at Ping Identity)</t>
+	  <t>Vladimir Dzhuvinov (vladimir@connect2id.com), Connect2id (was at Nimbus Directory Services)</t>
+	  <t>George Fletcher (gffletch@aol.com), Capital One (was at AOL)</t>
+	  <t>Dick Hardt (dick.hardt@gmail.com), independent</t>
+	  <t>Roland Hedberg (roland@catalogix.se), independent (was at University of Ume&aring;)</t>
+	  <t>Edmund Jay (ejay@mgi1.com), Illumila</t>
+	  <t>Michael B. Jones (michael_b_jones@hotmail.com), Self-Issued Consulting (was at Microsoft)</t>
+	  <t>Torsten Lodderstedt (torsten@lodderstedt.net), independent (was at Deutsche Telekom)</t>
+	  <t>Nov Matake (nov@matake.jp), independent</t>
+	  <t>Chuck Mortimore (charliemortimore@gmail.com), Disney (was at Salesforce)</t>
+	  <t>Anthony Nadalin (nadalin@prodigy.net), independent (was at Microsoft)</t>
+	  <t>Axel Nennker (axel.nennker@telekom.de), Deutsche Telekom</t>
+	  <t>John Panzer (jpanzer@google.com), Google</t>
+	  <t>Justin Richer (justin@bspk.io), Bespoke Engineering (was at MITRE)</t>
+	  <t>Nat Sakimura (nat@nat.consulting), NAT.Consulting (was at NRI)</t>
+	  <t>Owen Shepherd (owen.shepherd@e43.eu), independent</t>
+	  <t>Andreas &Aring;kre Solberg (Andreas.Solberg@sikt.no), Sikt (was at UNINET)</t>
+	  <t>Kick Willemse (k.willemse@evidos.nl), Evidos B.V.</t>
+	</list>
+      </t>
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2023 The OpenID Foundation.</t>
+      <t>
+	The OpenID Foundation (OIDF) grants to any Contributor, developer,
+	implementer, or other interested party a non-exclusive, royalty free,
+	worldwide copyright license to reproduce, prepare derivative works from,
+	distribute, perform and display, this Implementers Draft or
+	Final Specification solely for the purposes of (i) developing
+	specifications, and (ii) implementing Implementers Drafts and
+	Final Specifications based on such documents, provided that attribution
+	be made to the OIDF as the source of the material, but that such attribution
+	does not indicate an endorsement by the OIDF.
+      </t>
+      <t>
+	The technology described in this specification was
+	made available from contributions from various sources,
+	including members of the OpenID Foundation and others.
+	Although the OpenID Foundation has taken steps to help ensure
+	that the technology is available for distribution, it takes
+	no position regarding the validity or scope of any intellectual
+	property or other rights that might be claimed to pertain to
+	the implementation or use of the technology described in
+	this specification or the extent to which any license under
+	such rights might or might not be available; neither does it
+	represent that it has made any independent effort to identify
+	any such rights.  The OpenID Foundation and the contributors
+	to this specification make no (and hereby expressly disclaim any)
+	warranties (express, implied, or otherwise), including implied
+	warranties of merchantability, non-infringement, fitness for
+	a particular purpose, or title, related to this specification,
+	and the entire risk as to implementing this specification is
+	assumed by the implementer.  The OpenID Intellectual
+	Property Rights policy requires contributors to offer
+	a patent promise not to assert certain patent claims against
+	other contributors and against implementers.  The OpenID Foundation invites
+	any interested party to bring to its attention any copyrights,
+	patents, patent applications, or other proprietary rights
+	that may cover technology that may be required to practice
+	this specification.
+      </t>
+    </section>
+
+  </back>
+</rfc>

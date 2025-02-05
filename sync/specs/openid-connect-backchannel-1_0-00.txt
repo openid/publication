@@ -1,0 +1,1008 @@
+
+
+
+Draft                                                           M. Jones
+                                                               Microsoft
+                                                              J. Bradley
+                                                           Ping Identity
+                                                       September 9, 2015
+
+
+           OpenID Connect Back-Channel Logout 1.0 - draft 00
+
+Abstract
+
+   OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+   protocol.  It enables Clients to verify the identity of the End-User
+   based on the authentication performed by an Authorization Server, as
+   well as to obtain basic profile information about the End-User in an
+   interoperable and REST-like manner.
+
+   This specification defines a logout mechanism that uses back-channel
+   communication between the OP and RPs being logged out; this differs
+   from front-channel logout mechanisms, which communicate logout
+   requests from the OP to RPs via the User Agent.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones & Bradley                                                 [Page 1]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
+     1.1.  Requirements Notation and Conventions  . . . . . . . . . .  3
+     1.2.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  4
+   2.  Back-Channel Logout  . . . . . . . . . . . . . . . . . . . . .  5
+     2.1.  Indicating OP Support for Back-Channel Logout  . . . . . .  5
+     2.2.  Indicating RP Support for Back-Channel Logout  . . . . . .  5
+     2.3.  Remembering Logged-In RPs  . . . . . . . . . . . . . . . .  6
+     2.4.  Logout Token . . . . . . . . . . . . . . . . . . . . . . .  6
+     2.5.  Back-Channel Logout Request  . . . . . . . . . . . . . . .  7
+     2.6.  Logout Token Validation  . . . . . . . . . . . . . . . . .  8
+     2.7.  Back-Channel Logout Actions  . . . . . . . . . . . . . . .  8
+     2.8.  Back-Channel Logout Response . . . . . . . . . . . . . . .  9
+   3.  RP-Initiated Logout Functionality  . . . . . . . . . . . . . . 10
+   4.  Security Considerations  . . . . . . . . . . . . . . . . . . . 11
+   5.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 12
+     5.1.  JSON Web Token Claims Registration . . . . . . . . . . . . 12
+       5.1.1.  Registry Contents  . . . . . . . . . . . . . . . . . . 12
+     5.2.  OAuth Dynamic Client Registration Metadata Registration  . 12
+       5.2.1.  Registry Contents  . . . . . . . . . . . . . . . . . . 12
+   6.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+     6.1.  Normative References . . . . . . . . . . . . . . . . . . . 13
+     6.2.  Informative References . . . . . . . . . . . . . . . . . . 14
+   Appendix A.  Acknowledgements  . . . . . . . . . . . . . . . . . . 15
+   Appendix B.  Notices . . . . . . . . . . . . . . . . . . . . . . . 16
+   Appendix C.  Document History  . . . . . . . . . . . . . . . . . . 17
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 18
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones & Bradley                                                 [Page 2]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+1.  Introduction
+
+   OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+   [RFC6749] protocol.  It enables Clients to verify the identity of the
+   End-User based on the authentication performed by an Authorization
+   Server, as well as to obtain basic profile information about the End-
+   User in an interoperable and REST-like manner.
+
+   This specification defines a logout mechanism that uses back-channel
+   communication between the OP and RPs being logged out; this differs
+   from front-channel logout mechanisms, which communicate logout
+   requests from the OP to RPs via the User Agent.
+
+   An upside of back-channel communication is that it can be more
+   reliable than communication through the User Agent, since in the
+   front-channel, the RP's browser session must be active for the
+   communication to succeed.  (If the RP's browser tab was subsequently
+   used to navigate to an unrelated page, the RP session will be active
+   unless the user uses the back button to return to it.)  Both the
+   OpenID Connect Session Management 1.0 [OpenID.Session] and OpenID
+   Connect HTTP-Based Logout 1.0 [OpenID.Logout] specifications use
+   front-channel communication.
+
+   A downside of back-channel communication is that the session state
+   maintained between the OP and RP over the front-channel, such as
+   cookies and HTML5 local storage, are not available when using back-
+   channel communication.  As a result, all needed state must be
+   explicitly communicated between the parties.  Furthermore, RPs must
+   implement an application-specific method of terminating RP sessions
+   with the OP upon receiving back-channel logout requests; this can be
+   more complicated than simply clearing cookies and HTML5 local storage
+   state, which is often all that has to happen to implement logout in
+   response to front-channel logout requests.
+
+   Another significant limitation of back-channel logout is that the
+   RP's back-channel logout URI must be reachable from all the OPs used.
+   This means, for instance, that the RP cannot be behind a firewall or
+   NAT when used with public OPs.
+
+   This specification can be used separately from or in combination with
+   OpenID Connect Session Management 1.0 and/or OpenID Connect HTTP-
+   Based Logout 1.0.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in RFC
+
+
+
+Jones & Bradley                                                 [Page 3]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+   2119 [RFC2119].
+
+   In the .txt version of this specification, values are quoted to
+   indicate that they are to be taken literally.  When using these
+   values in protocol messages, the quotes MUST NOT be used as part of
+   the value.  In the HTML version of this specification, values to be
+   taken literally are indicated by the use of "this fixed-width font".
+
+1.2.  Terminology
+
+   This specification uses the terms "Client", "Client Identifier", and
+   "Redirection URI" defined by OAuth 2.0 [RFC6749], the term "User
+   Agent" defined by RFC 7230 [RFC7230], the terms "Session" and
+   "Session ID" defined by OpenID Connect HTTP-Based Logout 1.0
+   [OpenID.Logout] and the terms defined by OpenID Connect Core 1.0
+   [OpenID.Core] and JSON Web Token (JWT) [JWT].
+
+   This specification also defines the following term:
+
+   Logout Token
+      JSON Web Token (JWT) [JWT] similar to an ID Token that contains
+      Claims about the logout action being requested.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones & Bradley                                                 [Page 4]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+2.  Back-Channel Logout
+
+2.1.  Indicating OP Support for Back-Channel Logout
+
+   If the OpenID Provider supports OpenID Connect Discovery 1.0
+   [OpenID.Discovery], it uses this metadata value to advertise its
+   support for back-channel logout:
+
+   backchannel_logout_supported
+      OPTIONAL.  Boolean value specifying whether the OP supports back-
+      channel logout, with "true" indicating support.  If omitted, the
+      default value is "false".
+
+   It SHOULD also register this related metadata value:
+
+   backchannel_logout_session_supported
+      OPTIONAL.  Boolean value specifying whether the OP can pass a
+      "sid" (session ID) Claim in the Logout Token to identify the RP
+      session at the OP.  If supported, the "sid" Claim is also included
+      in ID Tokens issued by the OP.  If omitted, the default value is
+      "false".
+
+2.2.  Indicating RP Support for Back-Channel Logout
+
+   Relying Parties supporting back-channel-based logout register a back-
+   channel logout URI with the OP as part of their client registration.
+   The domain, port, and scheme of this URL MUST be the same as that of
+   a registered Redirection URI value.
+
+   The back-channel logout URI MUST be an absolute URI as defined by
+   Section 4.3 of [RFC3986].  The back-channel logout URI MAY include an
+   "application/x-www-form-urlencoded" formatted query component, per
+   Section 3.4 of [RFC3986], which MUST be retained when adding
+   additional query parameters.  The back-channel logout URI MUST NOT
+   include a fragment component.
+
+   If the RP supports OpenID Connect Dynamic Client Registration 1.0
+   [OpenID.Registration], it uses this metadata value to register the
+   back-channel logout URI:
+
+   backchannel_logout_uri
+      OPTIONAL.  RP URL that will cause the RP to log itself out when
+      rendered in an iframe by the OP.  A "sid" (session ID) query
+      parameter MAY be included by the OP to enable the RP to validate
+      the request and to determine which of the potentially multiple
+      sessions is to be logged out.
+
+   It SHOULD also register this related metadata value:
+
+
+
+Jones & Bradley                                                 [Page 5]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+   backchannel_logout_session_required
+      OPTIONAL.  Boolean value specifying whether the RP requires that a
+      "sid" (session ID) Claim be included in the Logout Token to
+      identify the RP session at the OP when the
+      "backchannel_logout_uri" is used.  If omitted, the default value
+      is "false".
+
+2.3.  Remembering Logged-In RPs
+
+   OPs supporting back-channel logout need to keep track of the set of
+   logged-in RPs so that they know what RPs to contact at their back-
+   channel logout URIs to cause them to log out.  Some OPs track this
+   state using a "visited sites" cookie.  OPs are encouraged to send
+   logout requests to them in parallel.
+
+2.4.  Logout Token
+
+   OPs send a JWT similar to an ID Token to RPs called a Logout Token to
+   request that they log out.  ID Tokens are defined in Section 2 of
+   [OpenID.Core].
+
+   The following Claims are used within the Logout Token:
+
+   iss
+      REQUIRED.  Issuer Identifier, as specified in Section 2 of
+      [OpenID.Core].
+
+   sub
+      REQUIRED.  Subject Identifier, as specified in Section 2 of
+      [OpenID.Core].
+
+   aud
+      REQUIRED.  Audience(s), as specified in Section 2 of
+      [OpenID.Core].
+
+   exp
+      REQUIRED.  Expiration time, as specified in Section 2 of
+      [OpenID.Core].
+
+   jti
+      REQUIRED.  Unique identifier for the token, as specified in
+      Section 9 of [OpenID.Core].
+
+   logout_only
+      REQUIRED.  Value declaring that this JWT is only to be used as a
+      Logout Token.  In particular, this JWT cannot be used in any
+      context where an ID Token is used.  The value of this Claim MUST
+      be the JSON boolean value "true".
+
+
+
+Jones & Bradley                                                 [Page 6]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+   sid
+      OPTIONAL.  Session ID - String identifier for a Session.  This
+      represents a Session of an OP at an RP to a User Agent or device
+      for a logged-in End-User.  Its contents are unique to the OP and
+      opaque to the RP.  Its syntax is the same as an OAuth 2.0 Client
+      Identifier.
+
+   The following Claim MUST NOT be used within the Logout Token:
+
+   nonce
+      PROHIBITED.  A "nonce" Claim MUST NOT be present.  Its use is
+      prohibited to make a Logout Token syntactically invalid if used in
+      a forged Authentication Response in place of an ID Token.
+
+   Logout Tokens MAY contain other Claims.  Any Claims used that are not
+   understood MUST be ignored.
+
+   A Logout Token MUST be signed and MAY also be encrypted.  The same
+   keys are used to sign and encrypt Logout Tokens as are used for ID
+   Tokens.
+
+   A non-normative example JWT Claims Set for a Logout Token follows:
+
+     {
+      "iss": "https://server.example.com",
+      "sub": "248289761001",
+      "aud": "s6BhdRkqt3",
+      "exp": 1458668580,
+      "jti": "bWJq",
+      "sid": "08a5019c-17e1-4977-8f42-65a12843ea02",
+      "logout_only": true
+     }
+
+2.5.  Back-Channel Logout Request
+
+   The OP uses an HTTP POST to the registered back-channel logout URI to
+   trigger the logout actions by the RP.  The POST body uses the
+   "application/x-www-form-urlencoded" encoding and must include an
+   "logout_token" parameter containing a Logout Token from the OP for
+   the RP identifying the End-User and optionally the session to be
+   logged out.
+
+   The session to be logged out can be identified using the "sid"
+   (session ID) Claim in the Logout Token.  Should the ID Token contain
+   no "sid" Claim, the RP should log out all sessions for the End-User
+   identified by the "sub" Claim for that issuer.  The POST body MAY
+   contain other values in addition to "logout_token".  Values that are
+   not understood by the implementation MUST be ignored.
+
+
+
+Jones & Bradley                                                 [Page 7]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+   The following is a non-normative example of such a logout request
+   (with most of the token contents omitted for brevity):
+
+     POST /backchannel_logout HTTP/1.1
+     Host: rp.example.org
+     Content-Type: application/x-www-form-urlencoded
+
+     logout_token=eyJhbGci ... .eyJpc3Mi ... .T3BlbklE ...
+
+2.6.  Logout Token Validation
+
+   Upon receiving a logout request at the back-channel logout URI, the
+   RP MUST validate the Logout Token as follows:
+
+   1.  If the Logout Token is encrypted, decrypt it using the keys and
+       algorithms that the Client specified during Registration that the
+       OP was to use to encrypt ID Tokens.  If ID Token encryption was
+       negotiated with the OP at Registration time and the Logout Token
+       is not encrypted, the RP SHOULD reject it.
+
+   2.  Validate the Logout Token signature in the same way that an ID
+       Token signature is validated.
+
+   3.  Validate the "iss", "aud", and "exp" Claims in the same way they
+       are validated in ID Tokens.
+
+   4.  Verify that the Logout Token contains a "logout_only" Claim with
+       the value "true".
+
+   5.  Verify that the Logout Token does not contain a "nonce" Claim.
+
+   6.  Optionally verify that another Logout Token with the same "jti"
+       value has not been recently received.
+
+   If any of the validation steps fails, reject the Logout Token and
+   return an HTTP 400 Bad Request error.  Otherwise, proceed to perform
+   the logout actions.
+
+2.7.  Back-Channel Logout Actions
+
+   After receiving a valid Logout Token, the RP locates the session
+   identified by the "iss" and "sub" Claims and optionally the "sid"
+   Claim.  The RP then clears any state associated with the identified
+   session.  The mechanism by which the RP achieves this is
+   implementation specific.  If the identified End-User is already
+   logged out at the RP when the logout request is received, the logout
+   is considered to have succeeded.
+
+
+
+
+Jones & Bradley                                                 [Page 8]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+   In the case that the RP is also an OP serving as an identity provider
+   to downstream logged-in sessions, it is desirable for the logout
+   request to the RP to likewise trigger downstream logout requests.
+   This is achieved by having the RP/OP send logout requests to its
+   downstream RPs as part of its logout actions.
+
+2.8.  Back-Channel Logout Response
+
+   If the logout succeeded, the RP MUST respond with HTTP 200 OK.  If
+   the logout request was invalid, the RP MUST respond with HTTP 400 Bad
+   Request.  If the logout failed, the RP MUST respond with 501 Not
+   Implemented.  If the local logout succeeded but some downstream
+   logouts have or may have failed, the RP MUST respond with HTTP 504
+   Gateway Timeout.
+
+   The RP's response SHOULD include "Cache-Control" directives keeping
+   the response from being cached to prevent cached responses from
+   interfering with future logout requests.  It is RECOMMENDED that
+   these directives be used:
+
+     Cache-Control: no-cache, no-store
+     Pragma: no-cache
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones & Bradley                                                 [Page 9]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+3.  RP-Initiated Logout Functionality
+
+   This specification incorporates the RP-initiated logout functionality
+   specified in Section 5 of OpenID Connect Session Management 1.0
+   [OpenID.Session] by reference.  All the same metadata values and
+   messages are used by the RP to request that the OP log out RPs as are
+   used in that specification.  Therefore, they are not repeated here.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones & Bradley                                                [Page 10]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+4.  Security Considerations
+
+   The kinds of Relying Parties that can be logged out by different
+   implementations will vary.  Implementations should make it clear, for
+   instance, whether they are capable of logging out native applications
+   or only Web RPs.
+
+   OPs are encouraged to use short expiration times in Logout Tokens,
+   preferably at most two minutes in the future, to prevent captured
+   Logout Tokens from being replayable.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones & Bradley                                                [Page 11]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+5.  IANA Considerations
+
+5.1.  JSON Web Token Claims Registration
+
+   This specification registers the following Claim in the IANA "JSON
+   Web Token Claims" registry [IANA.JWT.Claims] established by [JWT].
+
+5.1.1.  Registry Contents
+
+   o  Claim Name: "logout_only"
+   o  Claim Description: Logout Only
+   o  Change Controller: OpenID Foundation Artifact Binding Working
+      Group - openid-specs-ab@lists.openid.net
+   o  Specification Document(s): Section 2.4 of this specification
+
+5.2.  OAuth Dynamic Client Registration Metadata Registration
+
+   This specification registers the following client metadata
+   definitions in the IANA "OAuth Dynamic Client Registration Metadata"
+   registry [IANA.OAuth.Parameters] established by [RFC7591]:
+
+5.2.1.  Registry Contents
+
+   o  Client Metadata Name: "backchannel_logout_uri"
+   o  Client Metadata Description: RP URL that will cause the RP to log
+      itself out when rendered in an iframe by the OP
+   o  Change Controller: OpenID Foundation Artifact Binding Working
+      Group - openid-specs-ab@lists.openid.net
+   o  Specification Document(s): Section 2.2 of this specification
+
+   o  Client Metadata Name: "backchannel_logout_session_required"
+   o  Client Metadata Description: Boolean value specifying whether the
+      RP requires that a "sid" (session ID) Claim be included in the
+      Logout Token to identify the RP session at the OP when the
+      "backchannel_logout_uri" is used
+   o  Change Controller: OpenID Foundation Artifact Binding Working
+      Group - openid-specs-ab@lists.openid.net
+   o  Specification Document(s): Section 2.2 of this specification
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones & Bradley                                                [Page 12]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+6.  References
+
+6.1.  Normative References
+
+   [IANA.JWT.Claims]
+              IANA, "JSON Web Token Claims",
+              <http://www.iana.org/assignments/jwt>.
+
+   [IANA.OAuth.Parameters]
+              IANA, "OAuth Parameters",
+              <http://www.iana.org/assignments/oauth-parameters>.
+
+   [JWT]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token
+              (JWT)", RFC 7519, DOI 10.17487/RFC7519, May 2015,
+              <http://www.rfc-editor.org/info/rfc7519>.
+
+   [OpenID.Core]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Core 1.0", November 2014,
+              <http://openid.net/specs/openid-connect-core-1_0.html>.
+
+   [OpenID.Discovery]
+              Sakimura, N., Bradley, J., Jones, M., and E. Jay, "OpenID
+              Connect Discovery 1.0", November 2014, <http://openid.net/
+              specs/openid-connect-discovery-1_0.html>.
+
+   [OpenID.Logout]
+              Jones, M., "OpenID Connect HTTP-Based Logout 1.0",
+              August 2015,
+              <http://openid.net/specs/openid-connect-logout-1_0.html>.
+
+   [OpenID.Registration]
+              Sakimura, N., Bradley, J., and M. Jones, "OpenID Connect
+              Dynamic Client Registration 1.0", November 2014, <http://
+              openid.net/specs/openid-connect-registration-1_0.html>.
+
+   [OpenID.Session]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B.,
+              Mortimore, C., and E. Jay, "OpenID Connect Session
+              Management 1.0", August 2015,
+              <http://openid.net/specs/openid-connect-session-1_0.html>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, DOI 10.17487/
+              RFC2119, March 1997,
+              <http://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC3986]  Berners-Lee, T., Fielding, R., and L. Masinter, "Uniform
+
+
+
+Jones & Bradley                                                [Page 13]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+              Resource Identifier (URI): Generic Syntax", STD 66,
+              RFC 3986, DOI 10.17487/RFC3986, January 2005,
+              <http://www.rfc-editor.org/info/rfc3986>.
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <http://www.rfc-editor.org/info/rfc6749>.
+
+   [RFC7230]  Fielding, R., Ed. and J. Reschke, Ed., "Hypertext Transfer
+              Protocol (HTTP/1.1): Message Syntax and Routing",
+              RFC 7230, DOI 10.17487/RFC7230, June 2014,
+              <http://www.rfc-editor.org/info/rfc7230>.
+
+6.2.  Informative References
+
+   [RFC7591]  Richer, J., Ed., Jones, M., Bradley, J., Machulak, M., and
+              P. Hunt, "OAuth 2.0 Dynamic Client Registration Protocol",
+              RFC 7591, DOI 10.17487/RFC7591, July 2015,
+              <http://www.rfc-editor.org/info/rfc7591>.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones & Bradley                                                [Page 14]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+Appendix A.  Acknowledgements
+
+   The OpenID Community would like to thank the following people for
+   their contributions to this specification:
+
+      John Bradley (ve7jtb@ve7jtb.com), Ping Identity
+
+      Brian Campbell (bcampbell@pingidentity.com), Ping Identity
+
+      Pedro Felix (pmhsfelix@gmail.com), individual
+
+      Michael B. Jones (mbj@microsoft.com), Microsoft
+
+      Todd Lainhart (lainhart@us.ibm.com), IBM
+
+      Nat Sakimura (n-sakimura@nri.co.jp), Nomura Research Institute,
+      Ltd.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones & Bradley                                                [Page 15]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+Appendix B.  Notices
+
+   Copyright (c) 2015 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones & Bradley                                                [Page 16]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+Appendix C.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -00
+
+   o  Wrote the initial version based on working group discussions.  The
+      structure of this specification is intentionally similar to the
+      OpenID Connect HTTP-Based Logout 1.0 specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones & Bradley                                                [Page 17]
+
+                 OpenID Connect Back-Channel Logout 1.0   September 2015
+
+
+Authors' Addresses
+
+   Michael B. Jones
+   Microsoft
+
+   Email: mbj@microsoft.com
+   URI:   http://self-issued.info/
+
+
+   John Bradley
+   Ping Identity
+
+   Email: ve7jtb@ve7jtb.com
+   URI:   http://www.thread-safe.com/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones & Bradley                                                [Page 18]
+

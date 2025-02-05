@@ -1,0 +1,1064 @@
+
+
+
+Draft                                                        N. Sakimura
+                                                                     NRI
+                                                         J. Bradley, Ed.
+                                                               Protiviti
+                                                                M. Jones
+                                                               Microsoft
+                                                                  E. Jay
+                                                                    MGI1
+                                                            July 6, 2011
+
+
+                OpenID Connect Discovery 1.0 - draft 01
+
+Abstract
+
+   OpenID Connect is an identity framework that provides authentication,
+   authorization, and attribute transmission capability.  It allows
+   third party attested claims from distributed sources.  The
+   specification suite consists of Core, UserInfo, Protocol Bindings,
+   Discovery, Dynamic Client Registration, Session Management, and
+   Framework.  This specification is the "Discovery" part of the suite
+   that defines how user and server endpoints are discovered.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 1]
+
+                            Abbreviated-Title                  July 2011
+
+
+Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
+   2.  Terminology  . . . . . . . . . . . . . . . . . . . . . . . . .  4
+   3.  Provider Discovery . . . . . . . . . . . . . . . . . . . . . .  5
+     3.1.  Identifier Normalization . . . . . . . . . . . . . . . . .  5
+       3.1.1.  Hostname . . . . . . . . . . . . . . . . . . . . . . .  6
+       3.1.2.  E-mail Address . . . . . . . . . . . . . . . . . . . .  6
+       3.1.3.  URL  . . . . . . . . . . . . . . . . . . . . . . . . .  6
+     3.2.  Non-Normative Examples . . . . . . . . . . . . . . . . . .  6
+       3.2.1.  Hostname . . . . . . . . . . . . . . . . . . . . . . .  6
+       3.2.2.  E-Mail Address . . . . . . . . . . . . . . . . . . . .  7
+       3.2.3.  URL  . . . . . . . . . . . . . . . . . . . . . . . . .  7
+     3.3.  Redirection  . . . . . . . . . . . . . . . . . . . . . . .  8
+   4.  Provider Configuration Information . . . . . . . . . . . . . . 10
+     4.1.  Provider Configuration Request . . . . . . . . . . . . . . 10
+     4.2.  Provider Configuration Response  . . . . . . . . . . . . . 10
+   5.  Other Items for Consideration  . . . . . . . . . . . . . . . . 13
+   6.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 14
+   7.  Security Considerations  . . . . . . . . . . . . . . . . . . . 15
+   8.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+     8.1.  Normative References . . . . . . . . . . . . . . . . . . . 16
+     8.2.  Informative References . . . . . . . . . . . . . . . . . . 16
+   Appendix A.  Acknowledgements  . . . . . . . . . . . . . . . . . . 17
+   Appendix B.  Document History  . . . . . . . . . . . . . . . . . . 18
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 19
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 2]
+
+                            Abbreviated-Title                  July 2011
+
+
+1.  Introduction
+
+   In order for an OpenID client to utilize OpenID services for a user,
+   the client needs to know where the OpenID Provider is.  OpenID
+   Connect uses Simple Web Discovery [SWD] to locate the OpenID Connect
+   provider for an end-user.  This document describes the OpenID Connect
+   specific parts related to Simple Web Discovery [SWD].
+
+   Once an OpenID Provider is identified, the endpoint and other
+   configuration information for that provider is retrieved from a well-
+   known location as a JSON document.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 3]
+
+                            Abbreviated-Title                  July 2011
+
+
+2.  Terminology
+
+   Client  An application obtaining authorization and making protected
+      resource requests.
+
+   End-user  A human resource owner.
+
+   Principal  A human resource owner that is the target of a request in
+      Simple Web Discovery.
+
+   OpenID Provider (OP)  Authorization Servers that are able to support
+      OpenID Connect Messages.
+
+   Issuer ID  The unique identifier of the OpenID Provider.
+
+   Relying Party (RP)  Client and Resource Servers.
+
+   End-User Authorization Endpoint  The Authorization Server's endpoint
+      capable of authenticating the End-User and obtaining
+      authorization.
+
+   Client Identifier  A unique identifier that the client uses to
+      identify itself to the OP.
+
+   Token Endpoint  The Authorization Server's HTTP endpoint capable of
+      issuing tokens.
+
+   Authentication Endpoints  End-User Authentication and Authorization
+      endpoint.
+
+   RP Endpoints  The endpoint to which the OP responses are returned
+      through redirect.
+
+   UserInfo Endpoint  A protected resource that when presented with a
+      token by the client returns authorized information about the
+      current user.
+
+   Introspection Endpoint  The Authorization Servers endpoint that takes
+      an ID_Token or access token as input and returns an unpacked JSON
+      representation of an ID_Token.
+
+   Identifier  An Identifier is either an "http" or "https" URI,
+      (commonly referred to as a "URL" within this document), or an
+      account URI.  This document defines various kinds of Identifiers,
+      designed for use in different contexts.
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 4]
+
+                            Abbreviated-Title                  July 2011
+
+
+3.  Provider Discovery
+
+   Provider discovery is optional, If a RP knows through an out of band
+   mechanism that all identifiers containing particular have the same
+   issuer then they can ship this step and proceed to Section 4.
+
+   Provider discovery Simple Web Discovery requires the following
+   information to make a discovery request:
+
+   o  principal - identifier of the target end user who is the subject
+      of the discovery request
+
+   o  host - server where a Simple Web Discovery service is hosted
+
+   o  service - URI of the service whose location is requested
+
+   OpenID Connect has the following discoverable service in Simple Web
+   Discovery:
+
+      +---------------+--------------------------------------------+
+      | Service Type  | URI                                        |
+      +---------------+--------------------------------------------+
+      | OpenID Issuer | http://openid.net/specs/connect/1.0/issuer |
+      +---------------+--------------------------------------------+
+
+   To start discovery of OpenID end points, the end-user supplies an
+   identifier to the client or relying party.  The client performs
+   normalization rules to the identifier to extract the principal and
+   host.  Then it makes a HTTPS request the host's Simple Web Discovery
+   endpoint with the "principal" and "service" parameters to obtain the
+   location of the requested service.
+
+   What MUST be returned in the response is the Java origin of the
+   Issuer.  This includes URI scheme HOST and port.
+
+3.1.  Identifier Normalization
+
+   The user identifier can be one of the following:
+
+   o  Hostname
+
+   o  E-mail address
+
+   o  URL
+
+   Identifiers starting with the XRI [XRI_Syntax_2.0] characters
+   ('=','@', and '!') are reserved.  Any identifier that contains the
+   character '@' in any other position other than the first position
+
+
+
+Sakimura, et al.                                                [Page 5]
+
+                            Abbreviated-Title                  July 2011
+
+
+   must be treated as an e-mail address.
+
+3.1.1.  Hostname
+
+   If the identifier is the hostname, then the hostname is used as both
+   the principal and host in Simple Web Discovery request.  This results
+   in a directed identity request.
+
+3.1.2.  E-mail Address
+
+   If the identifier is an e-mail address, the principal is the e-mail
+   address and the host is the portion to the right of the '@'
+   character.
+
+3.1.3.  URL
+
+   A URL identifier is normalized according to the following rules:
+
+   o  If the URL does not have an "http" or "https" scheme, the string
+      "https://" is prefixed to the URL.
+
+   o  If the URL contains a fragment part, it MUST be stripped off
+      together with the fragment delimiter character "#".
+
+   o  The resulting URL is used as the principal and the host is
+      extracted from it according to URI [RFC3986] syntax rules.
+
+3.2.  Non-Normative Examples
+
+3.2.1.  Hostname
+
+   To find the authorization endpoint for the given hostname,
+   "example.com", the SWD parameters are as follows:
+
+      +---------------+--------------------------------------------+
+      | SWD Parameter | Value                                      |
+      +---------------+--------------------------------------------+
+      | principal     | example.com                                |
+      |               |                                            |
+      | host          | example.com                                |
+      |               |                                            |
+      | service       | http://openid.net/specs/connect/1.0/issuer |
+      +---------------+--------------------------------------------+
+
+   Following the SWD specification, the client would make the following
+   request to get the discovery information:
+
+
+
+
+
+Sakimura, et al.                                                [Page 6]
+
+                            Abbreviated-Title                  July 2011
+
+
+GET /.well-known/simple-web-discovery?principal=example.com&service=http://openid.net/specs/connect/1.0/issuer HTTP/1.1
+Host: example.com
+
+HTTP/1.1 200 O.K.
+Content-Type: application/json
+
+{
+ "locations":["https://example.com/auth"]
+}
+
+3.2.2.  E-Mail Address
+
+   To find the authorization endpoint for the given e-mail address,
+   "joe@example.com", the SWD parameters are as follows:
+
+      +---------------+--------------------------------------------+
+      | SWD Parameter | Value                                      |
+      +---------------+--------------------------------------------+
+      | principal     | joe@example.com                            |
+      |               |                                            |
+      | host          | example.com                                |
+      |               |                                            |
+      | service       | http://openid.net/specs/connect/1.0/issuer |
+      +---------------+--------------------------------------------+
+
+   Following the SWD specification, the client would make the following
+   request to get the discovery information:
+
+GET /.well-known/simple-web-discovery?principal=joe@example.com&service=http://openid.net/specs/connect/1.0/issuer HTTP/1.1
+Host: example.com
+
+HTTP/1.1 200 O.K.
+Content-Type: application/json
+
+{
+ "locations":["https://example.com/auth"]
+}
+
+3.2.3.  URL
+
+   To find the authorization endpoint for the given URL,
+   'https://example.com/joe", the SWD parameters are as follows:
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 7]
+
+                            Abbreviated-Title                  July 2011
+
+
+      +---------------+--------------------------------------------+
+      | SWD Parameter | Value                                      |
+      +---------------+--------------------------------------------+
+      | principal     | https://example.com/joe                    |
+      |               |                                            |
+      | host          | example.com                                |
+      |               |                                            |
+      | service       | http://openid.net/specs/connect/1.0/issuer |
+      +---------------+--------------------------------------------+
+
+   Following the SWD specification, the client would make the following
+   request to get the discovery information:
+
+GET /.well-known/simple-web-discovery?principal=https://example.com/joe&service=http://openid.net/specs/connect/1.0/issuer HTTP/1.1
+Host: example.com
+
+HTTP/1.1 200 O.K.
+Content-Type: application/json
+
+{
+ "locations":["https://example.com/auth"]
+}
+
+3.3.  Redirection
+
+   In cases where the SWD request is handled at a host or location other
+   than the one derived from the end-user's identifier, the host will
+   return a JSON object containing the new location.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 8]
+
+                            Abbreviated-Title                  July 2011
+
+
+GET /.well-known/simple-web-discovery?principal=joe@example.com&service=http://openid.net/specs/connect/1.0/issuer HTTP/1.1
+Host: example.com
+
+HTTP/1.1 200 O.K.
+Content-Type: application/json
+
+{
+ "SWD_service_redirect":
+  {
+   "location":"https://example.net/swd_server"
+  }
+}
+
+GET /swd_server?principal=joe@example.com&service=http://openid.net/specs/cc/1.0/issuer HTTP/1.1
+Host: example.net
+
+HTTP/1.1 200 O.K.
+Content-Type: application/json
+
+{
+ "locations":["https://example.net/auth"]
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 9]
+
+                            Abbreviated-Title                  July 2011
+
+
+4.  Provider Configuration Information
+
+   This step is optional.  The provider endpoints and configuration
+   information may be provided out of band.
+
+   Using the Issuer ID discovered in Section 3 or through direct
+   configuration the OpenID Provider's configuration can be retrieved.
+
+   OpenID providers MUST make available a JSON document at the path
+   .well-known/openid-configuration.  The syntax and semantics of
+   ".well-known" are defined in RFC 5785 [RFC5785]. "openid-
+   configuration" MUST point to a JSON document compliant with this
+   specification.
+
+   OpenID providers MUST support receiving SWD requests via TLS 1.2 as
+   defined in RFC 5246 [RFC5246] and MAY support other transport layer
+   security mechanisms of equivalent security.
+
+4.1.  Provider Configuration Request
+
+   A Provider Configuration Document is queried using a HTTPS GET
+   request with the previously specified path.
+
+   The client would make the following request to get the Configuration
+   information
+
+   GET /.well-known/openid-configuration HTTP/1.1
+   Host: example.com
+
+4.2.  Provider Configuration Response
+
+   The response is a set of claims about the OpenID Provider's
+   configuration, including all necessary endpoint, supported scope, and
+   public key location information.
+
+   The response MUST return a plain text JSON object that contains a set
+   of claims that are a subset of those defined below.
+
+   Claims that return multiple values are JSON arrays.  Claims with 0
+   elements must be omitted from the response.
+
+   Other claims MAY also be returned.
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 10]
+
+                            Abbreviated-Title                  July 2011
+
+
+   +--------------------------+--------+-------------------------------+
+   | Claim                    | Type   | Description                   |
+   +--------------------------+--------+-------------------------------+
+   | version                  | string | Version of the provider       |
+   |                          |        | response. "3.0" is the        |
+   |                          |        | default.                      |
+   |                          |        |                               |
+   | issuer                   | string | The URI the Identity provider |
+   |                          |        | asserts as issuer             |
+   |                          |        |                               |
+   | authorization_endpoint   | string | URI of the provider's         |
+   |                          |        | Authentication and            |
+   |                          |        | Authorization                 |
+   |                          |        | Endpoint.[OpenID.Core]        |
+   |                          |        |                               |
+   | token_endpoint           | string | URI of the provider's Token   |
+   |                          |        | Introspection Endpoint        |
+   |                          |        | [OpenID.Core]                 |
+   |                          |        |                               |
+   | introspection_endpoint   | string | URI of the provider's         |
+   |                          |        | ID_Token Introspection        |
+   |                          |        | Endpoint[OpenID.Core]         |
+   |                          |        |                               |
+   | user_info_endpoint       | string | URI of the provider's User    |
+   |                          |        | Information                   |
+   |                          |        | Endpoint[OpenID.UserInfo]     |
+   |                          |        |                               |
+   | check_session_endpoint   | string | URI of the provider's Check   |
+   |                          |        | Session Endpoint[OpenID.Core] |
+   |                          |        |                               |
+   | refresh_session_endpoint | string | Uri Of The Providers Refresh  |
+   |                          |        | Session Endpoint[OpenID.Core] |
+   |                          |        |                               |
+   | end_session_endpoint     | string | Uri Of The Providers End      |
+   |                          |        | Session Endpoint[OpenID.Core] |
+   |                          |        |                               |
+   | jwk_endpoint             | string | URI of the provider's JSON    |
+   |                          |        | Web Key [JWK] Document        |
+   |                          |        |                               |
+   | registration_endpoint    | string | URI of the provider's Dynamic |
+   |                          |        | Client Registration           |
+   |                          |        | [OpenID.Registration]         |
+   |                          |        | endpoint                      |
+   |                          |        |                               |
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 11]
+
+                            Abbreviated-Title                  July 2011
+
+
+   | scopes_supported         | array  | A JSON array containing a     |
+   |                          |        | list of the OAuth 2.0         |
+   |                          |        | [OAuth2.0].0 scopes that this |
+   |                          |        | server supports.  The server  |
+   |                          |        | MUST support the "openid"     |
+   |                          |        | scope.                        |
+   |                          |        |                               |
+   | flows_supported          | array  | A JSON array containing a     |
+   |                          |        | list of the OAuth 2.0 flows   |
+   |                          |        | that this server supports.    |
+   |                          |        | The server MUST support the   |
+   |                          |        | code flow.                    |
+   |                          |        |                               |
+   | iso_29115_supported      | array  | A JSON array containing a     |
+   |                          |        | list of the ISO 29115         |
+   |                          |        | assurance contexts that this  |
+   |                          |        | server supports.              |
+   |                          |        |                               |
+   | identifiers_supported    | array  | A JSON array containing a     |
+   |                          |        | list of the user identifier   |
+   |                          |        | types that this server        |
+   |                          |        | supports                      |
+   +--------------------------+--------+-------------------------------+
+
+                    Table 1: Reserved Claim Definitions
+
+   Example response
+
+{
+ "authorization_endpoint": "https://example.com/connect/authorize",
+ "token_endpoint": "https://example.com/connect/token"
+ "introspection_endpoint": "https://example.com/connect/introspection",
+ "user_info_endpoint": "https://example.com/connect/user",
+ "check_session_endpoint": "https://example.com/connect/check_session",
+ "refresh_session_endpoint": "https://example.com/connect/refresh_session",
+ "end_session_endpoint": "https://example.com/connect/end_session",
+ "jwk_endpoint": "https://example.com/jwk.json",
+ "registration_endpoint": "https://example.com/connect/register",
+ "scopes_supported": ["openid"],
+ "flows_supported": ["code", "token"],
+ "iso_29115_supported": ["http://www.idmanagement.gov/schema/2009/05/icam/openid-trust-level1.pdf"],
+ "identifiers_supported": ["omni", "ppid"]
+}
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 12]
+
+                            Abbreviated-Title                  July 2011
+
+
+5.  Other Items for Consideration
+
+   1.  Should issuer be in the Provider Configuration Response
+
+   2.  Should issuer ID be explicitly restricted to the https:// scheme.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 13]
+
+                            Abbreviated-Title                  July 2011
+
+
+6.  IANA Considerations
+
+   This document makes no request of IANA.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 14]
+
+                            Abbreviated-Title                  July 2011
+
+
+7.  Security Considerations
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 15]
+
+                            Abbreviated-Title                  July 2011
+
+
+8.  References
+
+8.1.  Normative References
+
+   [JWK]      Jones, M., "JSON Web Key (JWK)", April 2011.
+
+   [OpenID.Core]
+              Recordon, D., Sakimura, N., Bradley, J., de Medeiros, B.,
+              Jones, M., and E. Jay, "OpenID Connect Core 1.0",
+              July 2011.
+
+   [OpenID.Registration]
+              Sakimura, N., Bradley, J., Ed., and M. Jones, "OpenID
+              Connect Dynamic Client Registration 1.0 - draft 02",
+              July 2011.
+
+   [OpenID.UserInfo]
+              Sakimura, N., Bradley, J., Ed., de Medeiros, B., and M.
+              Jones, "OpenID Connect UserInfo 1.0", July 2011.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC3986]  Berners-Lee, T., Fielding, R., and L. Masinter, "Uniform
+              Resource Identifier (URI): Generic Syntax", STD 66,
+              RFC 3986, January 2005.
+
+   [RFC5246]  Dierks, T. and E. Rescorla, "The Transport Layer Security
+              (TLS) Protocol Version 1.2", RFC 5246, August 2008.
+
+   [RFC5785]  Nottingham, M. and E. Hammer-Lahav, "Defining Well-Known
+              Uniform Resource Identifiers (URIs)", RFC 5785,
+              April 2010.
+
+   [SWD]      Jones, M., Ed. and Y. Goland, "Simple Web Discovery",
+              October 2010.
+
+8.2.  Informative References
+
+   [OAuth2.0]
+              Hammer-Lahav, E., Ed., Recordon, D., and D. Hardt, "OAuth
+              2.0 Authorization Protocol", May 2011.
+
+   [XRI_Syntax_2.0]
+              Reed, D. and D. McAlpin, "Extensible Resource Identifier
+              (XRI) Syntax V2.0", November 2005.
+
+
+
+
+
+Sakimura, et al.                                               [Page 16]
+
+                            Abbreviated-Title                  July 2011
+
+
+Appendix A.  Acknowledgements
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 17]
+
+                            Abbreviated-Title                  July 2011
+
+
+Appendix B.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -01
+
+   o  Incorporate working group decisions from 5-Jul-11 spec call.
+
+   o  Consistency and cleanup pass, including removing unused
+      references.
+
+   -00
+
+   o  Initial version based upon former openid-connect-swd-1_0 spec.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 18]
+
+                            Abbreviated-Title                  July 2011
+
+
+Authors' Addresses
+
+   Nat Sakimura
+   Nomura Research Institute, Ltd.
+
+   Email: n-sakimura@nri.co.jp
+
+
+   John Bradley (editor)
+   Protiviti Government Services
+
+   Email: jbradley@mac.com
+
+
+   Michael B. Jones
+   Microsoft Corporation
+
+   Email: mbj@microsoft.com
+
+
+   Edmund Jay
+   MGI1
+
+   Email: ejay@mgi1.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 19]
+

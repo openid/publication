@@ -1,0 +1,1064 @@
+
+
+
+
+                                                            G. Fernandez
+                                                              Telefonica
+                                                               F. Walter
+                                                              A. Nennker
+                                                     Deutsche Telekom AG
+                                                           March 6, 2017
+
+
+ OpenID Connect MODRNA Client initiated Backchannel Authentication Flow
+                                  1.0
+ openid-connect-modrna-client-initiated-backchannel-authentication-1_0
+
+Abstract
+
+   OpenID Connect MODRNA Client initiated Backchannel Authentication
+   Flow 1.0 is an authentication flow like OpenID Connect.  Unlike
+   OpenID Connect there is a direct Relying Party to OpenID Provider
+   communication without redirects through the user's browser.  This
+   specification allows an Relying Party that knows the user's
+   identitfier to obtain tokens from the OpenID Provider.  The user
+   consent is given at the user's Authentication Device mediated by the
+   OpenID Provider.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Notation and Conventions . . . . . . . . . .   3
+   2.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . .   3
+   3.  Overview  . . . . . . . . . . . . . . . . . . . . . . . . . .   3
+     3.1.  Polling versus Notification . . . . . . . . . . . . . . .   4
+     3.2.  Examples of Use Cases . . . . . . . . . . . . . . . . . .   5
+   4.  Backchannel Authentication Endpoint . . . . . . . . . . . . .   5
+     4.1.  Authentication Request  . . . . . . . . . . . . . . . . .   5
+     4.2.  Authentication Request Validation . . . . . . . . . . . .   7
+     4.3.  Successful Authentication Request Acknowledgement . . . .   8
+     4.4.  Authentication Request Acknowledgment Validation  . . . .   9
+   5.  OpenID Provider Obtains End-user Consent/Authorization  . . .   9
+   6.  Getting the Transaction Result  . . . . . . . . . . . . . . .  10
+     6.1.  Token Request Using Polling Mechanism . . . . . . . . . .  10
+     6.2.  Successful Token Polling Response . . . . . . . . . . . .  11
+     6.3.  Token Notification  . . . . . . . . . . . . . . . . . . .  12
+       6.3.1.  Successful Token Notification . . . . . . . . . . . .  12
+       6.3.2.  Client Notification Endpoint  . . . . . . . . . . . .  13
+     6.4.  Token Error Response  . . . . . . . . . . . . . . . . . .  14
+     6.5.  Authentication Error Response . . . . . . . . . . . . . .  14
+   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  15
+   8.  Privacy Considerations  . . . . . . . . . . . . . . . . . . .  16
+   9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  16
+
+
+
+Fernandez, et al.       Expires September 7, 2017               [Page 1]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+     9.1.  Normative References  . . . . . . . . . . . . . . . . . .  16
+     9.2.  Informative References  . . . . . . . . . . . . . . . . .  16
+   Appendix A.  Acknowledgements . . . . . . . . . . . . . . . . . .  17
+   Appendix B.  Notices  . . . . . . . . . . . . . . . . . . . . . .  17
+   Appendix C.  Document History . . . . . . . . . . . . . . . . . .  18
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  19
+
+1.  Introduction
+
+   OpenID Connect [OpenID.Core] allows Relying Parties (RP) to
+   authenticate their users for clients of all types, including browser-
+   based JavaScript and native mobile apps, to launch sign-in flows and
+   receive verifiable assertions about the identity of signed-in users.
+
+   In all of these flows initiated by the RP, the end-user interaction
+   from the consumption device is required and, they are based on HTTP
+   redirection mechanisms.  However, some use cases not covered by these
+   flows have been raised, where the RP needs to be the initiator of the
+   user authentication flow and the end-user interaction from the
+   consumption device is not needed.
+
+   The MODRNA Client initiated Backchannel Authentication Flow specifies
+   a new authentication flow, by means of which the RP's that know the
+   user identifier they want to authenticate (e-mail, phone number),
+   will be able to initiate an interaction flow to authenticate their
+   users without having end-user interaction from the consumption
+   device.  The flow is a direct communication from the Client to the
+   OpenID Provider without redirect through the user's browser
+   (consumption device).
+
+   This specification does not change the semantic of the OpenID Connect
+   Authentication flow.  It introduces a new endpoint to which the
+   authentication request is posted.  It indroduces a new asynchronous
+   method for authentication result delivery.  It does no introduce new
+   scope values nor does it change the semantic of standard OpenID
+   Connect parameters.  Some OpenID Connect parameters which are
+   required in a redirect based protocol are meaningless in this server-
+   to-server communication.  A few new parameters are introduced e.g.
+   those required for the asynchronous authentication result delivery.
+
+   *Remark:* As the user has no consumption device through which the
+   user is interacting with the Client, this flow will not cause any
+   user credentials to go through the RP.  So it should be highlighted
+   that traditional username/password authentication could not be used
+   because only out-band mechanisms will work in conjunction with this
+   flow.
+
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017               [Page 2]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119].
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+2.  Terminology
+
+   This specification uses the terms "OpenID Provider (OP)" and "Relying
+   Party (RP)" as defined by OpenID Connect Core [OpenID.Core].
+   Furthermore it uses the term "client" as defined by OAuth 2.0
+   [RFC6749].  OAuth 2.0 Authentication Servers implementing OpenID
+   Connect and CIBA are also referred to as OpenID Providers (OPs).
+   OAuth 2.0 Clients using OpenID Connect and CIBA are also referred to
+   as Relying Parties (RPs).  This specification also uses the following
+   terms:
+
+   Consumption Device (CD)  A user agent, most probably a browser, on
+      which the user consumes the actual service provided by the Client.
+
+   Authentication Device (AD)  A mobile device on which the user will
+      authenticate the actual login.
+
+3.  Overview
+
+   Client Initiated Backchannel Authentication (CIBA) enables a Client
+   to initiate the authentication of an end-user by means of out-band
+   mechanisms.
+
+   1.  The Client shall make an "HTTP POST" request to a new endpoint
+       called bc-authorize to ask for the end-user authentication.
+
+   2.  The OP will respond inmediatly with a unique identifier that
+       identifies that authentication while it tries to authenticate the
+       user in the background.
+
+   3.  The Client will receive the id_token, access_token and
+       refresh_token by means of either Polling or Notification
+       mechanisms, this choice MUST be established by the Client at the
+       registration time.
+
+       Notification mode  When using Notification mode, the OP will sent
+          a request with the tokens to a callback uri previously
+          registered by the Client.
+
+
+
+Fernandez, et al.       Expires September 7, 2017               [Page 3]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+       Polling mode  If Polling mode has been set, the Client will poll
+          the token endpoint to get a response with the tokens.  Clients
+          MUST take the "interval" attribute into account that they
+          received in the authentication response.
+
+3.1.  Polling versus Notification
+
+   This specification allows the Client to get the authentication result
+   in two ways: polling and notification.
+
+   If the Client expects to be notified about the authentication result
+   asynchronously then it has to specify a Client Notification Endpoint
+   during its registration at the OpenID Provider.
+
+   Otherwise the authentication response is retrieved by the Client by
+   polling the OP's token endpoint using a new grant type.
+
+   CIBA polling is illustrated in the following diagram:
+
+        +--------+                                               +--------+
+        |        |                                               |        |
+        |        |<---(1) CIBA Request-------------------------->|        |
+        |        |                                               |        |
+        |        |  +--------+                                   |        |
+        |        |  |        |                                   |        |
+        | Client |  |  AD    |<--(2) User interactions --------->|   OP   |
+        |        |  |        |                                   |        |
+        |        |  +--------+                                   |        |
+        |        |                                               |        |
+        |        |----(3a) CIBA Polling Request----------------->|        |
+        |        |<---(3b) CIBA Polling Response-----------------|        |
+        |        |                                               |        |
+        +--------+                                               +--------+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017               [Page 4]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+   CIBA notification is illustrated in the following diagram:
+
+        +--------+                                               +--------+
+        |        |                                               |        |
+        |        |<---(1) CIBA Request-------------------------->|        |
+        |        |                                               |        |
+        |        |  +--------+                                   |        |
+        |        |  |        |                                   |        |
+        | Client |  |  AD    |<--(2) User interactions --------->|   OP   |
+        |        |  |        |                                   |        |
+        |        |  +--------+                                   |        |
+        |        |                                               |        |
+        |        |<---(3) CIBA Notification Callback ------------|        |
+        |        |                                               |        |
+        +--------+                                               +--------+
+
+3.2.  Examples of Use Cases
+
+   The following use cases are non-normative examples to illustrate the
+   usage of this specification.
+
+   1.  A call center agent wants to authenticate a caller.  Using
+       additional scopes like e.g. "profile" or "phone" the call center
+       agent would get access to claims about the user like
+       "phone_number" and "phone_number_verified".
+
+   2.  A bank teller wants to authenticate a customer in a bank branch -
+       so it is using CIBA for auth in a face-to-face scenario.
+
+4.  Backchannel Authentication Endpoint
+
+   The Backchannel Authentication Endpoint performs Authentication of
+   the End-User.  This is done by sending an HTTP POST message directly
+   from the Client to the OpenID Provider's Backchannel Authentication
+   Endpoint, using request parameters defined by OAuth 2.0 and
+   additional parameters and parameter values defined by OpenID Connect.
+
+   Communication with the Backchannel Authentication Endpoint MUST
+   utilize TLS.  See Section 16.17 [OpenID.Core] for more information on
+   using TLS.
+
+4.1.  Authentication Request
+
+   An Authentication Request uses most of the parameters of an OAuth 2.0
+   [RFC6749] Authorization Request.  The parameters used are not changed
+   in their meaning and no new values for those parameters are
+   introduced.  Some of an OAuth 2.0 Authorization Request parameters
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017               [Page 5]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+   make no sense in a server to server communication and are therefore
+   not part of a CIBA Authentication Request.
+
+   MODRNA Client initiated Backchannel Authentication defines an
+   authentication request that is requested directly from the Client to
+   the OpenID Provider without going through the user's browser.  The
+   Client MUST send an authentication request to the OpenID Provider by
+   building an "HTTP POST" request that will take to the OpenID Provider
+   all the information needed to authenticate the user without asking
+   them for their identifier.
+
+   The Client MUST authenticate to the Backchannel Authentication
+   Endpoint using the authentication method registered for its
+   client_id, as described in Section 9 of [OpenID.Core].
+
+   Authentication Requests are made using
+   OpenID Connect MODRNA Authentication Profile 1.0.  Only the following
+   parameters are taken into consideration in the Client initiated
+   Backchannel Authentication flow.  The rest of the request parameters
+   defined in OAuth 2.0 [RFC6749] MUST be ignored by the OpenID
+   Provider.
+
+   scope  REQUIRED.  OpenID Connect implements authentication as an
+      extension to the OAuth 2.0 by including the "openid" scope value
+      in the Authorization Request.
+
+   client_notification_token  REQUIRED if the Client is registered to be
+      notified.  It is a unique id provided by the Client that will be
+      used by the OpenID Provider as a bearer token to authenticate the
+      callback request to send the tokens to the Client (Notification
+      Mode).
+
+      At the time of registering the Client at the OpenID Provider, the
+      Client must provide the information about whether receiving the
+      token response through a callback to the
+      "client_notification_endpoint" (Notification mode) or through a
+      polling mechanism (Polling mode) where the Client MUST poll the
+      OpenID Provider repeatedly as defined in
+      Successful Authentication Request Acknowledgement until the end-
+      user completes the approval process.
+
+   acr_values  REQUIRED.  As defined in
+      OpenID Connect MODRNA Authentication Profile 1.0.
+
+   login_hint_token  OPTIONAL.  As defined in
+      OpenID Connect MODRNA Authentication Profile 1.0.
+
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017               [Page 6]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+   id_token_hint  OPTIONAL.  As defined in Section 3.1.2.1 of
+      [OpenID.Core].
+
+   login_hint  OPTIONAL.  As defined in Section 3.1.2.1 of
+      [OpenID.Core].
+
+   binding_message  OPTIONAL.  As defined in
+      OpenID Connect MODRNA Authentication Profile 1.0.
+
+   As the Client initiated Backchannel Authentication flow does not have
+   an interaction with the end-user through a consumption device, it is
+   REQUIRED that the Client provides one (and only one) of the hints
+   specified above in the authentication request, that is
+   "login_hint_token", "id_token_hint" or "login_hint".
+
+   The following is a non-normative example from an authentication
+   request (with line wraps within values for display purposes only):
+
+
+         POST /bc-authorize HTTP/1.1
+         Host: server.example.com
+         Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
+         Content-Type: application/json
+
+         {
+          "scope": "openid",
+          "client_notification_token": "8d67dc78-7faa-4d41-aabd-67707b374255",
+          "acr_values": "mod-mf",
+          "login_hint_token": "eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkEyNTZHQ00ifQ.
+             OKOawDo13gRp2ojaHV7LFpZcgV7T6DVZKTyKOMTYUmKoTCVJRgckCL9kiMT03JGe
+             ipsEdY3mx_etLbbWSrFr05kLzcSr4qKAq7YN7e9jwQRb23nfa6c9d-StnImGyFDb
+             Sv04uVuxIp5Zms1gNxKKK2Da14B8S4rzVRltdYwam_lDp5XnZAYpQdb76FdIKLaV
+             mqgfwX7XWRxv2322i-vDxRfqNzo_tETKzpVLzfiwQyeyPGLBIO56YJ7eObdv0je8
+             1860ppamavo35UgoRdbYaBcoh9QcfylQr66oc6vFWXRcZ_ZT2LawVCWTIy3brGPi
+             6UklfCpIMfIjf7iGdXKHzg.
+             48V1_ALb6US04U3b.
+             5eym8TW_c8SuK0ltJ3rpYIzOeDQz7TALvtu6UG9oMo4vpzs9tX_EFShS8iB7j6ji
+             SdiwkIr3ajwQzaBtQD_A.
+             XFBoMYUZodetZdvTiFvSkQ"
+         }
+
+
+4.2.  Authentication Request Validation
+
+   The OpenID Provider MUST validate the request received as follows:
+
+   1.  Authenticate the Client.
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017               [Page 7]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+       e.g.: by validating the Client Credentials as described in
+       Section 9 on [OpenID.Core].
+
+   2.  The OpenID Provider MUST validate all the OAuth 2.0 parameters
+       according to OpenID Connect MODRNA Authentication Profile 1.0.
+
+   3.  In the event of a request contains more than one of this hints
+       specified in Authentication Request (Section 4.1), the OpenID
+       Provider MUST return an "invalid_request" error response as per
+       Section 3.1.2.6 of [OpenID.Core].
+
+   4.  The OpenID Provider MUST validate the hint provided (login_hint,
+       login_token_hint or id_token_hint).
+       e.g.: If a signature is provided it MUST be checked.  If a
+       validity date is provided it MUST be checked.
+       If the hint is not valid or if the OP is not able to determine
+       the user then an error should be returned to the Client as per
+       section Authentication Error Response.
+
+   5.  The OpenID Provider MUST verify that all the REQUIRED parameters
+       are present and their usage conforms to this specification.
+
+   As specified in OAuth 2.0 [RFC6749], OpenID Providers SHOULD ignore
+   unrecognized request parameters.
+
+   If the OpenID Provider encounters any error, it MUST return an error
+   response, per Section 3.1.2.6 of [OpenID.Core].
+
+4.3.  Successful Authentication Request Acknowledgement
+
+   If the Authentication Request is validated as per
+   Section Authentication Request Validation, the OpenID Provider will
+   return an HTTP 200 OK response to the Client to indicate that the
+   authentication request has been accepted and it is going to be
+   processed.  The body of this response will contain:
+
+   auth_req_id  REQUIRED.  It is a unique id to identify the
+      authentication request (transaction) made by the Client.  The
+      "auth_req_id" will be included too in the token notification when
+      Notification mode is used to allow the Client correlate the
+      authentication request and the received tokens.  It will not be
+      included in the token response when using Polling Mode.
+
+   expires in  REQUIRED.  Expiration time of the "auth_req_id" in
+      seconds since the auth_request was received.  When using the
+      Polling mode, the auth_req_id will be considered overdue and the
+      OpenID Provider will return an error to indicate it, see
+      Token Error Response.
+
+
+
+Fernandez, et al.       Expires September 7, 2017               [Page 8]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+   interval  OPTIONAL.  The minimum amount of time in seconds that the
+      Client SHOULD wait between polling requests to the token endpoint.
+      This parameter will only be present in case of there is not any
+      callback URI registered as "client_notification_endpoint", that is
+      in case the Client is using the Polling mode.
+
+   The following is a non-normative example from an authentication
+   response
+
+
+                HTTP/1.1 200 OK
+                Content-Type: application/json
+                Cache-Control: no-store
+
+                {
+                  "auth_req_id": "1c266114-a1be-4252-8ad1-04986c5b9ac1",
+                  "expires_in": 3600,
+                  "interval": 2
+                }
+
+
+4.4.  Authentication Request Acknowledgment Validation
+
+   If the Client receives an HTTP 200 OK, it MUST validate that all the
+   required parameters are received.  The Client should keep the
+   authentication request identifier "auth_req_id" in order to match it
+   with token response.
+
+   The Client will have to keep the expiration time as well to be able
+   to discard the authentication request acknowledgment.
+
+5.  OpenID Provider Obtains End-user Consent/Authorization
+
+   After the OP has validated the Authentication Request and the OP
+   identifies the user's Authentication Device.  The OP chooses a
+   channel to best contact the AD and fullfil the Client's requirements
+   regarding acr_values.
+
+   Once the End-User is authenticated, the OpenID Provider MUST obtain
+   an authorization decision before releasing information to the Client.
+   As in OAuth2 and as in OpenID Connect the OP informs the user about
+   the current Authentication Request e.g.: Which Client is requesting
+   which information and which access.
+
+   When using the Client initiated Backchannel Authentication flow,
+   there is not any interactive dialogue between the OpenID Provider and
+   the end-user through the user's consumption device.  There might be
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017               [Page 9]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+   an agent of the Client involved who transfers the binding_message to
+   the user.
+
+   The consent establishing only can take place via the authentication
+   device or by establishing consent via conditions for processing the
+   request or other means (for example, via previous administrative
+   consent).  Sections 2 and 5.3 of [OpenID.Core] describe information
+   release mechanisms.
+
+   NOTE: the current version of the Client initiated Backchannel
+   Authentication Flow spec. does not specify any mechanism to use the
+   authentication device to obtain the end-user consent.
+
+6.  Getting the Transaction Result
+
+6.1.  Token Request Using Polling Mechanism
+
+   If the Client didn't register any callback URI for the
+   "client_notification_endpoint" with the OpenID Provider, the Polling
+   mode to get the token is set.  The Client must poll the token
+   endpoint until the end-user grants or denies the request.
+
+   The Client polls at reasonable interval which MUST NOT exceed the
+   minimum interval provided by the OpenID Provider via the "interval"
+   parameter (if provided).
+
+   The Client makes a "POST" request to the token endpoint by sending
+   the following parameters using the "application/x-www-form-
+   urlencoded" format with a character encoding of UTF-8 in the HTTP
+   request entity-body:
+
+   grant_type  REQUIRED.  Value MUST be set to "urn:openid:params:modrna
+      :grant-type:backchannel_request".
+
+   auth_req_id  REQUIRED.  It is a unique id to identify the
+      authentication request (transaction) made by the Client.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017              [Page 10]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+   The following is a non-normative example of a token request (with
+   line wraps within values for display purposes only).
+
+
+        POST /token HTTP/1.1
+        Host: server.example.com
+        Content-Type: application/x-www-form-urlencoded
+        Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
+
+        grant_type=urn%3Aopenid%3Aparams%3Amodrna%3Agrant-type%3Abackchannel_request
+          &auth_req_id=1c266114-a1be-4252-8ad1-04986c5b9ac1
+
+
+
+6.2.  Successful Token Polling Response
+
+   The OpenID Provider will return the token as an HTTP response to the
+   Client's poll request.  If the user is well authenticated, the OpenID
+   Provider will return a succesful response that includes an ID Token
+   and an Access Token.  Otherwise it responses with an error as defined
+   in Token Error Response.
+
+   The following is a non-normative example of a token response sending
+   as an HTTP 200 OK Response to the Client's poll request (with line
+   wraps within values for display purposes only).
+
+
+                HTTP/1.1 200 OK
+                Content-Type: application/json
+                Cache-Control: no-store
+
+                {
+                 "access_token": "SlAV32hkKG",
+                 "token_type": "Bearer",
+                 "refresh_token": "8xLOxBtZp8",
+                 "expires_in": 3600,
+                 "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjFlOWdkazcifQ.ewogImlzc
+                   yI6ICJodHRwOi8vc2VydmVyLmV4YW1wbGUuY29tIiwKICJzdWIiOiAiMjQ4Mjg5
+                   NzYxMDAxIiwKICJhdWQiOiAiczZCaGRSa3F0MyIsCiAibm9uY2UiOiAibi0wUzZ
+                   fV3pBMk1qIiwKICJleHAiOiAxMzExMjgxOTcwLAogImlhdCI6IDEzMTEyODA5Nz
+                   AKfQ.ggW8hZ1EuVLuxNuuIJKX_V8a_OMXzR0EHR9R6jgdqrOOF4daGU96Sr_P6q
+                   Jp6IcmD3HP99Obi1PRs-cwh3LO-p146waJ8IhehcwL7F09JdijmBqkvPeB2T9CJ
+                   NqeGpe-gccMg4vfKjkM8FcGvnzZUN4_KSP0aAp1tOJ1zZwgjxqGByKHiOtX7Tpd
+                   QyHE5lcMiKPXfEIQILVq0pc_E2DzL7emopWoaoZTF_m0_N0YzFC6g6EJbOEoRoS
+                   K5hoDalrcvRYLSrQAZZKflyuVCyixEoV9GfNQC3_osjzw2PAithfubEEBLuVVk4
+                   XUVrWOLrLl0nx7RkKU8NXNHq-rvKMzqg"
+                }
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017              [Page 11]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+6.3.  Token Notification
+
+6.3.1.  Successful Token Notification
+
+   If the Client is registered for Client notifications (Notification
+   mode), the OpenID Provider will send the token response making a
+   "POST HTTP Request" to the Client's client_notification_endpoint.  If
+   the user is well authenticated, the OpenID Provider returns a
+   successful response that includes an ID Token and an Access Token and
+   a Refresh Token.  If the request failed Client authentication or is
+   invalid, the OpenID Provider sends an error_message as described in
+   Token Error Response.
+
+   All the parameters in the successful response are defined in
+   Section 4.1.4 of OAuth 2.0 [RFC6749] except the new one "auth_req_id"
+   that will be the same received in the request as defined in
+   Successful Authentication Response (Section 4.3).  The response uses
+   the application/json media type.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017              [Page 12]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+   The following is a non-normative example of a token response sending
+   as a HTTP POST request to the callback uri specified in the
+   "client_notification_endpoint" parameter by the Client (with line
+   wraps within values for display purposes only).  The request is
+   authenticated through a bearer token that is the value of the
+   "client_notification_token" provided by the Client in the
+   Authentication Request.
+
+
+                  POST /cb HTTP/1.1
+                  Host: client.example.com
+                  Authorization: Bearer 8d67dc78-7faa-4d41-aabd-67707b374255
+                  Content-Type: application/json
+
+                  {
+                   "auth_req_id": "1c266114-a1be-4252-8ad1-04986c5b9ac1",
+                   "access_token": "SlAV32hkKG",
+                   "token_type": "Bearer",
+                   "refresh_token": "8xLOxBtZp8",
+                   "expires_in": 3600,
+                   "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjFlOWdkazcifQ.ewogImlzc
+                     yI6ICJodHRwOi8vc2VydmVyLmV4YW1wbGUuY29tIiwKICJzdWIiOiAiMjQ4Mjg5
+                     NzYxMDAxIiwKICJhdWQiOiAiczZCaGRSa3F0MyIsCiAibm9uY2UiOiAibi0wUzZ
+                     fV3pBMk1qIiwKICJleHAiOiAxMzExMjgxOTcwLAogImlhdCI6IDEzMTEyODA5Nz
+                     AKfQ.ggW8hZ1EuVLuxNuuIJKX_V8a_OMXzR0EHR9R6jgdqrOOF4daGU96Sr_P6q
+                     Jp6IcmD3HP99Obi1PRs-cwh3LO-p146waJ8IhehcwL7F09JdijmBqkvPeB2T9CJ
+                     NqeGpe-gccMg4vfKjkM8FcGvnzZUN4_KSP0aAp1tOJ1zZwgjxqGByKHiOtX7Tpd
+                     QyHE5lcMiKPXfEIQILVq0pc_E2DzL7emopWoaoZTF_m0_N0YzFC6g6EJbOEoRoS
+                     K5hoDalrcvRYLSrQAZZKflyuVCyixEoV9GfNQC3_osjzw2PAithfubEEBLuVVk4
+                     XUVrWOLrLl0nx7RkKU8NXNHq-rvKMzqg"
+                  }
+
+
+6.3.2.  Client Notification Endpoint
+
+   The Client Notification Endpoint is set by the Client during the
+   registration phase.  This endpoint is intended to receive the result
+   of the authentication (id_token, access_token and refresh token) and
+   it requires the request to be authenticated using a "bearer token"
+   created by the Client and sent to the OP in the Authentication
+   request as the value of the parameter "client_notification_token".
+
+   Communication with the Client Notification Authentication Endpoint
+   MUST utilize TLS.  See Section 16.17 [OpenID.Core] for more
+   information on using TLS.
+
+
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017              [Page 13]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+6.4.  Token Error Response
+
+   If the Token Request is invalid or unauthorized, the OpenID Provider
+   constructs the error response according to the section 3.1.3.4 Token
+   Error Response of [OpenID.Core].  In addition to the error codes
+   defined in Section 5.2 of [RFC6749], the following error codes are
+   specific for the Client Initiated Backchannel flow:
+
+   unknown_auth_req_id  The OP doesn't know the auth_req_id that the
+      Client is asking for.  It only applies when using Polling mode.
+
+   authorization_pending  The authorization request is still pending as
+      the end-user hasn't yet been authenticated.  It only applies when
+      using Polling mode.
+
+   slow_down  The Client is polling too quickly and should back off at a
+      reasonable rate.  It only applies when using Polling mode.
+
+   expired_token  The auth_req_id has expired.  The Client will need to
+      make a new Authentication Request.
+
+6.5.  Authentication Error Response
+
+   An Authentication Error Response is an OAuth 2.0 Authorization Error
+   Response message returned from the OP's Authorization Endpoint in
+   response to the Authorization Request message sent by the Client.
+
+   If the End-User denies the request or the End-User authentication
+   fails, the OP (Authorization Server) informs the Client by using the
+   follow Error Responses, many of them are defined in Section 4.1.2.1
+   of OAuth 2.0 [RFC6749], however they cannot be sent using a
+   redirection as OAuth 2.0 does because there isn't any User Agent
+   through which send the error to the Client.
+
+   Errors will be sent directly to the client as HTTP Error Responses,
+   whose body will contain a json with two parameters
+
+   error_description  OPTIONAL.  Human-readable ASCII [USASCII] text
+      providing additional information, used to assist the client
+      developer in understanding the error that occurred.  Values for
+      the "error_description" parameter MUST NOT include characters
+      outside the set %x20-21 / %x23-5B / %x5D-7E
+
+   error  REQUIRED.  A single ASCII error code from one of the present
+      in the list below.
+
+   List of authentication error codes associated to a HTTP Errors.
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017              [Page 14]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+   HTTP 400 Bad Request
+
+      invalid_request  The request is missing a required parameter,
+         includes an invalid parameter value, includes a parameter more
+         than once, or is otherwise malformed.
+
+      invalid_scope  The requested scope is invalid, unknown, or
+         malformed.
+
+      expired_token  The login_hint_token or the id_token_hint provided
+         in the authentication request is expired, so not valid.
+
+   HTTP 403 Forbidden
+
+      unauthorized_client  The client is not authorized to request an
+         authentication using this method.
+
+      access_denied  The resource owner or authorization server denied
+         the request.
+
+   HTTP 404 Not Found
+
+      unknown_user_id  The OpenID Provider is not able to figure out
+         which user has to be authenticated by means of the hint
+         provided in the request (login_hint_token, id_token_hint or
+         login_hint).
+
+   The following is a non-normative example from an authentication error
+   response:
+
+
+              HTTP/1.1 403 Forbidden
+              Content-Type: application/json
+              {
+                "error": "unauthorized_client",
+                "error_description": "The client 'client.example.org' is not allowed to use Client Backchannel Authentication."
+              }
+
+
+7.  Security Considerations
+
+   The login hint token SHOULD be digitally signed by the issuer.  This
+   ensures authenticity of the data and reduces the threat of an
+   injection attack.  The signature allows the OP to authenicate and
+   authorize the sender of the hint and prevent collecting of phone
+   numbers by rogue Clients.
+
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017              [Page 15]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+   The OP SHOULD ensure that the "client_notification_endpoint"
+   configured at registration time is in the administrativ authority of
+   the Client.  Otherwise the OP would post authentication results to
+   the wrong Client.
+
+   How this check in done is outside the scope of this specification.
+
+8.  Privacy Considerations
+
+   Using MODRNA Client initiated Backchannel Authentication it is
+   possible for the Client to authenticate a user without knowing e.g.
+   the MSISDN of the user.  Users might be reluctant to provide their
+   MSISDN to Clients because they fear misuse through automated calls or
+   theirs number being leaked.  The login hint token is encrypted in
+   order to protect the user's MSISDN from being revealed to the Client
+   unintentionally.
+
+9.  References
+
+9.1.  Normative References
+
+   [I-D.ietf-oauth-amr-values]
+              Jones, M., Hunt, P., and A. Nadalin, "Authentication
+              Method Reference Values", draft-ietf-oauth-amr-values-06
+              (work in progress), February 2017.
+
+   [MODRNA.Authentication]
+              Connotte, J. and J. Bradley, "OpenID Connect MODRNA
+              Authentication Profile 1.0", March 2017,
+              <http://openid.net/specs/
+              openid-connect-modrna-authentication-1_0.html>.
+
+   [OpenID.Core]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Core 1.0", August 2015,
+              <http://openid.net/specs/openid-connect-core-1_0.html>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <http://www.rfc-editor.org/info/rfc2119>.
+
+9.2.  Informative References
+
+   [RFC3986]  Berners-Lee, T., Fielding, R., and L. Masinter, "Uniform
+              Resource Identifier (URI): Generic Syntax", STD 66,
+              RFC 3986, DOI 10.17487/RFC3986, January 2005,
+              <http://www.rfc-editor.org/info/rfc3986>.
+
+
+
+Fernandez, et al.       Expires September 7, 2017              [Page 16]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <http://www.rfc-editor.org/info/rfc6749>.
+
+Appendix A.  Acknowledgements
+
+   The following have contributed to the development of this
+   specification.
+
+Appendix B.  Notices
+
+   Copyright (c) 2017 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017              [Page 17]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+Appendix C.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -01
+
+   o  Initial draft
+
+   -02
+
+   o  Second draft
+
+   o  Authentication Request Section: Improving the definition of
+      "client_req_id"
+
+   o  Successful Authentication Request Acknowledgement: a.
+      "auth_req_id": to explain that it will not be present in token
+      when using Polling mode b.  interval: fixing a misleading
+      description
+
+   o  Token Request Using Polling Mechanism: a.  Fixing a misleading
+      description about the inclusion of "client_notification_endpoint"
+      in the authentication request.  It does not make sense since
+      Notification or Polling mode is defined at the registration time
+      and "client_notification_endpoint".  is not sent in the
+      authentication request anymore.  b. "auth_req_id": fixing
+      misleading description.
+
+   o  Changing Successful Token Polling to Successful Token Polling
+      Response
+
+   o  Improving descriptions in Successful Token Polling Response and
+      Successful Token Notification
+
+   o  "expires_in" parameter from Successful Authentication Request
+      Acknowledgement refers to the "auth_req_id" that will be
+      considered overdue to make new polling requests after that time.
+
+   o  New "unknown_auth_req_id" and "expired_token" erros in Token Error
+      Response
+
+   o  Authentication Error Response section is defined and incorporates
+      two new errors: "unknown_user_id" when OP cannot figure out the
+      user to be authenticated by means of the hint and "expired_token"
+      to indicate that the login_hint_token or id_token_hint provided is
+      expired.
+
+   o  Changing "client_req_id"to "client_notification_token"
+
+
+
+Fernandez, et al.       Expires September 7, 2017              [Page 18]
+
+     OIDC MODRNA Client initiated Backchannel Authentication Flowc1 2017
+
+
+   o  New overview section
+
+   -03
+
+   o  Following the lead of user questioning remove the term Relying
+      Party in most places.
+
+Authors' Addresses
+
+   Gonzalo Fernandez Rodriguez
+   Telefonica I+D
+
+   Email: gonzalo.fernandezrodriguez@telefonica.com
+
+
+   Florian Walter
+   Deutsche Telekom AG
+
+   Email: F.Walter@telekom.de
+
+
+   Axel Nennker
+   Deutsche Telekom AG
+
+   Email: axel.nennker@telekom.de
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Fernandez, et al.       Expires September 7, 2017              [Page 19]

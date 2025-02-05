@@ -1,0 +1,1698 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml2rfc.tools.ietf.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN" "http://xml2rfc.tools.ietf.org/authoring/rfc2629.dtd">
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="fastfed-scim-1_0" ipr="none">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="5" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="yes" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+  
+  <front>
+    <title abbrev="FastFed Basic SCIM Profile 1.0">FastFed Basic SCIM Profile
+    1.0 - draft 02</title>
+
+    <author fullname="Darin K. McAdams" initials="D.K.M." surname="McAdams">
+      <organization abbrev="Amazon">Amazon</organization>
+      <address>
+        <email>darinm@amazon.com</email>
+      </address>
+    </author>
+
+    <date day="9" month="March" year="2020" />
+
+    <workgroup>FastFed Working Group</workgroup>
+
+    <abstract>
+      <t>
+	This specification defines the requirements to implement the FastFed
+	Profile for SCIM 2.0 Basic provisioning. This profile supports continual
+	provisioning, update, and deprovisioning of end-users between the
+	Identity Provider and Application Provider.
+      </t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+
+      <t>
+        This specification defines the functionality which a provider must
+        implement to satisfy the FastFed Profile for SCIM 2.0 Basic
+        provisioning.
+      </t>
+      <t>
+	It consists of the following extensions to
+	the <xref target="FastFed.Core">FastFed Core</xref> specification:
+	<list style="symbols">
+	  <t>
+	    Additional metadata in the FastFed Handshake Flows to exchange SCIM
+	    provisioning information and authentication credentials.
+	  </t>
+	  <t>
+	    An interoperability profile describing the subset of the SCIM
+            specifications which must be implemented.
+	  </t>
+	</list>
+      </t>
+      
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+        <t>
+	  The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+          "OPTIONAL" in this document are to be interpreted as described in
+	  <xref target="RFC2119">RFC 2119</xref>.
+	</t>
+
+	<t>
+	  In the .txt version of this specification, values are quoted to
+	  indicate that they are to be taken literally.  When using these values
+	  in protocol messages, the quotes MUST NOT be used as part of the
+	  value.  In the HTML version of this specification, values to be taken
+	  literally are indicated by the use of
+	  <spanx style="verb">this fixed-width font</spanx>.
+	</t>
+      </section>
+
+      <section anchor="Terminology" title="Terminology">
+	<t>
+          This FastFed Profile uses the terminology defined in Section 1.2 of
+          the
+          <xref target="FastFed.Core">FastFed Core</xref> specification.
+	</t>
+	<t>
+	  The
+	  terms <spanx style="verb">"SCIM"</spanx>, <spanx style="verb">"SCIM
+	  client"</spanx>, and <spanx style="verb">"SCIM service"</spanx> refer
+	  to the terminology defined in <xref target="RFC7644">RFC 7644</xref>.
+	</t> 
+      </section>
+    </section>
+
+    <section anchor="Overview"
+             title="Overview">
+    
+      <section anchor="RolesAndResponsibilities"
+               title="Roles and Responsibilities">
+	<t>
+	  In this profile, the Identity Provider plays the role of a SCIM
+	  client, pushing user and group information to the
+	  Application Provider who hosts the SCIM service.
+	</t>
+	<t>
+	  The result is to maintain a copy of user and group information in the
+	  Application by communicating, via calls the to the SCIM APIs, the
+	  creation, update, and deletion of these records.
+	</t>
+	<t>
+	  To perform these responsibilities, this specification defines the
+	  subset of SCIM capabilities that each party must implement to fulfill
+	  the FastFed interoperability requirements.
+	</t>
+      </section>
+	
+      <section anchor="ClientAuthentication" 
+	       title="Client Authentication">
+	<t>
+	  SCIM <xref target="RFC7644"/> does not prescribe a mechanism for
+          client authentication. However, for interoperability purposes, it is
+          necessary for Providers to agree on an authentication method. To fill
+          the gap, this specification prescribes an OAuth 2.0 authentication
+          profile for SCIM services, while also leaving extension points
+          available for alternative authentication methods.
+	</t>
+	<t>
+	  As described in Section 6 of
+	  the <xref target="FastFed.Core">FastFed Core</xref> specification, the
+	  use of asymmetric key pairs is preferred over long-lived shared
+	  secrets. As a result, this profile uses <xref target="RFC7523">RFC 7523</xref>
+	  which defines a mechanism to exchange a signed JWT for an OAuth 2.0 access token.
+	</t>
+	<t>
+	  An end-to-end example of SCIM client authentication
+	  via <xref target="RFC7523">RFC 7523</xref> is provided in
+	  <xref target="AuthenticationExample"/>.
+	</t>
+      </section>
+    </section> <!-- End of Overview -->
+
+    <section anchor="ProtocolExtensions" title="Protocol Extensions">
+
+    <section anchor="FastFedMetadata" title="FastFed Metadata">
+      <section anchor="FastFedMetadataProvisioningProfile" 
+	       title="Provisioning Profile URN">
+	
+	<t>
+          This specification extends the <xref target="FastFed.Core">FastFed
+            Core</xref> metadata (Section 3.3.1) with the following value
+          for <spanx style="verb">provisioning_profiles</spanx>:
+          <list style="hanging">
+            <t hangText="urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic">
+              A Provider who includes this URN in their list of capabilities MUST
+              comply with the requirements described in this specification.
+            </t>
+          </list>
+	</t>
+	<t>
+          The following is a non-normative example of Provider Metadata showing
+          the usage of the value:
+	</t>
+        <figure><artwork><![CDATA[
+ {
+   "application_provider": {
+     "capabilities": {
+       "provisioning_profiles": ["urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic"],
+   ...
+ }
+]]></artwork></figure>
+      </section>
+    
+      <section anchor="FastFedMetadataApplicationMetadata" 
+	       title="Application Metadata">
+	<t>
+	  This specification extends the Application Provider Metadata defined
+	  in Section 3.3.8 of <xref target="FastFed.Core">FastFed Core</xref>
+	  with an additional member having the
+	  name:
+	  <vspace/><vspace/><spanx style="verb">"urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic"</spanx>.
+	</t>
+	<t>
+	  The value of the element is a structure containing the following members:
+	  <list style="hanging">
+	    <t hangText="desired_attributes">
+	      REQUIRED. A structure specifying the attributes to be
+	      provisioned, as described in Section 3.3.5
+	      of <xref target="FastFed.Core">FastFed Core</xref>.
+
+	      <vspace/><vspace/>When using this profile, the
+	      Application Provider MUST include the following SCIM Core User
+	      attribute in the list of <spanx style="verb">required_user_attributes</spanx>:
+              <list style="symbols">
+		<t>
+                  <spanx style="verb">externalId</spanx>
+                </t>
+                <t>
+                  <spanx style="verb">userName</spanx>
+                </t>
+                <t>
+                  <spanx style="verb">active</spanx>
+                </t>
+              </list>
+
+	      If the Application Provider supports Group provisioning, it MUST:
+              <list style="symbols">
+		<t>
+		  Include the SCIM Core Group attributes
+		  <spanx style="verb">displayName</spanx>
+		  and <spanx style="verb">externalId</spanx> in the list
+		  of <spanx style="verb">required_group_attributes</spanx>.
+		</t>
+		<t>
+		  Include the SCIM Core Group attribute
+		  <spanx style="verb">members</spanx> in the list
+		  of <spanx style="verb">optional_group_attributes</spanx>.
+		  
+		  <vspace/>As a reference,
+		  <spanx style="verb">members</spanx> is optional is because it is
+		  acceptable to create an empty group, or to remove all members from
+		  an existing group. For example, see
+		  <xref target="SCIMInteroperabilityGroupProvisioningDeactivateGroup"/>.
+		</t>
+              </list>
+
+	      If the Application Provider does not support Group provisioning, it
+	      MUST omit the following from the desired attributes:
+	      <list style="symbols">
+		<t>
+		  <spanx style="verb">required_group_attributes</spanx>
+		</t>
+		<t>
+		  <spanx style="verb">optional_group_attributes</spanx>
+		</t>
+	      </list>
+	    </t>
+	    <t hangText="can_support_nested_groups">
+              OPTIONAL. Boolean value indicating whether the Application Provider supports
+              provisioning of nested Group memberships. The default value
+              is <spanx style="verb">false</spanx>. See
+              <xref target="SCIMInteroperabilityGroupProvisioningUpdateGroupMembership"/>
+              for details on Group membership provisioning.
+            </t>
+            <t hangText="max_group_membership_changes">
+              OPTIONAL. Number indicating the maximum number of Group membership
+              changes that can be included in a single PATCH request. The
+              minimum value is 100. The maximum value is 1000. The default value
+              is 100. See
+              <xref target="SCIMInteroperabilityGroupProvisioningUpdateGroupMembership"/>
+              for details on Group membership provisioning.
+            </t>
+	  </list>
+	</t>
+        <t>
+          The following is a non-normative example of Application Provider Metadata with
+          the profile extensions:
+        </t>
+        <figure><artwork><![CDATA[
+ {
+   "application_provider": {
+     "entity_id": "https://tenant-67890.app.example.com/"
+     "provider_domain": "example.com",
+     "provider_contact_information": {
+       "organization": "Example Inc.",
+       "phone": "+1-800-555-5555",
+       "email": "support@example.com"
+     },
+     "display_settings": {
+       "display_name": "Example Application Provider",
+       "logo_uri": "https://app.example.com/images/logo.png",
+       "icon_uri": "https://app.example.com/images/icon.png",
+       "license": "https://openid.net/intellectual-property/licenses/fastfed/1.0/"
+     }
+     "capabilities": {
+       "provisioning_profiles": [
+         "urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic"
+       ],
+       "schema_grammars": [
+         "urn:ietf:params:fastfed:1:0:schemas:scim:2.0"
+       ],
+       "signing_alg_values_supported": [
+         "ES512",
+         "RS256"
+       ]
+     },
+     "fastfed_handshake_register_uri": "https://tenant-67890.app.example.com/fastfed/register",
+
+     "urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic": {
+       "can_support_nested_groups": true,
+       "max_group_membership_changes": 1000,
+       "desired_attributes": {
+         "urn:ietf:params:fastfed:1:0:schemas:scim:2.0": {
+           "required_user_attributes": [
+             "externalId",
+             "username",
+             "active"
+           ],
+           "optional_user_attributes": [
+             "displayName",
+             "emails[primary eq true]"
+           ],
+           "required_group_attributes": [
+             "displayName",
+             "externalId"
+           ],
+           "optional_group_attributes": [
+             "members"
+           ]
+         }
+      }
+   }
+ }
+]]></artwork></figure>
+
+      </section>
+
+    </section> <!-- End of FastFed Metadata -->
+
+    <section anchor="FastFedHandshake" title="FastFed Handshake">
+
+      <t>
+	When using this SCIM provisioning profile, the FastFed
+        Identity Provider and Application Provider have various
+        responsibilities to comply with the protocol.
+      </t>
+      <t>
+        The Identity Provider fulfills the role of a SCIM Client. It has
+        a responsibility to provision user information into the Application
+        Provider as described in 
+        <xref target="SCIMInteroperability"/>.
+      </t>
+      <t>
+        The Application Provider fulfills the role of a SCIM Service.
+        It has a responsibility to host a SCIM Endpoint and handle provisioning
+        messages from the Identity Provider as described in
+        described in
+        <xref target="SCIMInteroperability"/>
+      </t>
+      <t>
+        This specification extends the <xref target="FastFed.Core">FastFed
+        Core</xref> handshake messages with the additional attributes necessary for
+        each party to fulfill their respective obligations under SCIM.
+      </t>
+
+      <section anchor="FastFedHandshakeRegistrationRequest"
+               title="FastFed Registration Request">
+        <t>
+          This specification extends the contents of the FastFed Registration
+          Request (Section 7.2.3.1 of <xref target="FastFed.Core">FastFed
+          Core</xref>) with an additional member sharing the same name as the
+          profile:<vspace/><vspace/><spanx style="verb">"urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic"</spanx>.
+        </t>
+        <t>
+          The value of the element is a structure with the following members:
+          <list style="hanging">
+            <t hangText="provider_contact_information">
+              REQUIRED. A structure containing the contact information for the provisioning
+              provider, as defined in Section 3.3.3
+              of <xref target="FastFed.Core">FastFed Core</xref>.
+
+	      <vspace/><vspace/>The <spanx style="verb">provider_contact_information</spanx>
+              MAY be the same party who hosted the FastFed Handshake (as
+              defined in the Identity Provider FastFed Metadata). Alternatively,
+              SCIM provisioning may be delegated to a distinct sub-system which
+              authenticates with its own identity and key materials. By
+              specifying
+              protocol-specific <spanx style="verb">provider_contact_information</spanx>
+              for SCIM provisioning, both scenarios are supported.
+            </t>
+	    <t hangText="provider_authentication_methods">
+	      REQUIRED. A list of supported authentication methods for client
+	      authentication to the SCIM service, along with any additional
+	      metadata specified by each method. Providers SHOULD support the
+	      JWT Profile for OAuth-2.0 (defined in
+	      <xref target="FastFedHandshakeRegistrationRequestOAuth"/>) and MAY
+	      support additional methods.
+	    </t>
+          </list>
+        </t>
+        <t>
+          The following is a non-normative example of the contents of a
+          registration request message:
+        </t>
+        <figure><artwork><![CDATA[
+ {
+   "iss": "https://tenant-12345.idp.example.com",
+   "aud": "https://tenant-67890.app.example.com",
+   "exp": 1234567890,
+   "schema_grammar": "urn:ietf:params:fastfed:1:0:schemas:scim:2.0",
+   "provisioning_profiles": [
+     "urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic"
+   ],
+   "urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic": {
+     "provider_contact_information": {
+       "organization": "Example Inc.",
+       "phone": "+1-800-555-5555",
+       "email": "support@example.com"
+     },
+     "provider_authentication_methods": {
+        ...protocol-specific values...
+     }
+   }
+ }
+]]></artwork></figure>
+
+	<section anchor="FastFedHandshakeRegistrationRequestOAuth"
+               title="Usage of the OAuth-2.0 JWT Profile">
+	  <t>
+	    Support for this authentication method is indicated by including an
+	    additional member in the
+	    <spanx style="verb">provider_authentication_methods</spanx> with the 
+	    name:
+	    <vspace/><vspace/><spanx style="verb">"urn:ietf:params:fastfed:1.0:provider_authentication:oauth:2.0:jwt_profile"</spanx>
+	  </t>
+	  <t>
+	    The value of the element is a structure with the following members:
+
+	    <list style="hanging">
+              <t hangText="jwks_uri">
+		REQUIRED. URL of the SCIM client's JSON Web Key
+                Set <xref target="RFC7517">[JWK]</xref> containing the signing
+                key(s) used by the Provider.
+		
+		<vspace/><vspace/>If the same entity hosts both the FastFed
+		Handshake and performs SCIM provisioning, then the same
+		<spanx style="verb">jwks_uri</spanx> MAY be used for both
+		purposes. Alternatively, if SCIM provisioning is delegated to a
+		distinct sub-system which authenticates with its own key
+		materials, then a different key set can be used. By specifying a
+		protocol-specific <spanx style="verb">jwks_uri</spanx> for SCIM
+		provisioning, both scenarios are supported.
+              </t>
+	    </list>
+	  </t>
+          <t>
+            The following is a non-normative example of the contents of a
+            registration request message containing this authentication method:
+          </t>
+          <figure><artwork><![CDATA[
+ {
+   "iss": "https://tenant-12345.idp.example.com",
+   "aud": "https://tenant-67890.app.example.com",
+   "exp": 1234567890,
+   "schema_grammar": "urn:ietf:params:fastfed:1:0:schemas:scim:2.0",
+   "provisioning_profiles": [
+     "urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic"
+   ],
+   "urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic": {
+     "provider_contact_information": {
+       "organization": "Example Inc.",
+       "phone": "+1-800-555-5555",
+       "email": "support@example.com"
+     },
+     "provider_authentication_methods": {
+       "urn:ietf:params:fastfed:1.0:provider_authentication:oauth:2.0:jwt_profile": {
+         "jwks_uri": "https://provisioning.example.com/keys"
+       }
+     }
+   }
+ }
+]]></artwork></figure>
+	</section>
+
+      </section>
+
+      <section anchor="FastFedHandshakeRegistrationResponse" 
+	       title="FastFed Registration Response">
+        <t>
+          This specification extends the contents of the FastFed Registration
+          Response (Section 7.2.3.3 of <xref target="FastFed.Core">FastFed
+          Core</xref>) with an additional member sharing the same name as the
+          profile:<vspace/><vspace/><spanx style="verb">"urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic"</spanx>
+	</t>
+	<t>
+	  The value of the element is a structure with the following members:
+          <list style="hanging">
+            <t hangText="scim_service_uri">
+              REQUIRED. Contains the URL of the Application Provider's
+              SCIM Endpoint.
+            </t>
+	    <t hangText="provider_authentication_method">
+              REQUIRED. Contains the URN of the chosen authentication method,
+              selected by the Application Provider from amongst the set of compatible
+              methods shared by both the Identity Provider and the Application Provider.
+            </t>
+          </list>
+        </t>
+        <t>
+          The following is a non-normative example of the contents of a
+          registration response message:
+        </t>
+        <figure><artwork><![CDATA[
+ {
+   "urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic": {
+     "scim_service_uri": "https://tenant-56789.app.example.com/scim",
+     "provider_authentication_method": ...,
+   }
+ }
+]]></artwork></figure>
+
+	<section anchor="FastFedHandshakeRegistrationResponseOAuth"
+		 title="Usage of the OAuth-2.0 JWT Profile">
+	  
+	  <t>
+	    The selection of this authentication method is indicated by setting the
+            value of <spanx style="verb">provider_authentication_method</spanx>
+            to be:
+
+            <vspace/><vspace/><spanx style="verb">"urn:ietf:params:fastfed:1.0:provider_authentication:oauth:2.0:jwt_profile"</spanx>
+          </t>
+          <t>
+            In addition, a member with the same name as this URN is included
+            in the response. The value of the element is a structure with the
+            following members:
+
+            <list style="hanging">
+              <t hangText="token_endpoint">
+		REQUIRED. Contains the URL of the Application Provider's
+		OAuth 2.0 token endpoint.
+	      </t>
+	      <t hangText="scope">
+		REQUIRED. Contains the OAuth scope parameter to be provided to the
+		OAuth 2.0 token endpoint when requesting an access token. The
+		OAuth scope MUST authorize the SCIM client to perform all
+		provisioning activities specified by this profile.
+	      </t>
+	    </list>
+	  </t>
+          <t>
+            The following is a non-normative example of the contents of a
+            registration response message using the OAuth 2.0 JWT Profile:
+          </t>
+          <figure><artwork><![CDATA[
+ {
+   "urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic": {
+     "scim_service_uri": "https://tenant-56789.app.example.com/scim",
+     "provider_authentication_method": "urn:ietf:params:fastfed:1.0:provider_authentication:oauth:2.0:jwt_profile",
+     "urn:ietf:params:fastfed:1.0:provider_authentication:oauth:2.0:jwt_profile": {
+       "token_endpoint": "https://tenant-56789.app.example.com/oauth",
+       "scope": "scim"
+     }
+   }
+ }
+]]></artwork></figure>
+	  <t>
+	    See <xref target="AuthenticationExample"/> for an end-to-end example
+	    of authenticating via the OAuth 2.0 JWT profile.
+	  </t>
+	</section>
+
+      </section>
+
+    </section> <!-- End of FastFed Handshake Extensions -->
+
+    </section> <!-- End of Protocol Extensions -->
+
+    <section anchor="SCIMInteroperability"
+	     title="Interoperability Requirements">
+     <t>
+       Each identity standard defines a set of optional features to enable usage
+       in a wide variety of circumstances.
+     </t>
+     <t>
+       However, a consequence of the flexibility is that two Providers may find
+       themselves incompatible despite sharing the same protocols.
+     </t>
+     <t>
+       To deliver the simplified experience that is the goal of FastFed, it is
+       important that two FastFed-enabled Providers have confidence that they
+       can interoperate when sharing the same protocols.
+     </t>
+     <t> 
+       The following sections describe the subset of the SCIM Protocol
+       specifications that Providers MUST implement to be FastFed Compatible for
+       this profile. Providers MAY support additional functionality, but
+       MUST NOT require the additional functionality when configuring federation
+       with another Provider using the FastFed specifications.
+     </t>
+     <section anchor="SCIMInteroperabilityGeneral"
+              title="General Requirements">
+       <t>
+	 The Identity Provider MUST:
+	 <list style="symbols">
+           <t>
+             Implement the required functionality of a SCIM Client as
+             defined in <xref target="RFC7643">RFC 7643</xref>
+	     and <xref target="RFC7644">RFC 7644</xref>.
+           </t>
+           <t>
+             Authenticate to the SCIM endpoint using the method negotiated
+             during the FastFed registration exchange.
+             (<xref target="FastFedHandshakeRegistrationRequest"/> and
+             <xref target="FastFedHandshakeRegistrationResponse"/>).
+           </t>
+	 </list> 
+       </t>
+
+       <t>
+         The Application Provider MUST:
+         <list style="symbols">
+	   <t>
+             Implement the required functionality of a SCIM Service
+             Provider as defined in <xref target="RFC7643">RFC 7643</xref>
+	     and <xref target="RFC7644">RFC 7644</xref>.
+           </t>
+           <t>
+             Authenticate the client using the method negotiated
+             during the FastFed registration exchange.
+             (<xref target="FastFedHandshakeRegistrationRequest"/> and
+             <xref target="FastFedHandshakeRegistrationResponse"/>).
+           </t>
+         </list>
+       </t>
+       <t>
+	 The <spanx style="verb">groups</spanx> attribute on the User resource is
+	 not used in this FastFed Profile. Any SCIM operation containing a
+	 User resource in the contents MUST NOT include
+	 the <spanx style="verb">groups</spanx> attribute on the User entity.
+       </t>
+
+     </section> <!-- End of "SCIM Interoperability General Requirements" -->
+
+     <section anchor="SCIMInteroperabilityUserProvisioning"
+              title="User Provisioning">
+
+       <t>
+	 Application Providers MUST support all the User provisioning operations
+	 defined in this section.
+       </t>
+       <t>
+	 Identity Providers SHOULD replicate User information to the
+	 Application Provider within 60 minutes of the User being created or
+	 updated, and MAY use any combination of the operations to accomplish
+	 the User provisioning.
+       </t>
+
+       <section anchor="SCIMInteroperabilityUserProvisioningCreateUser"
+		title="Create User">
+	 <t>
+	   User creation is performed via the SCIM operation: <spanx style="verb">PUT /Users</spanx> 
+	 </t>
+	 <t>
+	   If multiple values are provided for the User attributes
+	   <spanx style="verb">"emails"</spanx>, <spanx style="verb">"phoneNumbers"</spanx>,
+	   or <spanx style="verb">"addresses"</spanx>, then the Identity
+	   Provider MUST specify one value in the
+	   list as
+	   <spanx style="verb">"primary=true"</spanx>. If only a single value is
+	   provided, the Application Provider MAY treat the single value as the
+	   primary if not explicitly labeled as such.
+	 </t>
+	 <t>
+	   The following is a non-normative example of creating a User:
+	 </t>
+         <figure><artwork><![CDATA[
+ POST /Users  HTTP/1.1
+ Host: example.com
+ Accept: application/scim+json
+ Content-Type: application/scim+json
+ Authorization: Bearer h480djs93hd8
+ Content-Length: ...
+
+ {
+   "schemas":[
+     "urn:ietf:params:scim:schemas:core:2.0:User",
+     "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+   ],
+   "externalId": "98d78581-dd0d-4361-ab61-9511c6e5f035",
+   "userName":"bjensen",
+   "name":{
+     "formatted":"Ms. Barbara J Jensen III",
+     "familyName":"Jensen",
+     "givenName":"Barbara"
+   }
+   "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": {
+     "costCenter":"12345",
+     "manager":{"value": "0cca76a8-090a-4944-8e61-e7791e619d48"}
+   }
+ }
+]]></artwork></figure>
+       </section>
+
+       <section anchor="SCIMInteroperabilityUserProvisioningUpdateUser"
+                title="Update User">
+	 <t>
+	   User updates are performed via the SCIM operation:
+	   <spanx style="verb">PATCH /Users/{id}</spanx>
+	 </t>
+	 <t>
+           The following is a non-normative example of updating a User:
+         </t>
+         <figure><artwork><![CDATA[
+ PATCH /Users/{id}  HTTP/1.1
+ Host: example.com
+ Accept: application/scim+json
+ Content-Type: application/scim+json
+ Authorization: Bearer h480djs93hd8
+ Content-Length: ...
+
+ {
+   "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+   "Operations": [
+     {
+       "op": "replace"
+       "path": "name.formatted"
+       "value": "Babs Jensen"
+     },
+     {
+       "op": "replace"
+       "path": "addresses[type eq \"work\"].streetAddress"
+       "value": "1010 Broadway Ave"
+     },
+   ]
+ }
+]]></artwork></figure>
+
+       </section>
+	 
+       <section anchor="SCIMInteroperabilityUserProvisioningDeactivateUser"
+		title="Deactivate or Reactivate User">
+	 <t>
+           Changes to the user activation status are performed via the SCIM operation:
+           <spanx style="verb">PATCH /Users/{id}</spanx>
+         </t>
+	 <t>
+	   The Identity Provider SHOULD propagate user deactivation events to the
+	   Application Provider within 5 minutes of the user being deactivated.
+	 </t>
+	 <t>
+	   The Application Provider SHOULD respond to user deactivation events
+	   by revoking the ability for the user to continue accessing the
+	   Application, including the revocation of currently active sessions.
+	   The revocation mechanism is an implementation detail outside the
+	   scope of this specification. Revocation SHOULD occur within 5 minutes
+	   of receiving the deactivation.
+	 </t>
+	 <t>
+	   The Application Provider MUST allow reactivation of a deactivated
+	   user.
+	 </t>
+         <t>
+           The following is a non-normative example of deactivating a User:
+         </t>
+         <figure><artwork><![CDATA[
+ PATCH /Users/{id}  HTTP/1.1
+ Host: example.com
+ Accept: application/scim+json
+ Content-Type: application/scim+json
+ Authorization: Bearer h480djs93hd8
+ Content-Length: ...
+
+ {
+   "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+   "Operations": [{
+       "op": "replace"
+       "path": "active"
+       "value": false
+    }]
+ }
+]]></artwork></figure>
+         <t>
+           The following is a non-normative example of reactivating a User:
+         </t>
+         <figure><artwork><![CDATA[
+ PATCH /Users/{id}  HTTP/1.1
+ Host: example.com
+ Accept: application/scim+json
+ Content-Type: application/scim+json
+ Authorization: Bearer h480djs93hd8
+ Content-Length: ...
+
+ {
+   "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+   "Operations": [{
+       "op": "replace"
+       "path": "active"
+       "value": true
+    }]
+}
+]]></artwork></figure>
+       </section>
+
+       <section anchor="SCIMInteroperabilityUserProvisioningDeleteUser"
+		title="Delete User">
+         <t>
+           User deletions are performed via the SCIM operation:
+           <spanx style="verb">DELETE /Users/{id}</spanx>
+         </t>
+	 <t>
+	   Identity Providers SHOULD delete users when they have reason to
+	   believe the User will not be reactivated in the future. This may
+	   occur, for example, when a username is recycled and given to a new
+	   actor, necessitating removal of the prior record.
+	 </t>
+         <t>
+	   After a user is deleted, Application Providers MUST allow the
+	   creation of a new user with the same username.
+	 </t>
+	 <t>
+	 </t>
+         <t>
+           The following is a non-normative example of deleting a User:
+         </t>
+         <figure><artwork><![CDATA[
+ DELETE /Users/{id}
+ Host: example.com
+ Authorization: Bearer h480djs93hd8
+]]></artwork></figure>
+       </section>
+
+       <section anchor="SCIMInteroperabilityUserProvisioningGetUserById"
+		title="Get User By Id">
+         <t>
+           User lookups by id are performed via the SCIM operation:
+           <spanx style="verb">GET /Users/{id}</spanx>
+         </t>
+         <t>
+           The following is a non-normative example of retrieving a User by id:
+         </t>
+         <figure><artwork><![CDATA[
+ GET /Users/{id}
+ Host: example.com
+ Accept: application/scim+json
+ Authorization: Bearer h480djs93hd8
+]]></artwork></figure>
+         <figure><artwork><![CDATA[
+ HTTP/1.1 200 OK
+ Content-Type: application/scim+json
+
+ {
+   "schemas":["urn:ietf:params:scim:schemas:core:2.0:User"],
+   "meta":{
+     "resourceType":"User",
+     "created":"2011-08-01T18:29:49.793Z",
+     "lastModified":"2011-08-01T18:29:49.793Z",
+     "version":"W\/\"f250dd84f0671c3\""
+   },
+   "id":"2819c223-7f76-453a-919d-413861904646",
+   "externalId": "98d78581-dd0d-4361-ab61-9511c6e5f035",
+   "userName":"bjensen",
+   "name":{
+     "formatted":"Ms. Barbara J Jensen III",
+     "familyName":"Jensen",
+     "givenName":"Barbara"
+   },
+   "emails":[
+     {
+       "value":"bjensen@example.com",
+       "type":"work"
+       "primary":true
+     }
+   ]   
+ }
+]]></artwork></figure>
+       </section>
+
+       <section anchor="SCIMInteroperabilityUserProvisioningSearchUsersByAlternateIds"
+		title="List Users By Alternate Identifier">
+         <t>
+           User lookups by alternate identifier are performed via the SCIM operation:
+           <spanx style="verb">GET /Users?filter={filterExpression}</spanx>
+         </t>
+         <t>
+	   Application Providers MUST support the following filter expressions:
+	   <list style="symbols">
+	     <t><spanx style="verb">username eq {username}</spanx></t>
+	     <t><spanx style="verb">externalId eq {externalId}</spanx></t>
+	     <t><spanx style="verb">emails[value eq {email}]</spanx></t>
+	   </list>
+         </t>
+         <t>
+           The following is a non-normative example of retrieving Users by username:
+         </t>
+         <figure><artwork><![CDATA[
+ GET /Users?filter=userName+eq+bjensen
+ Host: example.com
+ Accept: application/scim+json
+ Authorization: Bearer h480djs93hd8
+]]></artwork></figure>
+         <figure><artwork><![CDATA[
+ HTTP/1.1 200 OK
+ Content-Type: application/scim+json
+
+ {
+   "schemas":["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
+   "totalResults":1,
+   "Resources":[
+     {
+       "schemas":["urn:ietf:params:scim:schemas:core:2.0:User"],
+       "meta":{
+         "resourceType":"User",
+         "created":"2011-08-01T18:29:49.793Z",
+         "lastModified":"2011-08-01T18:29:49.793Z",
+         "version":"W\/\"f250dd84f0671c3\""
+       },
+       "id":"2819c223-7f76-453a-919d-413861904646",
+       "externalId": "98d78581-dd0d-4361-ab61-9511c6e5f035",
+       "userName":"bjensen",
+       "name":{
+         "formatted":"Ms. Barbara J Jensen III",
+         "familyName":"Jensen",
+         "givenName":"Barbara"
+       },
+       "emails":[
+         {
+           "value":"bjensen@example.com",
+           "type":"work"
+         }
+       ]
+     }     
+   ]
+ }
+]]></artwork></figure>
+       </section>
+
+     </section> <!-- End of "SCIM Interoperability User Provisoning -->
+
+     <section anchor="SCIMInteroperabilityGroupProvisioning"
+              title="Group Provisioning">
+
+       <t>
+         Application Providers MAY support Group Provisioning. Support is
+         indicated by including values
+         for <spanx style="verb">required_group_attributes</spanx>
+         and <spanx style="verb">optional_group_attributes</spanx> in the
+         desired attributes, as specified in
+         <xref target="FastFedMetadataApplicationMetadata"/>. In addition, the
+         Application Provider must include Groups as a supported resource type
+         in the response from the SCIM /ResourceTypes endpoint, as defined in
+         Section 4 of the SCIM Protocol <xref target="RFC7644"/>.
+       </t>
+       <t>
+	 If the Application Provider supports Groups, it MUST implement all the
+         Group provisioning operations defined in this section.
+       </t>
+       <t>
+	 The Identity Provider MUST query the Application Provider's SCIM
+         /ResourceTypes endpoint to determine if Groups are supported. As a
+         reference to implementors, this check can occur when the FastFed
+         Handshake completes, on-or-after Section 7.2.4.4 of
+         the <xref target="FastFed.Core">FastFed Core</xref> specification.
+       </t>
+       <t>
+	 If the Application Provider supports Group provisioning, the Identity
+         Provider SHOULD replicate Group information to the Application Provider
+         within 60 minutes of the Group being created or updated. Identity
+         Providers MAY use any combination of the operations to perform Group
+         provisioning.
+       </t>
+
+       <section anchor="SCIMInteroperabilityGroupProvisioningCreateGroup"
+                title="Create Group">
+	 <t>
+	   Group creation is performed via the SCIM operation:
+           <spanx style="verb">POST /Groups </spanx>
+         </t>
+         <t>
+	   The Identity Provider MUST NOT include a value for
+	   the <spanx style="verb">members</spanx> attribute.  See
+	   <xref target="SCIMInteroperabilityGroupProvisioningUpdateGroupMembership"/>
+	   for information on Group membership changes.
+         </t>
+         <t>
+           The following is a non-normative example of creating a Group:
+         </t>
+         <figure><artwork><![CDATA[
+ POST /Groups  HTTP/1.1
+ Host: example.com
+ Accept: application/scim+json
+ Content-Type: application/scim+json
+ Authorization: Bearer h480djs93hd8
+ Content-Length: ...
+
+ {
+   "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
+   "externalId": "e5a41517-bcd6-4b8b-8590-487ae996de44",
+   "displayName": "ExampleGroup"
+ }
+]]></artwork></figure>
+       </section>
+
+       <section anchor="SCIMInteroperabilityGroupProvisioningUpdateGroupMetadata"
+		title="Update Group Metadata">
+         <t>
+           Group updates are performed via the SCIM operation:
+           <spanx style="verb">PATCH </spanx>
+         </t>
+         <t>
+           The Identity Provider MUST NOT update the
+           <spanx style="verb">members</spanx> attribute of a Group in the
+           same PATCH request that updates other Group attributes. See
+           <xref target="SCIMInteroperabilityGroupProvisioningUpdateGroupMembership"/>
+           for information on Group membership changes.
+         </t>
+         <t>
+           The following is a non-normative example of updating a Group:
+         </t>
+         <figure><artwork><![CDATA[
+ PATCH /Groups/{id}  HTTP/1.1
+ Host: example.com
+ Accept: application/scim+json
+ Content-Type: application/scim+json
+ Authorization: Bearer h480djs93hd8
+ Content-Length: ...
+ 
+ {
+   "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+   "Operations": [
+     {
+       "op": "replace",
+       "path": "externalId",
+       "value": "{newExternalId}"
+     },
+     {
+       "op": "replace",
+       "path": "displayName",
+       "value": "{newDisplayName}"
+     }
+   ]
+ }
+]]></artwork></figure>
+       </section>
+
+       <section anchor="SCIMInteroperabilityGroupProvisioningDeactivateGroup"
+                title="Deactivate Group">
+	 <t>
+	   Unlike User resources, SCIM does not define a mechanism to softly
+	   deactivate a Group prior to permanent deletion. However, experience
+	   has demonstrated that jumping straight to permanent deletion can have
+	   undesired repercussions for user entitlements in an Application that
+	   are based on group membership. If the Group deletion was in error, it
+	   cannot be easily undone. The end-users have lost access and the
+	   entitlements inside the Application must be re-established from
+	   scratch under a new group id.
+	 </t>
+	 <t>
+	   To provide increased safety, and simulate an undo window, it is
+	   RECOMMENDED that Identity Providers first remove all group members,
+	   wait a period of time, and then permanently delete the group when
+	   comfortable with the action. The wait period is an implementation
+	   detail.
+	 </t>
+	 <t>
+	   Identity Providers MAY also allow the empty group to exist for a
+	   longer duration and delete only when necessary, such as when a new
+	   group is being created with a recycled name that requires cleanup of
+	   the prior record.
+	 </t>
+         <t>
+           To allow this behavior, Application Providers MUST support removing
+           all Group members via the SCIM operation
+           <spanx style="verb">PATCH Groups/{id}</spanx> with an
+           <spanx style="verb">Operation</spanx> element containing the
+           following contents:
+	   <list style="symbols">
+	     <t>
+	       The <spanx style="verb">op</spanx> attribute set to
+	       <spanx style="verb">"remove"</spanx>.
+	     </t>
+	     <t>
+	       The <spanx style="verb">path</spanx> attribute set to
+	       <spanx style="verb">"members"</spanx>.
+	     </t>
+	     <t>
+	       The <spanx style="verb">value</spanx> attribute 
+	       unspecified.
+	     </t>
+	   </list>
+         </t>
+         <t>
+           The following is a non-normative example of removing all Group
+           members:
+         </t>
+         <figure><artwork><![CDATA[
+ PATCH /Groups/{id}  HTTP/1.1
+ Host: example.com
+ Accept: application/scim+json
+ Content-Type: application/scim+json
+ Authorization: Bearer h480djs93hd8
+ Content-Length: ...
+
+ {
+   "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+   "Operations": [{
+       "op": "remove"
+       "path": "members"
+    }]
+}
+]]></artwork></figure>
+       </section>
+
+       <section anchor="SCIMInteroperabilityGroupProvisioningDeleteGroup"
+                title="Delete Group">
+         <t>
+           Group deletions are performed via the SCIM operation:
+           <spanx style="verb">DELETE Group/{id}</spanx>
+         </t>
+         <t>
+         </t>
+         <t>
+           The following is a non-normative example of deleting a Group:
+         </t>
+         <figure><artwork><![CDATA[
+ DELETE /Groups/{id}  HTTP/1.1
+ Host: example.com
+ Accept: application/scim+json
+ Content-Type: application/scim+json
+ Authorization: Bearer h480djs93hd8
+]]></artwork></figure>
+       </section>
+
+       <section anchor="SCIMInteroperabilityUserProvisioningGetGroupById"
+                title="Get Group By Id">
+         <t>
+           Group lookups by id are performed via the SCIM operation:
+           <spanx style="verb">GET /Group/{id}?excludedAttributes=members</spanx>
+         </t>
+         <t>
+           The following is a non-normative example of retrieving a Group by id:
+         </t>
+         <figure><artwork><![CDATA[
+ GET /Groups/{id}?excludedAttributes=members
+ Host: example.com
+ Accept: application/scim+json
+ Authorization: Bearer h480djs93hd8
+]]></artwork></figure>
+<figure><artwork><![CDATA[
+ HTTP/1.1 200 OK
+ Content-Type: application/scim+json
+
+ {
+   "schemas":["urn:ietf:params:scim:schemas:core:2.0:Group"],
+   "meta":{
+     "resourceType":"Group",
+     "created":"2011-08-01T18:29:49.793Z",
+     "lastModified":"2011-08-01T18:29:49.793Z",
+     "version":"W\/\"f250dd84f0671c3\""
+   },
+   "id":"d637f86b-9171-4b2b-9fa8-15d552604e6f",
+   "externalId": "530eb5eb-0ccf-4312-85d8-db1423a10b2a",
+   "displayName":"ExampleGroup"
+ }
+]]></artwork></figure>
+       </section>
+
+       <section anchor="SCIMInteroperabilityUserProvisioningSearchGroupsByAlternateIds"
+                title="List Groups By Alternate Identifier">
+         <t>
+           User lookups by alternate identifier are performed via the SCIM
+           operation:
+           <spanx style="verb">GET /Groups?filter={filterExpression}&amp;excludedAttributes=members</spanx>
+         </t>
+         <t>
+           Application Providers MUST support the following filter expressions:
+           <list style="symbols">
+             <t><spanx style="verb">displayName eq {displayName}</spanx></t>
+           </list>
+         </t>
+         <t>
+           The following is a non-normative example of retrieving Groups by
+           displayName:
+         </t>
+         <figure><artwork><![CDATA[
+ GET /Groups?filter=displayName+eq+ExampleGroup&excludedAttributes=members
+ Host: example.com
+ Accept: application/scim+json
+ Authorization: Bearer h480djs93hd8
+]]></artwork></figure>
+<figure><artwork><![CDATA[
+ HTTP/1.1 200 OK
+ Content-Type: application/scim+json
+
+ {
+   "schemas":["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
+   "totalResults":1,
+   "Resources":[
+     {
+       "schemas":["urn:ietf:params:scim:schemas:core:2.0:Group"],
+       "meta":{
+         "resourceType":"Group",
+         "created":"2011-08-01T18:29:49.793Z",
+         "lastModified":"2011-08-01T18:29:49.793Z",
+         "version":"W\/\"f250dd84f0671c3\""
+       },
+       "id":"d637f86b-9171-4b2b-9fa8-15d552604e6f",
+       "externalId": "530eb5eb-0ccf-4312-85d8-db1423a10b2a",
+       "displayName":"ExampleGroup"
+     }
+   ]
+ }
+]]></artwork></figure>
+       </section>
+
+
+       <section anchor="SCIMInteroperabilityGroupProvisioningUpdateGroupMembership"
+                title="Add or Remove Group Members">
+          <t>
+           Members are added or removed from Groups via the SCIM operation:
+           <spanx style="verb">PATCH /Groups/{id}</spanx>
+         </t>
+         <t>
+	   For each <spanx style="verb">Operation</spanx> in the PATCH:
+	   <list style="symbols">
+	     <t>
+	       The <spanx style="verb">op</spanx> attribute MUST
+	       contain either <spanx style="verb">"add"</spanx>
+	       or <spanx style="verb">"remove"</spanx>.
+	     </t>
+	     <t>
+	       When the <spanx style="verb">op</spanx> is <spanx style="verb">"add"</spanx>:
+	       <list style="symbols">
+		 <t>
+		   The <spanx style="verb">path</spanx> attribute MUST
+		   be <spanx style="verb">"members"</spanx>.
+		 </t>
+		 <t>
+		   The <spanx style="verb">value</spanx> attribute
+		   MUST be an array
+		   of Group <spanx style="verb">member</spanx> elements, as defined in Section
+		   4.2 of the SCIM Core Schema <xref target="RFC7643"/>. Each member
+		   MUST contain a
+		   <spanx style="verb">value</spanx> subattribute with
+		   the <spanx style="verb">id</spanx> of the resource being added to
+		   the group.
+		 </t>
+	       </list>
+	     </t>
+	     <t>
+	       When the <spanx style="verb">op</spanx> is <spanx style="verb">"remove"</spanx>:
+	       <list style="symbols">
+		 <t>
+		   The <spanx style="verb">path</spanx> attribute MUST be
+		   either:
+		   <list style="symbols">
+		     <t>
+		       <spanx style="verb">"members"</spanx> (to remove all members) 
+		     </t>
+		     <t>
+		       <spanx style="verb">"members[value eq \"{id}\"]"</spanx> (to remove a single member)
+		     </t>
+		   </list>
+		 </t>
+		 <t>
+		   The <spanx style="verb">value</spanx> attribute MUST be
+		   unspecified.
+		 </t>
+	       </list>
+	     </t>
+	   </list>
+	 </t>
+	 <t>
+	   The number of membership changes in a PATCH request MUST NOT exceed
+	   the value of
+	   <spanx style="verb">max_group_membership_changes</spanx>, as
+	   defined in <xref target="FastFedMetadataApplicationMetadata"/>. The
+	   number of changes is determined by counting the total members being
+	   added/removed, summed across all operations in the PATCH. The
+	   truncation of all members in the group via
+	   the <spanx style="verb">remove</spanx> operation on the
+	   <spanx style="verb">members</spanx> attribute is counted as
+	   one change, and if included, MUST be the first operation in the
+	   PATCH.
+	 </t>
+	 <t>
+	   If the Application Provider supports nested groups, as indicated by
+	   the attribute <spanx style="verb">can_support_nested_groups</spanx>
+	   defined in <xref target="FastFedMetadataApplicationMetadata"/>, the
+	   resource being added to the Group members MAY be either a User or
+	   Group. Alternatively, if the Application Provider does not support
+	   nested groups, the resource type MUST be a User.
+	 </t>
+	 <t>
+	   If an Administrator seeks to provision a nested group to an
+	   Application Provider that does not support nested groups, the
+	   handling of this scenario is an implementation detail outside the
+	   scope of the specification. As a reference to implementors, the
+	   Identity Provider can consider signaling an error to the
+	   Administrator, or flattening the nested group memberships into a
+	   single array for provisioning.
+	 </t>
+	 <t>
+	   The same resource <spanx style="verb">id</spanx> MUST NOT appear
+	   more than once in a single PATCH request. For example, a resource
+	   should not be added and removed in a single PATCH, or added
+	   multiple times.
+	 </t>
+	 <t>
+	   If any membership change in the PATCH results in an error,
+	   the Application Provider SHOULD stop processing and return the error
+	   response.
+	 </t>
+	 <t>
+	   If the Identity Provider receives an error response from the PATCH
+	   request, it SHOULD assume that none of the changes in the PATCH were
+	   committed and retry as appropriate.
+	 </t>
+	 <t>
+	   If the Application Provider receives a PATCH request to add a resource
+	   to a group to which the resource already belongs, or remove a
+	   resource from a group from which it doesn't belong, the Application
+	   Provider MUST behave idempotently and return a successful response.
+	 </t>
+         <t>
+           The following is a non-normative example of adding and removing members
+           of a Group:
+         </t>
+         <figure><artwork><![CDATA[
+ PATCH /Groups/{id}  HTTP/1.1
+ Host: example.com
+ Accept: application/scim+json
+ Content-Type: application/scim+json
+ Authorization: Bearer h480djs93hd8
+ Content-Length: ...
+ 
+ {
+   "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+   "Operations": [
+     {
+       "op": "remove",
+       "path": "members[value eq \"{user_id_1}\"]",
+     },
+     {
+       "op": "remove",
+       "path": "members[value eq \"{user_id_2}\"]",
+     },
+     {
+       "op": "add",
+       "path": "members",
+       "value": [
+         {"value": "{user_id_3}"},
+         {"value": "{user_id_4}"}
+       ]
+     }
+   ] 
+ }
+]]></artwork></figure>
+       </section>
+       
+     </section> <!-- End of "SCIM Interoperability Group Provisioning -->
+     
+     <section anchor="SCIMInteroperabilityMetadataEndpoints"
+              title="Metadata Endpoints">
+
+       <section anchor="SCIMInteroperabilityMetadataResourceTypes"
+		title="ResourceTypes">
+	 <t>
+	   Application Providers MUST host a /ResourceTypes endpoint, as defined in
+	   Section 4 of <xref target="RFC7644">RFC 7644</xref>.
+	 </t>
+	 <t>
+	   The supported ResourceTypes MUST include Users. It MAY include
+	   Groups.
+	 </t>
+       </section>
+
+       <section anchor="SCIMInteroperabilityMetadataServiceProviderConfig"
+                title="ServiceProviderConfig">
+	 <t>
+	   Application Providers MUST host a /ServiceProviderConfig endpoint to
+	   describe the operations they support, as defined in Section 4
+	   of <xref target="RFC7644">RFC 7644</xref>.
+	 </t>
+	 <t>
+	   The operations MUST include, at minimum, the set of SCIM capabilities required
+	   for compatibility with this FastFed Profile.
+	 </t>
+	 <t>
+	   Additional capabilities MAY be supported, but are not required for FastFed
+	   compatibility.
+	 </t>
+       </section>
+
+       <section anchor="SCIMInteroperabilityMetadataSchemas"
+		title="Schemas">
+
+	 <t>
+	   Application Providers MUST host a /Schemas endpoint to describe
+           the supported schemas, as defined in Section 4
+           of <xref target="RFC7644">RFC 7644</xref>.
+	 </t>
+	 <t>
+	   There MUST exist a schema definition for every attribute listed in
+           the <spanx style="verb">desired_attributes</spanx>, as
+           described in <xref target="FastFedMetadataApplicationMetadata"/>.
+         </t>
+       </section>
+
+     </section> <!-- End of "SCIM Interoperability Metadata Endpoints" --> 
+    
+    </section> <!-- End of Interoperability -->  
+  
+  <section anchor="AuthenticationExample" 
+	   title="Example Usage of the OAuth 2.0 JWT Profile">
+    <t>
+      The following end-to-end example illustrates the message flows when using
+      the authentication method
+      <spanx style="verb">"urn:ietf:params:fastfed:1.0:provider_authentication:oauth:2.0:jwt_profile"</spanx>.
+    </t>
+    <t>
+      This method enables a SCIM client to invoke a SCIM service using OAuth access tokens derived from
+      public/private key pairs.
+    </t>
+
+    <section anchor="IdentityProviderSharesPublicKey" title="Identity Provider
+      Shares Public Key">
+      <t>
+	As a first-step, the Identity
+	Provider shares a public key with the Application Provider in the form
+	of a JSON Web key Set <xref target="RFC7517">[JWK]</xref>. This occurs
+	during the FastFed Handshake (see "jwks_uri", below) and is
+	described in <xref target="FastFedHandshakeRegistrationRequest"/> of
+	this specification.
+      </t>
+<figure><artwork><![CDATA[
+ {
+   "iss": "https://tenant-12345.idp.example.com",
+   "aud": "https://tenant-67890.app.example.com",
+   "exp": 1234567890,
+   "schema_grammar": "urn:ietf:params:fastfed:1:0:schemas:scim:2.0",
+   "provisioning_profiles": [
+     "urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic"
+   ],
+   "urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic": {
+     "provider_contact_information": {
+       "organization": "Example Inc.",
+       "phone": "+1-800-555-5555",
+       "email": "support@example.com"
+     },
+     "provider_authentication_methods": {
+       "urn:ietf:params:fastfed:1.0:provider_authentication:oauth:2.0:jwt_profile": {
+         "jwks_uri": "https://provisioning.example.com/keys"
+       }
+     }
+   }
+ }
+]]></artwork></figure>
+      <t>
+	Upon receiving this information, the Application Provider may internally
+	perform an OAuth client registration in order to capture the provider's
+	contact information and <spanx style="verb">jwks_uri</spanx>, and
+	authorize the Provider to perform SCIM provisioning activities. This is
+	an implementation detail. FastFed does not require the exchange of an
+	OAuth clientID.
+      </t>
+    </section> <!-- End of Identity Provider Shares Public Key-->
+
+    <section anchor="ApplicationProviderSharesEndpoints" 
+	     title="Application Provider Shares SCIM and OAuth Endpoints">
+      <t>
+	Subsequently in the FastFed Handshake, the Application Provider returns
+	SCIM and OAuth metadata back to the Identity Provider. This is described
+	in <xref target="FastFedHandshakeRegistrationResponse"/> of
+        this specification.
+      </t>
+<figure><artwork><![CDATA[
+ {
+   "urn:ietf:params:fastfed:1.0:provisioning:scim:2.0:basic": {
+     "scim_service_uri": "https://tenant-56789.app.example.com/scim",
+     "provider_authentication_method": "urn:ietf:params:fastfed:1.0:provider_authentication:oauth:2.0:jwt_profile",
+     "urn:ietf:params:fastfed:1.0:provider_authentication:oauth:2.0:jwt_profile": {
+       "token_endpoint": "https://tenant-56789.app.example.com/oauth",
+       "scope": "scim"
+     }
+   }
+ }
+]]></artwork></figure>
+    </section> <!-- End of Application Provider Shares SCIM and OAuth Endpoints -->
+
+    <section anchor="IdentityProviderAcquiresOAuthToken"
+             title="Identity Provider Acquires an OAuth Access Token">
+      <t>
+	After the FastFed Handshake is complete and the Identity Provider is
+	ready to begin calling the SCIM endpoint, it must first acquire an OAuth
+	<spanx style="verb">access_token</spanx>. This will be used 
+	to authenticate to the SCIM endpoint.
+      </t>
+      <t>
+	The <spanx style="verb">access_token</spanx> is acquired by using the
+	JWT Authorization Grant Type. This grant type is defined
+	in <xref target="RFC7523">RFC 7523</xref>, and its usage within FastFed
+	is specified in Section 6.6 of the <xref target="FastFed.Core">FastFed
+	Core</xref> specification.
+      </t>
+      <t>
+	In essence, the Identity Provider sends a signed JWT to the OAuth
+	endpoint hosted by the Application Provider. If the JWT is valid and is
+	signed by an authorized party, an OAuth access_token is returned.
+      </t>
+      <t>
+	This is illustrated in the following steps. First, a JWT is constructed
+	with the following contents:
+      </t>
+<figure><artwork><![CDATA[
+ {                                                                                                                 
+   "iss": "https://tenant-12345.idp.example.com",                                                                                       
+   "aud": "https://tenant-56789.app.example.com",                                                                                       
+   "exp": 1234567890,            
+ }
+]]></artwork></figure>
+      <t>
+	Next, a request is made to the OAuth token endpoint, using the signed
+	and serialized JWT as the value of
+	the <spanx style="verb">assertion</spanx>.
+      </t>      
+<figure><artwork><![CDATA[
+ {
+     POST /oauth HTTP/1.1
+     Host: tenant-56789.app.example.com
+     Content-Type: application/x-www-form-urlencoded
+
+     grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+     &assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6IjE2In0.
+     eyJpc3Mi[...omitted for brevity...].
+     J9l-ZhwP[...omitted for brevity...]
+ }
+]]></artwork></figure>
+      <t>
+	In response, an OAuth token is returned:
+      </t>
+      <figure><artwork><![CDATA[
+     HTTP/1.1 200 OK
+     Content-Type: application/json;charset=UTF-8
+     Cache-Control: no-store
+     Pragma: no-cache
+
+     {
+       "access_token":"2YotnFZFEjr1zCsicMWpAA",
+       "token_type":"Bearer",
+       "expires_in":3600
+     }
+]]></artwork></figure>
+
+    </section> <!-- End of Identity Provider Fetches OAuth Access Token -->
+    
+    <section anchor="IdentityProviderUsesOAuthToken"
+             title="Identity Provider Uses the OAuth Access Token">
+      
+      <t>
+	Finally, the token can be used to authenticate to the SCIM endpoint:
+      </t>
+<figure><artwork><![CDATA[
+   POST scim/Users  HTTP/1.1
+   Host: tenant-56789.app.example.com
+   Accept: application/scim+json
+   Content-Type: application/scim+json
+   Authorization: Bearer 2YotnFZFEjr1zCsicMWpAA
+   Content-Length: ...
+
+   {
+     "schemas":["urn:ietf:params:scim:schemas:core:2.0:User"],
+     "userName":"bjensen",
+     "externalId":"bjensen",
+     "name":{
+       "formatted":"Ms. Barbara J Jensen III",
+       "familyName":"Jensen",
+       "givenName":"Barbara"
+     }
+   }
+]]></artwork></figure>
+    <t>
+      When the access token expires, the SCIM service returns an HTTP 401 response
+      code. The JWT Authorization Grant flow may then be re-executed to acquire
+      a new access token.
+</t>
+    </section> <!-- End of Identity Provider Uses OAuth Access Token -->
+  </section>
+        
+  <section anchor="Security" title="Security Considerations">
+    <t>
+      For SCIM security considerations, see <xref target="RFC7643">RFC
+      7643</xref> and <xref target="RFC7644">RFC 7644</xref>.
+    </t>
+    <t>
+      For FastFed security considerations, see Section 8
+      of <xref target="FastFed.Core">FastFed Core</xref>.
+    </t>
+  </section>
+  
+  <section anchor="IANA" title="IANA Considerations">
+    <t>
+      Pending
+    </t>
+  </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.2119"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7517"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7523"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7643"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7644"?>
+
+      <reference anchor="FastFed.Core" target="http://openid.net/specs/fastfed-core-1_0.html">
+        <front>
+          <title>FastFed Core 1.0</title>
+          <author fullname="Darin" initials="K." surname="McAdams">                         
+            <organization abbrev="Amazon">Amazon</organization>               
+          </author>
+          <date day="9" month="March" year="2020"/>
+        </front>
+      </reference>
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>
+	The OpenID Community would like to thank the following people for
+	their contributions to this specification:
+      </t>
+      <t>
+        <list style="empty">
+	  <t>
+	    Brian Campbell (bcampbell@pingidentity.com), Ping Identity
+	  </t>
+	  <t>
+	    Zhen Chien Chia (chiazhenchien@outlook.com), Microsoft
+	  </t>
+	  <t>
+	    Pamela Dingle (pamela.dingle@microsoft.com), Microsoft
+	  </t>
+	  <t>
+	    Matt Domsch (matt.domsch@sailpoint.com), SailPoint
+	  </t>
+	  <t>
+	    Wesley Dunnington (wesleydunnington@pingidentity.com), Ping Identity
+	  </t>
+	  <t>
+	    Erik Gustavson (erikgustavson@google.com), Google
+	  </t>
+	  <t>
+	    Dick Hardt (dick.hardt@gmail.com), Independent
+	  </t>
+	  <t>
+	    Romain Lenglet (rlenglet@google.com), Google
+	  </t>
+	  <t>
+	    Karl McGuinness (kmcguinness@okta.com), Okta
+	  </t>
+	  <t>
+	    Chuck Mortimore (cmortimore@salesforce.com), Salesforce
+	  </t>
+	  <t>
+	    Brian Rose (brian.rose@sailpoint.com), SailPoint
+	  </t>
+        </list>
+      </t>
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2020 The OpenID Foundation.</t>
+
+      <t>The OpenID Foundation (OIDF) grants to any Contributor, developer,
+      implementer, or other interested party a non-exclusive, royalty free,
+      worldwide copyright license to reproduce, prepare derivative works from,
+      distribute, perform and display, this Implementers Draft or Final
+      Specification solely for the purposes of (i) developing specifications,
+      and (ii) implementing Implementers Drafts and Final Specifications based
+      on such documents, provided that attribution be made to the OIDF as the
+      source of the material, but that such attribution does not indicate an
+      endorsement by the OIDF.</t>
+
+      <t>The technology described in this specification was made available
+      from contributions from various sources, including members of the OpenID
+      Foundation and others. Although the OpenID Foundation has taken steps to
+      help ensure that the technology is available for distribution, it takes
+      no position regarding the validity or scope of any intellectual property
+      or other rights that might be claimed to pertain to the implementation
+      or use of the technology described in this specification or the extent
+      to which any license under such rights might or might not be available;
+      neither does it represent that it has made any independent effort to
+      identify any such rights. The OpenID Foundation and the contributors to
+      this specification make no (and hereby expressly disclaim any)
+      warranties (express, implied, or otherwise), including implied
+      warranties of merchantability, non-infringement, fitness for a
+      particular purpose, or title, related to this specification, and the
+      entire risk as to implementing this specification is assumed by the
+      implementer. The OpenID Intellectual Property Rights policy requires
+      contributors to offer a patent promise not to assert certain patent
+      claims against other contributors and against implementers. The OpenID
+      Foundation invites any interested party to bring to its attention any
+      copyrights, patents, patent applications, or other proprietary rights
+      that may cover technology that may be required to practice this
+      specification.</t>
+    </section>
+    
+  </back>
+</rfc>

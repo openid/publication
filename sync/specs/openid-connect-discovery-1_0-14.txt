@@ -1,0 +1,1736 @@
+
+
+
+Draft                                                        N. Sakimura
+                                                                     NRI
+                                                              J. Bradley
+                                                           Ping Identity
+                                                                M. Jones
+                                                               Microsoft
+                                                                  E. Jay
+                                                                Illumila
+                                                          March 26, 2013
+
+
+                OpenID Connect Discovery 1.0 - draft 14
+
+Abstract
+
+   OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+   protocol.  It allows Clients to verify the identity of the End-User
+   based on the authentication performed by an Authorization Server, as
+   well as to obtain basic profile information about the End-User in an
+   interoperable and REST-like manner.
+
+   This specification provides a mechanism for the OpenID Connect Client
+   to discover the user's OpenID Provider as well as the necessary
+   endpoints used by the OpenID Connect protocol suite.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 1]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
+     1.1.  Requirements Notation and Conventions  . . . . . . . . . .  3
+     1.2.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  3
+   2.  OpenID Provider Discovery  . . . . . . . . . . . . . . . . . .  4
+     2.1.  Identifier Normalization . . . . . . . . . . . . . . . . .  4
+       2.1.1.  User Input Identifier Types  . . . . . . . . . . . . .  5
+       2.1.2.  Normalization Steps  . . . . . . . . . . . . . . . . .  5
+     2.2.  Non-Normative Examples . . . . . . . . . . . . . . . . . .  6
+       2.2.1.  User Input Using E-Mail Address Syntax . . . . . . . .  6
+       2.2.2.  User Input Using URL Syntax  . . . . . . . . . . . . .  7
+       2.2.3.  User Input Using Hostname and Port Syntax  . . . . . .  7
+   3.  OpenID Provider Metadata . . . . . . . . . . . . . . . . . . .  9
+   4.  Obtaining OpenID Provider Configuration Information  . . . . . 14
+     4.1.  OpenID Provider Configuration Request  . . . . . . . . . . 14
+     4.2.  OpenID Provider Configuration Response . . . . . . . . . . 15
+     4.3.  OpenID Provider Configuration Validation . . . . . . . . . 16
+   5.  String Operations  . . . . . . . . . . . . . . . . . . . . . . 17
+   6.  Implementation Considerations  . . . . . . . . . . . . . . . . 18
+   7.  Security Considerations  . . . . . . . . . . . . . . . . . . . 19
+     7.1.  TLS Requirements . . . . . . . . . . . . . . . . . . . . . 19
+   8.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 20
+     8.1.  Well-Known URI Registry  . . . . . . . . . . . . . . . . . 20
+       8.1.1.  Registry Contents  . . . . . . . . . . . . . . . . . . 20
+   9.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 21
+     9.1.  Normative References . . . . . . . . . . . . . . . . . . . 21
+     9.2.  Informative References . . . . . . . . . . . . . . . . . . 22
+   Appendix A.  Acknowledgements  . . . . . . . . . . . . . . . . . . 23
+   Appendix B.  Notices . . . . . . . . . . . . . . . . . . . . . . . 24
+   Appendix C.  Document History  . . . . . . . . . . . . . . . . . . 25
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 31
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 2]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+1.  Introduction
+
+   In order for an OpenID Client to utilize OpenID Connect services for
+   a user, the Client needs to know where the OpenID Provider is.
+   OpenID Connect uses WebFinger [I-D.ietf-appsawg-webfinger] to locate
+   the OpenID Provider for an End-User.
+
+   Once an OpenID Provider is identified, the endpoint and other
+   configuration information for that OP is retrieved from a well-known
+   location as a JSON document.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+1.2.  Terminology
+
+   This specification uses the terms "Access Token", "Refresh Token",
+   "Authorization Code", "Authorization Grant", "Authorization Server",
+   "Authorization Endpoint", "Client", "Client Identifier", "Client
+   Secret", "Protected Resource", "Resource Owner", "Resource Server",
+   and "Token Endpoint" defined by OAuth 2.0 [RFC6749], and the terms
+   defined by OpenID Connect Messages 1.0 [OpenID.Messages].
+
+   This specification also defines the following terms:
+
+   Resource  Entity that is the target of a request in WebFinger.
+
+   Host  Server where a WebFinger service is hosted.
+
+   Identifier  String that uniquely characterizes an entity in a
+      specific environment with defined boundary conditions in which
+      entities exist and interact.
+
+      Note: this document defines various kinds of Identifiers, designed
+      for use in different contexts.  Examples include URLs using the
+      "https" scheme and e-mail addresses.
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 3]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+2.  OpenID Provider Discovery
+
+   OpenID Provider discovery is optional; if a Relying Party knows the
+   OP information through an out-of-band mechanism, they can skip this
+   step and proceed to Section 4.
+
+   Provider discovery requires the following information to make a
+   discovery request:
+
+   Resource  Identifier of the target End-User that is the subject of
+      the discovery request.
+
+   Host  Server where a WebFinger service is hosted.
+
+   Rel  URI identifying the type of service whose location is requested.
+
+   OpenID Connect uses the following discoverable "rel" value in
+   WebFinger [I-D.ietf-appsawg-webfinger]:
+
+   +----------------------+--------------------------------------------+
+   | Rel Type             | URI                                        |
+   +----------------------+--------------------------------------------+
+   | OpenID Connect       | http://openid.net/specs/connect/1.0/issuer |
+   | Issuer               |                                            |
+   +----------------------+--------------------------------------------+
+
+   To start discovery of OpenID endpoints, the End-User supplies an
+   Identifier to the Client or Relying Party.  The Client applies the
+   normalization rules to the Identifier to determine the Resource and
+   Host.  Then it makes an HTTPS "GET" request to the Host's WebFinger
+   [I-D.ietf-appsawg-webfinger] endpoint with the "resource" and "rel"
+   parameters to obtain the location of the requested service.
+
+   The Issuer MUST be returned in the response.  This includes a URI
+   scheme (which MUST be "https"), a Host, and OPTIONALLY, a port.
+
+2.1.  Identifier Normalization
+
+   The purpose of normalization is to determine a normalized Resource
+   and Host from the user input Identifier.  This is then used as input
+   to WebFinger to discover the Issuer.
+
+   The user input Identifier SHOULD be a URL or URI relative reference
+   defined in RFC 3986 [RFC3986].  The user input Identifier MUST
+   include the authority component.
+
+   Note: A URI relative reference includes a string that looks like an
+   e-mail address in the form of "userinfo@host".  This is a valid
+
+
+
+Sakimura, et al.                                                [Page 4]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+   authority component of a URI but excludes various possible extra
+   strings allowed in "addr-spec" syntax of RFC 5322 [RFC5322].
+
+   The Identifier normalization rules MAY be extended by additional
+   specifications to enable other identifier types such as telephone
+   numbers or XRIs [XRI_Syntax_2.0] to also be used.
+
+2.1.1.  User Input Identifier Types
+
+   A user input Identifier can be categorized into the following types,
+   which require different normalization processes:
+
+   1.  User input Identifiers starting with the XRI [XRI_Syntax_2.0]
+       global context symbols ('=','@', and '!') are RESERVED.
+       Processing of these identifiers is out of scope for this
+       specification.
+
+   2.  All other user input Identifiers MUST be treated as a URI either
+       in the form of "scheme "://" authority path-abempty [ "?" query ]
+       [ "#" fragment ]" or "authority path-abempty [ "?" query ] [ "#"
+       fragment ]" per RFC 3986 [RFC3986].
+
+   Note: The user input Identifier may be in the form of
+   "userinfo@host".  For the user, this would normally be perceived as
+   being an e-mail address.  However, it is also a valid authority
+   section of a URI, and this specification treats it such as to exclude
+   various extra strings allowed in "addr-spec" of RFC 5322 [RFC5322].
+
+2.1.2.  Normalization Steps
+
+   A string of any other type is interpreted as a URI either the form of
+   "scheme "://" authority path-abempty [ "?" query ] [ "#" fragment ]"
+   or "authority path-abempty [ "?" query ] [ "#" fragment ]" per RFC
+   3986 [RFC3986] and is normalized according to the following rules:
+
+   1.  If the user input Identifier does not have an RFC 3986 [RFC3986]
+       "scheme" portion, the string is interpreted as "authority
+       path-abempty [ "?" query ] [ "#" fragment ]" of RFC 3986
+       [RFC3986].  In this case, the "https" scheme is assumed, and the
+       normalized URL will be formed by prefixing "https://" to the
+       string.
+
+   2.  If the resulting URL contains a fragment portion, it MUST be
+       stripped off together with the fragment delimiter character "#".
+
+   The WebFinger [I-D.ietf-appsawg-webfinger] Resource in this case is
+   the resulting URL, and the WebFinger Host is the authority component.
+
+
+
+
+Sakimura, et al.                                                [Page 5]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+   Note: Since the definition of "authority" in RFC 3986 [RFC3986] is "[
+   userinfo "@" ] host [ ":" port ]", it is legal to have a user input
+   identifier like "userinfo@host:port". e.g., "alice@example.com:8080".
+
+2.2.  Non-Normative Examples
+
+2.2.1.  User Input Using E-Mail Address Syntax
+
+   To find the Issuer for the given user input in the form of an e-mail
+   address "joe@example.com", the WebFinger parameters are as follows:
+
+   +---------------------+--------------------------------------------+
+   | WebFinger Parameter | Value                                      |
+   +---------------------+--------------------------------------------+
+   | resource            | acct:joe@example.com                       |
+   |                     |                                            |
+   | host                | example.com                                |
+   |                     |                                            |
+   | rel                 | http://openid.net/specs/connect/1.0/issuer |
+   +---------------------+--------------------------------------------+
+
+   Note that in this case, the "acct:" scheme
+   [I-D.ietf-appsawg-acct-uri] is prepended to the Identifier.
+
+   Following the WebFinger specification, the Client would make the
+   following request to get the discovery information (with line wraps
+   for display purposes only):
+
+     GET /.well-known/webfinger
+       ?resource=acct%3Ajoe%40example.com
+       &rel=http%3A%2F%2Fopenid.net%2Fspecs%2Fconnect%2F1.0%2Fissuer
+       HTTP/1.1
+     Host: example.com
+
+     HTTP/1.1 200 OK
+     Content-Type: application/jrd+json
+
+     {
+      "subject": "acct:joe@example.com",
+      "links":
+       [
+        {
+         "rel": "http://openid.net/specs/connect/1.0/issuer",
+         "href": "https://server.example.com"
+        }
+       ]
+     }
+
+
+
+
+Sakimura, et al.                                                [Page 6]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+2.2.2.  User Input Using URL Syntax
+
+   To find the Issuer for the given URL, "https://example.com/joe", the
+   WebFinger parameters are as follows:
+
+   +---------------------+--------------------------------------------+
+   | WebFinger Parameter | Value                                      |
+   +---------------------+--------------------------------------------+
+   | resource            | https://example.com/joe                    |
+   |                     |                                            |
+   | host                | example.com                                |
+   |                     |                                            |
+   | rel                 | http://openid.net/specs/connect/1.0/issuer |
+   +---------------------+--------------------------------------------+
+
+   Following the WebFinger specification, the Client would make the
+   following request to get the discovery information (with line wraps
+   for display purposes only):
+
+     GET /.well-known/webfinger
+       ?resource=https%3A%2F%2Fexample.com%2Fjoe
+       &rel=http%3A%2F%2Fopenid.net%2Fspecs%2Fconnect%2F1.0%2Fissuer
+       HTTP/1.1
+     Host: example.com
+
+     HTTP/1.1 200 OK
+     Content-Type: application/jrd+json
+
+     {
+      "subject": "https://example.com/joe",
+      "links":
+       [
+        {
+         "rel": "http://openid.net/specs/connect/1.0/issuer",
+         "href": "https://server.example.com"
+        }
+       ]
+     }
+
+2.2.3.  User Input Using Hostname and Port Syntax
+
+   If the user input is in the form of "host:port", e.g., example.com:
+   8080, then it is assumed as the authority component of the URL.
+
+   To find the Issuer for the given hostname, "example.com:8080", the
+   WebFinger parameters are as follows:
+
+
+
+
+
+Sakimura, et al.                                                [Page 7]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+   +---------------------+--------------------------------------------+
+   | WebFinger Parameter | Value                                      |
+   +---------------------+--------------------------------------------+
+   | resource            | https://example.com:8080/                  |
+   |                     |                                            |
+   | host                | example.com:8080                           |
+   |                     |                                            |
+   | rel                 | http://openid.net/specs/connect/1.0/issuer |
+   +---------------------+--------------------------------------------+
+
+   Following the WebFinger specification, the Client would make the
+   following request to get the discovery information (with line wraps
+   for display purposes only):
+
+     GET /.well-known/webfinger
+       ?resource=https%3A%2F%2Fexample.com%3A8080%2F
+       &rel=http%3A%2F%2Fopenid.net%2Fspecs%2Fconnect%2F1.0%2Fissuer
+       HTTP/1.1
+     Host: example.com:8080
+
+     HTTP/1.1 200 OK
+     Content-Type: application/jrd+json
+
+     {
+      "subject": "https://example.com:8080/",
+      "links":
+       [
+        {
+         "rel": "http://openid.net/specs/connect/1.0/issuer",
+         "href": "https://server.example.com"
+        }
+       ]
+     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 8]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+3.  OpenID Provider Metadata
+
+   OpenID Providers have metadata describing their configuration.  The
+   OpenID Provider Metadata values used by OpenID Connect are:
+
+   version  REQUIRED.  Version string of the provider response. "3.0" is
+      the expected value.
+
+   issuer  REQUIRED.  URL using the "https" scheme with no query or
+      fragment component that the OP asserts as its Issuer Identifier.
+
+   authorization_endpoint  OPTIONAL.  URL of the OP's Authentication and
+      Authorization Endpoint [OpenID.Messages].
+
+   token_endpoint  OPTIONAL.  URL of the OP's OAuth 2.0 Token Endpoint
+      [OpenID.Messages].
+
+   userinfo_endpoint  RECOMMENDED.  URL of the OP's UserInfo Endpoint
+      [OpenID.Messages].  This URL MUST use the "https" scheme and MAY
+      contain port, path, and query parameter components.
+
+   check_session_iframe  OPTIONAL.  URL of an OP endpoint that provides
+      a page to support cross-origin communications for session state
+      information with the RP Client, using the HTML5 postMessage API.
+      The page is loaded from an invisible iframe embedded in an RP page
+      so that it can run in the OP's security context.[OpenID.Session]
+
+   end_session_endpoint  OPTIONAL.  URL of the OP's endpoint that
+      initiates the user logout [OpenID.Session].
+
+   jwks_uri  OPTIONAL.  URL of the OP's JSON Web Key Set [JWK] document
+      that contains the Server's signing key(s) that are used for
+      signing responses to the Client.  The JWK Set MAY also contain the
+      Server's encryption key(s) that are used by the Client to encrypt
+      requests to the Server.  When both signing and encryption keys are
+      made available, a "use" (Key Use) parameter value is REQUIRED for
+      all keys in the document to indicate each key's intended usage.
+
+   registration_endpoint  RECOMMENDED.  URL of the OP's Dynamic Client
+      Registration Endpoint [OpenID.Registration].
+
+   scopes_supported  RECOMMENDED.  JSON array containing a list of the
+      OAuth 2.0 [RFC6749] scope values that this server supports.  The
+      server MUST support the "openid" scope value.
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 9]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+   response_types_supported  REQUIRED.  JSON array containing a list of
+      the OAuth 2.0 "response_type" values that this server supports.
+      The server MUST support the "code", "id_token", and the "token
+      id_token" response type values.
+
+   grant_types_supported  OPTIONAL.  JSON array containing a list of the
+      OAuth 2.0 grant type values that this server supports.  The server
+      MUST support the "authorization_code" and "implicit" grant type
+      values and MAY support the
+      "urn:ietf:params:oauth:grant-type:jwt-bearer" grant type defined
+      in OAuth JWT Bearer Token Profiles [OAuth.JWT].  If omitted, the
+      default value is "["authorization_code", "implicit"]".
+
+   acr_values_supported  OPTIONAL.  JSON array containing a list of the
+      Authentication Context Class References that this server supports.
+
+   subject_types_supported  REQUIRED.  JSON array containing a list of
+      the subject identifier types that this server supports.  Valid
+      types include "pairwise" and "public".
+
+   userinfo_signing_alg_values_supported  OPTIONAL.  JSON array
+      containing a list of the JWS [JWS] signing algorithms ("alg"
+      values) [JWA] supported by the UserInfo Endpoint to encode the
+      Claims in a JWT [JWT].
+
+   userinfo_encryption_alg_values_supported  OPTIONAL.  JSON array
+      containing a list of the JWE [JWE] encryption algorithms ("alg"
+      values) [JWA] supported by the UserInfo Endpoint to encode the
+      Claims in a JWT [JWT].
+
+   userinfo_encryption_enc_values_supported  OPTIONAL.  JSON array
+      containing a list of the JWE encryption algorithms ("enc" values)
+      [JWA] supported by the UserInfo Endpoint to encode the Claims in a
+      JWT [JWT].
+
+   id_token_signing_alg_values_supported  REQUIRED.  JSON array
+      containing a list of the JWS signing algorithms ("alg" values)
+      supported by the Authorization Server for the ID Token to encode
+      the Claims in a JWT [JWT].
+
+   id_token_encryption_alg_values_supported  OPTIONAL.  JSON array
+      containing a list of the JWE encryption algorithms ("alg" values)
+      supported by the Authorization Server for the ID Token to encode
+      the Claims in a JWT [JWT].
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 10]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+   id_token_encryption_enc_values_supported  OPTIONAL.  JSON array
+      containing a list of the JWE encryption algorithms ("enc" values)
+      supported by the Authorization Server for the ID Token to encode
+      the Claims in a JWT [JWT].
+
+   request_object_signing_alg_values_supported  OPTIONAL.  JSON array
+      containing a list of the JWS signing algorithms ("alg" values)
+      supported by the Authorization Server for the Request Object
+      described in Section 2.9 of OpenID Connect Messages 1.0
+      [OpenID.Messages].  These algorithms are used both when the
+      Request Object is passed by value (using the "request" parameter)
+      and when it is passed by reference (using the "request_uri"
+      parameter).  Servers SHOULD support "none" and "RS256".
+
+   request_object_encryption_alg_values_supported  OPTIONAL.  JSON array
+      containing a list of the JWE encryption algorithms ("alg" values)
+      supported by the Authorization Server for the Request Object
+      described in Section 2.9 of OpenID Connect Messages 1.0
+      [OpenID.Messages].  These algorithms are used both when the
+      Request Object is passed by value and when it is passed by
+      reference.
+
+   request_object_encryption_enc_values_supported  OPTIONAL.  JSON array
+      containing a list of the JWE encryption algorithms ("enc" values)
+      supported by the Authorization Server for the Request Object
+      described in Section 2.9 of OpenID Connect Messages 1.0
+      [OpenID.Messages].  These algorithms are used both when the
+      Request Object is passed by value and when it is passed by
+      reference.
+
+   token_endpoint_auth_methods_supported  OPTIONAL.  JSON array
+      containing a list of authentication methods supported by this
+      Token Endpoint.  The options are "client_secret_post",
+      "client_secret_basic", "client_secret_jwt", and "private_key_jwt",
+      as described in Section 2.2.1 of OpenID Connect Messages 1.0
+      [OpenID.Messages].  Other authentication methods may be defined by
+      extensions.  If omitted, the default is "client_secret_basic" --
+      the HTTP Basic Authentication Scheme as specified in Section 2.3.1
+      of OAuth 2.0 [RFC6749].
+
+   token_endpoint_auth_signing_alg_values_supported  OPTIONAL.  JSON
+      array containing a list of the JWS signing algorithms ("alg"
+      values) supported by the Token Endpoint for the "private_key_jwt"
+      and "client_secret_jwt" methods to encode the JWT [JWT].  Servers
+      SHOULD support "RS256".
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 11]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+   display_values_supported  OPTIONAL.  JSON array containing a list of
+      the "display" parameter values that the OpenID Provider supports.
+      These values are described in Section 2.1.1 of OpenID Connect
+      Messages 1.0 [OpenID.Messages].
+
+   claim_types_supported  OPTIONAL.  JSON array containing a list of the
+      Claim Types that the OpenID Provider supports.  These Claim Types
+      are described in Section 2.6 of OpenID Connect Messages 1.0
+      [OpenID.Messages].  Values defined by this specification are
+      "normal", "aggregated", and "distributed".  If not specified, the
+      implementation supports only "normal" Claims.
+
+   claims_supported  RECOMMENDED.  JSON array containing a list of the
+      Claim Names of the Claims that the OpenID Provider may be able to
+      supply values for.  Note that for privacy or other reasons, this
+      may not be an exhaustive list.
+
+   service_documentation  OPTIONAL.  URL of a page containing human-
+      readable information that developers might want or need to know
+      when using the OpenID Provider.  In particular, if the OpenID
+      Provider does not support Dynamic Client Registration, then
+      information on how to register Clients should be provided in this
+      documentation.
+
+   claims_locales_supported  OPTIONAL.  Languages and scripts supported
+      for values in Claims being returned, represented as a JSON array
+      of BCP47 [RFC5646] language tag values.  Not all languages and
+      scripts may be supported for all Claim values.
+
+   ui_locales_supported  OPTIONAL.  Languages and scripts supported for
+      the user interface, represented as a JSON array of BCP47 [RFC5646]
+      language tag values.
+
+   claims_parameter_supported  OPTIONAL.  Boolean value specifying
+      whether the OP supports use of the "claims" parameter, with "true"
+      indicating support.  If omitted, the default value is "false".
+
+   request_parameter_supported  OPTIONAL.  Boolean value specifying
+      whether the OP supports use of the "request" parameter, with
+      "true" indicating support.  If omitted, the default value is
+      "false".
+
+   request_uri_parameter_supported  OPTIONAL.  Boolean value specifying
+      whether the OP supports use of the "request_uri" parameter, with
+      "true" indicating support.  If omitted, the default value is
+      "true".
+
+
+
+
+
+Sakimura, et al.                                               [Page 12]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+   require_request_uri_registration  OPTIONAL.  Boolean value specifying
+      whether the OP requires any "request_uri" values used to be pre-
+      registered using the "request_uris" registration parameter.  Pre-
+      registration is REQUIRED when the value is "true".
+
+   op_policy_uri  OPTIONAL.  URL that the OpenID Provider provides to
+      the person registering the Client to read about the OP's
+      requirements on how the Relying Party may use the data provided by
+      the OP.  The registration process SHOULD display this URL to the
+      person registering the Client if it is given.
+
+   op_tos_uri  OPTIONAL.  URL that the OpenID Provider provides to the
+      person registering the Client to read about OpenID Provider's
+      terms of service.  The registration process SHOULD display this
+      URL to the person registering the Client if it is given.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 13]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+4.  Obtaining OpenID Provider Configuration Information
+
+   This step is optional.  The OpenID Provider endpoints and
+   configuration information may be obtained out-of-band.
+
+   Using the Issuer discovered in Section 2 or through direct
+   configuration, the OpenID Provider's configuration can be retrieved.
+
+   OpenID Providers MUST make a JSON document available at the path
+   formed by concatenating the string
+   "/.well-known/openid-configuration" to the Issuer.  The syntax and
+   semantics of ".well-known" are defined in RFC 5785 [RFC5785] and
+   apply to the Issuer value when it contains no path component.
+   "openid-configuration" MUST point to a JSON document compliant with
+   this specification.
+
+   OpenID Providers supporting discovery MUST support receiving
+   WebFinger requests via TLS.  See Section 7.1 for more information on
+   using TLS.
+
+4.1.  OpenID Provider Configuration Request
+
+   An OpenID Provider Configuration Document MUST be queried using an
+   HTTPS "GET" request at the previously specified path.
+
+   The Client would make the following request to the Issuer to get the
+   Configuration information, if the Issuer contains no path component.
+
+
+     GET /.well-known/openid-configuration HTTP/1.1
+     Host: example.com
+
+   If the Issuer value contains a path component, any terminating "/"
+   MUST be removed before appending "/.well-known/openid-configuration".
+   The Client would make the following request to the Issuer to get the
+   Configuration information, if the Issuer string were
+   "https://example.com/issuer1"
+
+
+     GET /issuer1/.well-known/openid-configuration HTTP/1.1
+     Host: example.com
+
+   Path components are allowed to support multiple issuers per host.
+   This is required in some multi-tenant hosting configurations.  This
+   use of ".well-known" is for supporting multiple issuers per host, and
+   unlike its use in RFC 5785 [RFC5785], it does not provide general
+   information about the host.
+
+
+
+
+Sakimura, et al.                                               [Page 14]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+4.2.  OpenID Provider Configuration Response
+
+   The response is a set of Claims about the OpenID Provider's
+   configuration, including all necessary endpoints, supported scopes,
+   and public key location information.  The response MUST return the
+   200 OK response code and a plain text JSON object that contains a set
+   of Claims as its members that are a subset of the Metadata values
+   defined in Section 3.  Other Claims MAY also be returned.
+
+   Claims that return multiple values are represented as JSON arrays.
+   Claims with zero elements MUST be omitted from the response.
+
+   The following is a non-normative example response:
+
+     {
+      "version": "3.0",
+      "issuer":
+        "https://server.example.com",
+      "authorization_endpoint":
+        "https://server.example.com/connect/authorize",
+      "token_endpoint":
+        "https://server.example.com/connect/token",
+      "token_endpoint_auth_methods_supported":
+        ["client_secret_basic", "private_key_jwt"],
+      "token_endpoint_alg_values_supported":
+        ["RS256", "ES256"],
+      "userinfo_endpoint":
+        "https://server.example.com/connect/userinfo",
+      "check_session_iframe":
+        "https://server.example.com/connect/check_session",
+      "end_session_endpoint":
+        "https://server.example.com/connect/end_session",
+      "jwks_uri":
+        "https://server.example.com/jwks.json",
+      "registration_endpoint":
+        "https://server.example.com/connect/register",
+      "scopes_supported":
+        ["openid", "profile", "email", "address",
+         "phone", "offline_access"],
+      "response_types_supported":
+        ["code", "code id_token", "id_token", "token id_token"],
+      "acr_values_supported":
+        ["urn:mace:incommon:iap:silver",
+         "urn:mace:incommon:iap:bronze"],
+      "subject_types_supported":
+        ["public", "pairwise"],
+      "userinfo_signing_alg_values_supported":
+        ["RS256", "ES256", "HS256"],
+
+
+
+Sakimura, et al.                                               [Page 15]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+      "userinfo_encryption_alg_values_supported":
+        ["RSA1_5", "A128KW"],
+      "userinfo_encryption_enc_values_supported":
+        ["A128CBC+HS256", "A128GCM"],
+      "id_token_signing_alg_values_supported":
+        ["RS256", "ES256", "HS256"],
+      "id_token_encryption_alg_values_supported":
+        ["RSA1_5", "A128KW"],
+      "id_token_encryption_enc_values_supported":
+        ["A128CBC+HS256", "A128GCM"],
+      "request_object_signing_alg_values_supported":
+        ["none", "RS256", "ES256"],
+      "display_values_supported":
+        ["page", "popup"],
+      "claim_types_supported":
+        ["normal", "distributed"],
+      "claims_supported":
+        ["sub", "iss", "auth_time", "acr",
+         "name", "given_name", "family_name", "nickname",
+         "profile", "picture", "website",
+         "email", "email_verified", "locale", "zoneinfo",
+         "http://example.info/claims/groups"],
+      "claims_parameter_supported":
+        true,
+      "service_documentation":
+        "http://server.example.com/connect/service_documentation.html",
+      "ui_locales_supported":
+        ["en-US", "en-GB", "en-CA", "fr-FR", "fr-CA"]
+     }
+
+4.3.  OpenID Provider Configuration Validation
+
+   If any of the validation procedures defined in this specification
+   fail, any operations requiring the information that failed to
+   correctly validate MUST be aborted and the information that failed to
+   validate MUST NOT be used.
+
+   If the configuration response contains the Issuer element, the value
+   MUST exactly match the Issuer for the URL that was directly used to
+   retrieve the configuration.  Since the discovery process allows for
+   multiple levels of redirection, this Issuer URL may be different from
+   the one originally used to begin the discovery process.
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 16]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+5.  String Operations
+
+   Processing some OpenID Connect messages requires comparing values in
+   the messages to known values.  For example, the member names in the
+   provider configuration response might be compared to specific member
+   names such as "issuer".  Comparing Unicode strings, however, has
+   significant security implications.
+
+   Therefore, comparisons between JSON strings and other Unicode strings
+   MUST be performed as specified below:
+
+   1.  Remove any JSON applied escaping to produce an array of Unicode
+       code points.
+
+   2.  Unicode Normalization [USA15] MUST NOT be applied at any point to
+       either the JSON string or to the string it is to be compared
+       against.
+
+   3.  Comparisons between the two strings MUST be performed as a
+       Unicode code point to code point equality comparison.
+
+   In several places, this specification uses space delimited lists of
+   strings.  In all such cases, only the ASCII space character (0x20)
+   MAY be used for this purpose.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 17]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+6.  Implementation Considerations
+
+   This specification defines features used by both Relying Parties and
+   OpenID Providers that choose to implement Discovery.  All of these
+   Relying Parties and OpenID Providers MUST implement the features that
+   are listed in this specification as being "REQUIRED" or are described
+   with a "MUST".  No other implementation considerations for
+   implementations of Discovery are defined by this specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 18]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+7.  Security Considerations
+
+7.1.  TLS Requirements
+
+   Implementations MUST support TLS.  Which version(s) ought to be
+   implemented will vary over time, and depend on the widespread
+   deployment and known security vulnerabilities at the time of
+   implementation.  At the time of this writing, TLS version 1.2
+   [RFC5246] is the most recent version, but has very limited actual
+   deployment, and might not be readily available in implementation
+   toolkits.  TLS version 1.0 [RFC2246] is the most widely deployed
+   version, and will give the broadest interoperability.
+
+   To protect against information disclosure and tampering,
+   confidentiality protection MUST be applied using TLS with a
+   ciphersuite that provides confidentiality and integrity protection.
+
+   Whenever TLS is used, a TLS server certificate check MUST be
+   performed, per RFC 6125 [RFC6125].
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 19]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+8.  IANA Considerations
+
+8.1.  Well-Known URI Registry
+
+   This specification registers the well-known URI defined in Section 4
+   in the IANA Well-Known URI registry defined in RFC 5785 [RFC5785].
+
+8.1.1.  Registry Contents
+
+   o  URI suffix: "openid-configuration"
+   o  Change controller: OpenID Foundation Artifact Binding Working
+      Group - openid-specs-ab@lists.openid.net
+   o  Specification document: Section 4 of this document
+   o  Related information: (none)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 20]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+9.  References
+
+9.1.  Normative References
+
+   [I-D.ietf-appsawg-acct-uri]
+              Saint-Andre, P., "The 'acct' URI Scheme",
+              draft-ietf-appsawg-acct-uri-03 (work in progress),
+              February 2013.
+
+   [I-D.ietf-appsawg-webfinger]
+              Jones, P., Salgueiro, G., and J. Smarr, "WebFinger",
+              draft-ietf-appsawg-webfinger-10 (work in progress),
+              February 2013.
+
+   [JWA]      Jones, M., "JSON Web Algorithms (JWA)",
+              draft-ietf-jose-json-web-algorithms (work in progress),
+              December 2012.
+
+   [JWE]      Jones, M., Rescorla, E., and J. Hildebrand, "JSON Web
+              Encryption (JWE)", draft-ietf-jose-json-web-encryption
+              (work in progress), December 2012.
+
+   [JWK]      Jones, M., "JSON Web Key (JWK)",
+              draft-ietf-jose-json-web-key (work in progress),
+              December 2012.
+
+   [JWS]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web
+              Signature (JWS)", draft-ietf-jose-json-web-signature (work
+              in progress), December 2012.
+
+   [JWT]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token
+              (JWT)", draft-ietf-oauth-json-web-token (work in
+              progress), December 2012.
+
+   [OAuth.JWT]
+              Jones, M., Campbell, B., and C. Mortimore, "JSON Web Token
+              (JWT) Bearer Token Profiles for OAuth 2.0",
+              draft-ietf-oauth-jwt-bearer (work in progress),
+              December 2012.
+
+   [OpenID.Messages]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B.,
+              Mortimore, C., and E. Jay, "OpenID Connect Messages 1.0",
+              March 2013.
+
+   [OpenID.Registration]
+              Sakimura, N., Bradley, J., and M. Jones, "OpenID Connect
+              Dynamic Client Registration 1.0", March 2013.
+
+
+
+Sakimura, et al.                                               [Page 21]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+   [OpenID.Session]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              N. Agarwal, "OpenID Connect Session Management 1.0",
+              March 2013.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC2246]  Dierks, T. and C. Allen, "The TLS Protocol Version 1.0",
+              RFC 2246, January 1999.
+
+   [RFC3986]  Berners-Lee, T., Fielding, R., and L. Masinter, "Uniform
+              Resource Identifier (URI): Generic Syntax", STD 66,
+              RFC 3986, January 2005.
+
+   [RFC5246]  Dierks, T. and E. Rescorla, "The Transport Layer Security
+              (TLS) Protocol Version 1.2", RFC 5246, August 2008.
+
+   [RFC5322]  Resnick, P., Ed., "Internet Message Format", RFC 5322,
+              October 2008.
+
+   [RFC5646]  Phillips, A. and M. Davis, "Tags for Identifying
+              Languages", BCP 47, RFC 5646, September 2009.
+
+   [RFC5785]  Nottingham, M. and E. Hammer-Lahav, "Defining Well-Known
+              Uniform Resource Identifiers (URIs)", RFC 5785,
+              April 2010.
+
+   [RFC6125]  Saint-Andre, P. and J. Hodges, "Representation and
+              Verification of Domain-Based Application Service Identity
+              within Internet Public Key Infrastructure Using X.509
+              (PKIX) Certificates in the Context of Transport Layer
+              Security (TLS)", RFC 6125, March 2011.
+
+   [RFC6749]  Hardt, D., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, October 2012.
+
+   [USA15]    Davis, M., Whistler, K., and M. Duerst, "Unicode
+              Normalization Forms", Unicode Standard Annex 15, 09 2009.
+
+9.2.  Informative References
+
+   [XRI_Syntax_2.0]
+              Reed, D. and D. McAlpin, "Extensible Resource Identifier
+              (XRI) Syntax V2.0", November 2005.
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 22]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+Appendix A.  Acknowledgements
+
+   This specification is the work of the OpenID AB/Connect Working
+   Group, which includes dozens of active and dedicated participants.
+   In particular, the following individuals contributed ideas, feedback,
+   and wording that influenced this specification:
+
+   Andrew Arnott, Dirk Balfanz, Casper Biering, John Bradley, Johnny
+   Bufu, Brian Campbell, Blaine Cook, Pamela Dingle, Vladimir Dzhuvinov,
+   George Fletcher, Dick Hardt, Roland Hedberg, Edmund Jay, Michael B.
+   Jones, Torsten Lodderstedt, Nov Matake, Breno de Medeiros, Chuck
+   Mortimore, Anthony Nadalin, Axel Nennker, John Panzer, Justin Richer,
+   Nat Sakimura, Owen Shepherd, Andreas Solberg, and Kick Willemse.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 23]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+Appendix B.  Notices
+
+   Copyright (c) 2013 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 24]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+Appendix C.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -14
+
+   o  Fixed #801 - Removed "schema" and "id" parameters to UserInfo
+      Endpoint.
+
+   -13
+
+   o  Added Security Considerations section about TLS version
+      requirements and usage.
+
+   o  Removed language about supporting other transport-layer mechanisms
+      with equivalent security to TLS.
+
+   o  State that when any validations fail, any operations requiring the
+      information that failed to correctly validate MUST be aborted and
+      the information that failed to validate MUST NOT be used.
+
+   o  Change from Content-Type application/json to application/jrd+json,
+      tracking the change made in WebFinger.
+
+   o  Fixed #768 - Added required "version" value to example response.
+
+   o  Fixed #771 - Added required "x509_url" value to example response.
+
+   o  Fixed #769 - Added Claim Type identifiers and definition.
+
+   o  Fixed #770 - Added "claims_locales_supported" and
+      "ui_locales_supported".
+
+   o  Fixed #781 - Added "require_request_uri_registration" discovery
+      parameter.
+
+   o  Fixed #772 - Added "op_policy_url" and "op_tos_url".
+
+   o  Fixed #782 - Changed uses of "_url" in identifiers to "_uri".
+
+   o  Fixed #703 - Added the PKIX JWK key type for X.509 certificates
+      and consolidated the "x509_uri", "x509_encryption_uri", and
+      "jwk_encryption_uri" parameters into a combined "jwk_uri"
+      parameter.
+
+   o  Fixed #786 - Changed the name of "jwk_uri" to "jwks_uri".
+
+
+
+
+
+Sakimura, et al.                                               [Page 25]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+   o  Moved OP metadata list to its own section.
+
+   o  Added the "grant_types_supported" discovery parameter.
+
+   o  Added the "claims_parameter_supported",
+      "request_parameter_supported", and
+      "request_uri_parameter_supported" discovery parameters.
+
+   o  Fixed #788 - Renamed "OpenID Request Object" to "Request Object".
+
+   o  Use legal "acr" values in examples.
+
+   -12
+
+   o  Made the OpenID Foundation Artifact Binding Working Group the
+      change controller for the values registered with IANA.
+
+   o  Added "display_values_supported", "claim_types_supported", and
+      "claims_supported" discovery elements, fixing issue #656.
+
+   o  Added Implementation Considerations section.
+
+   o  Fixed #656 - Changed "token_endpoint_auth_type" to
+      "token_endpoint_auth_method" and
+      "token_endpoint_auth_types_supported" to
+      "token_endpoint_auth_methods_supported".
+
+   o  Fixed #697 - Added "service_documentation" to enable OPs not
+      supporting dynamic registration to say how to register clients.
+
+   o  Fixed #698 - Inconsistent use of articles.
+
+   o  Fixed #628 - Defined REQUIRED, RECOMMENDED, and OPTIONAL discovery
+      elements.
+
+   o  Naming consistency changes.  Renamed "check_session_iframe_url" to
+      "check_session_iframe" and "end_session_endpoint_url" back to
+      "end_session_endpoint".
+
+   o  Fixed #705 - Switched from using Simple Web Discovery to WebFinger
+      [I-D.ietf-appsawg-webfinger].  This also means that Identifiers
+      using e-mail address syntax are prefixed by the "acct:" scheme
+      when passed as "resource" parameters to WebFinger.
+
+   -11
+
+   o  Fixed #687 - Inconsistency between "user_id" and "prn" claims.
+      The fix changed these names: user_id -> sub,
+
+
+
+Sakimura, et al.                                               [Page 26]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+      user_id_types_supported -> subject_types_supported, user_id_type
+      -> subject_type, and prn -> sub.
+
+   o  Renamed "acrs_supported" to "acr_values_supported" for naming
+      consistency.
+
+   o  Fixed #676 Allow port number to be specified for e-mail syntax
+      identifiers.
+
+   o  Improved the fix for #625 Scheme extraction.
+
+   o  Clarified that "jwk_url" and "jwk_encryption_url" refer to
+      documents containing JWK Sets - not single JWK keys.
+
+   -10
+
+   o  Fixed #621 Changed Identifier definition
+
+   o  Fixed #625 Scheme extraction
+
+   o  Fixed #652 Identifier normalization
+
+   o  Fixed #640 Added check_session_endpoint and end_session_endpoint
+
+   o  Fixed #627 Configuration response must be 200 OK
+
+   o  updated OAuth reference
+
+   o  Clarify the use of .well-known as part of a path for multi-tenant
+
+   o  Fixes #665 Add client_secret_jwt to
+      token_endpoint_auth_algs_supported
+
+   o  Fixed #614 - Discovery - 3.2 Distinguishing between signature and
+      integrity parameters for HMAC algorithms.  This fix tracks the
+      parameter changes made to the JWE spec in
+      draft-ietf-jose-json-web-encryption-06.  It deletes the parameters
+      {userinfo,id_token}_encrypted_response_int.  It replaces the
+      parameters
+      {userinfo,id_token,request_object,token_endpoint}_algs_supported
+      with {userinfo,id_token,request_object,token_endpoint}_signing_alg
+      _values_supported and {userinfo,id_token,request_object,token_endp
+      oint}_encryption_{alg,enc}_values_supported.
+
+   o  Fixed #666 - JWS signature validation vs. verification.
+
+   o  Removed section on Redirection, since it was removed from Simple
+      Web Discovery in favor of the "simple-web-discovery" domain
+
+
+
+Sakimura, et al.                                               [Page 27]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+      prefix.
+
+   o  Referenced OAuth 2.0 RFC -- RFC 6749.
+
+   -09
+
+   o  Removed Check ID Endpoint, per issue #570
+
+   o  Added PAPE Reference to the Informative References, per issue #574
+
+   o  Added "id_token" response type as being MTI for OpenID Providers
+
+   o  Changed default OpenID Request Object signing algorithm to RS256,
+      per issue #571
+
+   o  Use standards track version of JSON Web Token spec
+      (draft-ietf-oauth-json-web-token)
+
+   -08
+
+   o  Remove the no path component restriction from issuer, per issue
+      #513
+
+   o  Updated Notices
+
+   o  Updated References
+
+   -07
+
+   o  Rename iso29115_supported to acrs_supported
+
+   o  Rename jwk_document to jwk_url
+
+   o  specify full email address to be used for the principal parameter
+
+   o  Added token_endpoint_auth_types_supported for list of Token
+      Endpoint authentication types
+
+   o  Added token_endpoint_auth_algs_supported for Token Endpoint
+      supported authentication algorithms
+
+   o  Added 'pairwise' and 'public' to supported identifier types
+
+   o  Added valid signature and encryption algorithms for OpenID Request
+      Object
+
+   o  Added URLs for JWK and X509 encryption keys
+
+
+
+
+Sakimura, et al.                                               [Page 28]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+   o  Use RFC 6125 to verify TLS endpoints
+
+   o  Removed fallback mechanism when discovery endpoint is unreachable
+
+   o  Removed Account URI scheme
+
+   o  Changed 'contact' to 'contacts', 'redirect_uri' to 'redirect_uris'
+
+   o  Added section about string comparison rules needed
+
+   o  Allows extensions to identifier normalization via specifications
+
+   o  Clarifies the host in a URL
+
+   o  Update John Bradley email and affiliation for Implementer's Draft
+
+   o  Change flows_supported to response_types_supported
+
+   o  Register openid-configuration .well-known path in IANA
+      Considerations
+
+   o  Corrected instances of x509_url_encryption to x509_encryption_url
+      and jwk_url_encryption to jwk_encryption_url
+
+   -06
+
+   o  Changed Check Session Endpoint to Check ID Endpoint to match
+      Basic.
+
+   o  Changed certs_url to x509_url to match registration and JWE
+      format.
+
+   -05
+
+   o  Ticket #46 Added text to 3.3
+
+   o  Deleted duplicate check session endpoint from 4.2
+
+   o  Ticket #40 Added clarification of issuer url to 4.2
+
+   o  Ticket #39 Cleaned up issuer examples and added verification text.
+
+   -04
+
+   o  Changes associated with renaming "Lite" to "Basic Client" and
+      replacing "Core" and "Framework" with "Messages" and "Standard".
+
+
+
+
+
+Sakimura, et al.                                               [Page 29]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+   o  Numerous cleanups, including updating references.
+
+   -03
+
+   o  Corrected examples.
+
+   -02
+
+   o  Correct issues raised by Johnny Bufu and discussed on the 7-Jul-11
+      working group call.
+
+   -01
+
+   o  Incorporate working group decisions from 5-Jul-11 spec call.
+
+   o  Consistency and cleanup pass, including removing unused
+      references.
+
+   -00
+
+   o  Initial version based upon former openid-connect-swd-1_0 spec.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 30]
+
+                      OpenID Connect Discovery 1.0            March 2013
+
+
+Authors' Addresses
+
+   Nat Sakimura
+   Nomura Research Institute, Ltd.
+
+   Email: n-sakimura@nri.co.jp
+
+
+   John Bradley
+   Ping Identity
+
+   Email: ve7jtb@ve7jtb.com
+
+
+   Michael B. Jones
+   Microsoft
+
+   Email: mbj@microsoft.com
+
+
+   Edmund Jay
+   Illumila
+
+   Email: ejay@mgi1.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 31]
+

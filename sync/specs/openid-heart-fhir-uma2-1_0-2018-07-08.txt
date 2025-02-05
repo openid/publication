@@ -1,0 +1,504 @@
+
+
+
+
+                                                          J. Richer, Ed.
+                                                            July 8, 2018
+
+
+ Health Relationship Trust Profile for Fast Healthcare Interoperability
+                    Resources (FHIR) UMA 2 Resources
+                       openid-heart-fhir-uma-2_0
+
+Abstract
+
+   FHIR is an HTTP-based, resource-oriented RESTful API based on a set
+   of clinical, administrative, financial, and infrastructure resource
+   definitions.  The API supports create, read, update, delete, and
+   search operations, as well as a framework for ad-hoc operations.
+
+   The User-Managed Access (UMA) 2.0 protocol framework defines a
+   mechanism to allow a resource owner to delegate access to a protected
+   resource for a client application used by a requesting party
+   (identified by a set of claims), optionally limited by a set of
+   scopes.
+
+   This specification profiles the resource types and claim types to be
+   used with the FHIR protocol to increase baseline security, provide
+   greater interoperability, and structure deployments in a manner
+   specifically applicable to (but not limited to) the healthcare
+   domain.
+
+1.  Introduction
+
+   This document profiles the UMA 2 authorization framework for use in
+   the context of securing Representational State Transfer (RESTful)
+   interfaces using the Fast Health Interoperable Resources (FHIR)
+   protocol.  The FHIR UMA 2.0 profile defined in this document serve to
+   define a baseline set of UMA resource types, scopes, and claims
+   suitable for a wide range of use cases, while maintaining reasonable
+   ease of implementation and functionality.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in RFC
+   2119 [RFC2119].
+
+   All uses of JSON Web Signature (JWS) [RFC7517] and JSON Web
+   Encryption (JWE) [RFC7518] data structures in this specification
+   utilize the JWS Compact Serialization or the JWE Compact
+
+
+
+
+Richer                   Expires January 9, 2019                [Page 1]
+
+                             HEART FHIR UMA2                   July 2018
+
+
+   Serialization; the JWS JSON Serialization and the JWE JSON
+   Serialization are not used.
+
+1.2.  Terminology
+
+   This specification uses the terms "Access Token", "Authorization
+   Code", "Authorization Endpoint", "Authorization Grant",
+   "Authorization Server", "Client", "Client Authentication", "Client
+   Identifier", "Client Secret", "Grant Type", "Protected Resource",
+   "Redirection URI", "Refresh Token", "Resource Owner", "Resource
+   Server", "Response Type", and "Token Endpoint" defined by OAuth 2.0
+   [RFC6749], the terms "Claim Name", "Claim Value", and "JSON Web Token
+   (JWT)" defined by JSON Web Token (JWT) [RFC7519], and the terms
+   defined by OpenID Connect Core 1.0 [OpenID.Core].
+
+2.  Resource Registration
+
+   Resource sets MUST be registered by the resource server at the
+   authorization server before they can be accessed by clients.
+
+   Resources MUST be structured in such a way that an unauthorized
+   request to the resource (with no access token) can be unambiguously
+   mapped to an authorization server.
+
+2.1.  Resource Types
+
+   Resource sets MUST include a "type" identifier describing the kind of
+   FHIR resources being protected, based on the FHIR compartment or
+   resource that fits the data being protected.
+
+   For compartments, this value SHALL be a URL of the form
+   "http://www.hl7.org/fhir/
+   compartmentdefinition-<compartmentname>.html", where
+   "<compartmentname>" is the FHIR compartment type designation as found
+   on "http://www.hl7.org/fhir/compartmentdefinition.html".
+
+   For resources, this value SHALL be a URL in the form
+   "http://www.hl7.org/fhir/<resourcename>.html", where "<resourcename>"
+   is the FHIR resource type designation as found on
+   "http://www.hl7.org/fhir/resourcelist.html".
+
+2.2.  Scopes
+
+   Resource sets MUST specify at least one resource access scope as
+   defined in section 2 of [HEART.OAuth2.FHIR].
+
+
+
+
+
+
+Richer                   Expires January 9, 2019                [Page 2]
+
+                             HEART FHIR UMA2                   July 2018
+
+
+   Additionally, the resource MAY use any of the scopes defined in
+   [HEART.OAuth2.FHIR] section 3 regarding confidentiality and
+   sensitivity, or in section 4 regarding emergency (break the glass).
+
+3.  Claims Presentation
+
+   For determining access to healthcare records, it's useful to define a
+   standard set of claims that can be used across domains to represent
+   common access conditions.  The following claims are defined as
+   additional claims to be included in a user's OpenID Connect ID token
+   or UserInfo Endpoint response.
+
+   The claims used for processing MUST be considered in the context of
+   the issuer of these claims.  The method by which an authorization
+   server determines which issuers are allowed to make which claims is
+   out of scope of this specification.
+
+3.1.  Membership in an organization
+
+   To include all members of an organization, such as a hospital,
+   include the "org" claim.
+
+   org  Array of machine-readable URIs representing organizations that
+      the user is a part of.
+
+   If the value of "org" is the same as the "iss" of the ID token, it
+   SHOULD be taken as authoritative in determining membership.
+
+3.2.  Professional credentialing status
+
+   To reference licenses, accreditations, or other professional
+   credentials held by the current user, include the "pro" claim.  These
+   are generally for things such as specific medical licenses or
+   degrees.
+
+   pro  Array of machine-readable values representing the professional
+      credential held by the current user.
+
+   Each "pro" value consists of a JSON object with the following
+   members:
+
+   src  URI representing the authority conveying the professional
+      credential on the user, such as a state or regulatory group
+
+   val  String value representing the nature of the processional
+      credential held.
+
+
+
+
+
+Richer                   Expires January 9, 2019                [Page 3]
+
+                             HEART FHIR UMA2                   July 2018
+
+
+   The value of the professional credential is dependent on and
+   potentially defined in the context of the authoritative source.  An
+   example list of professional values can be found at
+   "http://www.hl7.org/fhir/v2/0360/2.7/index.html".
+
+   The means by which a given organization is trusted to convey a given
+   professional status to an organization is outside the scope of this
+   document.  Note that the "src" claim here is likely to be different
+   from the "iss" of the ID token, and the means by which an issuer is
+   trusted to assert holding of accreditation from a particular source
+   is outside the scope of this specification.
+
+3.3.  Specific identification of parties
+
+   To reference an individual, an authorization server MAY use the email
+   claim.
+
+   To determine which server is authoritative for a given email domain
+   at runtime, an authorization server MAY take the target email address
+   and perform a webfinger [RFC7033] lookup of the OpenID Connect
+   issuer.  The discovered issuer SHOULD be considered canonical for
+   email addresses from that domain.
+
+3.4.  Emergency access
+
+   Those with a need for emergency access can be flagged with the "er"
+   claim.
+
+   er Boolean indicating, if present and true, that the current user has
+      emergency responder status and SHOULD be given access to records
+      for emergency use without requiring the input of the resource
+      owner by the way of a "break the glass" emergency access policy
+      (see Section 4.1)
+
+4.  Policy Development
+
+   While a wide range of policies and policy engines are available to
+   implementors, there are some general recommendations regarding the
+   use of such policies with medical records.
+
+   An authorization server SHOULD provision a newly registered resource
+   set with a default-deny policy, such that sharing is allowed only
+   when the resource owner explicitly shares it.
+
+   Authorization servers MUST provide resource owners with the means to
+   set policies based on any of the claims in this document referencing
+   any of the scopes allowed in Section 2.2.
+
+
+
+
+Richer                   Expires January 9, 2019                [Page 4]
+
+                             HEART FHIR UMA2                   July 2018
+
+
+   Authorization servers MUST provide a means for resource owners to
+   audit which policies are in effect at any protected resources
+   controlled by the resource owner.
+
+4.1.  "Break the glass" emergency access policies
+
+   Authorization servers SHOULD provide a mechanism to specify a policy
+   to accept certain flags, including but not limited to the "er" claim
+   provided by trusted identity providers, to gain access to the
+   resource set without direct involvement by the resource owner.  This
+   type of policy MUST include access to the "btg" scope specified in
+   the HEART OAuth FHIR profile [HEART.OAuth2.FHIR].
+
+5.  Security considerations
+
+   All claims presented to an authorization server need to be taken in
+   the context of the presenter and issuer of the claim, and therefore
+   trusted only in so much as the issuer is trusted to assert such
+   claims.  For example, an end user run identity provider should not be
+   considered the canonical source for medical license information,
+   unless the authorization server accepting the assertions has an
+   external relationship with that identity provider that provides such
+   trust.
+
+6.  Privacy considerations
+
+   Since the initial request for a resource is made in an unauthorized
+   and unauthenticated context, such requests are by definition open to
+   all users.  The response of that request includes a pointer to the
+   authorization server to query for an access token and present claims.
+   If it is known out of band that authorization server is owned and
+   controlled by a single user, or visiting the authorization server
+   contains other identifying information, then an unauthenticated and
+   unauthorized client would be able to tell which resource owner is
+   associated with a given resource.  In the FHIR API, this means that a
+   client would be able to discern which patient a given record is for
+   without being authorized for that information and without the
+   resource server giving that information explicitly.  Other
+   information about the resource owner, such as organizational
+   affiliation or group membership, may be gained from this transaction
+   as well.
+
+7.  Normative References
+
+   [HEART.OAuth2]
+              Richer, J., Ed., "Health Relationship Trust Profile for
+              OAuth 2.0", February 2016,
+              <http://openid.net/specs/openid-heart-oauth2-1_0.html>.
+
+
+
+Richer                   Expires January 9, 2019                [Page 5]
+
+                             HEART FHIR UMA2                   July 2018
+
+
+   [HEART.OAuth2.FHIR]
+              Richer, J., Ed., "Health Relationship Trust Profile for
+              OAuth 2.0", February 2017,
+              <http://openid.net/specs/openid-heart-oauth2-fhir.html>.
+
+   [OpenID.Core]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Core 1.0", November 2014.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC2246]  Dierks, T. and C. Allen, "The TLS Protocol Version 1.0",
+              RFC 2246, DOI 10.17487/RFC2246, January 1999,
+              <https://www.rfc-editor.org/info/rfc2246>.
+
+   [RFC3986]  Berners-Lee, T., Fielding, R., and L. Masinter, "Uniform
+              Resource Identifier (URI): Generic Syntax", STD 66,
+              RFC 3986, DOI 10.17487/RFC3986, January 2005,
+              <https://www.rfc-editor.org/info/rfc3986>.
+
+   [RFC5246]  Dierks, T. and E. Rescorla, "The Transport Layer Security
+              (TLS) Protocol Version 1.2", RFC 5246,
+              DOI 10.17487/RFC5246, August 2008,
+              <https://www.rfc-editor.org/info/rfc5246>.
+
+   [RFC5322]  Resnick, P., Ed., "Internet Message Format", RFC 5322,
+              DOI 10.17487/RFC5322, October 2008,
+              <https://www.rfc-editor.org/info/rfc5322>.
+
+   [RFC5646]  Phillips, A., Ed. and M. Davis, Ed., "Tags for Identifying
+              Languages", BCP 47, RFC 5646, DOI 10.17487/RFC5646,
+              September 2009, <https://www.rfc-editor.org/info/rfc5646>.
+
+   [RFC5785]  Nottingham, M. and E. Hammer-Lahav, "Defining Well-Known
+              Uniform Resource Identifiers (URIs)", RFC 5785,
+              DOI 10.17487/RFC5785, April 2010,
+              <https://www.rfc-editor.org/info/rfc5785>.
+
+   [RFC6125]  Saint-Andre, P. and J. Hodges, "Representation and
+              Verification of Domain-Based Application Service Identity
+              within Internet Public Key Infrastructure Using X.509
+              (PKIX) Certificates in the Context of Transport Layer
+              Security (TLS)", RFC 6125, DOI 10.17487/RFC6125, March
+              2011, <https://www.rfc-editor.org/info/rfc6125>.
+
+
+
+
+Richer                   Expires January 9, 2019                [Page 6]
+
+                             HEART FHIR UMA2                   July 2018
+
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <https://www.rfc-editor.org/info/rfc6749>.
+
+   [RFC6750]  Jones, M. and D. Hardt, "The OAuth 2.0 Authorization
+              Framework: Bearer Token Usage", RFC 6750,
+              DOI 10.17487/RFC6750, October 2012,
+              <https://www.rfc-editor.org/info/rfc6750>.
+
+   [RFC6819]  Lodderstedt, T., Ed., McGloin, M., and P. Hunt, "OAuth 2.0
+              Threat Model and Security Considerations", RFC 6819,
+              DOI 10.17487/RFC6819, January 2013,
+              <https://www.rfc-editor.org/info/rfc6819>.
+
+   [RFC7033]  Jones, P., Salgueiro, G., Jones, M., and J. Smarr,
+              "WebFinger", RFC 7033, DOI 10.17487/RFC7033, September
+              2013, <https://www.rfc-editor.org/info/rfc7033>.
+
+   [RFC7517]  Jones, M., "JSON Web Key (JWK)", RFC 7517,
+              DOI 10.17487/RFC7517, May 2015,
+              <https://www.rfc-editor.org/info/rfc7517>.
+
+   [RFC7518]  Jones, M., "JSON Web Algorithms (JWA)", RFC 7518,
+              DOI 10.17487/RFC7518, May 2015,
+              <https://www.rfc-editor.org/info/rfc7518>.
+
+   [RFC7519]  Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token
+              (JWT)", RFC 7519, DOI 10.17487/RFC7519, May 2015,
+              <https://www.rfc-editor.org/info/rfc7519>.
+
+Appendix A.  Acknowledgements
+
+   The OpenID Community would like to thank the following people for
+   their contributions to this specification:
+
+   Sarah Squire, Eve Maler, Luis Maas, Thomas Sullivan, Nancy Lush
+
+Appendix B.  Notices
+
+   Copyright (c) 2017 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+
+
+
+Richer                   Expires January 9, 2019                [Page 7]
+
+                             HEART FHIR UMA2                   July 2018
+
+
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+Appendix C.  Purpose of Use
+
+   The ability to specify information be made available for a specific
+   purpose of use is key to many different medical information use
+   cases.  For example, a patient might determine that some things are
+   available for research, while others are only available for
+   treatment.  At this time, these specifications do not define methods
+   for indicating purpose of use beyond the "emergency access" claim
+   defined in Section 3.4 and the "break the glass" mechanism defined in
+   Section 4.1.  The working group anticipates that expansion of this
+   mechanism in implementations, which could lead to expansions of this
+   protocol going forward.
+
+Appendix D.  Document History
+
+   -2017-05-25
+
+   o  Changed purpose of use examples from roles to actions
+
+   -2017-05-15
+
+   o  Added note on purpose of use
+
+
+
+Richer                   Expires January 9, 2019                [Page 8]
+
+                             HEART FHIR UMA2                   July 2018
+
+
+   -2017-04-29
+
+   o  Minor wording tweak.
+
+   -2017-04-18
+
+   o  Changed resource types to point to compartments instead of
+      individual resource types
+
+   o  Changed scopes to point to HEART OAuth FHIR scopes in entirety
+      instead of being broken out
+
+   o  Removed purpose of use claim (pou)
+
+   o  Added a link to an example set of professional credential claims
+
+   o  Added security considerations for claim provenance
+
+   -2017-03-20
+
+   o  Clarified "er" scope
+
+   o  Added reference to confidentiality and sensitivity scopes in
+      HEART.OAuth.FHIR
+
+   o  Changed "licenses" to "professional credentials"
+
+   -2017-02-24
+
+   o  Added section on claims
+
+   o  Added section on policy development
+
+   -2017-02-10
+
+   o  Added scope and resource type requirements
+
+   o  Created first semantic UMA profile
+
+Author's Address
+
+   Justin Richer (editor)
+
+   Email: openid@justin.richer.org
+
+
+
+
+
+
+
+Richer                   Expires January 9, 2019                [Page 9]

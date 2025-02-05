@@ -1,0 +1,728 @@
+
+
+
+Draft                                                B. de Medeiros, Ed.
+                                                            M. Scurtescu
+                                                                  Google
+                                                               P. Tarjan
+                                                                Facebook
+                                                            May 25, 2012
+
+
+     OAuth 2.0 Multiple Response Type Encoding Practices - draft 05
+
+Abstract
+
+   This specification aims to provide guidance on proper encoding of
+   responses to OAuth 2.0 Authorization requests, where the request
+   specifies a response type that includes space characters.
+
+   This specification also serves as the registration document for
+   several specific new response types, in accordance with the
+   stipulations of the OAuth Parameters Registry.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 1]
+
+                    OAuth 2.0 Multiple Response Types           May 2012
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
+     1.1.  Requirements Notation and Conventions  . . . . . . . . . .  3
+     1.2.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  3
+   2.  Encoding Multiple-Valued Response Types  . . . . . . . . . . .  4
+   3.  ID Token Response Type . . . . . . . . . . . . . . . . . . . .  5
+   4.  None Response Type . . . . . . . . . . . . . . . . . . . . . .  6
+   5.  Registration of Some Multiple-Valued Response Type
+       Combinations . . . . . . . . . . . . . . . . . . . . . . . . .  7
+   6.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . .  8
+   7.  Normative References . . . . . . . . . . . . . . . . . . . . .  9
+   Appendix A.  Acknowledgements  . . . . . . . . . . . . . . . . . . 10
+   Appendix B.  Notices . . . . . . . . . . . . . . . . . . . . . . . 11
+   Appendix C.  Document History  . . . . . . . . . . . . . . . . . . 12
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 13
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 2]
+
+                    OAuth 2.0 Multiple Response Types           May 2012
+
+
+1.  Introduction
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119] .
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+1.2.  Terminology
+
+   This specification uses the terms "Access Token", "Refresh Token",
+   "Authorization Code", "Authorization Grant", "Authorization Server",
+   "Authorization Endpoint", "Client", "Client Identifier", "Client
+   Secret", "Protected Resource", "Resource Owner", "Resource Server",
+   and "Token Endpoint" defined by OAuth 2.0 [OAuth2.0].  This
+   specification also defines the following terms:
+
+   Client and Server  In the traditional client-server authentication
+      model, the client requests an access restricted resource
+      (Protected Resource) on the server by authenticating with the
+      server using the Resource Owner's credentials.
+
+   Authorization Endpoint  A web resource maintained by the server, and
+      used to obtain authorization (grant) from the Resource Owner via
+      User-Agent redirection.
+
+   Response Type  The Client informs the Authorization Server of the
+      desired authorization processing flow using the parameter
+      "response_type".
+
+   Authorization Endpoint Response Type Registry  Process established by
+      the OAuth 2.0 specification for the registration of new
+      "response_type" parameters.
+
+   Multiple-Valued Response Types  The OAuth 2.0 specification allows
+      for registration of space-separated "response_type" values.  If a
+      response type contains one of more space characters (%20), it is
+      compared as a space-delimited list of values in which the order of
+      values does not matter.
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 3]
+
+                    OAuth 2.0 Multiple Response Types           May 2012
+
+
+2.  Encoding Multiple-Valued Response Types
+
+   This specification does not provide guidance if, in a request,
+   "response_type" includes a value that requires the server to return
+   data partially encoded in the query string and partially encoded in
+   the fragment.
+
+   Otherwise, if a multiple-valued response type is defined, then it is
+   RECOMMENDED that the following encoding rules be applied for the
+   issued response.
+
+   If, in a request, "response_type" includes only values that require
+   the server to return data fully encoded within the query string then
+   the returned data in the response for this multiple-valued
+   "response_type" MUST be fully encoded within the query string.  This
+   recommendation applies to both success and error responses.
+
+   If, in a request, "response_type" includes any value that requires
+   the server to return data fully encoded within the fragment then the
+   returned data in the response for this multiple-valued
+   "response_type" MUST be fully encoded within the fragment.  This
+   recommendation applies to both success and error responses.
+
+   Rationale: Whenever "response_type" values include fragment-encoded
+   parts, a User-Agent Client component must be involved to complete
+   processing of the response.  If a new query parameter is added to the
+   Client URI, it will cause the User-Agent to re-fetch the Client URI,
+   causing discontinuity of operation of the User-Agent based Client
+   components.  If only fragment encoding is used, the User-Agent will
+   simply reactivate the Client component, which can then process the
+   fragment and also convey any parameters to a Client host as
+   necessary, e.g., via XmlHttpRequest.  Therefore, full fragment
+   encoding always results in lower latency for response processing.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 4]
+
+                    OAuth 2.0 Multiple Response Types           May 2012
+
+
+3.  ID Token Response Type
+
+   This section registers a new response type, the "id_token", in
+   accordance with the stipulations in the OAuth 2.0 specification,
+   Section 8.4.  The intended purpose of the "id_token" is that it MUST
+   provide an assertion of the identity of the Resource Owner as
+   understood by the server.  The assertion MUST specify a targeted
+   audience, e.g. the requesting Client.  However, the specific
+   semantics of the assertion and how it can be validated are not
+   specified in this document.
+
+   id_token  If supplied as the "response_type" parameter in an OAuth
+      2.0 Authorization Request, a successful response should include
+      the parameter "id_token" encoded in the fragment of the response
+      URI.
+
+   Returning the "id_token" in a fragment reduces the likelihood that
+   the "id_token" leaks during transport and mitigates the associated
+   risks to the privacy of the user (Resource Owner).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 5]
+
+                    OAuth 2.0 Multiple Response Types           May 2012
+
+
+4.  None Response Type
+
+   This section registers the response type none, in accordance with the
+   stipulations in the OAuth 2.0 specification, Section 8.4.  The
+   intended purpose is to enable use cases where a party requests the
+   server to register a grant of access to a Protected Resource on
+   behalf of a Client but requires no access credentials to be returned
+   to the Client at that time.  The means by which the Client eventually
+   obtains the access credentials is left unspecified here.
+
+   One scenario is where a user wishes to purchase an application from a
+   market, and desires to authorize application installation and grant
+   the application access to Protected Resources in a single step.
+   However, since the user is not presently interacting with the (not
+   yet active) application, it is not appropriate to return access
+   credentials simultaneously in the authorization step.
+
+   none  When supplied as the "response_type" parameter in an OAuth 2.0
+      authorization request, the Authorization Server SHOULD NOT return
+      an OAuth 2.0 "code" nor a "token" in a successful response to the
+      grant request.  If a "redirect_uri" is supplied, the User-Agent
+      SHOULD be redirected there after granting or denying access.  The
+      request MAY include a state parameter, and if so the server MUST
+      echo its value by adding it to the "redirect_uri" when issuing a
+      successful response.  Any parameters added to the "redirect_uri"
+      should be query encoded.  This applies to both successful
+      responses and error responses.
+
+   The response type none SHOULD NOT be combined with other response
+   types.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 6]
+
+                    OAuth 2.0 Multiple Response Types           May 2012
+
+
+5.  Registration of Some Multiple-Valued Response Type Combinations
+
+   This section registers combinations of the values "code", "token",
+   and "id_token", which are each individually registered response
+   types.
+
+   code token  When supplied as the value for the "response_type"
+      parameter, a successful response MUST include both an Access Token
+      and an Authorization Code as defined in the OAuth 2.0
+      specification.  Both successful and error responses SHOULD be
+      fragment-encoded.
+
+   code id_token  When supplied as the value for the "response_type"
+      parameter, a successful response MUST include both an
+      Authorization Code as well as an "id_token".  Both success and
+      error responses SHOULD be fragment-encoded.
+
+   id_token token  When supplied as the value for the "response_type"
+      parameter, a successful response MUST include both an Access Token
+      as well as an "id_token".  Both success and error responses SHOULD
+      be fragment-encoded.
+
+   code id_token token  When supplied as the value for the
+      "response_type" parameter, a successful response MUST include an
+      Authorization Code, an "id_token", and an Access Token.  Both
+      success and error responses SHOULD be fragment-encoded.
+
+   A non-normative request/response example as issued/received by the
+   User-Agent:
+   GET https://server.example.com/authorize?
+   response_type=token%20id_token
+   &client_id=s6BhdRkqt3
+   &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+   &state=af0ifjsldkj HTTP/1.1
+   HTTP/1.1 302 Found
+   Location: https://client.example.org/cb#
+   access_token=SlAV32hkKG
+   &token_type=bearer
+   &id_token=eyJ0 ... NiJ9.eyJ1c ... I6IjIifX0.DeWt4Qu ... ZXso
+   &expires_in=3600
+   &state=af0ifjsldkj
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 7]
+
+                    OAuth 2.0 Multiple Response Types           May 2012
+
+
+6.  IANA Considerations
+
+   This document makes no requests of IANA.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 8]
+
+                    OAuth 2.0 Multiple Response Types           May 2012
+
+
+7.  Normative References
+
+   [OAuth2.0]
+              Hammer, E., Ed., Recordon, D., and D. Hardt, "OAuth 2.0
+              Authorization Protocol", May 2012.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                             [Page 9]
+
+                    OAuth 2.0 Multiple Response Types           May 2012
+
+
+Appendix A.  Acknowledgements
+
+   The OpenID Community would like to thank the following people for the
+   work they've done in the drafting and editing of this specification.
+
+      Naveen Agarwal (naa@google.com), Google
+
+      John Bradley (ve7jtb@ve7jtb.com), Ping Identity
+
+      Michael B. Jones (mbj@microsoft.com), Microsoft
+
+      Breno de Medeiros (breno@google.com), Google
+
+      Nat Sakimura (n-sakimura@nri.co.jp), Nomura Research Institute,
+      Ltd.
+
+      David Recordon (dr@fb.com), Facebook
+
+      Marius Scurtescu (mscurtescu@google.com), Google
+
+      Paul Tarjan (pt@fb.com), Facebook
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                            [Page 10]
+
+                    OAuth 2.0 Multiple Response Types           May 2012
+
+
+Appendix B.  Notices
+
+   Copyright (c) 2012 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                            [Page 11]
+
+                    OAuth 2.0 Multiple Response Types           May 2012
+
+
+Appendix C.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -05
+
+   o  Changed client.example.com to client.example.org, per issue #251
+
+   -04
+
+   o  Updated Notices
+
+   -03
+
+   o  Use same section number structure as the OpenID Connect specs
+
+   -02
+
+   o  Editorial corrections
+
+   -01
+
+   o  Initial draft
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                            [Page 12]
+
+                    OAuth 2.0 Multiple Response Types           May 2012
+
+
+Authors' Addresses
+
+   Breno (editor)
+   Google, Inc.
+
+   Email: breno@google.com
+
+
+   Marius
+   Google, Inc.
+
+   Email: mscurtescu@google.com
+
+
+   Paul
+   Facebook
+
+   Email: pt@fb.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+de Medeiros, et al.                                            [Page 13]
+

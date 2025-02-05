@@ -1,0 +1,2689 @@
+
+
+
+Draft                                                        D. Recordon
+                                                                VeriSign
+                                                                 J. Hoyt
+                                                                 JanRain
+                                                                D. Hardt
+                                                                    Sxip
+                                                          B. Fitzpatrick
+                                                               Six Apart
+                                                        October 13, 2006
+
+
+                  OpenID Authentication 2.0 - Draft 10
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                                [Page 1]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+Abstract
+
+   OpenID Authentication provides a way to prove that an End User owns
+   an Identifier.  It does this without the Relying Party needing access
+   to password, email address, or other sensitive information.
+
+   OpenID is decentralized.  No central authority must approve or
+   register Relying Parties or Identity Providers.  An End User can
+   freely choose which Identity Provider to use.  They can preserve
+   their Identifier if they switch Identity Providers.
+
+   While nothing in the protocol requires JavaScript or modern browsers,
+   the authentication scheme plays nicely with "AJAX"-style setups, so
+   an End User can prove their Identity to a Relying Party without
+   having to leave the page they are on.
+
+   OpenID Authentication uses only standard HTTP requests and responses,
+   so does not require any special capabilities of the User-Agent or
+   other software.
+
+   The exchange of profile information, and other features not covered
+   in this specification, is addressed through additional Service Types
+   built on top of OpenID.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                                [Page 2]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+Table of Contents
+
+   1.  Requirements Notation  . . . . . . . . . . . . . . . . . . . .  5
+   2.  Terminology  . . . . . . . . . . . . . . . . . . . . . . . . .  6
+   3.  Protocol Overview  . . . . . . . . . . . . . . . . . . . . . .  7
+   4.  Data Formats . . . . . . . . . . . . . . . . . . . . . . . . .  8
+     4.1.  Protocol Messages  . . . . . . . . . . . . . . . . . . . .  8
+       4.1.1.  Key-Value Form Encoding  . . . . . . . . . . . . . . .  8
+       4.1.2.  HTTP Encoding  . . . . . . . . . . . . . . . . . . . .  8
+       4.1.3.  Example  . . . . . . . . . . . . . . . . . . . . . . .  8
+     4.2.  Integer Representations  . . . . . . . . . . . . . . . . .  9
+   5.  Communication Types  . . . . . . . . . . . . . . . . . . . . . 10
+     5.1.  Direct Communication . . . . . . . . . . . . . . . . . . . 10
+       5.1.1.  Direct Request . . . . . . . . . . . . . . . . . . . . 10
+       5.1.2.  Direct Response  . . . . . . . . . . . . . . . . . . . 10
+     5.2.  Indirect Communication . . . . . . . . . . . . . . . . . . 11
+       5.2.1.  HTTP Redirect  . . . . . . . . . . . . . . . . . . . . 11
+       5.2.2.  HTML FORM Redirection  . . . . . . . . . . . . . . . . 11
+       5.2.3.  Indirect Error Responses . . . . . . . . . . . . . . . 11
+   6.  Generating Signatures  . . . . . . . . . . . . . . . . . . . . 13
+   7.  Signatures . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+     7.1.  Signature Algorithms . . . . . . . . . . . . . . . . . . . 14
+     7.2.  Procedure  . . . . . . . . . . . . . . . . . . . . . . . . 14
+   8.  Initiation and Discovery . . . . . . . . . . . . . . . . . . . 15
+     8.1.  Initiation . . . . . . . . . . . . . . . . . . . . . . . . 15
+     8.2.  Normalization  . . . . . . . . . . . . . . . . . . . . . . 15
+     8.3.  Discovery  . . . . . . . . . . . . . . . . . . . . . . . . 15
+       8.3.1.  Discovered Information . . . . . . . . . . . . . . . . 16
+       8.3.2.  XRDS-Based Discovery . . . . . . . . . . . . . . . . . 16
+       8.3.3.  HTML-Based Discovery . . . . . . . . . . . . . . . . . 18
+   9.  Establishing Associations  . . . . . . . . . . . . . . . . . . 19
+     9.1.  Association Session Request  . . . . . . . . . . . . . . . 19
+     9.2.  Association Session Response . . . . . . . . . . . . . . . 20
+       9.2.1.  Common Response Parameters . . . . . . . . . . . . . . 20
+       9.2.2.  Unencrypted Response Parameters  . . . . . . . . . . . 21
+       9.2.4.  Unsuccessful Response Parameters . . . . . . . . . . . 21
+     9.3.  Association Types  . . . . . . . . . . . . . . . . . . . . 22
+       9.3.1.  HMAC-SHA1  . . . . . . . . . . . . . . . . . . . . . . 22
+       9.3.2.  HMAC-SHA256  . . . . . . . . . . . . . . . . . . . . . 22
+     9.4.  Association Session Types  . . . . . . . . . . . . . . . . 22
+   10. Requesting Authentication  . . . . . . . . . . . . . . . . . . 24
+     10.1. Request Parameters . . . . . . . . . . . . . . . . . . . . 24
+     10.2. Realms . . . . . . . . . . . . . . . . . . . . . . . . . . 25
+     10.3. Immediate Requests . . . . . . . . . . . . . . . . . . . . 26
+   11. Responding to Authentication Requests  . . . . . . . . . . . . 27
+     11.1. Positive Assertions  . . . . . . . . . . . . . . . . . . . 27
+     11.2. Negative Assertions  . . . . . . . . . . . . . . . . . . . 29
+       11.2.1. In Response to Immediate Requests  . . . . . . . . . . 29
+
+
+
+Recordon, et al.                                                [Page 3]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+       11.2.2. In Response to Non-Immediate Requests  . . . . . . . . 30
+   12. Verifying Assertions . . . . . . . . . . . . . . . . . . . . . 31
+     12.1. Checking the Nonce . . . . . . . . . . . . . . . . . . . . 31
+     12.2. Verifying Signatures . . . . . . . . . . . . . . . . . . . 31
+     12.3. Verifying Discovered Information . . . . . . . . . . . . . 33
+     12.4. Identifying the End User . . . . . . . . . . . . . . . . . 33
+       12.4.1. HTTP and HTTPS URL Identifiers . . . . . . . . . . . . 34
+   13. OpenID Authentication 1.1 Compatibility  . . . . . . . . . . . 35
+     13.1. Relying Parties  . . . . . . . . . . . . . . . . . . . . . 35
+     13.2. Identity Providers . . . . . . . . . . . . . . . . . . . . 35
+   14. Extensions . . . . . . . . . . . . . . . . . . . . . . . . . . 37
+   15. Discovering OpenID Relying Parties . . . . . . . . . . . . . . 38
+   16. Security Considerations  . . . . . . . . . . . . . . . . . . . 39
+     16.1. Preventing Attacks . . . . . . . . . . . . . . . . . . . . 39
+       16.1.1. Eavesdropping Attacks  . . . . . . . . . . . . . . . . 39
+       16.1.2. Man-in-the-Middle Attcks . . . . . . . . . . . . . . . 39
+     16.2. User Agents  . . . . . . . . . . . . . . . . . . . . . . . 40
+     16.3. User Interface Considerations  . . . . . . . . . . . . . . 40
+   Appendix A.   Examples . . . . . . . . . . . . . . . . . . . . . . 41
+   Appendix A.1. Delegation . . . . . . . . . . . . . . . . . . . . . 41
+   Appendix A.2. XRDS . . . . . . . . . . . . . . . . . . . . . . . . 41
+   Appendix A.3. HTML Identifier Markup . . . . . . . . . . . . . . . 41
+   Appendix A.4. Login Form . . . . . . . . . . . . . . . . . . . . . 41
+   Appendix A.5. XRI CanonicalID  . . . . . . . . . . . . . . . . . . 42
+   Appendix B.   Diffie-Hellman Key Exchange Default Value  . . . . . 43
+   Appendix C.   Changes from the Previous OpenID Authentication
+                 Specification  . . . . . . . . . . . . . . . . . . . 44
+   Appendix C.1. Updated Initiation and Discovery . . . . . . . . . . 44
+   Appendix C.2. Security improvements  . . . . . . . . . . . . . . . 44
+   Appendix C.3. Extensions . . . . . . . . . . . . . . . . . . . . . 44
+   17. Normative References . . . . . . . . . . . . . . . . . . . . . 46
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 48
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                                [Page 4]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+1.  Requirements Notation
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119].
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                                [Page 5]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+2.  Terminology
+
+   Identifier:  An Identifier is a URL or XRI [1].  An "Identifier" may
+      be a Claimed Identifier, Delegate Identifier, IdP Identifier, or
+      Verified Identifier, depending on context.
+
+   End User:  The person who wants to prove ownership of an Identifier.
+
+   User-Agent:  The End User's Web browser.  See [RFC2616].
+
+   Claimed Identifier:  An Identifier that the End User claims to own
+      that has not yet been verified by the Relying Party.
+
+   Verified Identifier:  An Identifier that the End User has proven to a
+      Relying Party that they own.
+
+   Delegate Identifier:  An alternate Identifier that can be included in
+      the discovery response.
+
+   Relying Party:  RP.  A Web application that wants proof that the End
+      User owns an Identifier.
+
+   Identity Provider:  IdP.  This is the OpenID Authentication server
+      that a Relying Party contacts for cryptographic proof that the End
+      User owns an Identifier.
+
+   IdP Identifier:  An Identifier which represents an IdP.
+
+   Diffie-Hellman Key Exchange:  Diffie-Hellman Key Exchange [RFC2631]
+      is a protocol that allows two parties to share a secret, while
+      preventing eavesdroppers from learning the secret.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                                [Page 6]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+3.  Protocol Overview
+
+   1.  The End User initiates authentication (Section 8.1) by supplying
+       an Identifier to the Relying Party.
+
+   2.  The Relying Party performs discovery (Section 8.3) on the Claimed
+       Identifier and establishes the location of the IdP's endpoint
+       that the End User uses for authentication.
+
+   3.  (optional) The Relying Party and the IdP establish an association
+       (Section 9) -- a shared secret established using Diffie-Hellman
+       Key Exchange.  The IdP uses an association to sign subsequent
+       messages and the Relying Party to verify those messages.
+
+   4.  The Relying Party redirects the End User's User Agent to the IdP
+       with an OpenID Authentication request (Section 10).
+
+   5.  The IdP establishes whether the End User is authorized to perform
+       OpenID Authentication and wishes to do so.  The manner in which
+       the End User authenticates to their IdP is beyond the scope of
+       this document.
+
+   6.  The IdP redirects the End User's User Agent back to the Relying
+       Party with an indication either that authentication is approved
+       (Section 11.1) or authentication failed (Section 11.2).
+
+   7.  The Relying Party verifies (Section 12) the information received
+       from the IdP.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                                [Page 7]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+4.  Data Formats
+
+4.1.  Protocol Messages
+
+   The OpenID Authentication protocol messages are mappings of plain-
+   text keys to plain-text values.  The keys and values are Unicode
+   strings.  When the keys and values need to be converted to bytes,
+   they MUST be encoded using UTF-8.
+
+4.1.1.  Key-Value Form Encoding
+
+   A Key-Value form message is a sequence of lines.  Each line begins
+   with a key, followed by a colon, and the value associated with the
+   key.  The line is terminated by a single newline (codepoint 10,
+   "/n").  A key or value MUST NOT contain a newline and a key MUST NOT
+   either contain a colon.
+
+   Additional characters, including whitespace, MUST NOT be added before
+   or after the colon or newline.  The message MUST be encoded in UTF-8
+   to produce a byte string.
+
+   Key-Value Form encoding is used for signature calculation and for
+   direct responses (Section 5.1.2) to relying parties.
+
+4.1.2.  HTTP Encoding
+
+   When a message is sent to an HTTP server, it MUST be encoded using a
+   form encoding specified in section 17.13.4 of the [HTML401].
+   Likewise, if the "Content-Type" header is included in the request
+   headers, its value MUST also be such an encoding.
+
+   All of the keys in the request message are prefixed with "openid.".
+   This prefix prevents interference with other parameters that are
+   passed along with the OpenID message.  When a message is sent as a
+   POST, the application processing the HTTP request MUST only use the
+   values in the POST body and MUST ignore any "openid." parameters that
+   are present on the request URL.
+
+   This model applies to messages from the User Agent to both the
+   Relying Party and the IdP, as well as messages from the Relying Party
+   to the IdP.
+
+4.1.3.  Example
+
+   Non-normative
+
+
+
+
+
+
+Recordon, et al.                                                [Page 8]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   The following examples encode the following information:
+
+   Key     | Value
+   --------+---------------------------
+   mode    | error
+   error   | This is an example message
+
+
+   Key-Value Form encoded
+   mode:error
+   error:This is an example message
+
+
+   x-www-urlencoded, as in a HTTP POST body or in a URL's query
+   ([RFC3986] section 3).
+   openid.mode=error&openid.error=This%20is%20an%20example%20message
+
+4.2.  Integer Representations
+
+   Arbitrary precision integers MUST be encoded as big-endian signed
+   two's complement binary strings.  Henceforth, "btwoc" is a function
+   that takes an arbitrary precision integer and returns its shortest
+   big-endian two's complement representation.  All integers that are
+   used with Diffie-Hellman are positive.  This means that the left-most
+   bit of the two's complement representation MUST be zero.  If it is
+   not, implementations MUST add a zero byte at the front of the string.
+
+   Non-normative example:
+
+
+   Base 10 number | btwoc string representation
+   ---------------+----------------------------
+   0              | "\x00"
+   127            | "\x7F"
+   128            | "\x00\x80"
+   255            | "\x00\xFF"
+   32768          | "\x00\x80\x00"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                                [Page 9]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+5.  Communication Types
+
+5.1.  Direct Communication
+
+   Direct communication is initiated by a Relying Party to an IdP
+   endpoint URL.  It is used for establishing associations (Section 9)
+   and verifying authentication assertions (Section 12.2.2).
+
+5.1.1.  Direct Request
+
+   The message MUST be encoded as a POST body, as specified by
+   Section 4.1.2.
+
+5.1.2.  Direct Response
+
+   The body of a response to a Direct Request (Section 5.1.1) consists
+   of an HTTP Response body in Key-Value Form (Section 4.1.1).  The
+   content-type of the response SHOULD be "text/plain".
+
+5.1.2.1.  Successful Responses
+
+   A server receiving a properly formed request MUST send a response
+   with an HTTP status code of 200.
+
+5.1.2.2.  Error Responses
+
+   If a request is malformed or contains invalid arguments, the server
+   MUST send a response with a status code of 400.  The response body
+   MUST be a Section 4.1.1 message with the following fields:
+
+   o  error
+
+         Value: Unstructured text error message.
+
+   o  contact
+
+         Value: (optional) Contact address for the administrator of the
+         IdP.  The contact address may take any form, as it is intended
+         to be displayed to a person.
+
+   o  reference
+
+         Value: (optional) A reference identifier, such as a support
+         ticket number or a URL to a news blog, etc.
+
+   The IdP MAY add additional keys to this response.
+
+   The particular wire format of these messages will depend on whether
+
+
+
+Recordon, et al.                                               [Page 10]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   they are responses to direct or indirect requests.
+
+5.2.  Indirect Communication
+
+   In indirect communication, messages are passed through the User-
+   Agent.  This can be initiated by either the Relying Party or the IdP.
+   Indirect communication is used for authentication requests
+   (Section 10) and authentication responses (Section 11).
+
+   There are two methods for indirect communication: HTTP redirects and
+   HTML form submission.  Both form submission and redirection require
+   that the sender know a recipient URL and that the recipient URL
+   expect indirect messages, as specified in Section 4.1.2.  The
+   initiator of the communication chooses which method of indirect
+   communication is appropriate.
+
+5.2.1.  HTTP Redirect
+
+   Data can be transferred by issuing a 302, 303, or 307 HTTP Redirect
+   to the End User's User-Agent.  The redirect URL is the URL of the
+   receiver with the OpenID Authentication message appended to the query
+   string, as specified in Section 4.1.2.
+
+   This method is deprecated as of OpenID Authentication version 2.0
+   though is still required for implementation to aide in backwards
+   compatibility.
+
+5.2.2.  HTML FORM Redirection
+
+   A mapping of keys to values can be transferred by returning an HTML
+   page to the User-Agent that contains an HTML form element.  Form
+   submission MAY be automated using JavaScript.
+
+   The <form> element's "action" attribute value MUST be the URL of the
+   receiving Web site.  Each Key-Value pair MUST be included in the form
+   as an <input> element.  The key MUST be encoded as the "name"
+   attribute and the value as the "value" attribute, such that the User
+   Agent will generate a message as specified in Section 4.1.2 when the
+   form is submitted.  The form MUST include a submit button.
+
+5.2.3.  Indirect Error Responses
+
+   If a request is malformed or contains invalid arguments and there is
+   an "openid.return_to" argument whose value is a valid URL, the IdP
+   MUST redirect the User Agent to that URL with a message of the
+   following form:
+
+
+
+
+
+Recordon, et al.                                               [Page 11]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   o  openid.mode
+
+         Value: "error"
+
+   o  openid.error
+
+         Value: Unstructured text error message.
+
+   o  openid.contact
+
+         Value: (optional) Contact address for the administrator of the
+         IdP.
+
+   o  openid.reference
+
+         Value: (optional) A reference identifier, such as a support
+         ticket number or a URL to a news blog, etc.
+
+   The IdP MAY add additional keys to this response.
+
+   If the "openid.return_to" value is missing or not a valid URL, the
+   IdP SHOULD return a response to the End User indicating the error and
+   that it is unable to return the End User to the Relying Party.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 12]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+6.  Generating Signatures
+
+   The most common usage of an association is as a Message
+   Authentication Code (MAC) key used to sign OpenID Authentication
+   messages.
+
+   When generating MAC keys, the recommendations in [RFC1750] SHOULD be
+   followed.
+
+6.1.  Signed List Algorithm
+
+   The input to the Signed List Algorithm are the message to be signed,
+   and the list of message keys that are to be signed with the "openid."
+   prefix removed.
+
+   To compute the list of key/value pairs to be signed:
+
+   1.  Iterate through the list of keys to be signed in the order they
+       appear in the input to the algorithm.  For each key, find the
+       value in the message whose key is equal to the signed list key
+       prefixed with "openid."
+
+   2.  Append the signed list key and the associated value to the
+       message to be signed.
+
+   The output of this algorithm is the message to be signed, and the
+   list of keys that were signed.  A message signed using this algorithm
+   MUST append the list of signed fields to message.
+
+   As the algorithm strips the "openid." prefix from message keys while
+   looking for a match, it MUST only sign elements that have keys
+   beginning with "openid."
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 13]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+7.  Signatures
+
+7.1.  Signature Algorithms
+
+   OpenID Authentication supports two signature algorithms: HMAC-
+   SHA1([RFC2104], [RFC3174]), and HMAC-SHA256 ([RFC2104], [FIPS180-2]).
+
+   Keys for associations that use HMAC-SHA1 signatures are 160 bits.
+   Keys for associations that use HMAC-SHA256 are 256 bits.  The use of
+   HMAC-SHA256 is RECOMENDED though at the time of writing this
+   document, library support seems lacking.
+
+7.2.  Procedure
+
+   To generate a message signature:
+
+   1.  Determine the appropriate signature list and signature algorithm
+       from the association type (Section 9).
+
+   2.  Generate the list to be signed using the correct list algorithm.
+
+   3.  Convert the list to an octet string by encoding with Key Value
+       Form (Section 4.1.1)
+
+   4.  Apply the correct signature algorithm to the octet string.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 14]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+8.  Initiation and Discovery
+
+8.1.  Initiation
+
+   To initiate OpenID Authentication, the Relying Party SHOULD present
+   the End User with a form that has a field for entering an Identifier.
+
+   It is RECOMMENDED that every Relying Party place the OpenID logo [2]
+   at the beginning of the form field where the End User enters their
+   Identifier.  This aides in End User recognition that they can use
+   their OpenID Identifier at the specific Relying Party.
+
+   The form field's "name" attribute SHOULD have the value
+   "openid_identifier" as to allow User Agents to automatically prefill
+   the End User's Identifier when visiting a Relying Party.
+
+8.2.  Normalization
+
+   The End User's input MUST be normalized into an Identifier.  If the
+   End User supplies input that does not include a scheme (http, https,
+   or xri), then the application needs to determine if the input is an
+   XRI or a URL missing the "http://".  To do so, the application SHOULD
+   examine the first character of the input.  If it is an XRI Global
+   Context Symbol (=, @, +, $, or ! see Section 2.2.1.2 of [XRI Syntax
+   2.0]), then the input SHOULD be treated as an XRI.  If it is not,
+   then the input SHOULD be treated as an http URL, and prefixed with
+   the string "http://".
+
+   URL identifiers MUST be further normalized by applying the rules in
+   section 6 of RFC 3986, following redirects when retrieving their
+   content, and finally applying the rules in section 6 of RFC 3986
+   (Normalization and Comparison) to the final destination URL.  This
+   final URL should be noted by the Relying Party as the Claimed
+   Identifier and used during authentication requests.
+
+8.3.  Discovery
+
+   Discovery is the process where the Relying Party uses the Identifier
+   to look up ("discover") the necessary information for initiating
+   authentication.  OpenID Authentication has three paths through which
+   to do discovery:
+
+   1.  If the identifier is an XRI, XRI resolution [3] will yield an
+       XRDS document that contains the necessary information.
+
+   2.  If it is a URL, the Yadis protocol [Yadis] is first attempted.
+       If it succeeds, the result is again an XRDS document.
+
+
+
+
+Recordon, et al.                                               [Page 15]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   3.  If the Yadis protocol fails, the URL is retrieved and HTML-based
+       discovery is attempted.
+
+8.3.1.  Discovered Information
+
+   Upon successful completion of discovery, the Relying Party will have
+   the following information:
+
+   IdP Endpoint URL:  The URL that accepts authentication requests.
+      This MUST be an absolute URL.
+
+   Claimed Identifier:  (optional) The normalized Identifier upon which
+      discovery was performed.  The Claimed Identifier is present unless
+      the End User entered an IdP Identifier during initiation
+      (Section 8.1).
+
+   Delegate Identifier:  (optional) The identifier that the Relying
+      Party SHOULD perform authentication using.  Upon successful
+      authentication, the Relying Party SHOULD recognize the End User
+      using the Claimed Identifier.  The Delegate Identifier can only be
+      present when the End User enters a Claimed Identifier.
+
+8.3.2.  XRDS-Based Discovery
+
+   If XRI or Yadis discovery was used, the result will be an XRDS
+   Document.  This is a XML document with entries for services that are
+   related to the identifier.
+
+8.3.2.1.  Service Elements
+
+8.3.2.1.1.  IdP Identifier Element
+
+   An IdP Identifier Element is a <xrd:Service> element with the
+   following information:
+
+      An <xrd:Type> tag whose text content is
+      "http://openid.net/server/2.0"
+
+      An <xrd:URI> tag whose text content is the IdP Endpoint URL
+
+8.3.2.1.2.  Claimed Identifier Element
+
+   A Claimed Identifier Element is an <xrd:Service> element with the
+   following information:
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 16]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+      An <xrd:Type> tag whose text content is
+      "http://openid.net/signon/2.0".
+
+      An <xrd:URI> tag whose text content is the IdP Endpoint URL.
+
+      An <openid:Delegate> tag (optional) whose text content is The
+      Delegate Identifier.
+
+8.3.2.2.  Extracting Authentication Data
+
+   Once the Relying Party has obtained an XRDS document, it MUST first
+   search the document (following the rules described in the XRDS
+   specification [4]) for an IdP Identifier, and if none is found,
+   search for a Claimed Identifier Element.
+
+8.3.2.3.  XRI and the CanonicalID Element
+
+   When the identifier is an XRI, the <xrd:XRD> element that contains
+   the OpenID <xrd:Service> element will also contain a <CanonicalID>
+   element.  The content of this element MUST be preserved for use after
+   a successful authentication request.  See Section 12.4.
+
+   The Relying Party MUST confirm that the provider of the XRD that
+   contains the <CanonicalID> element is authoritative for that
+   canonical ID.  The provider is identified by the contents of the
+   <ProviderID> element that is a child of the <XRD> element.  If the
+   provider is not authoritative for the canonical ID, the Relying Party
+   MUST resolve the canonical ID to confirm the OpenID Service Endpoint
+   information that was discovered.  The information discovered when
+   resolving the canonical ID MUST match the information discovered when
+   resolving the user-supplied identifier.
+
+   When using XRI resolution, the canonical ID MUST be used as the
+   Claimed Identifier.  For an XRI to be a valid identifier, both the
+   <ProviderID> and <CanonicalID> MUST be present in the discovery
+   result.
+
+   When using URL-based identifiers, the CanonicalID element SHOULD be
+   ignored.
+
+8.3.2.4.  Additional Information
+
+   The "openid" namespace is "http://openid.net/signon/2.0".  The "xrd"
+   namespace is "xri://$xrd*($v*2.0)".
+
+   For compatibility with deployed code, it is RECOMMENDED that a
+   Relying Party also accept "http://openid.net/signon/1.0" or
+   "http://openid.net/signon/1.1" for the value of <xrd:Type>.  When one
+
+
+
+Recordon, et al.                                               [Page 17]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   of these values is used, the Relying Party MUST use OpenID 1.1
+   compatibility (Section 13).
+
+   If an OpenID IdP supports extensions (Section 14), the extensions
+   SHOULD be listed as additional <xrd:Type> child elements of the <xrd:
+   Service> element.
+
+8.3.3.  HTML-Based Discovery
+
+   OpenID Authentication 1.1 HTML-based discovery MUST be supported by
+   Relying Parties.  If a Relying Party locates an IdP using HTML-based
+   discovery, it MUST use OpenID Authentication 1.1 Compatibility
+   (Section 13) when communicating with that IdP.
+
+   To use HTML-based discovery, an HTML document MUST be available at
+   the URL of the Claimed Identifier.  In the HEAD section of the
+   document:
+
+      A <LINK> tag MUST be included with attributes "rel" set to
+      "openid.server", and "href" set to an IdP Endpoint URL
+
+      A <LINK> tag MAY be included with attributes "rel" set to
+      "openid.delegate" and "href" set to the End User's Delegate
+      Identifier
+
+   The host of the HTML document MAY be different from the End User's
+   IdP's host.
+
+   The "openid.server" and "openid.delegate" URLs MUST NOT include
+   entities other than &amp;, &lt;, &gt;, and &quot;.  Other characters
+   that would not be valid in the HTML document or that cannot be
+   represented in the document's character encoding MUST be escaped
+   using the %xx mechanism as described in [RFC3986].
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 18]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+9.  Establishing Associations
+
+   An "association" is a shared secret between the IdP and Relying
+   Party.  Once established, it is used to verify subsequent protocol
+   messages.
+
+   It is RECOMMENDED that a Relying Party form associations if it is
+   possible for it to do so.  If a Relying Party is incapable of
+   creating or storing associations, Section 12.2 provides an alternate
+   verification mechanism.
+
+9.1.  Association Session Request
+
+   An association session is initiated by a direct request (Section 5.1)
+   from a Relying Party to an IdP Endpoint URL with "openid.mode" of
+   "associate".
+
+9.1.1.  Common Request Parameters
+
+   These parameters are common to all association requests:
+
+   o  openid.mode
+
+         Value: "associate"
+
+   o  openid.assoc_type
+
+         The preferred association type.  The association type defines
+         the algorithm to be used to sign subsequent messages.
+
+         Value: A valid association type from Section 9.3
+
+         Default: "HMAC-SHA1".
+
+   o  openid.session_type
+
+         The preferred association session type.  This defines the
+         method used to encrypt the association's MAC key in transit.
+
+         Value: A valid association session type from Section 9.4
+
+         Default: "no-encryption"
+
+9.1.2.  Diffie-Hellman Request Parameters
+
+   The following parameters are common to requests whose requested
+   session type is DH-SHA1 or DH-SHA256:
+
+
+
+
+Recordon, et al.                                               [Page 19]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   o  openid.dh_modulus
+
+         Value: base64(btwoc(p))
+
+         Default: See Appendix B
+
+   o  openid.dh_gen
+
+         Value: base64(btwoc(g))
+
+         Default: g = 2
+
+   o  openid.dh_consumer_public
+
+         Value: base64(btwoc(g ^ xa mod p))
+
+   See Section 9.4.2 for more information on these parameters.
+
+   NOTE: the 'btwoc' function is defined in Section 4.2.
+
+9.2.  Association Session Response
+
+   An association session response is a direct response from the IdP to
+   the Relying Party in Key-Value Form (Section 4.1.1).
+
+9.2.1.  Common Response Parameters
+
+   o  session_type
+
+         The session type for this session.  Valid values are listed in
+         Section 9.3, but the server MUST respond with the same value as
+         the request's "openid.session_type" parameter.  If the server
+         is unable or unwilling to support either of these session
+         types, it MUST return an unsuccessful response.
+
+   o  assoc_handle
+
+         The association handle is used as a key to refer to this
+         association in subsequent messages.
+
+         Value: A string 255 characters or less, consisting only of
+         ASCII characters in the range 33-126 inclusive (printable non-
+         whitespace characters).
+
+   o  assoc_type
+
+         The value of the "openid.assoc_type" parameter from the
+         request.  If the server is unwilling or unable to support this
+
+
+
+Recordon, et al.                                               [Page 20]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+         association type, it MUST return an unsuccessful response.
+
+   o  expires_in
+
+         The lifetime, in seconds, of this association.  The Relying
+         Party MUST NOT use the association after this time has expired.
+
+         Value: an integer, represented in base 10 ASCII.
+
+9.2.2.  Unencrypted Response Parameters
+
+   o  mac_key
+
+         The MAC key (shared secret) for this association, Base 64
+         [RFC3548] encoded.
+
+9.2.3.  Diffie-Hellman Response Parameters
+
+   o  dh_server_public
+
+         Value: base64(btwoc(g ^ xb mod p))
+
+         Description: The Provider's Diffie-Hellman public key.
+
+   o  enc_mac_key
+
+         Value: base64(H(btwoc(g ^ (xa * xb) mod p)) XOR MAC key)
+
+         Description: The MAC key (shared secret), encrypted with the
+         secret Diffie-Hellman value.  H is either SHA1 or SHA256
+         depending on the session type.
+
+   NOTE: the 'btwoc' function is defined in Section 4.2
+
+9.2.4.  Unsuccessful Response Parameters
+
+   If the IdP does not support an association session type or
+   association type, it MUST respond with a message indicating that the
+   association session failed.  If there is another association session
+   type or association type that is supported, the IdP MAY include that
+   information in the response.
+
+   o  error
+
+         Value: (optional) A human-readable message indicating why the
+         association session failed
+
+
+
+
+
+Recordon, et al.                                               [Page 21]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   o  error_code
+
+         Value: "unsupported-type"
+
+   o  session_type
+
+         Value: (optional) A method of exchanging association
+         information that the IdP supports.
+
+   o  assoc_type
+
+         Value: (optional) An association type supported by the IdP
+
+   Upon receipt of an "unsupported-type" response, the Relying Party MAY
+   make another request with the specified association session type and
+   association type.  If no association is established, the Relying
+   Party MAY continue the authentication process in stateless mode.
+
+9.3.  Association Types
+
+9.3.1.  HMAC-SHA1
+
+   An association of type "HMAC-SHA1" uses the HMAC-SHA1 (Section 7.1)
+   signature algorithm, in combination with the Signed List
+   (Section 6.1) algorithm.
+
+9.3.2.  HMAC-SHA256
+
+   An association of type "HMAC-256" uses the HMAC-SHA256 (Section 7.1)
+   signature algorithm, in combination with the Signed List
+   (Section 6.1) algorithm.
+
+9.4.  Association Session Types
+
+   OpenID Authentication defines three valid association session types:
+   "no-encryption", "DH-SHA1", and "DH-SHA256".
+
+9.4.1.  No-Encryption Association Sessions
+
+   In a "no-encryption" association session, the IdP sends the
+   association MAC key in plain-text to the Relying Party.  This makes
+   it possible for an eavesdropper to intercept the key, and forge
+   messages to this Relying Party.  Therefore, no-encryption association
+   sessions SHOULD NOT be used unless the messages are using transport-
+   level encryption.
+
+   The MAC key sent by the IdP MUST be the length specified for this
+   association in Section 7.1.
+
+
+
+Recordon, et al.                                               [Page 22]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+9.4.2.  Diffie-Hellman Association Sessions
+
+   The "DH-SHA1" and DH-SHA256" association types use Diffie-Hellman key
+   exchange to securely transmit the shared secret.
+
+   The MAC key MUST be the same length as the output of H, the hash
+   function - 160 bits (20 bytes) for DH-SHA1 or 256 bits (32 bytes) for
+   DH-SHA256, as well as the output of the signature algorithm of this
+   association.
+
+   The Relying Party specifies a modulus, p, and a generator, g.  The
+   Relying Party chooses a random private key xa and Identity Provider
+   chooses a random private key xb, both in the range [1 .. p-1].  The
+   shared secret used to encrypt the MAC key is thus g ^ (xa * xb) mod p
+   = (g ^ xa) ^ xb mod p = (g ^ xb) ^ xa mod p.  For more information,
+   see [RFC2631].  For information on the selection of random values,
+   see [RFC1750].
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 23]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+10.  Requesting Authentication
+
+   Once the Relying Party has successfully performed discovery and
+   (optionally) created an association with the discovered IdP Endpoint
+   URL, it can send an authentication request to the IdP to obtain an
+   assertion.  An authentication request is an indirect request
+   (Section 5.2).
+
+10.1.  Request Parameters
+
+   o  openid.ns
+
+         Value: "http://openid.net/signon/2.0"
+
+         This value MUST be present for the request to be a valid OpenID
+         Authentication 2.0 request.
+
+         Note: If an IdP receives an authentication request with this
+         parameter missing or with a lower version number, it SHOULD
+         still respond to the request.  If it does respond it MUST use
+         OpenID Authentication 1.1 Compatibility (Section 13) when
+         communicating with that Relying Party.
+
+   o  openid.mode
+
+         Value: "checkid_immediate" or "checkid_setup"
+
+         Note: If the Relying Party wishes the End User to be able to
+         interact with the IdP, "checkid_setup" should be used.  An
+         example of a situation where interaction between the End User
+         and the IdP is not desired is when the authentication request
+         is happening asynchronously in JavaScript.
+
+   o  openid.identity
+
+         Value: (optional) Delegate Identifier when available, otherwise
+         the Claimed Identifier
+
+         Note: If this is set to the special value
+         "http://openid.net/identifier_select/2.0", the IdP MAY choose
+         an identifier that belongs to the End User.
+
+   o  openid.assoc_handle
+
+         Value: (optional) A handle for an association between the
+         Relying Party and the IdP that should be used to sign the
+         response.
+
+
+
+
+Recordon, et al.                                               [Page 24]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+         Note: If no association handle is sent, the transaction will
+         take place in stateless mode.
+
+   o  openid.return_to
+
+         Value: URL to which the IdP SHOULD return the User Agent with
+         additional responses indicating the status of the request.
+
+   o  openid.realm
+
+         Value: (optional) URL pattern the Provider SHALL ask the End
+         User to trust.  See Section 10.2.
+
+         Default: return_to URL
+
+10.2.  Realms
+
+   A "realm" is a pattern that represents the part of URL-space for
+   which an OpenID Authentication request is valid.  A realm SHOULD give
+   the End User an indication of the scope of the authentication
+   request.  IdPs SHOULD present the realm when requesting the End
+   User's approval for an authentication request.  IdPs MAY use the
+   realm to allow the End User to automate approval of authentication
+   requests.
+
+   A realm pattern is a URL, with the following changes:
+
+   o  A realm MUST NOT contain a URI fragment
+
+   o  A realm MAY contain a wild-card at the beginning of the URL
+      authority section.  A wild-card consists of the characters "*."
+      prepended to the DNS name in the authority section of the URL.
+
+   A URL matches a realm if:
+
+   o  The URL scheme (RFC 3986, section 3.1 [RFC3986]) and port of the
+      URL are identical to those in the realm.
+
+   o  The URL's path is equal to or a sub-directory of the realm's path.
+
+   o  Either:
+
+      1.  The realm's domain contains the wild-card characters "*.", and
+          the trailing part of the URL's domain is identical to the part
+          of the realm following the "*." wildcard, or
+
+      2.  The URL's domain is identical to the realm's domain
+
+
+
+
+Recordon, et al.                                               [Page 25]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   The "openid.return_to" URL MUST match the "openid.realm", or the IdP
+   MUST return an error.
+
+   It is RECOMMENDED that IdP's protect their End Users from requests
+   with overly-general realms, like http://*.com/ or http://*.co.uk/.
+   Determining if a realm is overly-general is at the discretion of the
+   IdP.
+
+10.3.  Immediate Requests
+
+   When requesting authentication, the Relying Party MAY request that
+   the IdP not interact with the End User.  In this case the IdP MUST
+   respond immediately with either an assertion that authentication is
+   successful, or a response indicating that the request cannot be
+   completed without further user interaction.  This is accomplished by
+   an authentication request with "openid.mode" set to
+   "checkid_immediate".
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 26]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+11.  Responding to Authentication Requests
+
+   When an authentication request comes from the User-Agent, the IdP
+   SHOULD identify the User-Agent, and determine whether the End User
+   wishes to complete the authentication.  If the End User can be
+   identified and wishes to complete the authentication, the IdP should
+   send a positive assertion (Section 11.1) to the Relying Party.
+
+   Methods of identifying the end user and getting approval to finish
+   authentication are beyond the scope of this specification.
+
+   If no Identifier was specified in the request and there are
+   Identifiers in the control of the End User, the IdP SHOULD allow the
+   End User to choose which Identifier to use.  If an Identifier was
+   specified, the IdP SHOULD only issue assertions about the specified
+   Identifier.
+
+   If the Relying Party supplied an association handle with the
+   authentication request, the IdP SHOULD attempt to look up an
+   association based on that handle.  If the association is missing or
+   expired, the IdP SHOULD send the "openid.invalidate_handle" parameter
+   of the response to the requests "openid.assoc_handle", and SHOULD
+   proceed as if no association handle was specified.
+
+   If no association handle is specified, the IdP SHOULD create a
+   private association for signing the response.  The IdP MUST store
+   this association and MUST respond to later requests to check the
+   signature of the response.
+
+11.1.  Positive Assertions
+
+   Positive assertions are indirect responses (Section 5.2) with the
+   following fields:
+
+   o  openid.ns
+
+         Value: "http://openid.net/signon/2.0"
+
+         Note: This defines the interpretation of the openid arguments
+         without a namespace.  To be an OpenID Authentication 2.0
+         response, the given value must be present.
+
+   o  openid.mode
+
+         Value: "id_res"
+
+
+
+
+
+
+Recordon, et al.                                               [Page 27]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   o  openid.identity
+
+         Value: (optional) The Identifier about which the IdP is making
+         a positive authentication assertion.
+
+         Note: The Identifier MAY be omitted if an extension is in use
+         that makes the response meaningful without it.
+
+   o  openid.return_to
+
+         Value: Verbatim copy of the return_to URL parameter sent in the
+         request.
+
+         Note: Because the "openid.return_to" URL is signed by the IdP,
+         a Relying Party can make sure outside parties haven't sent
+         responses with query parameters that were not included in the
+         "openid.return_to" URL.
+
+   o  openid.response_nonce
+
+         Value: A string that MUST be unique to this particular
+         successful authentication response.  The nonce MUST start with
+         the current time on the server, and MAY have additional
+         characters appended to the end as necessary to make each
+         response unique.  The date and time MUST be formatted as
+         specified in section 5.6 of [RFC3339], with the following
+         restrictions:
+
+         +  All times must be in the UTC timezone, indicated with a "Z".
+
+         +  No fractional seconds are allowed
+
+         For example: 2005-05-15T17:11:51ZUNIQUE
+
+   o  openid.invalidate_handle
+
+         Value: (optional) If the Relying Party sent an invalid
+         association handle with the request, it SHOULD be included
+         here.  If it is present, this field MUST be signed.
+
+   o  openid.assoc_handle
+
+         Value: The handle for the association that was used to sign
+         this assertion.
+
+   o  openid.signed
+
+
+
+
+
+Recordon, et al.                                               [Page 28]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+         Value: (optional) Comma-separated list of signed fields.
+
+         Note: If the association used to sign this response used the
+         Signed List (Section 6.1) algorithm, this MUST be present.  If
+         it is present, this entry consists of the fields without the
+         "openid." prefix that the signature covers.  This list MUST
+         contain at least "return_to" and "response_nonce".
+         Additionally, if the IdP is making an assertion about an
+         Identifier, the "identity" field MUST be present.  For example,
+         "identity,return_to,response_nonce".
+
+   o  openid.sig
+
+         Value: Base 64 encoded signature calculated as specified in
+         Section 6.
+
+         Successful authentication messages from the Identity Provider
+         to the Relying Party MUST be signed.
+
+11.2.  Negative Assertions
+
+   If the IdP is unable to identify the End User or the End User does
+   not or cannot approve the authentication request, the IdP SHOULD send
+   a negative assertion to the Relying Party as an indirect response
+   (Section 5.2).
+
+11.2.1.  In Response to Immediate Requests
+
+   If the request was an immediate request, there is no chance for the
+   End User to interact with pages on the IdP to provide identifying
+   credentials or approval of a request.  A negative assertion of an
+   immediate request takes the following form:
+
+   o  openid.mode
+
+         Value: "id_res"
+
+   o  openid.user_setup_url
+
+         Value: A URL that the End User may visit to complete the
+         request.  The Relying Party may redirect the End User to this
+         URL, or provide the End User with a link that points to this
+         URL.  The request is no longer immediate.
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 29]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+11.2.2.  In Response to Non-Immediate Requests
+
+   Since the IdP may display pages to the End User and request
+   credentials from the End User, a negative response to a request that
+   is not immediate is definitive.  It takes the following form:
+
+   o  openid.mode
+
+         Value: "cancel"
+
+   In a lot of cases, the Relying Party won't get a cancel mode
+   response; the End User will just quit or press back within their
+   User-Agent.  But if it is returned, the Relying Party SHOULD return
+   to what it was doing.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 30]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+12.  Verifying Assertions
+
+   When the Relying Party receives a positive assertion, it MUST verify
+   the following before accepting the assertion:
+
+   o  An assertion has not yet been accepted from this IdP with the same
+      value for "openid.response_nonce"
+
+   o  The signature on the assertion is valid
+
+   o  Discovered information from the Identifier matches the information
+      in the assertion.
+
+12.1.  Checking the Nonce
+
+   To prevent replay attacks, the agent checking the signature SHOULD
+   keep track of the nonce values included in positive assertions and
+   never accept the same value more than once for the same IdP Endpoint
+   URL.  When using "check_authentication", the IdP is responsible for
+   preventing replay attacks.  When the Relying Party checks the
+   signature on an assertion, it is responsible for preventing replay
+   attacks.
+
+   The time-stamp may be used to reject responses that are too far away
+   from the current time, limiting the amount of time that nonces must
+   be stored to prevent replays.  The acceptable range is implementation
+   dependent.  A larger range requires storing more nonces for a longer
+   time.  A shorter range increases the chance that clock-skew and
+   transaction time will cause a spurious rejection.
+
+12.2.  Verifying Signatures
+
+   If the Relying Party has stored an association with the association
+   handle specified in the assertion, it MUST check the signature on the
+   assertion itself.  If it does not have an association stored, it MUST
+   request that the IdP verify the signature (Section 12.2.2).
+
+12.2.1.  Verifying with an Association
+
+   The Relying Party follows the same procedure that the IdP followed in
+   generating the signature (Section 6), and then compares the signature
+   in the response to the signature it generates.  If the signatures do
+   not match, the assertion is invalid.
+
+   If an authentication request included an association handle for an
+   association between the IdP and the Relying party, and the IdP no
+   longer wishes to use that handle (because it has expired or the
+   secret has been compromised, for instance), the IdP will send a
+
+
+
+Recordon, et al.                                               [Page 31]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   response that must be verified directly with the IdP, as specified in
+   Section 12.2.2.  In that instance, the IdP will include the field
+   "openid.invalidate_handle" set to the association handle that the
+   Relying Party included with the original request.
+
+12.2.2.  Verifying Directly with the Identity Provider
+
+   To verify a signature directly with the IdP, the Relying Party sends
+   a direct request to the IdP.
+
+12.2.2.1.  Request Parameters
+
+   o  openid.mode
+
+         Value: "check_authentication"
+
+   o  Exact copies of all fields from the authentication response,
+      except for "openid.mode".
+
+12.2.2.2.  Response Parameters
+
+   o  mode
+
+         Value: "id_res"
+
+   o  is_valid
+
+         Value: "true" or "false"
+
+         Description: Boolean; whether the signature is valid.
+
+   o  invalidate_handle
+
+         Value: (optional) An association handle
+
+         Description: The association handle sent in the request, if the
+         server confirms that it is invalid.
+
+   An IdP MUST NOT verify signatures for associations that have shared
+   MAC keys.  If an IdP did verify signatures for associations with
+   shared MAC keys, it would be possible for parties other than the IdP
+   to create valid assertions that seemed to come from the IdP.
+
+   The IdP SHOULD only return is_valid once for each authentication
+   request.  An authentication request may be identified by its
+   "openid.response_nonce" value.
+
+   If the IdP verifies responds with "is_valid" set to "true", and
+
+
+
+Recordon, et al.                                               [Page 32]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   "invalidate_handle" is present, the Relying Party SHOULD NOT send
+   further authentication requests with that handle. "invalidate_handle"
+   will only be present when the original authentication request to the
+   IdP included an association that the IdP deemed invalid.  This
+   implies that it will only be present in this response if it was also
+   present in the "id_res" response (Section 11.1).  Including
+   "invalidate_handle" in the direct verification is necessary to
+   prevent an attacker from invalidating an association at will by
+   adding it to an authentication response.
+
+12.3.  Verifying Discovered Information
+
+   The Relying Party MUST have performed discovery (Section 8.3) on the
+   Identifier that will be used and the information in the assertion
+   MUST match the discovered information.
+
+   Specifically, one of the following MUST be true:
+
+   1.  The Identifier in the assertion points to the IdP making the
+       assertion.
+
+   2.  The Claimed Identifier specifies the identifier in the assertion
+       as a delegate, and the Delegate Identifier points to the IdP
+       making the assertion.
+
+   Note: The Relying Party must be able to look up the Claimed
+   Identifier in order to perform the second test.  Relying Parties
+   unable to store information might append the Claimed Identifier to
+   the "openid.return_to" parameter in the request.
+
+   If the Claimed Identifier was not present in the request
+   ("openid.identity" was "http://openid.net/identifier_select/2.0"),
+   the Relying Party MUST perform discovery on the identifier in the
+   response to make sure that the IdP is authorized to make assertions
+   about the Identifier.
+
+12.4.  Identifying the End User
+
+   A successful authentication response provides the Relying Party with
+   a Verified Identifier, which MAY be used as a user-visible
+   Identifier.  Identifiers in OpenID MUST be URLs or XRIs.  If the
+   Identifier is a URL, its scheme MUST be "http" or "https".  Except in
+   the case that the Verified Identifier is an XRI, the Relying Party
+   SHOULD use the Verified Identifier as a key for local storage of
+   information about the End User.  If the Verified Identifier is an
+   XRI, the discovered CanonicalID field from the XRD SHOULD be used as
+   a key for local storage of information about the End User.
+
+
+
+
+Recordon, et al.                                               [Page 33]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   If a request is using delegation, the Verified Identifier is the
+   Identifier on which discovery was performed, and not the Identifier
+   that is contained in the assertion.  If an assertion is made for an
+   Identifier on which discovery has not been performed, the Relying
+   Party MUST perform discovery on that Identifier and compare the
+   discovered information to that in the assertion.
+
+12.4.1.  HTTP and HTTPS URL Identifiers
+
+   Relying Parties MUST differentiate between URL Identifiers that have
+   different schemes.  When user input is processed into a URL, it is
+   processed into a HTTP URL.  If the same End User controls the same
+   URL, differing only by scheme, and it is desired that the Identifier
+   be the HTTPS URL, it is RECOMMENDED that a redirect be issued from
+   the HTTP URL to the HTTPS URL.  Because the HTTP and HTTPS URLs are
+   not equivalent and the Identifier that is used is the URL after
+   following redirects, there is no reduction in security when using
+   this scheme.  If an attacker could gain control of the HTTP URL, it
+   would have no effect on the HTTPS URL, since the HTTP URL is not ever
+   used as an Identifier.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 34]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+13.  OpenID Authentication 1.1 Compatibility
+
+   OpenID Authentication 2.0 attempts to retain maximum compatibility
+   with earlier versions of the OpenID Authentication specification, but
+   this is not universally possible.  This section lists the behavioral
+   changes required of an OpenID Authentication 2.0 IdP or Relying Party
+   when communicating with an earlier-protocol peer.
+
+   OpenID Authentication 2.0 implementations SHOULD however support
+   OpenID Authentication 1.1 compatibility, unless security
+   considerations make it undesirable.
+
+   All messages in OpenID Authentication 1.1 omit the "openid.ns"
+   parameter.  OpenID Authentication 1.1 only supports HMAC-SHA1
+   associations.
+
+13.1.  Relying Parties
+
+   o  Relying Parties MUST implement HTML-Based Discovery
+      (Section 8.3.3).
+
+   o  In authentication requests (Section 10), the "openid.identity"
+      parameter MUST NOT be the special value
+      "http://openid.net/identifier_select/2.0", because OpenID 1.1 does
+      not support IdP-driven identifier selection.
+
+   o  The "openid.realm" parameter in authentication requests was known
+      as "trust_root".  The syntax and meaning were identical.
+
+   o  The Relying Party MUST accept an authentication response
+      (Section 11.1) that is missing the 'nonce' parameter.  It SHOULD
+      however implement an out-of-band method for preventing replay
+      attacks.
+
+13.2.  Identity Providers
+
+   o  "openid.identity" MUST be sent in a positive authentication
+      assertion (Section 11.1).
+
+   o  Unsuccessful association responses (Section 9.2.4) MUST NOT be
+      sent, since they are not part of the OpenID Authentication 1.1
+      protocol.
+
+   o  IdPs MAY choose to return a successful "no-encryption" response to
+      any association request.
+
+   o  Omit the session_type parameter when making "no-encryption"
+      responses to "associate" requests.
+
+
+
+Recordon, et al.                                               [Page 35]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   o  The "openid.realm" parameter in authentication requests was known
+      as "trust_root".  The syntax and meaning were identical.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 36]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+14.  Extensions
+
+   An Extension to OpenID Authentication is a protocol that rides on top
+   of the authentication request and response.  Extensions are useful
+   for providing extra information about an authentication request or
+   response or providing extra information about the subject of the
+   authentication response.
+
+   OpenID extensions are identified by a URI.  The URI MAY be used as
+   the value of an <xrd:Type> element of an OpenID <xrd:Service> element
+   in an XRDS document associated with a Claimed Identifier.  It is also
+   used to associate key-value pairs in messages with the extension.
+
+   To associate keys and values in a message with an extension, the key
+   MUST be associated with the Type URI.  To associate keys with a Type
+   URI, establish an alias by adding a key prefixed with "openid.ns."
+   and ending with the alias text whose value is the Type URI.  Once an
+   alias has been established, all pairs in the message whose keys start
+   with "openid." followed by the alias text, followed by a period or
+   the end of the key are associated with that extension.
+
+   A namespace alias MUST NOT contain a period, MUST NOT be the name of
+   a field in a message defined in this specification, and MUST NOT be
+   the same as another namespace alias in the same message.  A namespace
+   MUST NOT be assigned more than one alias in the same message.  If a
+   message is a response to another message, the response MAY use a
+   different alias to refer to the same namespace.
+
+   Non-normative example: An extension's type URI is
+   <http://example.com/ext/1.0>.
+
+      openid.ns.x=http://example.com/ext/1.0
+
+      openid.x=example
+
+      openid.x.foo=bar
+
+      openid.xx=notx
+
+   In this example, the keys openid.x and openid.x.foo are associated
+   with the extension.  The openid.xx key is not.
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 37]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+15.  Discovering OpenID Relying Parties
+
+   Relying Parties are RECOMMENDED to use the Yadis protocol to publish
+   their return_to URL.  This allows for automated discovery of OpenID
+   Relying Parties.
+
+   The Relying Party's XRDS document's <xrd:Service> entry should have
+   the return_to URL as the content of the <xrd:URI> tag and should have
+   http://openid.net/return_to/2.0 as the content of the <xrd:Type> tag.
+
+   For example:
+
+   <Service xmlns="xri://$xrd*($v*2.0)">
+     <Type>http://openid.net/return_to/2.0</Type>
+     <URI>http://consumer.example.com/return</URI>
+   </Service>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 38]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+16.  Security Considerations
+
+16.1.  Preventing Attacks
+
+16.1.1.  Eavesdropping Attacks
+
+   There are two places in this protocol that are vulnerable to
+   eavesdropping attacks.  An eavesdropper could intercept an
+   unencrypted association session and recover the shared secret,
+   allowing an attacker to masquerade as the IdP to that relying party.
+   An eavesdropper could also intercept a successful authentication
+   assertion and re-use it, if the nonce is not checked.
+
+   Both of these attacks can be prevented by using SSL for these
+   connections.  The association session can also use Diffie-Hellman Key
+   Exchange instead of "no-encryption" to protect from eavesdropping.
+   If the nonce is checked in message verification, the positive
+   authentication assertion cannot be re-used.
+
+16.1.2.  Man-in-the-Middle Attcks
+
+   Associations prevent tampering of signed fields by a man in the
+   middle, except during discovery, association sessions and stateless
+   mode.  Altering signed fields without the shared secret requires
+   breaking the MAC.  Currently, no tractable attack is known on the
+   MACs used in this protocol.  The quality of the protection provided
+   by the MAC depends on the randomness of the shared MAC key, so it is
+   important that an unguessable value be used.
+
+   If DNS resolution or the transport layer is compromised, signatures
+   on messages are not adequate, since the attacker can impersonate the
+   IdP and issue its own associations, or its own decisions in stateless
+   mode.  If an attacker can tamper with the discovery process, he can
+   specify any IdP, and so does not have to impersonate the IdP.
+
+   Using SSL with certificates signed by a trusted authority prevents
+   these kinds of attacks by verifying the results of the DNS look-up
+   against the certificate.  Once the validity of the certificate has
+   been established, tampering is not possible.  Impersonating an SSL
+   server requires forging or stealing a certificate, which is
+   significantly harder than the network attacks.
+
+   In order to get protection from SSL, SSL must be used for all parts
+   of the interaction, including interaction with the End User through
+   the User Agent.
+
+
+
+
+
+
+Recordon, et al.                                               [Page 39]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+16.2.  User Agents
+
+   Since this protocol is intended to be used interactively, User Agents
+   will primarily be common Web browsers.  Web browsers or their hosts
+   may be infected with spyware or other malware, which limits the
+   strength of the authentication assertion, since untrusted software
+   makes it impossible to know whether the authentication decision has
+   been made with the End User's approval.  With this said, many web
+   applications and protocols today rely on the security of the Web
+   browser and their hosts.
+
+   Cross-site-scripting attacks against IdPs may be used to the same
+   effect.  For the best security, IdPs should not depend on scripting
+   so that User Agents without scripting enabled can make authentication
+   decisions.
+
+16.3.  User Interface Considerations
+
+   The Relying Party SHOULD redirect the End User to the IdP Endpoint
+   URL in a top-level browser window with all controls visible.  This
+   allows better protection for the End User against IdP look-alike
+   sites (phishing).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 40]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+Appendix A.  Examples
+
+   Non-normative
+
+Appendix A.1.  Delegation
+
+   For example, an End User wants to use http://www.example.com/ as
+   their Identifier, but http://www.example.com/ doesn't have the means,
+   or desire, to run an IdP.  LiveJournal is an Identity Provider, so if
+   the End User has a LiveJournal OpenID Identifier, they can delegate
+   their authentication to LiveJournal.
+
+Appendix A.2.  XRDS
+
+   To use www.example.com as their Identifier, but have Relying Parties
+   actually verify http://exampleuser.livejournal.com/ with the Identity
+   Provider located at http://www.livejournal.com/openid/server.bml, the
+   following XML snippet should be present in the final XRD in the XRDS
+   file:
+
+   <Service xmlns="xri://$xrd*($v*2.0)">
+     <Type>http://openid.net/signon/2.0</Type>
+     <URI>http://www.livejournal.com/openid/server.bml</URI>
+     <Delegate xmlns="http://openid.net/signon/2.0">
+       http://exampleuser.livejournal.com/
+     </Delegate>
+   </Service>
+
+Appendix A.3.  HTML Identifier Markup
+
+   To use www.example.com as their Identifier, but have Relying Parties
+   actually verify http://exampleuser.livejournal.com/ with the Identity
+   Provider located at http://www.livejournal.com/openid/server.bml, the
+   following markup should be present in the <head> of the HTML document
+   located by the identifier URL:
+
+   <link rel="openid.server"
+         href="http://www.livejournal.com/openid/server.bml"/>
+   <link rel="openid.delegate"
+         href="http://exampleuser.livejournal.com/"/>
+
+Appendix A.4.  Login Form
+
+   Continuing this example, the End User visits a Relying Party site
+   which supports OpenID Authentication.  The Relying Party presents the
+   End User with a form field for them to enter their Identifier or
+   their IdP's identifier.
+
+
+
+
+Recordon, et al.                                               [Page 41]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   For example:
+
+                 ----------------------------------
+                 |[logo]example.com               | [Login Button]
+                 ----------------------------------
+
+Appendix A.5.  XRI CanonicalID
+
+   For example, if =example and =exmpl both yield an XRD document with
+   the CanonicalID xri://(example)!1234 then those identifiers should be
+   treated as equivalent.  For applications with user accounts, those
+   identifiers should both be attached to the same account.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 42]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+Appendix B.  Diffie-Hellman Key Exchange Default Value
+
+   This is a confirmed-prime number, used as the default modulus for
+   Diffie-Hellman Key Exchange.  In hexadecimal:
+
+   DCF93A0B883972EC0E19989AC5A2CE310E1D37717E8D9571BB7623731866E61E
+   F75A2E27898B057F9891C2E27A639C3F29B60814581CD3B2CA3986D268370557
+   7D45C2E7E52DC81C7A171876E5CEA74B1448BFDFAF18828EFD2519F14E45E382
+   6634AF1949E5B535CC829A483B8A76223E5D490A257F05BDFF16F2FB22C583AB
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 43]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+Appendix C.  Changes from the Previous OpenID Authentication
+             Specification
+
+   This specification is based on the original specification for OpenID
+   Authentication as written by Brad Fitzpatrick.  That specification
+   did not have a version number, but was called OpenID 1.0, and then
+   OpenID 1.1 when it was revised.  The protocol outlined in this
+   specification is intended to be backwards-compatible with the revised
+   OpenID protocol.  The most significant changes to the specification
+   are outlined in this section.
+
+Appendix C.1.  Updated Initiation and Discovery
+
+   o  Supports IdP-driven identifier selection.  This new variation of
+      the protocol flow is initiated by entering an Identifier for an
+      IdP instead of an Identifier for an End User, and allows the IdP
+      to assist the End User in selecting an Identifier.
+
+   o  Supports the use of XRIs as Identifiers.  XRIs may be used as
+      Identifiers for both End Users and IdPs.
+
+   o  When URLs are used as Identifiers, they are normalized according
+      to RFC 3986, for better compatibility with existing Web
+      infrastructure.
+
+   o  Uses the Yadis protocol for discovery.  This allows for using
+      multiple IdPs for a single Identifier, for load-balancing and
+      fallback in the case of IdP failure.  Additionally, it allows for
+      discovery of supported extensions.
+
+Appendix C.2.  Security improvements
+
+   A nonce is now part of the protocol for built-in protection against
+   replay attacks.
+
+   A new association type, HMAC-SHA256, and a new association session
+   type, DH-SHA256, allow for stronger signatures on authentication
+   assertions.
+
+Appendix C.3.  Extensions
+
+   Extensions are a new mechanism to support data exchange and other
+   Relying Party-IdP communication along with the authentication
+   exchange.  Extensions allow for the exchange of arbitrary attributes,
+   as well as for protocol extensions, such as the inclusion of
+   additional information about the Relying Party in the authentication
+   request.
+
+
+
+
+Recordon, et al.                                               [Page 44]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   Because extensions can transfer arbitrary data, the Identifier is now
+   optional in the response.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 45]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+17.  Normative References
+
+   [FIPS180-2]
+              U.S. Department of Commerce and National Institute of
+              Standards  and Technology, "Secure Hash Signature
+              Standard", FIPS 180-2.
+
+              Defines Secure Hash Algorithm 256 (SHA256)
+
+   [HTML401]  W3C, "HTML 4.01 Specification".
+
+   [RFC1750]  Eastlake, D., Crocker, S., and J. Schiller, "Randomness
+              Recommendations for Security", RFC 3986.
+
+   [RFC2104]  Krawczyk, H., Bellare, M., and R. Canetti, "HMAC: Keyed-
+              Hashing for Message Authentication", RFC 2104.
+
+   [RFC2119]  Bradner, B., "Key words for use in RFCs to Indicate
+              Requirement Levels", RFC 2119.
+
+   [RFC2616]  Fielding, R., Gettys, J., Mogul, J., Frystyk, H.,
+              Masinter, L., Leach, P., and T. Berners-Lee, "Hypertext
+              Transfer Protocol -- HTTP/1.1", RFC 2616.
+
+   [RFC2631]  Rescorla, E., "Diffie-Hellman Key Agreement Method",
+              RFC 2631.
+
+   [RFC3174]  Eastlake, D. and P. Jones, "US Secure Hash Algorithm 1
+              (SHA1)", RFC 3174.
+
+   [RFC3339]  Newman, C. and G. Klyne, "Date and Time on the Internet:
+              Timestamps", RFC 3174.
+
+   [RFC3548]  Josefsson, S., "The Base16, Base32, and Base64 Data
+              Encodings", RFC 3548.
+
+   [RFC3986]  Berners-Lee, T., "Uniform Resource Identifiers (URI):
+              Generic Syntax", RFC 3986.
+
+   [XRI Syntax 2.0]
+              Reed, D. and D. McAlpin, "Extensible Resource Identifier
+              (XRI) Syntax V2.0", <http://www.oasis-open.org/committees/
+              download.php/15376#_Toc117301848>.
+
+   [Yadis]    Miller, J., "Yadis Specification 1.0",
+              <http://yadis.org/papers/yadis-v1.0.pdf>.
+
+   [1]  <http://www.oasis-open.org/committees/download.php/15376>
+
+
+
+Recordon, et al.                                               [Page 46]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+   [2]  <http://openid.net/login-bg.gif>
+
+   [3]  <http://www.oasis-open.org/committees/download.php/17293>
+
+   [4]  <>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 47]
+
+                  OpenID Authentication 2.0 - Draft 10      October 2006
+
+
+Authors' Addresses
+
+   David Recordon
+   VeriSign, Inc.
+   487 E Middlefield Road
+   Mountain View, CA  94109
+   USA
+
+   Email: drecordon@verisign.com
+
+
+   Josh Hoyt
+   JanRain, Inc.
+   5331 SW Macadam Avenue
+   Suite #375
+   Portland, OR  97239
+   USA
+
+   Email: josh@janrain.com
+
+
+   Dick Hardt
+   Sxip Identity Corporation
+   798 Beatty Street
+   Vancouver, BC  V6B 2M1
+   Canada
+
+   Email: dick@sxip.com
+
+
+   Brad Fitzpatrick
+   Six Apart, Ltd.
+   548 4th Street
+   San Francisco, CA  94107
+   USA
+
+   Email: brad@danga.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recordon, et al.                                               [Page 48]
+
+

@@ -1,0 +1,672 @@
+
+
+
+
+                                                          J. Richer, Ed.
+                                                            July 8, 2018
+
+
+     Health Relationship Trust Profile for User-Managed Access 2.0
+                          openid-heart-uma-2_0
+
+Abstract
+
+   The User-Managed Access (UMA) 2.0 protocol defines a method for an
+   end user to introduce a resource to an authorization server, define a
+   set of policies governing access to that resource, and for a
+   requesting party to provide claims to fulfill those policies in order
+   to gain access to the resource.
+
+   This specification profiles the UMA protocol to increase baseline
+   security, provide greater interoperability, and structure deployments
+   in a manner specifically applicable to (but not limited to) the
+   healthcare domain.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Notation and Conventions . . . . . . . . . .   2
+     1.2.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.3.  Conformance . . . . . . . . . . . . . . . . . . . . . . .   3
+   2.  Client Profile  . . . . . . . . . . . . . . . . . . . . . . .   4
+     2.1.  Connection with Authorization Servers . . . . . . . . . .   4
+     2.2.  Connection with Protected Resources . . . . . . . . . . .   4
+   3.  Authorization Server Profile  . . . . . . . . . . . . . . . .   4
+     3.1.  Connection with Clients . . . . . . . . . . . . . . . . .   4
+       3.1.1.  Discovery . . . . . . . . . . . . . . . . . . . . . .   4
+       3.1.2.  Claims Gathering  . . . . . . . . . . . . . . . . . .   4
+     3.2.  Connection with Protected Resources . . . . . . . . . . .   5
+     3.3.  Tokens  . . . . . . . . . . . . . . . . . . . . . . . . .   5
+       3.3.1.  Protection API Access Token (PAT) . . . . . . . . . .   5
+       3.3.2.  Requesting Party Token (RPT)  . . . . . . . . . . . .   6
+       3.3.3.  Persisted Claims Token (PCT)  . . . . . . . . . . . .   6
+       3.3.4.  Token Lifetimes . . . . . . . . . . . . . . . . . . .   6
+     3.4.  Component Registration  . . . . . . . . . . . . . . . . .   7
+   4.  Resource Server Profile . . . . . . . . . . . . . . . . . . .   7
+     4.1.  Connection with Authorization Servers . . . . . . . . . .   7
+       4.1.1.  Resource Authentication . . . . . . . . . . . . . . .   7
+     4.2.  Connection with Clients . . . . . . . . . . . . . . . . .   7
+   5.  Security Considerations . . . . . . . . . . . . . . . . . . .   7
+   6.  Privacy Considerations  . . . . . . . . . . . . . . . . . . .   8
+   7.  Normative References  . . . . . . . . . . . . . . . . . . . .   8
+   Appendix A.  Acknowledgements . . . . . . . . . . . . . . . . . .  11
+
+
+
+Richer                   Expires January 9, 2019                [Page 1]
+
+                               HEART UMA2                      July 2018
+
+
+   Appendix B.  Notices  . . . . . . . . . . . . . . . . . . . . . .  11
+   Appendix C.  Document History . . . . . . . . . . . . . . . . . .  12
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  12
+
+1.  Introduction
+
+   This document profiles the User-Managed Access 2.0 [UMA2]
+   specification for use in the context of securing web-facing
+   application programming interfaces (APIs), particularly
+   Representational State Transfer (RESTful) APIs, in potentially multi-
+   party cross-domain scenarios.  Because User-Managed Access is built
+   on OAuth 2.0 and OpenID Connect 1.0, this profile inherits all
+   requirements of the HEART profiles for the use of OAuth 2.0
+   [HEART.OAuth2] and OpenID Connect 1.0 [HEART.OIDC] where applicable.
+   All requirements herein are in addition to the OAuth 2.0 and OpenID
+   Connect 1.0 profiles where appropriate.  The requirements in this
+   document serve two purposes:
+
+   1.  Define a mandatory baseline set of security controls suitable for
+       a wide range of use cases, while maintaining reasonable ease of
+       implementation and functionality
+
+   2.  Identify optional advanced security controls for sensitive use
+       cases where heightened risks justify more stringent controls that
+       increase the required implementation effort and may reduce or
+       restrict functionality
+
+   This UMA profile is intended to be shared broadly, and ideally to
+   influence OAuth implementations in other domains besides health care.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in RFC
+   2119 [RFC2119].
+
+   All uses of JSON Web Signature (JWS) [RFC7515] and JSON Web
+   Encryption (JWE) [RFC7516] data structures in this specification
+   utilize the JWS Compact Serialization or the JWE Compact
+   Serialization; the JWS JSON Serialization and the JWE JSON
+   Serialization are not used.
+
+1.2.  Terminology
+
+   This specification uses the terms "Access Token", "Authorization
+   Code", "Authorization Endpoint", "Authorization Grant",
+   "Authorization Server", "Client", "Client Authentication", "Client
+
+
+
+Richer                   Expires January 9, 2019                [Page 2]
+
+                               HEART UMA2                      July 2018
+
+
+   Identifier", "Client Secret", "Grant Type", "Protected Resource",
+   "Redirection URI", "Refresh Token", "Resource Owner", "Resource
+   Server", "Response Type", and "Token Endpoint" defined by OAuth 2.0
+   [RFC6749], the terms "Claim Name", "Claim Value", and "JSON Web Token
+   (JWT)" defined by JSON Web Token (JWT) [RFC7519], the terms defined
+   by OpenID Connect Core 1.0 [OpenID.Core], and the terms defined by
+   UMA [UMA2].
+
+1.3.  Conformance
+
+   This specification defines requirements for the following components:
+
+   o  UMA 2.0 client
+
+   o  UMA 2.0 authorization server
+
+   o  UMA 2.0 resource server
+
+   The specification also defines features for interaction between these
+   components:
+
+   o  Client to authorization server
+
+   o  Protected resource to authorization server
+
+   When a HEART-compliant component is interacting with other HEART-
+   compliant components, in any valid combination, all components MUST
+   fully conform to the features and requirements of this specification.
+   All interaction with non-HEART components is outside the scope of
+   this specification.
+
+   A HEART-compliant UMA authorization server MUST support all features
+   as described in this specification.  A general-purpose authorization
+   server MAY support additional features for use with non-HEART clients
+   and protected resources.
+
+   All OAuth 2.0 functionality used to implement the UMA protocol MUST
+   conform to the OAuth 2.0 HEART profile.
+
+   A HEART-compliant UMA authorization server MAY also provide HEART-
+   compliant OAuth 2.0 authorization server functionality.  In such
+   cases, the authorization server MUST fully implement the OAuth 2.0
+   HEART profile.
+
+   A HEART-compliant UMA client MUST use all functions as described in
+   this specification.  A general-purpose client library MAY support
+   additional features for use with non-HEART authorization servers and
+   protected resources.
+
+
+
+Richer                   Expires January 9, 2019                [Page 3]
+
+                               HEART UMA2                      July 2018
+
+
+   A HEART-compliant UMA resource server MUST use all functions as
+   described in this specification.  A general-purpose resource server
+   library MAY support additional features for use with non-HEART
+   authorization servers and clients.
+
+2.  Client Profile
+
+2.1.  Connection with Authorization Servers
+
+   All clients MUST authenticate to the token endpoint using a private
+   key as described in the HEART OAuth 2.0 [HEART.OAuth2] profile
+   section 2.2.2.
+
+2.2.  Connection with Protected Resources
+
+   Clients MUST present the RPT as an OAuth 2.0 bearer token as
+   described in [RFC6750].
+
+3.  Authorization Server Profile
+
+3.1.  Connection with Clients
+
+3.1.1.  Discovery
+
+   The authorization server MUST implement the UMA discovery mechanism
+   defined in UMA [UMA2] as well as the discovery mechanisms described
+   in the HEART OAuth 2.0 [HEART.OAuth2] profile.
+
+3.1.2.  Claims Gathering
+
+   The authorization server MUST support claims being presented in at
+   least two methods:
+
+   o  by redirecting the requesting party to a web page where they can
+      log in to the authorization server using OpenID Connect
+      [HEART.OIDC]
+
+   o  directly by the client in the form of an OpenID Connect ID Token
+
+   When the ID token is presented directly to the RPT endpoint, the
+   authorization server MUST validate the token, including its audience
+   and signature.  Since the audience of an ID token is the client's
+   identifier with the IdP, and this client identifier is known only to
+   the client and the IdP, this restriction effectively means that ID
+   tokens can only be presented at the RPT endpoint in the special case
+   when the authorization server is also the IdP or there is another
+   closely bound relationship between the AS and IdP.
+
+
+
+
+Richer                   Expires January 9, 2019                [Page 4]
+
+                               HEART UMA2                      July 2018
+
+
+3.2.  Connection with Protected Resources
+
+   The UMA authorization server MUST implement UMA 2.0 Federated
+   Authorization [UMA2.Authz] to allow for dynamic association with
+   protected resources at runtime.  The UMA authorization server MUST
+   implement OAuth 2.0 Dynamic Client Registration [RFC7591] to allow
+   protected resources to register at runtime with the AS.
+
+   Since UMA protected resources will act as OAuth clients during parts
+   of the process, all requirements for interaction between OAuth
+   authorization servers and OAuth clients in the HEART OAuth 2.0
+   profile [HEART.OAuth2] apply to these as well.
+
+   The authorization server MUST make its introspection endpoint
+   [RFC7662] accessible to the protected resource by use of the PAT.
+
+3.3.  Tokens
+
+   All issued access tokens (whether PAT or RPT) MUST be JSON Web Tokens
+   (JWTs) [RFC7519] signed with JSON Web Signatures (JWS) [RFC7515]
+   using the authorization server's key as described in the HEART OAuth
+   2.0 [HEART.OAuth2] profile section 4.2.
+
+   PATs MUST be issued using a standard OAuth 2.0 token flow appropriate
+   to the type of application described in the HEART OAuth 2.0
+   [HEART.OAuth2] profile.  As protected resources are web services,
+   they MUST behave as either a full client with user delegation or a
+   direct access client depending on whether they protect individual or
+   bulk resources, respectively.
+
+3.3.1.  Protection API Access Token (PAT)
+
+   The PAT MUST at minimum define the following fields inside the JWT
+   and return them from the introspection endpoint.  Other fields MAY
+   also be defined.
+
+   iss  The issuer URL of the authorization server.
+
+   aud  An array containing the URL of the introspection endpoint and
+      the URL of the resource set registration endpoint
+
+   sub  The issuer-specific identifier of the user that authorized the
+      PAT.
+
+   azp  The client identifier of the protected resource.
+
+
+
+
+
+
+Richer                   Expires January 9, 2019                [Page 5]
+
+                               HEART UMA2                      July 2018
+
+
+3.3.2.  Requesting Party Token (RPT)
+
+   The RPT MUST at minimum define the following fields inside the JWT
+   and return them from the introspection endpoint.  Other fields MAY
+   also be defined.
+
+   iss  The issuer URL of the authorization server.
+
+   aud  An array of resource identifiers where this token can be used.
+
+   sub  The issuer-specific identifier of the user that authorized the
+      RPT (the resource owner).
+
+   azp  The client identifier of the authorized client.
+
+3.3.3.  Persisted Claims Token (PCT)
+
+   The format and content of the PCT is undefined by this specification.
+   PCTs are opaque to all parties in the system except the AS and are
+   interpreted only internally.  However, all PCTs:
+
+   o  MUST be unguessable
+
+   o  MUST NOT contain any claim information
+
+   o  MUST represent a single RqP
+
+   o  MUST be associated with a single client
+
+3.3.4.  Token Lifetimes
+
+   It is RECOMMENDED that PATs have a lifetimes as specified in the
+   HEART OAuth 2.0 [HEART.OAuth2] profile section 4.3 depending on the
+   nature of the client or protected resource they were issued to.
+   Since the PAT is intended to be used for managing access to resources
+   when the resource owner is no longer present, it SHOULD have a
+   lifetime and lifecycle that allows that use pattern, such as the use
+   of refresh tokens issued alongside the PAT.
+
+   It is RECOMMENDED that RPTs follow a lifetime of an access token as
+   specified in the HEART OAuth 2.0 [HEART.OAuth2] profile section 4.3
+   depending on the nature of the client.
+
+   It is RECOMMENDED that PCTs follow a lifetime similar to that of a
+   refresh token as specified in the HEART OAuth 2.0 profile
+   [HEART.OAuth2] as they are intended to be used across multiple
+   transactions.
+
+
+
+
+Richer                   Expires January 9, 2019                [Page 6]
+
+                               HEART UMA2                      July 2018
+
+
+3.4.  Component Registration
+
+   All UMA clients MUST register with the authorization server as OAuth
+   clients, as described in the HEART OAuth 2.0 [HEART.OAuth2] profile.
+   Since all UMA resource servers also act as OAuth clients, they MUST
+   also register with the authorization server under the same
+   requirements as regular OAuth clients.
+
+   The authorization server MUST allow for dynamic client registration
+   [RFC7591].  The authorization server MAY prohibit dynamically
+   registered clients and resource sets from requesting specific scopes,
+   as described in the HEART OAuth 2.0 [HEART.OAuth2] profile.
+
+   The authorization server MUST indicate to end users that a client or
+   protected resource was dynamically registered in the UI, such as on
+   the policy editing screen presented to the resource owner.
+
+4.  Resource Server Profile
+
+4.1.  Connection with Authorization Servers
+
+   Resource servers that allow resource owners to specify their own
+   authorization server MUST be capable of using webfinger [RFC7033] to
+   discover the authorization server's issuer URL.
+
+4.1.1.  Resource Authentication
+
+   Resource servers MUST authenticate to the token endpoint of the
+   authorization server using a private key as described in the HEART
+   OAuth 2.0 [HEART.OAuth2] profile section 2.2.
+
+4.2.  Connection with Clients
+
+   Resource servers MUST allow connections from clients in an
+   unauthorized state to start the discovery process.  The Resource
+   server MUST return the issuer URL of the authorization server as well
+   as a permission ticket for the client to use.
+
+   Resource servers MUST accept RPTs as an OAuth bearer token in the
+   authorization header.
+
+5.  Security Considerations
+
+   All transactions MUST be protected in transit by TLS as described in
+   BCP195 [BCP195].
+
+   All clients MUST conform to applicable recommendations found in the
+   Security Considerations sections of [RFC6749] and those found in the
+
+
+
+Richer                   Expires January 9, 2019                [Page 7]
+
+                               HEART UMA2                      July 2018
+
+
+   OAuth 2.0 Threat Model and Security Considerations document
+   [RFC6819].
+
+6.  Privacy Considerations
+
+   When a client makes an unauthenticated call to a medical record
+   protected by UMA, the resource server will respond back with an
+   indicator of which authorization server protects that resource.  If
+   the operator of the client knows out-of-band that a particular user
+   owns or controls a given authorization server, such disclosure could
+   inadvertently leak information about the patient without divulging
+   the medical record itself.
+
+7.  Normative References
+
+   [BCP195]   Sheffer, Y., Holz, R., and P. Saint-Andre,
+              "Recommendations for Secure Use of Transport Layer
+              Security (TLS) and Datagram Transport Layer Security
+              (DTLS)", BCP 195, RFC 7525, DOI 10.17487/RFC7525, May
+              2015, <http://www.rfc-editor.org/info/bcp195>.
+
+   [HEART.OAuth2]
+              Richer, J., Ed., "Health Relationship Trust Profile for
+              OAuth 2.0", February 2016,
+              <http://openid.net/specs/openid-heart-oauth2-1_0.html>.
+
+   [HEART.OIDC]
+              Richer, J., Ed., "Health Relationship Trust Profile for
+              OpenID Connect 1.0", February 2016,
+              <http://openid.net/specs/
+              openid-heart-openid-connect-1_0.html>.
+
+   [I-D.ietf-oauth-pop-architecture]
+              Hunt, P., Richer, J., Mills, W., Mishra, P., and H.
+              Tschofenig, "OAuth 2.0 Proof-of-Possession (PoP) Security
+              Architecture", draft-ietf-oauth-pop-architecture-08 (work
+              in progress), July 2016.
+
+   [OpenID.Core]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Core 1.0", August 2015,
+              <http://openid.net/specs/openid-connect-core-1_0.html>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+
+
+
+Richer                   Expires January 9, 2019                [Page 8]
+
+                               HEART UMA2                      July 2018
+
+
+   [RFC2246]  Dierks, T. and C. Allen, "The TLS Protocol Version 1.0",
+              RFC 2246, DOI 10.17487/RFC2246, January 1999,
+              <https://www.rfc-editor.org/info/rfc2246>.
+
+   [RFC3986]  Berners-Lee, T., Fielding, R., and L. Masinter, "Uniform
+              Resource Identifier (URI): Generic Syntax", STD 66,
+              RFC 3986, DOI 10.17487/RFC3986, January 2005,
+              <https://www.rfc-editor.org/info/rfc3986>.
+
+   [RFC5246]  Dierks, T. and E. Rescorla, "The Transport Layer Security
+              (TLS) Protocol Version 1.2", RFC 5246,
+              DOI 10.17487/RFC5246, August 2008,
+              <https://www.rfc-editor.org/info/rfc5246>.
+
+   [RFC5322]  Resnick, P., Ed., "Internet Message Format", RFC 5322,
+              DOI 10.17487/RFC5322, October 2008,
+              <https://www.rfc-editor.org/info/rfc5322>.
+
+   [RFC5646]  Phillips, A., Ed. and M. Davis, Ed., "Tags for Identifying
+              Languages", BCP 47, RFC 5646, DOI 10.17487/RFC5646,
+              September 2009, <https://www.rfc-editor.org/info/rfc5646>.
+
+   [RFC5785]  Nottingham, M. and E. Hammer-Lahav, "Defining Well-Known
+              Uniform Resource Identifiers (URIs)", RFC 5785,
+              DOI 10.17487/RFC5785, April 2010,
+              <https://www.rfc-editor.org/info/rfc5785>.
+
+   [RFC6125]  Saint-Andre, P. and J. Hodges, "Representation and
+              Verification of Domain-Based Application Service Identity
+              within Internet Public Key Infrastructure Using X.509
+              (PKIX) Certificates in the Context of Transport Layer
+              Security (TLS)", RFC 6125, DOI 10.17487/RFC6125, March
+              2011, <https://www.rfc-editor.org/info/rfc6125>.
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <https://www.rfc-editor.org/info/rfc6749>.
+
+   [RFC6750]  Jones, M. and D. Hardt, "The OAuth 2.0 Authorization
+              Framework: Bearer Token Usage", RFC 6750,
+              DOI 10.17487/RFC6750, October 2012,
+              <https://www.rfc-editor.org/info/rfc6750>.
+
+   [RFC6819]  Lodderstedt, T., Ed., McGloin, M., and P. Hunt, "OAuth 2.0
+              Threat Model and Security Considerations", RFC 6819,
+              DOI 10.17487/RFC6819, January 2013,
+              <https://www.rfc-editor.org/info/rfc6819>.
+
+
+
+
+Richer                   Expires January 9, 2019                [Page 9]
+
+                               HEART UMA2                      July 2018
+
+
+   [RFC7009]  Lodderstedt, T., Ed., Dronia, S., and M. Scurtescu, "OAuth
+              2.0 Token Revocation", RFC 7009, DOI 10.17487/RFC7009,
+              August 2013, <https://www.rfc-editor.org/info/rfc7009>.
+
+   [RFC7033]  Jones, P., Salgueiro, G., Jones, M., and J. Smarr,
+              "WebFinger", RFC 7033, DOI 10.17487/RFC7033, September
+              2013, <https://www.rfc-editor.org/info/rfc7033>.
+
+   [RFC7515]  Jones, M., Bradley, J., and N. Sakimura, "JSON Web
+              Signature (JWS)", RFC 7515, DOI 10.17487/RFC7515, May
+              2015, <https://www.rfc-editor.org/info/rfc7515>.
+
+   [RFC7516]  Jones, M. and J. Hildebrand, "JSON Web Encryption (JWE)",
+              RFC 7516, DOI 10.17487/RFC7516, May 2015,
+              <https://www.rfc-editor.org/info/rfc7516>.
+
+   [RFC7517]  Jones, M., "JSON Web Key (JWK)", RFC 7517,
+              DOI 10.17487/RFC7517, May 2015,
+              <https://www.rfc-editor.org/info/rfc7517>.
+
+   [RFC7519]  Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token
+              (JWT)", RFC 7519, DOI 10.17487/RFC7519, May 2015,
+              <https://www.rfc-editor.org/info/rfc7519>.
+
+   [RFC7523]  Jones, M., Campbell, B., and C. Mortimore, "JSON Web Token
+              (JWT) Profile for OAuth 2.0 Client Authentication and
+              Authorization Grants", RFC 7523, DOI 10.17487/RFC7523, May
+              2015, <https://www.rfc-editor.org/info/rfc7523>.
+
+   [RFC7591]  Richer, J., Ed., Jones, M., Bradley, J., Machulak, M., and
+              P. Hunt, "OAuth 2.0 Dynamic Client Registration Protocol",
+              RFC 7591, DOI 10.17487/RFC7591, July 2015,
+              <https://www.rfc-editor.org/info/rfc7591>.
+
+   [RFC7662]  Richer, J., Ed., "OAuth 2.0 Token Introspection",
+              RFC 7662, DOI 10.17487/RFC7662, October 2015,
+              <https://www.rfc-editor.org/info/rfc7662>.
+
+   [UMA2]     Maler, E., "User-Managed Access (UMA) Profile of OAuth
+              2.0", April 2015,
+              <https://docs.kantarainitiative.org/uma/wg/
+              rec-oauth-uma-grant-2.0.html>.
+
+   [UMA2.Authz]
+              Maler, E., "User-Managed Access (UMA) Profile of OAuth
+              2.0", April 2015,
+              <https://docs.kantarainitiative.org/uma/wg/
+              rec-oauth-uma-federated-authz-2.0.html>.
+
+
+
+Richer                   Expires January 9, 2019               [Page 10]
+
+                               HEART UMA2                      July 2018
+
+
+Appendix A.  Acknowledgements
+
+   The OpenID Community would like to thank the following people for
+   their contributions to this specification: Dale Moberg, Adrian
+   Gropper, Eve Maler, Danny van Leeuwen, John Moehrke, Aaron Seib, John
+   Bradley, Debbie Bucci, Josh Mandel, and Sarah Squire.
+
+Appendix B.  Notices
+
+   Copyright (c) 2018 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+
+
+
+
+
+
+
+Richer                   Expires January 9, 2019               [Page 11]
+
+                               HEART UMA2                      July 2018
+
+
+Appendix C.  Document History
+
+   -2018-02-28
+
+   o  Minor text updates from WG comments.
+
+   -2018-02-22
+
+   o  Created UMA2 specification based on UMA1 specification.
+
+Author's Address
+
+   Justin Richer (editor)
+
+   Email: openid@justin.richer.org
+   URI:   http://justin.richer.org/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Richer                   Expires January 9, 2019               [Page 12]

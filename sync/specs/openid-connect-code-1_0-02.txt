@@ -1,0 +1,1008 @@
+
+
+
+Draft                                                  C. Mortimore, Ed.
+                                                              Salesforce
+                                                        N. Sakimura, Ed.
+                                                                     NRI
+                                                             J. Bradeley
+                                           Protiviti Government Services
+                                                          B. de Madeiros
+                                                                  Google
+                                                                  R. Ito
+                                                            Yahoo! Japan
+                                                                M. Jones
+                                                               Microsoft
+                                                           June 18, 2011
+
+
+        OpenID Connect Authorization Code Binding 1.0 - draft 02
+
+Abstract
+
+   The OpenID Connect Authorization Code Binding 1.0 is a binding of
+   OpenID Connect Core 1.0 to the OAuth 2 Authorization Code flow.  It
+   provides the most straightfoward and direct binding of OpenID Connect
+   Core by layering directly on-top of existing and commonly deployed
+   OAuth deployment patterns.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mortimore, et al.                                               [Page 1]
+
+                                authzcode                      June 2011
+
+
+Table of Contents
+
+   1.  Requirements Notation and Conventions  . . . . . . . . . . . .  3
+   2.  Terminology  . . . . . . . . . . . . . . . . . . . . . . . . .  4
+   3.  Protocol Flows . . . . . . . . . . . . . . . . . . . . . . . .  5
+     3.1.  Client prepares an Authorization Request URL . . . . . . .  5
+     3.2.  Client sends a request to the Authorization Server . . . .  6
+     3.3.  Authorization Server Authenticates the End-User  . . . . .  6
+     3.4.  Authorization Server Obtains the End-User
+           Consent/Authorization  . . . . . . . . . . . . . . . . . .  6
+     3.5.  Authorization Server Sends the End-User back to the
+           Client . . . . . . . . . . . . . . . . . . . . . . . . . .  6
+     3.6.  Client requests Assertion using the "code" . . . . . . . .  7
+     3.7.  Client receives Assertion in the response body . . . . . .  8
+     3.8.  Accessing Userinfo Endpoint  . . . . . . . . . . . . . . .  9
+     3.9.  RP receives UserInfo Response  . . . . . . . . . . . . . . 10
+   4.  Security Considerations  . . . . . . . . . . . . . . . . . . . 11
+     4.1.  Assertion manufacture/modification . . . . . . . . . . . . 11
+     4.2.  Assertion disclosure . . . . . . . . . . . . . . . . . . . 11
+     4.3.  Assertion repudiation  . . . . . . . . . . . . . . . . . . 11
+     4.4.  Assertion redirect . . . . . . . . . . . . . . . . . . . . 11
+     4.5.  Assertion reuse  . . . . . . . . . . . . . . . . . . . . . 11
+     4.6.  Secondary authenticator manufacture  . . . . . . . . . . . 12
+     4.7.  Secondary authenticator capture  . . . . . . . . . . . . . 12
+     4.8.  Assertion substitution . . . . . . . . . . . . . . . . . . 12
+     4.9.  Authentication Request Disclosure  . . . . . . . . . . . . 12
+     4.10. Timing Attack  . . . . . . . . . . . . . . . . . . . . . . 12
+     4.11. Authentication Process Threats . . . . . . . . . . . . . . 12
+   5.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 14
+     5.1.  OAuth Parameters Registry  . . . . . . . . . . . . . . . . 14
+   Appendix A.  Acknowledgements  . . . . . . . . . . . . . . . . . . 15
+   6.  Normative References . . . . . . . . . . . . . . . . . . . . . 16
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 18
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mortimore, et al.                                               [Page 2]
+
+                                authzcode                      June 2011
+
+
+1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119] .
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mortimore, et al.                                               [Page 3]
+
+                                authzcode                      June 2011
+
+
+2.  Terminology
+
+   See OpenID Connect Core 1.0 [cc] for terminology used in this
+   specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mortimore, et al.                                               [Page 4]
+
+                                authzcode                      June 2011
+
+
+3.  Protocol Flows
+
+   The protocol flow goes through the following steps.
+
+   1.  Client prepares an Authorization Request using URI query string
+       serialization as defined in OpenID Connect Core 1.0 [cc]
+       containing the desired request parameters.
+
+   2.  Client sends a request to the Authorization Server
+
+   3.  Authorization Server Authenticates the End-User
+
+   4.  Authorization Server Obtains the End-User Consent/Authorization
+
+   5.  Authorization Server Sends the End-User back to the Client with
+       an Authorization Code
+
+   6.  Client requests Assertion using the Authorization Code
+
+   7.  Client receives Assertion in the response body
+
+   8.  (OPTIONAL) Client accesses the Userinfo Endpoint
+
+   9.  (OPTIONAL) Client receives UserInfo Response
+
+   Note that in each step, the party that receives message MUST verify
+   it according to the verification rule set in OpenID Connect Core 1.0
+   [cc].
+
+3.1.  Client prepares an Authorization Request URL
+
+   When the user wishes to access a Protected Resource, and the End-User
+   Authorization has not yet been obtained, the Client prepares an
+   Authorization Request URL using URI query string serialization as
+   defined in OpenID Connect Core 1.0 [cc].
+
+   This binding further constrains the following request parameters
+
+   response_type  MUST be set to ""code"".
+
+   The scheme used in the Authorization URL MUST be HTTPS
+
+   The following is a non-normative example of an Authorization Request
+   URL.  Note that the line wraps within the values are for display
+   purpose only.
+
+
+
+
+
+
+Mortimore, et al.                                               [Page 5]
+
+                                authzcode                      June 2011
+
+
+   https://server.com/op/authorize?
+   response_type=code
+   &client_id=s6BhdRkqt3
+   &redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb
+   &scope=openid
+   &state=af0ifjsldkj
+
+3.2.  Client sends a request to the Authorization Server
+
+   Having contructed the URL, the client sends the End-User to the HTTPS
+   End-User Authorization Endpoint using the URL.  This MAY happen via
+   HTTPS redirect, hyperlinking, or any other valid means of directing
+   the User-Agent to the URL.
+
+   Following is a non-normative example using HTTP redirect.  Note: Line
+   wraps are for display purpose only.
+   HTTP/1.1 302 Found
+   Location: https://server.com/op/authorize?
+   response_type=code
+   &client_id=s6BhdRkqt3
+   &state=af0ifjsldkj
+   &openid.type=http%3A%2F%2Fopenid.net%2Fspecs%2Fcc%2F1.0%2F%23req
+
+3.3.  Authorization Server Authenticates the End-User
+
+   The Authorization Server validates the request to ensure all required
+   parameters are present and valid.  If the request is valid, the
+   authorization server MUST authenticate the End-User.  The way in
+   which the authorization server authenticates the End-User (e.g.
+   username and password login, session cookies) is beyond the scope of
+   this specification.
+
+3.4.  Authorization Server Obtains the End-User Consent/Authorization
+
+   Once the user is authenticated, the Authorization Server MUST obtain
+   an authorization decision.  This MAY be done by presenting the user
+   with a dialogue that allows the user to recognize what he is
+   consenting to and obtain his consent or by establishing approval via
+   other means ( for example, via previous administrative approval )
+
+3.5.  Authorization Server Sends the End-User back to the Client
+
+   Once the authorization is determined, the Authorization Server
+   returns positive or negative response.
+
+
+
+
+
+
+
+Mortimore, et al.                                               [Page 6]
+
+                                authzcode                      June 2011
+
+
+3.5.1.  End-user Grants Authorization
+
+   If the resource owner grants the access request, the authorization
+   server issues an Authorization code and delivers it to the client by
+   adding the following parameters to the query component of the
+   redirection URI using the "application/x-www-form-urlencoded" format:
+
+   code  REQUIRED.  The Authorization Code.
+
+   state  REQUIRED if the ""state"" parameter in the request.  Set to
+      the exact value of the ""state"" parameter received from the
+      client.
+
+   No other parameter SHOULD be returned.  The entire URL MUST NOT
+   exceed 512 bytes.
+
+   The following is a non-normative example.  Line wraps after the
+   second line is for the display purpose only.
+   HTTP/1.1 302 Found
+   Location: https://client.com/rp?
+   code=Qcb0Orv1zh30vL1MPRsbm-diHiMwcLyZvn1arpZv-Jxf_11jnpEX3Tgfvk
+   &state=af0ifjsldkj
+
+3.5.2.  End-User Denies Authorization or Invalid Request FIle
+
+   If the user denies the authorization or the user authentication
+   fails, the server MUST return the negative authorization response as
+   defined in OpenID Connect Core 1.0 [cc].  No other parameter SHOULD
+   be returned.
+
+3.6.  Client requests Assertion using the "code"
+
+   Upon receipt of the ""code"", the Client requests an Assertion that
+   includes the ""access_token"" and other variables.  To obtain the
+   assertion, the client send the following parameters via HTTPS POST to
+   the token endpoint using "application/x-www-form-urlencoded" format
+   in the HTTP request entity-body:
+
+   grant_type  REQUIRED.  A string "authorization_code".
+
+   code  REQUIRED.  The authorization code received from the
+      authorization server.
+
+   client_id  REQUIRED.  The client_id of the RP.
+
+
+
+
+
+
+
+Mortimore, et al.                                               [Page 7]
+
+                                authzcode                      June 2011
+
+
+   client_secret  OPTIONAL.  Client Secret.  If the secret_type is
+      ""basic"", send the pre-shared secret.  If the secret_type is
+      ""jwt"", send the compact serealization of the JWT [jwt] Signature
+      over the 'code'.
+
+   secret_type  OPTIONAL.  Type of the "client_secret". ""basic"" or
+      ""jwt"".  Defaults to ""basic"".
+
+   TODO - we shouldn't constrain the authentication options here, but
+   rather defer to OAuth2 and applicable extensions.
+
+   The following is a non-normative example.  Line wraps after line 4
+   are for display purpose only.
+   POST /token HTTP/1.1
+   Host: server.example.com
+   Content-Type: application/x-www-form-urlencoded
+
+   grant_type=authorization_code
+   &code=Qcb0Orv1zh30vL1MPRsbm-diHiMwcLyZvn1arpZv-Jxf_11jnpEX3Tgfvk
+   &client_id=s6BhdRkqt3
+   &client_secret=1234qwer
+   &secret_type=shared
+
+3.7.  Client receives Assertion in the response body
+
+   Upon receipt of the Token Request, the Server MUST return either
+   Positive or Negative Assertion that corresponds to the received
+   Artifact ""code"".
+
+3.7.1.  Positive Assertion
+
+   A Positive Assertion is the Access Token Response of the OpenID
+   Connect Core 1.0 [cc].
+
+   The authorization server MUST include a HTTP "Cache-Control" response
+   header field with a value of "no-store" in any response containing
+   tokens, secrets, or other sensitive information.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mortimore, et al.                                               [Page 8]
+
+                                authzcode                      June 2011
+
+
+   Following is a non-normative example for "openid2json" version of the
+   Assertion:
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+   Cache-Control: no-store
+
+   {
+       "access_token": "SlAV32hkKG",
+       "token_type": "jwt",
+       "refresh_token": "8xLOxBtZp8",
+       "user_id": "http://op.example.com/alice#1234",
+       "domain": "op.example.com",
+       "expires_in": 3600,
+       "session":"jwtheader.jwtpayload.jwtcrypto"
+   }
+
+3.7.2.  Error Response
+
+   If the Token Request is invalid or unauthorized, the Authorization
+   Server constructs the response by returning the Token Error Response
+   defined in OpenID Connect Core 1.0 [cc] in the entity body of the
+   HTTP response using the "application/json" media type with HTTP
+   response code 400.
+
+   Following is a non-normative example:
+   HTTP/1.1 400 Bad Request
+   Content-Type: application/json
+   Cache-Control: no-store
+
+   {
+     "error":"invalid_request"
+   }
+
+3.8.  Accessing Userinfo Endpoint
+
+   To obtain the additional attributes and tokens/assertions, the client
+   makes a GET or POST request to the Userinfo Endpoint as in OpenID
+   Connect Core 1.0 [cc].
+
+3.8.1.  Requesting Userinfo
+
+   Client SHOULD send the the UserInfo request defined in section 4.3.1
+   of the OpenID Connect Core 1.0 [cc] either in HTTP GET or POST
+   request.
+
+
+
+
+
+
+
+Mortimore, et al.                                               [Page 9]
+
+                                authzcode                      June 2011
+
+
+   The following is a non-normative example.  Line wraps are for display
+   purpose only.
+   POST /userinfo HTTP/1.1
+   Host: server.example.com
+   Content-Type: application/x-www-form-urlencoded
+
+   access_token=SlAV32hkKG
+
+3.9.  RP receives UserInfo Response
+
+   Upon receipt of the UserInfo Request, the UserInfo Endpoint MUST
+   return the JSON Serialization of the Userinfo Response as in [cc] in
+   the HTTP response body.
+
+   Following is a non-normative example of such response.
+  {
+      "name": {
+          "givenName": "Jane",
+          "familyName": "Doe"
+      },
+      "displayName": "Jane Doe",
+      "emails": [
+          {
+              "value": "janedoe@example.com",
+              "primary": true,
+              "verified": true
+          }
+      ],
+      "photos": [
+          {
+              "value": "https://example.com/profiles/janedoe/photo.jpg",
+              "type": "photo"
+          },
+          {
+              "value": "https://example.com/profiles/janedoe/thumb.jpg",
+              "type": "thumbnail"
+          }
+      ]
+  }
+
+3.9.1.  Error Response
+
+   When some error condition arises, the UserInfo endpoint returns the
+   Error Response defined in section 4.3.3 of the OpenID Connect Core
+   [cc]
+
+
+
+
+
+
+Mortimore, et al.                                              [Page 10]
+
+                                authzcode                      June 2011
+
+
+4.  Security Considerations
+
+   Followings are the list of attack vectors and remedies that were
+   considered for this specification.
+
+4.1.  Assertion manufacture/modification
+
+   To mitigate this attack, there are two ways to mitigate it.
+
+   1.  The assertion MAY be digitally signed by the OP.  The Relying
+       Party SHOULD check the digital signature to verify that it was
+       issued by a legitimate OP.
+
+   2.  The assertion MUST be sent over a protected channel such as TLS/
+       SSL.  In order to protect the integrity of assertions from
+       malicious attack, the OP MUST be authenticated.  In this
+       specification, the assertion is always sent over TLS/SSL
+       protected channel.
+
+4.2.  Assertion disclosure
+
+   The Assertion disclosure can be mitigated in the following two ways.
+
+   1.  Assertion is sent over TLS/SSL protected channel, where RP is
+       authenticated by "client_id" and "client_secret".
+
+   2.  Signed Assertion is encrypted by the RP's public key.
+
+4.3.  Assertion repudiation
+
+   To mitigate this threat, the assertion may be digitally signed by the
+   server using a key that supports non-repudiation.  The client SHOULD
+   check the digital signature to verify that it was issued by a
+   legitimate OP.
+
+4.4.  Assertion redirect
+
+   To mitigate this threat, the assertion includes the identity of the
+   RP for whom it was generated as "client_id".  The RP verifies that
+   incoming assertions include its identity as the recipient of the
+   assertion.
+
+4.5.  Assertion reuse
+
+   The assertion includes a timestamp and a short lifetime of validity.
+   The Relying Party checks the timestamp and lifetime values to ensure
+   that the assertion is currently valid.
+
+
+
+
+Mortimore, et al.                                              [Page 11]
+
+                                authzcode                      June 2011
+
+
+4.6.  Secondary authenticator manufacture
+
+   Due to the large entropy requirement of the Artifact ("code") and
+   short life nature of its validity, the success probability of this
+   attack is extremely low.
+
+4.7.  Secondary authenticator capture
+
+   Secondary authenticator (="code") is transmitted only through HTTPS,
+   thus it is protected between the OP and the User-Agent, and User-
+   Agent and the RP.
+
+   Only the place it can be captured is the User-Agent where the TLS
+   session is terminated, and is possible if the User-Agent is infested
+   by malwares.  However, it renders no usefulness as long as the
+   profile in use either RP authentication or assertion encryption.
+
+4.8.  Assertion substitution
+
+   Responses to assertion requests is bound to the corresponding
+   requests by message order in HTTP, as both assertions and requests
+   are protected by TLS that can detect and disallow malicious
+   reordering of packets.
+
+4.9.  Authentication Request Disclosure
+
+   If the authentication request is POSTed directly through a protected
+   channel, it is not possible to disclose the authentication request.
+
+4.10.  Timing Attack
+
+   Timing attack can be used to reduce the effctive key length of the
+   signature if the time required to return the response in case of
+   signature error and correct signature exists.  Care should be taken
+   in the implementation to avoid this attack.
+
+4.11.  Authentication Process Threats
+
+   In the category of Authentication Process Threats, following threats
+   exists.
+
+   o  Online guessing
+
+   o  Phishing
+
+   o  Pharming
+
+
+
+
+
+Mortimore, et al.                                              [Page 12]
+
+                                authzcode                      June 2011
+
+
+   o  Eavesdropping
+
+   o  Replay
+
+   o  Session hijack
+
+   o  Man-in-the-middle
+
+   Authentication process per se as described in NIST SP800-63-rev1 is
+   out of scope for this protocol, but care SHOULD be taken to achieve
+   appropriate protection.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mortimore, et al.                                              [Page 13]
+
+                                authzcode                      June 2011
+
+
+5.  IANA Considerations
+
+5.1.  OAuth Parameters Registry
+
+   The following is the parameter registration request for the "scope"
+   parameter as defined in this specification:
+
+   Parameter name: openid
+
+   Parameter usage location: The end-user authorization endpoint
+   request, the end-user authorization endpoint response, the token
+   endpoint request, the token endpoint response, and the "WWW-
+   Authenticate" header field.
+
+   Parameter usage location: The end-user authorization endpoint
+   request, the end-user authorization endpoint response, the token
+   endpoint request, the token endpoint response, and the "WWW-
+   Authenticate" header field.
+
+   Change controller: IETF
+
+   Specification document(s): [[ this document ]]
+
+   Related information: None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mortimore, et al.                                              [Page 14]
+
+                                authzcode                      June 2011
+
+
+Appendix A.  Acknowledgements
+
+   As a binding of OpenID Authentication, this specification heavily
+   relies on OpenID Authentication 2.0.  Please refer to Appendix C of
+   OpenID Authentication 2.0 for the full list of the contributors for
+   OpenID Authentication 2.0.
+
+   In addition, the OpenID Community would like to thank the following
+   people for the work they've done in the drafting and editing of this
+   specification.
+
+      Breno de Medeiros (breno@gmail.com)
+
+      Hideki Nara (hideki.nara@gmail.com)
+
+      John Bradley (jbradely@mac.com) <author>
+
+      Nat Sakimura (n-sakimura@nri.co.jp) <author>
+
+      Ryo Itou (ritou@yahoo-corp.jp)
+
+      Chuck Mortimore (cmortimore@salesforce.com) <editor>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mortimore, et al.                                              [Page 15]
+
+                                authzcode                      June 2011
+
+
+6.  Normative References
+
+   [PAPE1.0]  Recordon, D., Jones, M., Bufu, J., Ed., Daughty, J., and
+              N. Sakimura, "OpenID Provider Authentication Property
+              Extension 1.0", December 2008.
+
+   [RFC1421]  Linn, J., "Privacy Enhancement for Internet Electronic
+              Mail: Part I: Message Encryption and Authentication
+              Procedures", RFC 1421, February 1993.
+
+   [RFC1422]  Kent, S., "Privacy Enhancement for Internet Electronic
+              Mail: Part II: Certificate-Based Key Management",
+              RFC 1422, February 1993.
+
+   [RFC1423]  Balenson, D., "Privacy Enhancement for Internet Electronic
+              Mail: Part III: Algorithms, Modes, and Identifiers",
+              RFC 1423, February 1993.
+
+   [RFC1424]  Kaliski, B., "Privacy Enhancement for Internet Electronic
+              Mail: Part IV: Key Certification and Related Services",
+              RFC 1424, February 1993.
+
+   [RFC1750]  Eastlake, D., Crocker, S., and J. Schiller, "Randomness
+              Recommendations for Security", RFC 1750, December 1994.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC2616]  Fielding, R., Gettys, J., Mogul, J., Frystyk, H.,
+              Masinter, L., Leach, P., and T. Berners-Lee, "Hypertext
+              Transfer Protocol -- HTTP/1.1", RFC 2616, June 1999.
+
+   [RFC2617]  Franks, J., Hallam-Baker, P., Hostetler, J., Lawrence, S.,
+              Leach, P., Luotonen, A., and L. Stewart, "HTTP
+              Authentication: Basic and Digest Access Authentication",
+              RFC 2617, June 1999.
+
+   [RFC3548]  Josefsson, S., "The Base16, Base32, and Base64 Data
+              Encodings", RFC 3548, July 2003.
+
+   [RFC3629]  Yergeau, F., "UTF-8, a transformation format of ISO
+              10646", STD 63, RFC 3629, November 2003.
+
+   [RFC3986]  Berners-Lee, T., Fielding, R., and L. Masinter, "Uniform
+              Resource Identifier (URI): Generic Syntax", STD 66,
+              RFC 3986, January 2005.
+
+   [RFC4627]  Crockford, D., "The application/json Media Type for
+
+
+
+Mortimore, et al.                                              [Page 16]
+
+                                authzcode                      June 2011
+
+
+              JavaScript Object Notation (JSON)", RFC 4627, July 2006.
+
+   [cc]       Recordon, D., Sakimura, N., Ed., Bradeley, J., de
+              Madeiros, B., and M. Jones, "OpenID Connect Core 1.0",
+              September 2010.
+
+   [jwt]      Jones, M., Belfanz, D., Bradeley, J., Goland, Y., Panzer,
+              J., Sakimura, N., and P. Tarjan, "JSON Web Token",
+              January 2011.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mortimore, et al.                                              [Page 17]
+
+                                authzcode                      June 2011
+
+
+Authors' Addresses
+
+   Chuck Mortimore (editor)
+   Salesforce.com
+
+   Email: cmortimore@salesforce.com
+
+
+   Nat Sakimura (editor)
+   Nomura Research Institute, Ltd.
+
+   Email: n-sakimura@nri.co.jp
+
+
+   John Bradley
+   Protiviti Government Services
+
+   Email: jbradley@mac.com
+
+
+   Breno de Madeiros
+   Google Inc.
+
+   Email: breno@google.com
+
+
+   Ryo Ito
+   Yahoo Japan Corporation
+
+   Email: ritou.06@gmail.com
+
+
+   Mike Jones
+   Microsoft Corporation
+
+   Email: Michael.Jones@microsoft.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mortimore, et al.                                              [Page 18]
+

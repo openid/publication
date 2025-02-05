@@ -1,0 +1,560 @@
+
+
+
+
+                                                            G. Fernandez
+                                                              Telefonica
+                                                               F. Walter
+                                                              A. Nennker
+                                                     Deutsche Telekom AG
+                                                                D. Tonge
+                                                                Moneyhub
+                                                                B. Hjelm
+                                                                 Verizon
+                                                          April 30, 2020
+
+
+MODRNA: Client Initiated Backchannel Authentication Profile 1.0 draft-03
+   openid-connect-modrna-client-initiated-backchannel-authentication-
+                               profile-03
+
+Abstract
+
+   OpenID Connect Client Initiated Backchannel Authentication Flow
+   [CIBA.Core] [CIBA Core] is an authentication flow like OpenID Connect
+   but with a direct Relying Party to OpenID Provider communication
+   without redirects through the user's browser.  The MODRNA Client
+   Initiated Backchannel Authentication (CIBA) Profile is a profile of
+   OpenID Connect Client Initiated Backchannel Authentication Flow
+   [CIBA.Core] [CIBA Core] to be used when requesting authentication
+   from Mobile Network Operators (MNOs).
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Notation and Conventions . . . . . . . . . .   2
+   2.  Terminology . . . . . . . . . . . . . . . . . . . . . . . . .   2
+   3.  Overview  . . . . . . . . . . . . . . . . . . . . . . . . . .   3
+     3.1.  Examples of Use Cases . . . . . . . . . . . . . . . . . .   3
+   4.  Authentication Request  . . . . . . . . . . . . . . . . . . .   4
+   5.  Security Considerations . . . . . . . . . . . . . . . . . . .   4
+   6.  Privacy Considerations  . . . . . . . . . . . . . . . . . . .   4
+   7.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   4
+     7.1.  Normative References  . . . . . . . . . . . . . . . . . .   4
+     7.2.  Informative References  . . . . . . . . . . . . . . . . .   6
+   Appendix A.  Example Flow . . . . . . . . . . . . . . . . . . . .   6
+   Appendix B.  Acknowledgements . . . . . . . . . . . . . . . . . .   8
+   Appendix C.  Notices  . . . . . . . . . . . . . . . . . . . . . .   8
+   Appendix D.  Document History . . . . . . . . . . . . . . . . . .   9
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  10
+
+
+
+
+
+
+Fernandez, et al.       Expires November 1, 2020                [Page 1]
+
+                           MODRNA CIBA Profile                April 2020
+
+
+1.  Introduction
+
+   OpenID Connect Client Initiated Backchannel Authentication Flow
+   [CIBA.Core] [CIBA Core] is an authentication flow like OpenID Connect
+   in which a Relying Party, that can obtain a valid identifier for the
+   user they want to authenticate, will be able to initiate an
+   interaction flow to authenticate their users without having end-user
+   interaction from the consumption device.  The flow involves direct
+   communication from the Client to the OpenID Provider without redirect
+   through the user's browser (consumption device).
+
+   This specification is a MODRNA profile of the OpenID Connect Client
+   Initiated Backchannel Authentication Flow [CIBA.Core] [CIBA.Core] to
+   be used when requesting authentication from Mobile Network Operators
+   (MNOs) and includes guidance specific to that context.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119].
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+2.  Terminology
+
+   This specification uses the terms "OpenID Provider (OP)" and "Relying
+   Party (RP)" as defined by OpenID Connect Core [OpenID.Core]
+   [OpenID.Core].  Furthermore, it uses the term "Client" as defined by
+   OAuth 2.0 [RFC6749].  OAuth 2.0 Authorization Servers implementing
+   OpenID Connect and CIBA are also referred to as OpenID Providers
+   (OPs).  OAuth 2.0 Clients using OpenID Connect and CIBA are also
+   referred to as Relying Parties (RPs).  This specification also uses
+   the following terms:
+
+   Mobile Network Operator (MNO)  A provider of wireless communication
+      services that owns or controls the wireless network elements
+      necessary to sell and deliver services to an end user.
+
+   Mobile Station International Subscriber Directory Number (MSISDN)  A
+      telephone number uniquely identifying a subscription in a mobile
+      network.
+
+   Consumption Device (CD)  The Consumption Device is the device that
+      helps the user consume the service.  In the CIBA use case, the
+      user is not necessarily in control of the CD.  For example, the CD
+
+
+
+Fernandez, et al.       Expires November 1, 2020                [Page 2]
+
+                           MODRNA CIBA Profile                April 2020
+
+
+      may be in the control of an RP agent (e.g. at a bank teller) or
+      may be an RP controlled device (e.g. a petrol pump).
+
+   Authentication Device (AD)  The device on which the user will
+      authenticate and authorize the request, often a smartphone.
+
+3.  Overview
+
+   Client Initiated Backchannel Authentication (CIBA) enables a Client
+   to initiate the authentication of an end-user by means of out-of-band
+   mechanisms.  The OpenID Connect Client Initiated Backchannel
+   Authentication Flow [CIBA.Core] [CIBA Core] defines three ways to
+   deliver the tokens and step 3 will cover the requirements for this
+   profile.
+
+   1.  The Client shall make an "HTTP POST" request to the Backchannel
+       Authentication Endpoint to ask for end-user authentication.
+
+   2.  The OP will respond immediately with a unique identifier that
+       identifies that authentication while it tries to authenticate the
+       user in the background.
+
+   3.  The Client will receive the ID Token, Access Token and optionally
+       Refresh Token by means of either the Poll or Push modes.  This
+       choice MUST be established by the Client at registration time.
+
+       Poll Mode  When configured in Poll mode, the Client will poll the
+          token endpoint to get a response with the tokens.
+
+       Push Mode  When configured in Push mode, the OP will send a
+          request with the tokens to a callback URI previously
+          registered by the Client.
+
+3.1.  Examples of Use Cases
+
+   The following use cases are non-normative examples to illustrate the
+   usage of this specification.
+
+   1.  A call center agent wants to authenticate a caller.  Using
+       additional scopes like e.g. "profile" or "phone" the call center
+       agent would get access to claims about the user like
+       "phone_number" and "phone_number_verified".
+
+   2.  An IDP wants to offer the ability for its relying parties to
+       request "step-up" authorisation via a decoupled device
+
+
+
+
+
+
+Fernandez, et al.       Expires November 1, 2020                [Page 3]
+
+                           MODRNA CIBA Profile                April 2020
+
+
+4.  Authentication Request
+
+   The Authentication Request has the following differences from the
+   OpenID Connect Client Initiated Backchannel Authentication Flow
+   [CIBA.Core] [CIBA Core]:
+
+   acr_values  REQUIRED.  This value is required as defined in OpenID
+      Connect MODRNA Authentication Profile [MODRNA.Authentication]
+      [MODRNA.Authentication].
+
+   Note: While the structure of a "login_hint" is undefined, in a mobile
+   context a login_hint is likely to contain a MSISDN.
+
+   Note: An ecosystem can protect the pricacy of a user's MSISDN and
+   other personally identifiable information through the use of a
+   discovery service.  The discovery service can return an encrypted
+   "login_hint_token" for use in a CIBA flow.
+
+5.  Security Considerations
+
+   While this profile suports CIBA push mode, implementers should only
+   implement that mode if the constraints of an environment require it,
+   e.g. high latency environments.  Poll mode is preferred as this
+   method of token delivery is the same as other OAuth 2.0 based flows,
+   and therefore more likely to have had appropriate security review.
+
+6.  Privacy Considerations
+
+   Using MODRNA CIBA Profile it is possible for the Client to
+   authenticate a user without knowing e.g. the MSISDN of the user.
+   Users might be reluctant to provide their MSISDN to Clients because
+   they fear misuse through automated calls or their number being
+   leaked.  The login hint token can be encrypted in order to protect
+   the user's MSISDN from being revealed to the Client unintentionally.
+
+   The section Example Flow shows an example to illustrate the usage of
+   MODRNA CIBA Profile specification to authenticate a user with a SIM
+   Applet Authenticator.
+
+7.  References
+
+7.1.  Normative References
+
+
+
+
+
+
+
+
+
+Fernandez, et al.       Expires November 1, 2020                [Page 4]
+
+                           MODRNA CIBA Profile                April 2020
+
+
+   [CIBA.Core]
+              Fernandez, G., Walter, F., Nennker, A., Tonge, D., and B.
+              Campbell, "OpenID Client Initiated Backchannel
+              Authentication Flow - Core 1.0", January 2020,
+              <https://openid.net/specs/openid-client-initiated-
+              backchannel-authentication-core-1_0.html>.
+
+   [I-D.ietf-oauth-mtls]
+              Campbell, B., Bradley, J., Sakimura, N., and T.
+              Lodderstedt, "OAuth 2.0 Mutual TLS Client Authentication
+              and Certificate Bound Access Tokens", draft-ietf-oauth-
+              mtls-12 (work in progress), October 2018.
+
+   [MODRNA.Authentication]
+              Connotte, J. and J. Bradley, "OpenID Connect Mobile
+              Authentication Profile 1.0", March 2017,
+              <https://openid.net/specs/openid-connect-modrna-
+              authentication-1_0.html>.
+
+   [OpenID.Core]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Core 1.0", November 2014,
+              <http://openid.net/specs/openid-connect-core-1_0.html>.
+
+   [OpenID.Registration]
+              Sakimura, N., Bradley, J., and M. Jones, "OpenID Connect
+              Dynamic Client Registration 1.0", November 2014,
+              <http://openid.net/specs/openid-connect-registration-
+              1_0.html>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC6750]  Jones, M. and D. Hardt, "The OAuth 2.0 Authorization
+              Framework: Bearer Token Usage", RFC 6750,
+              DOI 10.17487/RFC6750, October 2012,
+              <https://www.rfc-editor.org/info/rfc6750>.
+
+   [RFC7519]  Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token
+              (JWT)", RFC 7519, DOI 10.17487/RFC7519, May 2015,
+              <https://www.rfc-editor.org/info/rfc7519>.
+
+
+
+
+
+
+
+
+Fernandez, et al.       Expires November 1, 2020                [Page 5]
+
+                           MODRNA CIBA Profile                April 2020
+
+
+7.2.  Informative References
+
+   [ETSI102204]
+              (2003-08), ETSI., "Mobile Commerce (M-COMM) Mobile
+              Signature Service; Web Service Interface", 2003,
+              <https://www.etsi.org/deliver/
+              etsi_ts/102200_102299/102204/01.01.04_60/
+              ts_102204v010104p.pdf>.
+
+   [I-D.ietf-oauth-device-flow]
+              Denniss, W., Bradley, J., Jones, M., and H. Tschofenig,
+              "OAuth 2.0 Device Flow for Browserless and Input
+              Constrained Devices", draft-ietf-oauth-device-flow-13
+              (work in progress), October 2018.
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <https://www.rfc-editor.org/info/rfc6749>.
+
+   [RFC7591]  Richer, J., Ed., Jones, M., Bradley, J., Machulak, M., and
+              P. Hunt, "OAuth 2.0 Dynamic Client Registration Protocol",
+              RFC 7591, DOI 10.17487/RFC7591, July 2015,
+              <https://www.rfc-editor.org/info/rfc7591>.
+
+   [RFC8414]  Jones, M., Sakimura, N., and J. Bradley, "OAuth 2.0
+              Authorization Server Metadata", RFC 8414,
+              DOI 10.17487/RFC8414, June 2018,
+              <https://www.rfc-editor.org/info/rfc8414>.
+
+Appendix A.  Example Flow
+
+   This is a non-normative example where a challenge authentication is
+   launched by the OP to an applet that is running in the end-user
+   device's SIM.  Such applet implements an authenticator that validates
+   a Pin Code entered by the end-user.
+
+   This authenticator would be implemented through the so-called MSSP
+   (Mobile Signature Subscriber Provider) Server.  When the Backchannel
+   Authentication Endpoint receives the request to authenticate the user
+   and once it knows the user's MSISDN, it makes a call to the MSSP
+   Server which builds a binary Class 2 SMS that is sent to the SIM card
+   of the user where the applet is located.
+
+   This Class 2 SMS is not really sent directly from the MSSP but
+   through the OTA (Over the air) platform which in turn signs and
+   encrypts the message using a pair of keys (kyc, kyd) unique per each
+   SIM Card.
+
+
+
+
+Fernandez, et al.       Expires November 1, 2020                [Page 6]
+
+                           MODRNA CIBA Profile                April 2020
+
+
+   Once the message reaches the SIM Card, it is decrypted by the
+   CardManager and the signature is verified (thanks to the same pair of
+   keys: kyc, kyd).  If everything is ok, the CardManager gives the
+   message to the applet that checks the signature (the another one made
+   by the MSSP) and displays the challenge through a popup using the
+   mobile phone native interface) and the user is prompted to enter a
+   Pin Code that is validated locally.  If the Pin Code is correct, the
+   applet builds an OK response and signs it with the same key used by
+   the MSSP to sign the request, this response is sent as a Class 3
+   message to the MSSP that checks the signature, and builds the
+   id_token and the access_token to be returned to the Client.
+
+
+
++-----+                    +-----+                      +-------+                 +-----------+          +-------+
+| RP  |                    | OP  |                      | MSSP  |                 | SIMApplet |          | User  |
++-----+                    +-----+                      +-------+                 +-----------+          +-------+
+   |                          |                             |                           |                    |
+   | 1. POST /bc-authorize    |                             |                           |                    |
+   |------------------------->|                             |                           |                    |
+   |                          |                             |                           |                    |
+   |           2. HTTP 200 OK |                             |                           |                    |
+   |<-------------------------|                             |                           |                    |
+   |                          |                             |                           |                    |
+   |                          | 3. Authenticate(MSISDN)     |                           |                    |
+   |                          |---------------------------->|                           |                    |
+   |                          |                             |                           |                    |
+   |                          |                             | 4. Challenge              |                    |
+   |                          |                             |-------------------------->|                    |
+   |                          |                             |                           |                    |
+   |                          |                             |                           | 7. Verify Req      |
+   |                          |                             |                           |--------------      |
+   |                          |                             |                           |             |      |
+   |                          |                             |                           |<-------------      |
+   |                          |                             |                           |                    |
+   |                          |                             |                           | 8. Challenge       |
+   |                          |                             |                           |------------------->|
+   |                          |                             |                           |                    |
+   |                          |                             |                           |        9. Pin Code |
+   |                          |                             |                           |<-------------------|
+   |                          |                             |                           |                    |
+   |                          |                             |                           | 10. Verify Pin     |
+   |                          |                             |                           |---------------     |
+   |                          |                             |                           |              |     |
+   |                          |                             |                           |<--------------     |
+   |                          |                             |                           |                    |
+   |                          |                             |           11. Response OK |                    |
+   |                          |                             |<--------------------------|                    |
+
+
+
+Fernandez, et al.       Expires November 1, 2020                [Page 7]
+
+                           MODRNA CIBA Profile                April 2020
+
+
+   |                          |                             |                           |                    |
+   |                          |                             | 13. Verify Response       |                    |
+   |                          |                             |--------------------       |                    |
+   |                          |                             |                   |       |                    |
+   |                          |                             |<-------------------       |                    |
+   |                          |                             |                           |                    |
+   |                          |       14. Authentication OK |                           |                    |
+   |                          |<----------------------------|                           |                    |
+   |                          |                             |                           |                    |
+   |                          | 15. Generate Tokens         |                           |                    |
+   |                          |--------------------         |                           |                    |
+   |                          |                   |         |                           |                    |
+   |                          |<-------------------         |                           |                    |
+   |                          |                             |                           |                    |
+   |             16. POST /cb |                             |                           |                    |
+   |<-------------------------|                             |                           |                    |
+   |                          |                             |                           |                    |
+
+
+
+
+   Many of the details have advisedly been excluded in order to simplify
+   the flow described.  To go into details of how to implement a Mobile
+   Signature Service look at Mobile Commerce (M-COMM) Mobile Signature
+   Service; Web Service Interface.
+
+Appendix B.  Acknowledgements
+
+   The following have contributed to the development of this
+   specification.
+
+Appendix C.  Notices
+
+   Copyright (c) 2020 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+
+
+
+Fernandez, et al.       Expires November 1, 2020                [Page 8]
+
+                           MODRNA CIBA Profile                April 2020
+
+
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+Appendix D.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -01
+
+   o  Initial draft of mobile profile
+
+   -02
+
+   o  Tidied up draft, removing todos
+
+   -03
+
+   o  Updated title, version numbering and authors.
+
+   o  Updated text in the abstract and introduction sections.
+
+   o  Added terminology section.
+
+   o  Updated reference section with CIBA Core and MODRNA spec. and
+      added the references throughout the spec.
+
+   o  Added Overview section and included examples of use cases.
+
+   o  Removed ping mode based on initial version of CIBA.
+
+
+
+
+
+Fernandez, et al.       Expires November 1, 2020                [Page 9]
+
+                           MODRNA CIBA Profile                April 2020
+
+
+Authors' Addresses
+
+   Gonzalo Fernandez Rodriguez
+   Telefonica I+D
+
+   Email: gonzalo.fernandezrodriguez@telefonica.com
+
+
+   Florian Walter
+   Deutsche Telekom AG
+
+   Email: F.Walter@telekom.de
+
+
+   Axel Nennker
+   Deutsche Telekom AG
+
+   Email: axel.nennker@telekom.de
+
+
+   Dave Tonge
+   Moneyhub
+
+   Email: dave.tonge@moneyhub.com
+
+
+   Bjorn Hjelm
+   Verizon
+
+   Email: bjorn.hjelm@verizon.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Fernandez, et al.       Expires November 1, 2020               [Page 10]

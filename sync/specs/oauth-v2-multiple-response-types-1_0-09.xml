@@ -1,0 +1,528 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml.resource.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN"
+"http://xml.resource.org/authoring/rfc2629.dtd">
+<rfc category="exp" docName="oauth-v2-multiple-response-types-1_0" ipr="trust200902">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="4" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="no" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title abbrev="OAuth 2.0 Multiple Response Types">
+      OAuth 2.0 Multiple Response Type Encoding Practices - draft 09
+    </title>
+
+    <author fullname="Breno de Medeiros" initials="B." role="editor" surname="de Medeiros">
+      <organization abbrev="Google">Google</organization>
+      <address>
+        <email>breno@google.com</email>
+	<uri>http://stackoverflow.com/users/311376/breno</uri>
+      </address>
+    </author>
+
+    <author fullname="Marius Scurtescu" initials="M." surname="Scurtescu">
+      <organization abbrev="Google">Google</organization>
+      <address>
+        <email>mscurtescu@google.com</email>
+      </address>
+    </author>
+
+    <author fullname="Paul Tarjan" initials="P." surname="Tarjan">
+      <organization abbrev="Facebook">Facebook</organization>
+      <address>
+        <email>pt@fb.com</email>
+      </address>
+    </author>
+
+    <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      <organization abbrev="Microsoft">Microsoft</organization>
+      <address>
+        <email>mbj@microsoft.com</email>
+	<uri>http://self-issued.info/</uri>
+      </address>
+    </author>
+
+    <date day="15" month="October" year="2013" />
+
+    <workgroup>OpenID Connect Working Group</workgroup>
+
+    <abstract>
+      <t>This specification aims to provide guidance on proper encoding of responses to
+        OAuth 2.0 Authorization Requests, where the request specifies a response type that includes
+        space characters.</t>
+
+      <t>This specification also serves as the registration document for several
+        specific new response types, in accordance with the stipulations of
+        the OAuth Parameters Registry.</t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor='Introduction' title='Introduction'>
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+	<t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+	"SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+	document are to be interpreted as described in <xref
+	target="RFC2119"></xref> .</t>
+
+	<t>Throughout this document, values are quoted to indicate that they are
+	to be taken literally. When using these values in protocol messages, the
+	quotes MUST NOT be used as part of the value.</t>
+      </section>
+
+      <section anchor="Terminology" title="Terminology">
+	<t>This specification uses the terms "Access Token", "Refresh Token",
+	"Authorization Code", "Authorization Grant", "Authorization Server",
+	"Authorization Endpoint", "Client", "Client Identifier", "Client Secret",
+	"Protected Resource", "Resource Owner", "Resource Server", and
+	"Token Endpoint" defined by
+	<xref target="RFC6749">OAuth 2.0</xref>.
+	This specification also defines the following terms:
+	  <list style="hanging">
+	    <t hangText="Client and Server">In the traditional client-server
+	      authentication model, the client requests an access restricted
+	      resource (Protected Resource) on the server by authenticating
+	      with the server using the Resource Owner's credentials. </t>
+
+	    <t hangText="Response Type">The Client informs the
+	      Authorization Server of the desired authorization processing flow using the
+	      parameter <spanx style="verb">response_type</spanx>.</t>
+
+	    <t hangText="Authorization Endpoint Response Type Registry">
+	      Process established by the OAuth 2.0 specification for the registration of new
+	      <spanx style="verb">response_type</spanx> parameters.</t>
+
+	    <t hangText="Multiple-Valued Response Types">The OAuth 2.0 specification allows
+	      for registration of space-separated <spanx style="verb">response_type</spanx> values. 
+	      If a response type contains one of more space characters (%20), it is
+	      compared as a space-delimited list of values in which the order of
+	      values does not matter.</t>
+	 </list></t>
+      </section>
+    </section>
+
+    <section anchor="Encoding" title="Encoding Multiple-Valued Response Types">
+      <t>This specification does not provide guidance if, in a request, <spanx style="verb">response_type</spanx> includes
+        a value that requires the server to return data partially encoded in the query string
+        and partially encoded in the fragment.</t>
+
+      <t>Otherwise, if a multiple-valued response type is defined, then it is RECOMMENDED
+        that the following encoding rules be applied for the issued response.</t>
+
+      <t>If, in a request, <spanx style="verb">response_type</spanx> includes only values that require the server
+         to return data fully encoded within the query string then
+         the returned data in the response for this multiple-valued <spanx style="verb">response_type</spanx>
+         MUST be fully encoded within the query string. This recommendation
+         applies to both success and error responses.</t>
+
+      <t>If, in a request, <spanx style="verb">response_type</spanx> includes any value that requires the server to
+        return data fully encoded within the fragment then the returned data in the
+        response for this multiple-valued <spanx style="verb">response_type</spanx> MUST be fully encoded
+        within the fragment. This recommendation applies to both success and error responses.</t>
+
+      <t>Rationale: Whenever <spanx style="verb">response_type</spanx> values include fragment encoded parts,
+        a User-Agent Client component must be involved to complete processing of the response.
+        If a new query parameter is added to the Client URI, it will cause the User-Agent
+        to re-fetch the Client URI,
+        causing discontinuity of operation of the User-Agent based Client components. If
+        only fragment encoding is used, the User-Agent will simply reactivate the Client
+        component, which can then process the fragment and
+        also convey any parameters to a Client host as necessary, e.g., via XmlHttpRequest.
+        Therefore, full fragment encoding always results in lower latency for response processing.</t>
+
+      <t>
+	Furthermore, there are security implications to encoding values in the query string.
+	The HTTP Referer header includes query parameters,
+	and so any values encoded in query parameters will leak to third parties.
+	Thus, while it is safe to encode an Authorization Code as a query parameter
+	when using a Confidential Client (because it can't be used without the
+	Client Secret, which third parties won't have), more sensitive information
+	such as Access Tokens and ID Tokens MUST NOT be encoded in the query string.
+      </t>
+      <t>
+	This specification uses "SHOULD" rather than "MUST" when specifying
+	the use of fragment encoding to leave open the possibility of using other
+	safe parameter transmission mechanisms in the future, such as postMessage.
+	These "SHOULDs" MUST NOT be interpreted as permitting query encoding.
+      </t>
+    </section>
+
+    <section anchor="id_token" title="ID Token Response Type">
+      <t>This section registers a new response type, the <spanx style="verb">id_token</spanx>, in accordance
+        with the stipulations in the OAuth 2.0 specification, Section 8.4. The intended purpose of
+        the <spanx style="verb">id_token</spanx> is that it MUST provide an assertion of
+        the identity of the Resource Owner as understood by the server. The assertion MUST 
+        specify a targeted audience, e.g. the requesting Client. However, the specific semantics of
+        the assertion and how it can be validated are not specified in this document.</t>
+
+      <t><list style="hanging">
+        <t hangText="id_token">
+	  When supplied as the <spanx style="verb">response_type</spanx> parameter in an OAuth 2.0
+          Authorization Request, a successful response MUST include the parameter
+          <spanx style="verb">id_token</spanx>,
+	  which SHOULD be encoded in the fragment of the response URI.
+	  The Authorization Server SHOULD NOT return an OAuth 2.0
+	  Authorization Code, Access Token, or Access Token Type in a successful
+          response to the grant request. If a <spanx style="verb">redirect_uri</spanx>
+	  is supplied, the User-Agent SHOULD be redirected
+          there after granting or denying access.
+	  The request MAY include a <spanx style="verb">state</spanx> parameter,
+	  and if so, the
+          server MUST echo its value by adding it to the
+	  <spanx style="verb">redirect_uri</spanx> when issuing
+	  either a successful response or an error response.
+          Any parameters added to the <spanx style="verb">redirect_uri</spanx>
+	  SHOULD be fragment encoded and MUST NOT be query encoded.
+	  This applies to both successful responses and error responses.
+	</t>
+      </list></t>
+
+      <t>Returning the <spanx style="verb">id_token</spanx> in a fragment reduces the likelihood that the <spanx style="verb">id_token</spanx> leaks
+        during transport and mitigates the associated risks to the privacy of the user (Resource Owner).</t>
+    </section>
+
+    <section anchor="none" title="None Response Type">
+      <t>This section registers the response type <spanx style="verb">none</spanx>, in accordance
+        with the stipulations in the OAuth 2.0 specification, Section 8.4.
+        The intended purpose is to enable
+        use cases where a party requests the server to register a
+	grant of access to a Protected Resource on behalf of a Client but requires
+        no access credentials to be returned to the Client at that time. The means
+        by which the Client eventually obtains the access credentials is left unspecified here.</t>
+
+      <t>One scenario is where a user wishes to purchase an
+        application from a market, and desires to authorize application installation and grant
+        the application access to Protected Resources in a single step. However, since the user is
+        not presently interacting with the (not yet active) application, it is not appropriate
+        to return access credentials simultaneously in the authorization step.</t>
+
+      <t><list style="hanging">
+        <t hangText="none">
+	  When supplied as the <spanx style="verb">response_type</spanx> parameter in an OAuth 2.0
+	  Authorization Request, the Authorization Server SHOULD NOT return an OAuth 2.0
+	  Authorization Code, Access Token, or Access Token Type in a successful
+          response to the grant request. If a <spanx style="verb">redirect_uri</spanx>
+	  is supplied, the User-Agent SHOULD be redirected
+          there after granting or denying access.
+	  The request MAY include a <spanx style="verb">state</spanx> parameter,
+	  and if so, the
+          server MUST echo its value by adding it to the
+	  <spanx style="verb">redirect_uri</spanx> when issuing
+	  either a successful response or an error response.
+          Any parameters added to the <spanx style="verb">redirect_uri</spanx>
+	  SHOULD be query encoded.
+	  This applies to both successful responses and error responses.
+	</t>
+      </list></t>
+      <t>
+      The response type <spanx style="verb">none</spanx>
+      SHOULD NOT be combined with other response types.
+      </t>
+    </section>
+    <section anchor="Combinations" title="Registration of Some Multiple-Valued Response Type Combinations">
+      <t>This section registers combinations of the values <spanx style="verb">code</spanx>, <spanx style="verb">token</spanx>, and <spanx style="verb">id_token</spanx>, which are each
+        individually registered response types.</t>
+
+	<t>
+	  <list style="hanging">
+	    <t hangText="code&nbsp;token">
+	      When supplied as the value for the <spanx style="verb">response_type</spanx>
+	      parameter, a successful response MUST include
+	      an Access Token, an Access Token Type,
+	      and an Authorization Code.
+	      Both successful and error responses SHOULD be fragment encoded
+	      and MUST NOT be query encoded.
+	    </t>
+	    <t hangText="code&nbsp;id_token">
+	      When supplied as the value for the <spanx style="verb">response_type</spanx>
+	      parameter, a successful response MUST include
+	      both an Authorization Code and an <spanx style="verb">id_token</spanx>.
+	      Both successful and error responses SHOULD be fragment encoded
+	      and MUST NOT be query encoded.
+	    </t>
+	    <t hangText="id_token&nbsp;token">
+	      When supplied as the value for the <spanx style="verb">response_type</spanx>
+	      parameter, a successful response MUST include
+	      an Access Token, an Access Token Type,
+	      and an <spanx style="verb">id_token</spanx>.
+	      Both successful and error responses SHOULD be fragment encoded
+	      and MUST NOT be query encoded.
+	    </t>
+	    <t hangText="code&nbsp;id_token&nbsp;token">
+	      When supplied as the value for the <spanx style="verb">response_type</spanx>
+	      parameter, a successful response MUST include
+	      an Authorization Code, an <spanx style="verb">id_token</spanx>,
+	      an Access Token, and an Access Token Type.
+	      Both successful and error responses SHOULD be fragment encoded
+	      and MUST NOT be query encoded.
+	    </t> 
+	  </list>
+	</t>
+      <t>
+	For all these response types,
+	the request MAY include a <spanx style="verb">state</spanx> parameter,
+	and if so, the
+	server MUST echo its value by adding it to the
+	<spanx style="verb">redirect_uri</spanx> when issuing
+	either a successful response or an error response.
+      </t>
+      <t>
+	A non-normative request/response example as issued/received by the User-Agent
+	(with extra line breaks for display purposes only) is:
+	<figure><artwork><![CDATA[
+  GET /authorize?
+    response_type=id_token%20token
+    &client_id=s6BhdRkqt3
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &state=af0ifjsldkj HTTP/1.1
+  Host: server.example.com
+]]></artwork></figure>
+	<figure><artwork><![CDATA[
+  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+  access_token=SlAV32hkKG
+  &token_type=bearer
+  &id_token=eyJ0 ... NiJ9.eyJ1c ... I6IjIifX0.DeWt4Qu ... ZXso
+  &expires_in=3600
+  &state=af0ifjsldkj
+]]></artwork></figure>
+      </t>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>
+	This specification registers the <spanx style="verb">response_type</spanx>
+	values defined by this specification in the IANA
+	OAuth Authorization Endpoint Response Types registry
+	<xref target="RFC6749" />.
+      </t>
+
+      <section anchor="RegistryContents" title='Registry Contents'>
+	<t> <?rfc subcompact="yes"?>
+
+	  <list style='symbols'>
+	    <t>
+	      Response Type Name: <spanx style="verb">id_token</spanx>
+	    </t>
+	    <t>
+	      Change Controller:  OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	    </t>
+	    <t>
+	      Specification Document(s):  http://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
+	    </t>
+	  </list>
+	</t>
+	<t>
+	  <list style='symbols'>
+	    <t>
+	      Response Type Name: <spanx style="verb">none</spanx>
+	    </t>
+	    <t>
+	      Change Controller:  OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	    </t>
+	    <t>
+	      Specification Document(s):  http://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
+	    </t>
+	  </list>
+	</t>
+	<t>
+	  <list style='symbols'>
+	    <t>
+	      Response Type Name: <spanx style="verb">code&nbsp;token</spanx>
+	    </t>
+	    <t>
+	      Change Controller:  OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	    </t>
+	    <t>
+	      Specification Document(s):  http://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
+	    </t>
+	  </list>
+	</t>
+	<t>
+	  <list style='symbols'>
+	    <t>
+	      Response Type Name: <spanx style="verb">code&nbsp;id_token</spanx>
+	    </t>
+	    <t>
+	      Change Controller:  OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	    </t>
+	    <t>
+	      Specification Document(s):  http://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
+	    </t>
+	  </list>
+	</t>
+	<t>
+	  <list style='symbols'>
+	    <t>
+	      Response Type Name: <spanx style="verb">id_token&nbsp;token</spanx>
+	    </t>
+	    <t>
+	      Change Controller:  OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	    </t>
+	    <t>
+	      Specification Document(s):  http://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
+	    </t>
+	  </list>
+	</t>
+	<t>
+	  <list style='symbols'>
+	    <t>
+	      Response Type Name: <spanx style="verb">code&nbsp;id_token&nbsp;token</spanx>
+	    </t>
+	    <t>
+	      Change Controller:  OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	    </t>
+	    <t>
+	      Specification Document(s):  http://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
+	    </t>
+	  </list>
+	</t>
+      </section>
+      <?rfc subcompact="no"?>
+
+    </section>
+  </middle>  
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.6749"?>
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>The OpenID Community would like to thank the following people for the
+      work they've done in the drafting and editing of this specification.</t>
+
+      <t>
+	<list style="empty">
+          <t>Naveen Agarwal (naa@google.com), Google</t>
+          <t>John Bradley (ve7jtb@ve7jtb.com), Ping Identity</t>
+          <t>Michael B. Jones (mbj@microsoft.com), Microsoft</t>
+          <t>Breno de Medeiros (breno@google.com), Google</t>
+          <t>Nat Sakimura (n-sakimura@nri.co.jp), Nomura Research Institute, Ltd.</t>
+          <t>David Recordon (dr@fb.com), Facebook</t>
+          <t>Marius Scurtescu (mscurtescu@google.com), Google</t>
+          <t>Paul Tarjan (pt@fb.com), Facebook</t>
+        </list>
+      </t>
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2013 The OpenID Foundation.</t>
+      <t>
+	The OpenID Foundation (OIDF) grants to any Contributor, developer, 
+	implementer, or other interested party a non-exclusive, royalty free, 
+	worldwide copyright license to reproduce, prepare derivative works from, 
+	distribute, perform and display, this Implementers Draft or 
+	Final Specification solely for the purposes of (i) developing 
+	specifications, and (ii) implementing Implementers Drafts and 
+	Final Specifications based on such documents, provided that attribution 
+	be made to the OIDF as the source of the material, but that such attribution 
+	does not indicate an endorsement by the OIDF.
+      </t>
+      <t>
+	The technology described in this specification was 
+	made available from contributions from various sources, 
+	including members of the OpenID Foundation and others.  
+	Although the OpenID Foundation has taken steps to help ensure 
+	that the technology is available for distribution, it takes 
+	no position regarding the validity or scope of any intellectual 
+	property or other rights that might be claimed to pertain to 
+	the implementation or use of the technology described in 
+	this specification or the extent to which any license under 
+	such rights might or might not be available; neither does it 
+	represent that it has made any independent effort to identify 
+	any such rights.  The OpenID Foundation and the contributors 
+	to this specification make no (and hereby expressly disclaim any) 
+	warranties (express, implied, or otherwise), including implied 
+	warranties of merchantability, non-infringement, fitness for 
+	a particular purpose, or title, related to this specification, 
+	and the entire risk as to implementing this specification is 
+	assumed by the implementer.  The OpenID Intellectual 
+	Property Rights policy requires contributors to offer 
+	a patent promise not to assert certain patent claims against 
+	other contributors and against implementers.  The OpenID Foundation invites 
+	any interested party to bring to its attention any copyrights, 
+	patents, patent applications, or other proprietary rights 
+	that may cover technology that may be required to practice 
+	this specification.
+      </t>
+    </section>
+
+    <section anchor="History" title="Document History">
+      <t>[[ To be removed from the final specification ]]</t>
+
+      <t>
+	-09
+        <list style="symbols">
+          <t>
+	    Clarified that the response types <spanx style="verb">none</spanx>
+	    and <spanx style="verb">id_token</spanx> do not return
+	    Authorization Code, Access Token, or Access Token Type values.
+	  </t>
+	  <t>
+	    Clarified that an Access Token Type value MUST be returned in the same cases
+	    that an Access Token is.
+	  </t>
+	  <t>
+	    Clarified that the <spanx style="verb">state</spanx> value must be
+	    included in both successful responses and error responses,
+	    when present in the request.
+	  </t>
+	  <t>
+	    Fixed #887 - Clarified the reasons that some parameters
+	    are described as "SHOULD be fragment encoded"
+	    and stated that these "MUST NOT be query encoded".
+	  </t>
+        </list>
+      </t>
+
+      <t>
+	-08
+        <list style="symbols">
+          <t>
+	    Corrected RFC 2119 keyword usage.
+	  </t>
+        </list>
+      </t>
+
+      <t>-07 <list style="symbols">
+          <t>
+	    Fixed #817 - Removed duplicate definition of "Authorization Endpoint".
+	  </t>
+	  <t>
+	    Fixed #818 - Corrected HTTP GET example.
+	  </t>
+        </list></t>
+
+      <t>-06 <list style="symbols">
+          <t>Added registry contents to IANA Considerations section</t>
+          <t>Referenced OAuth 2.0 RFC -- RFC 6749</t>
+        </list></t>
+
+      <t>-05 <list style="symbols">
+          <t>Changed client.example.com to client.example.org, per issue #251</t>
+        </list></t>
+
+      <t>-04 <list style="symbols">
+          <t>Updated Notices</t>
+        </list></t>
+
+      <t>-03 <list style="symbols">
+          <t>Use same section number structure as the OpenID Connect specs</t>
+        </list></t>
+
+      <t>-02 <list style="symbols">
+          <t>Editorial corrections</t>
+        </list></t>
+
+      <t>-01 <list style="symbols">
+          <t>Initial draft</t>
+        </list></t>
+    </section>
+  </back>
+</rfc>

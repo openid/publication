@@ -1,0 +1,639 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml2rfc.tools.ietf.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN"
+"http://xml2rfc.tools.ietf.org/authoring/rfc2629.dtd">
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="openid-heart-uma-2_0" ipr="none">
+  <?rfc toc="yes" ?>
+
+  <?rfc tocdepth="5" ?>
+
+  <?rfc symrefs="yes" ?>
+
+  <?rfc sortrefs="yes"?>
+
+  <?rfc strict="yes" ?>
+
+  <?rfc iprnotified="no" ?>
+
+  <?rfc private="Final" ?>
+
+  <front>
+    <title abbrev="HEART UMA2">Health Relationship Trust Profile for
+    User-Managed Access 2.0</title>
+
+    <author fullname="Justin Richer" initials="J." role="editor"
+            surname="Richer">
+      <address>
+        <email>openid@justin.richer.org</email>
+
+        <uri>http://justin.richer.org/</uri>
+      </address>
+    </author>
+
+    <date day="8" month="July" year="2018"/>
+
+    <workgroup>OpenID Heart Working Group</workgroup>
+
+    <abstract>
+      <t>The User-Managed Access (UMA) 2.0 protocol defines a method for an
+      end user to introduce a resource to an authorization server, define a
+      set of policies governing access to that resource, and for a requesting
+      party to provide claims to fulfill those policies in order to gain
+      access to the resource.</t>
+
+      <t>This specification profiles the UMA protocol to increase baseline
+      security, provide greater interoperability, and structure deployments in
+      a manner specifically applicable to (but not limited to) the healthcare
+      domain.</t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+      <t>This document profiles the <xref target="UMA2">User-Managed Access
+      2.0</xref> specification for use in the context of securing web-facing
+      application programming interfaces (APIs), particularly Representational
+      State Transfer (RESTful) APIs, in potentially multi-party cross-domain
+      scenarios. Because User-Managed Access is built on OAuth 2.0 and OpenID
+      Connect 1.0, this profile inherits all requirements of the HEART
+      profiles for the use of <xref target="HEART.OAuth2">OAuth 2.0</xref> and
+      <xref target="HEART.OIDC">OpenID Connect 1.0</xref> where applicable.
+      All requirements herein are in addition to the OAuth 2.0 and OpenID
+      Connect 1.0 profiles where appropriate. The requirements in this
+      document serve two purposes:</t>
+
+      <t><list style="numbers">
+          <t>Define a mandatory baseline set of security controls suitable for
+          a wide range of use cases, while maintaining reasonable ease of
+          implementation and functionality</t>
+
+          <t>Identify optional advanced security controls for sensitive use
+          cases where heightened risks justify more stringent controls that
+          increase the required implementation effort and may reduce or
+          restrict functionality</t>
+        </list></t>
+
+      <t>This UMA profile is intended to be shared broadly, and ideally to
+      influence OAuth implementations in other domains besides health
+      care.</t>
+
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+        "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+        "OPTIONAL" in this document are to be interpreted as described in
+        <xref target="RFC2119">RFC 2119</xref>.</t>
+
+        <t>All uses of <xref target="RFC7515">JSON Web Signature (JWS)</xref>
+        and <xref target="RFC7516">JSON Web Encryption (JWE)</xref> data
+        structures in this specification utilize the JWS Compact Serialization
+        or the JWE Compact Serialization; the JWS JSON Serialization and the
+        JWE JSON Serialization are not used.</t>
+      </section>
+
+      <section anchor="Terminology" title="Terminology">
+        <t>This specification uses the terms "Access Token", "Authorization
+        Code", "Authorization Endpoint", "Authorization Grant", "Authorization
+        Server", "Client", "Client Authentication", "Client Identifier",
+        "Client Secret", "Grant Type", "Protected Resource", "Redirection
+        URI", "Refresh Token", "Resource Owner", "Resource Server", "Response
+        Type", and "Token Endpoint" defined by <xref target="RFC6749">OAuth
+        2.0</xref>, the terms "Claim Name", "Claim Value", and "JSON Web Token
+        (JWT)" defined by <xref target="RFC7519">JSON Web Token (JWT)</xref>,
+        the terms defined by <xref target="OpenID.Core">OpenID Connect Core
+        1.0</xref>, and the terms defined by <xref
+        target="UMA2">UMA</xref>.</t>
+      </section>
+
+      <section title="Conformance">
+        <t>This specification defines requirements for the following
+        components:</t>
+
+        <t><list style="symbols">
+            <t>UMA 2.0 client</t>
+
+            <t>UMA 2.0 authorization server</t>
+
+            <t>UMA 2.0 resource server</t>
+          </list></t>
+
+        <t>The specification also defines features for interaction between
+        these components:</t>
+
+        <t><list style="symbols">
+            <t>Client to authorization server</t>
+
+            <t>Protected resource to authorization server</t>
+          </list></t>
+
+        <t>When a HEART-compliant component is interacting with other
+        HEART-compliant components, in any valid combination, all components
+        MUST fully conform to the features and requirements of this
+        specification. All interaction with non-HEART components is outside
+        the scope of this specification.</t>
+
+        <t>A HEART-compliant UMA authorization server MUST support all
+        features as described in this specification. A general-purpose
+        authorization server MAY support additional features for use with
+        non-HEART clients and protected resources.</t>
+
+        <t>All OAuth 2.0 functionality used to implement the UMA protocol MUST
+        conform to the OAuth 2.0 HEART profile.</t>
+
+        <t>A HEART-compliant UMA authorization server MAY also provide
+        HEART-compliant OAuth 2.0 authorization server functionality. In such
+        cases, the authorization server MUST fully implement the OAuth 2.0
+        HEART profile.</t>
+
+        <t>A HEART-compliant UMA client MUST use all functions as described in
+        this specification. A general-purpose client library MAY support
+        additional features for use with non-HEART authorization servers and
+        protected resources.</t>
+
+        <t>A HEART-compliant UMA resource server MUST use all functions as
+        described in this specification. A general-purpose resource server
+        library MAY support additional features for use with non-HEART
+        authorization servers and clients.</t>
+      </section>
+    </section>
+
+    <section title="Client Profile">
+      <t/>
+
+      <section title="Connection with Authorization Servers">
+        <t>All clients MUST authenticate to the token endpoint using a private
+        key as described in the HEART <xref target="HEART.OAuth2">OAuth
+        2.0</xref> profile section 2.2.2.</t>
+      </section>
+
+      <section title="Connection with Protected Resources">
+        <t>Clients MUST present the RPT as an OAuth 2.0 bearer token as
+        described in <xref target="RFC6750"/>.</t>
+      </section>
+    </section>
+
+    <section title="Authorization Server Profile">
+      <t/>
+
+      <section title="Connection with Clients">
+        <t/>
+
+        <section anchor="Discovery" title="Discovery">
+          <t>The authorization server MUST implement the UMA discovery
+          mechanism defined in <xref target="UMA2">UMA</xref> as well as the
+          discovery mechanisms described in the HEART <xref
+          target="HEART.OAuth2">OAuth 2.0</xref> profile.</t>
+        </section>
+
+        <section title="Claims Gathering">
+          <t>The authorization server MUST support claims being presented in
+          at least two methods:</t>
+
+          <t><list style="symbols">
+              <t>by redirecting the requesting party to a web page where they
+              can log in to the authorization server using <xref
+              target="HEART.OIDC">OpenID Connect</xref></t>
+
+              <t>directly by the client in the form of an OpenID Connect ID
+              Token</t>
+            </list></t>
+
+          <t>When the ID token is presented directly to the RPT endpoint, the
+          authorization server MUST validate the token, including its audience
+          and signature. Since the audience of an ID token is the client's
+          identifier with the IdP, and this client identifier is known only to
+          the client and the IdP, this restriction effectively means that ID
+          tokens can only be presented at the RPT endpoint in the special case
+          when the authorization server is also the IdP or there is another
+          closely bound relationship between the AS and IdP.</t>
+        </section>
+      </section>
+
+      <section title="Connection with Protected Resources">
+        <t>The UMA authorization server MUST implement <xref
+        target="UMA2.Authz">UMA 2.0 Federated Authorization</xref> to allow
+        for dynamic association with protected resources at runtime. The UMA
+        authorization server MUST implement <xref target="RFC7591">OAuth 2.0
+        Dynamic Client Registration</xref> to allow protected resources to
+        register at runtime with the AS.</t>
+
+        <t>Since UMA protected resources will act as OAuth clients during
+        parts of the process, all requirements for interaction between OAuth
+        authorization servers and OAuth clients in the <xref
+        target="HEART.OAuth2">HEART OAuth 2.0 profile</xref> apply to these as
+        well.</t>
+
+        <t>The authorization server MUST make its <xref
+        target="RFC7662">introspection endpoint</xref> accessible to the
+        protected resource by use of the PAT.</t>
+      </section>
+
+      <section anchor="Tokens" title="Tokens">
+        <t>All issued access tokens (whether PAT or RPT) MUST be <xref
+        target="RFC7519">JSON Web Tokens (JWTs)</xref> signed with <xref
+        target="RFC7515">JSON Web Signatures (JWS)</xref> using the
+        authorization server's key as described in the HEART <xref
+        target="HEART.OAuth2">OAuth 2.0</xref> profile section 4.2.</t>
+
+        <t>PATs MUST be issued using a standard OAuth 2.0 token flow
+        appropriate to the type of application described in the HEART <xref
+        target="HEART.OAuth2">OAuth 2.0</xref> profile. As protected resources
+        are web services, they MUST behave as either a full client with user
+        delegation or a direct access client depending on whether they protect
+        individual or bulk resources, respectively.</t>
+
+        <section title="Protection API Access Token (PAT)">
+          <t>The PAT MUST at minimum define the following fields inside the
+          JWT and return them from the introspection endpoint. Other fields
+          MAY also be defined.<list style="hanging">
+              <t hangText="iss">The issuer URL of the authorization
+              server.</t>
+
+              <t hangText="aud">An array containing the URL of the
+              introspection endpoint and the URL of the resource set
+              registration endpoint</t>
+
+              <t hangText="sub">The issuer-specific identifier of the user
+              that authorized the PAT.</t>
+
+              <t hangText="azp">The client identifier of the protected
+              resource.</t>
+            </list></t>
+        </section>
+
+        <section title="Requesting Party Token (RPT)">
+          <t>The RPT MUST at minimum define the following fields inside the
+          JWT and return them from the introspection endpoint. Other fields
+          MAY also be defined.</t>
+
+          <t><list style="hanging">
+              <t hangText="iss">The issuer URL of the authorization
+              server.</t>
+
+              <t hangText="aud">An array of resource identifiers where this
+              token can be used.</t>
+
+              <t hangText="sub">The issuer-specific identifier of the user
+              that authorized the RPT (the resource owner).</t>
+
+              <t hangText="azp">The client identifier of the authorized
+              client.</t>
+            </list></t>
+        </section>
+
+        <section title="Persisted Claims Token (PCT)">
+          <t>The format and content of the PCT is undefined by this
+          specification. PCTs are opaque to all parties in the system except
+          the AS and are interpreted only internally. However, all PCTs:</t>
+
+          <t><list style="symbols">
+              <t>MUST be unguessable</t>
+
+              <t>MUST NOT contain any claim information</t>
+
+              <t>MUST represent a single RqP</t>
+
+              <t>MUST be associated with a single client</t>
+            </list></t>
+        </section>
+
+        <section title="Token Lifetimes">
+          <t>It is RECOMMENDED that PATs have a lifetimes as specified in the
+          HEART <xref target="HEART.OAuth2">OAuth 2.0</xref> profile section
+          4.3 depending on the nature of the client or protected resource they
+          were issued to. Since the PAT is intended to be used for managing
+          access to resources when the resource owner is no longer present, it
+          SHOULD have a lifetime and lifecycle that allows that use pattern,
+          such as the use of refresh tokens issued alongside the PAT.</t>
+
+          <t>It is RECOMMENDED that RPTs follow a lifetime of an access token
+          as specified in the HEART <xref target="HEART.OAuth2">OAuth
+          2.0</xref> profile section 4.3 depending on the nature of the
+          client.</t>
+
+          <t>It is RECOMMENDED that PCTs follow a lifetime similar to that of
+          a refresh token as specified in the <xref
+          target="HEART.OAuth2">HEART OAuth 2.0 profile</xref> as they are
+          intended to be used across multiple transactions.</t>
+        </section>
+      </section>
+
+      <section title="Component Registration">
+        <t>All UMA clients MUST register with the authorization server as
+        OAuth clients, as described in the HEART <xref
+        target="HEART.OAuth2">OAuth 2.0</xref> profile. Since all UMA resource
+        servers also act as OAuth clients, they MUST also register with the
+        authorization server under the same requirements as regular OAuth
+        clients.</t>
+
+        <t>The authorization server MUST allow for <xref
+        target="RFC7591">dynamic client registration</xref>. The authorization
+        server MAY prohibit dynamically registered clients and resource sets
+        from requesting specific scopes, as described in the HEART <xref
+        target="HEART.OAuth2">OAuth 2.0</xref> profile.</t>
+
+        <t>The authorization server MUST indicate to end users that a client
+        or protected resource was dynamically registered in the UI, such as on
+        the policy editing screen presented to the resource owner.</t>
+      </section>
+    </section>
+
+    <section title="Resource Server Profile">
+      <t/>
+
+      <section title="Connection with Authorization Servers">
+        <t>Resource servers that allow resource owners to specify their own
+        authorization server MUST be capable of using <xref
+        target="RFC7033">webfinger</xref> to discover the authorization
+        server's issuer URL.</t>
+
+        <section anchor="ResAuth" title="Resource Authentication">
+          <t>Resource servers MUST authenticate to the token endpoint of the
+          authorization server using a private key as described in the HEART
+          <xref target="HEART.OAuth2">OAuth 2.0</xref> profile section
+          2.2.</t>
+        </section>
+      </section>
+
+      <section title="Connection with Clients">
+        <t>Resource servers MUST allow connections from clients in an
+        unauthorized state to start the discovery process. The Resource server
+        MUST return the issuer URL of the authorization server as well as a
+        permission ticket for the client to use.</t>
+
+        <t>Resource servers MUST accept RPTs as an OAuth bearer token in the
+        authorization header.</t>
+      </section>
+    </section>
+
+    <section title="Security Considerations">
+      <t>All transactions MUST be protected in transit by TLS as described in
+      <xref target="BCP195">BCP195</xref>.</t>
+
+      <t>All clients MUST conform to applicable recommendations found in the
+      Security Considerations sections of <xref target="RFC6749"/> and those
+      found in the <xref target="RFC6819">OAuth 2.0 Threat Model and Security
+      Considerations document</xref>.</t>
+    </section>
+
+    <section title="Privacy Considerations">
+      <t>When a client makes an unauthenticated call to a medical record
+      protected by UMA, the resource server will respond back with an
+      indicator of which authorization server protects that resource. If the
+      operator of the client knows out-of-band that a particular user owns or
+      controls a given authorization server, such disclosure could
+      inadvertently leak information about the patient without divulging the
+      medical record itself.</t>
+    </section>
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.2119"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.2246"?>
+
+      <?rfc include='http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.3986'?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.5246"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.5322"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.5646"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.5785"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6125"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6749"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6750"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6819"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7515"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7516"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7517"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7519"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7523"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7591"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7009"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7033"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7662"?>
+
+      <?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml-ids/reference.I-D.ietf-oauth-pop-architecture.xml"?>
+
+      <reference anchor="BCP195"
+                 target="http://www.rfc-editor.org/info/bcp195">
+        <front>
+          <title>Recommendations for Secure Use of Transport Layer Security
+          (TLS) and Datagram Transport Layer Security (DTLS)</title>
+
+          <author fullname="Y. Sheffer" initials="Y." surname="Sheffer">
+            <organization/>
+          </author>
+
+          <author fullname="R. Holz" initials="R." surname="Holz">
+            <organization/>
+          </author>
+
+          <author fullname="P. Saint-Andre" initials="P."
+                  surname="Saint-Andre">
+            <organization/>
+          </author>
+
+          <date month="May" year="2015"/>
+
+          <abstract>
+            <t>Transport Layer Security (TLS) and Datagram Transport Layer
+            Security (DTLS) are widely used to protect data exchanged over
+            application protocols such as HTTP, SMTP, IMAP, POP, SIP, and
+            XMPP. Over the last few years, several serious attacks on TLS have
+            emerged, including attacks on its most commonly used cipher suites
+            and their modes of operation. This document provides
+            recommendations for improving the security of deployed services
+            that use TLS and DTLS. The recommendations are applicable to the
+            majority of use cases.</t>
+          </abstract>
+        </front>
+
+        <seriesInfo name="BCP" value="195"/>
+
+        <seriesInfo name="RFC" value="7525"/>
+
+        <seriesInfo name="DOI" value="10.17487/RFC7525"/>
+
+        <format octets="60283" type="ASCII"/>
+      </reference>
+
+      <reference anchor="OpenID.Core"
+                 target="http://openid.net/specs/openid-connect-core-1_0.html">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B."
+                  surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+          <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+            <organization abbrev="Salesforce">Salesforce</organization>
+          </author>
+
+          <date day="3" month="August" year="2015"/>
+        </front>
+      </reference>
+
+      <reference anchor="UMA2"
+                 target="https://docs.kantarainitiative.org/uma/wg/rec-oauth-uma-grant-2.0.html">
+        <front>
+          <title>User-Managed Access (UMA) Profile of OAuth 2.0</title>
+
+          <author fullname="Eve Maler" initials="E." surname="Maler">
+            <organization>ForgeRock</organization>
+          </author>
+
+          <date day="04" month="April" year="2015"/>
+        </front>
+      </reference>
+
+      <reference anchor="UMA2.Authz"
+                 target="https://docs.kantarainitiative.org/uma/wg/rec-oauth-uma-federated-authz-2.0.html">
+        <front>
+          <title>User-Managed Access (UMA) Profile of OAuth 2.0</title>
+
+          <author fullname="Eve Maler" initials="E." surname="Maler">
+            <organization>ForgeRock</organization>
+          </author>
+
+          <date day="04" month="April" year="2015"/>
+        </front>
+      </reference>
+
+      <reference anchor="HEART.OAuth2"
+                 target="http://openid.net/specs/openid-heart-oauth2-1_0.html">
+        <front>
+          <title>Health Relationship Trust Profile for OAuth 2.0</title>
+
+          <author fullname="Justin Richer" initials="J." role="editor"
+                  surname="Richer">
+            <address>
+              <email>openid@justin.richer.org</email>
+
+              <uri>http://justin.richer.org/</uri>
+            </address>
+          </author>
+
+          <date day="15" month="February" year="2016"/>
+        </front>
+      </reference>
+
+      <reference anchor="HEART.OIDC"
+                 target="http://openid.net/specs/openid-heart-openid-connect-1_0.html">
+        <front>
+          <title>Health Relationship Trust Profile for OpenID Connect
+          1.0</title>
+
+          <author fullname="Justin Richer" initials="J." role="editor"
+                  surname="Richer">
+            <address>
+              <email>openid@justin.richer.org</email>
+
+              <uri>http://justin.richer.org/</uri>
+            </address>
+          </author>
+
+          <date day="15" month="February" year="2016"/>
+        </front>
+      </reference>
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>The OpenID Community would like to thank the following people for
+      their contributions to this specification: Dale Moberg, Adrian Gropper,
+      Eve Maler, Danny van Leeuwen, John Moehrke, Aaron Seib, John Bradley,
+      Debbie Bucci, Josh Mandel, and Sarah Squire.</t>
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2018 The OpenID Foundation.</t>
+
+      <t>The OpenID Foundation (OIDF) grants to any Contributor, developer,
+      implementer, or other interested party a non-exclusive, royalty free,
+      worldwide copyright license to reproduce, prepare derivative works from,
+      distribute, perform and display, this Implementers Draft or Final
+      Specification solely for the purposes of (i) developing specifications,
+      and (ii) implementing Implementers Drafts and Final Specifications based
+      on such documents, provided that attribution be made to the OIDF as the
+      source of the material, but that such attribution does not indicate an
+      endorsement by the OIDF.</t>
+
+      <t>The technology described in this specification was made available
+      from contributions from various sources, including members of the OpenID
+      Foundation and others. Although the OpenID Foundation has taken steps to
+      help ensure that the technology is available for distribution, it takes
+      no position regarding the validity or scope of any intellectual property
+      or other rights that might be claimed to pertain to the implementation
+      or use of the technology described in this specification or the extent
+      to which any license under such rights might or might not be available;
+      neither does it represent that it has made any independent effort to
+      identify any such rights. The OpenID Foundation and the contributors to
+      this specification make no (and hereby expressly disclaim any)
+      warranties (express, implied, or otherwise), including implied
+      warranties of merchantability, non-infringement, fitness for a
+      particular purpose, or title, related to this specification, and the
+      entire risk as to implementing this specification is assumed by the
+      implementer. The OpenID Intellectual Property Rights policy requires
+      contributors to offer a patent promise not to assert certain patent
+      claims against other contributors and against implementers. The OpenID
+      Foundation invites any interested party to bring to its attention any
+      copyrights, patents, patent applications, or other proprietary rights
+      that may cover technology that may be required to practice this
+      specification.</t>
+    </section>
+
+    <section anchor="History" title="Document History">
+      <t>-2018-02-28</t>
+
+      <t><list style="symbols">
+          <t>Minor text updates from WG comments.</t>
+        </list></t>
+
+      <t>-2018-02-22</t>
+
+      <t><list style="symbols">
+          <t>Created UMA2 specification based on UMA1 specification.</t>
+        </list></t>
+    </section>
+  </back>
+</rfc>

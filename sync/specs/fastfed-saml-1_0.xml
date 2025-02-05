@@ -1,0 +1,1211 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml2rfc.tools.ietf.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN" "http://xml2rfc.tools.ietf.org/authoring/rfc2629.dtd">
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="fastfed-saml-1_0" ipr="none">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="5" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="yes" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+  
+  <front>
+    <title abbrev="FastFed Enterprise SAML Profile 1.0">FastFed Enterprise SAML Profile
+    1.0 - draft 03</title>
+
+    <author fullname="Darin K. McAdams" initials="D.K.M." surname="McAdams">
+      <organization abbrev="Amazon">Amazon</organization>
+      <address>
+        <email>darinm@amazon.com</email>
+      </address>
+    </author>
+
+    <date day="7" month="October" year="2020" />
+
+    <workgroup>FastFed Working Group</workgroup>
+
+    <abstract>
+      <t>
+	This specification defines the requirements to implement the FastFed
+	Enterprise SAML Profile.
+      </t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+      <t>
+	This specification defines the functionality which a provider must
+	implement to satisfy the Enterprise SAMLProfile for FastFed. 
+      </t>
+      <t>
+	It consists of the following extensions to
+	the <xref target="FastFed.Core">FastFed Core</xref> specification:
+	<list style="symbols">
+	  <t>
+	    Additional metadata in the FastFed Handshake Flows
+	    to exchange SAML Metadata URLs.
+	  </t>
+	  <t>
+	    Mapping rules for generating SAML Attributes from
+	    a SCIM 2.0 schema.
+	  </t>
+	  <t>
+	    An interoperability profile describing the subset of the SAML
+            specifications which must be implemented in order to be FastFed
+            Compatible.
+	  </t>
+	  <t>
+	    The mechanics of certifcate rotation for SAML.
+	  </t>
+	</list>
+      </t>
+      
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+        <t>
+	  The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+          "OPTIONAL" in this document are to be interpreted as described in
+	  <xref target="RFC2119">RFC 2119</xref>.
+	</t>
+
+	<t>
+	  In the .txt version of this specification, values are quoted to
+	  indicate that they are to be taken literally.  When using these values
+	  in protocol messages, the quotes MUST NOT be used as part of the
+	  value.  In the HTML version of this specification, values to be taken
+	  literally are indicated by the use of
+	  <spanx style="verb">this fixed-width font</spanx>.
+	</t>
+      </section>
+
+      <section anchor="Terminology" title="Terminology">
+	<t>
+	  This FastFed Profile uses the terminology defined in Section 1.2 of the
+	  <xref target="FastFed.Core">FastFed Core</xref> specification.
+	</t>
+      </section>
+    </section>
+
+    <section anchor="Overview"
+             title="Overview">
+      <t>
+        When using the SAML protocol, the FastFed
+        Identity Provider and Application Provider have various
+        responsibilities to comply with the protocol.
+      </t>
+      <t>
+        The Identity Provider fulfills the role of a SAML Identity
+        Provider. It has
+        a responsibility to host a SAML Metadata file as described in
+        <xref target="SAMLInteroperabilityIdentityProviderReqs"/>.
+      </t>
+      <t>
+        The Application Provider fulfills the role of a SAML Application
+        Provider. It has a responsibility to host a SAML Metadata file as
+        described in
+        <xref target="SAMLInteroperabilityApplicationProviderReqs"/>
+      </t>
+      <t>
+        This specification extends the <xref target="FastFed.Core">FastFed
+          Core</xref> handshake messages with the additional attributes
+        necessary for
+        each party to fulfill their respective obligations under SAML.
+      </t>
+    </section> <!-- End of Overview -->
+
+    <section anchor="ProtocolExtensions" title="Protocol Extensions">
+
+      <section anchor="FastFedMetadata" title="FastFed Metadata">
+
+	<section anchor="FastFedMetadataAuthenticationProfile"
+		 title="Authentication Profile URN">
+	  <t>
+	    This specification extends the <xref target="FastFed.Core">FastFed
+              Core</xref> Provider Metadata (Section 3.3.1) with the following value
+            for <spanx style="verb">authentication_profiles</spanx>:
+	    <list style="hanging">
+	      <t hangText="urn:ietf:params:fastfed:1.0:authentication:saml:2.0:enterprise">
+		A Provider who includes this URN in their list of capabilities MUST
+		comply with the requirements described in this specification.
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+            The following is a non-normative example of Provider Metadata showing
+            the usage of the value:
+	  </t>
+          <figure><artwork><![CDATA[
+ {
+   "application_provider": {
+     "capabilities": {
+       "authentication_profiles": ["urn:ietf:params:fastfed:1.0:authentication:saml:2.0:enterprise"],
+   ...
+ }
+]]></artwork></figure> 
+	</section>
+
+	<section anchor="FastFedMetadataApplicationMetadata"
+		 title="Application Metadata">
+
+	  <t>
+            This specification extends the Application Provider Metadata defined
+            in Section 3.3.9 of <xref target="FastFed.Core">FastFed Core</xref>
+            with an additional member having the name:
+            <vspace/><vspace/><spanx style="verb">"urn:ietf:params:fastfed:1.0:authentication:saml:2.0:enterprise"</spanx>.
+          </t>
+          <t>
+            The value of the element is a structure containing the following
+            members:
+            <list style="hanging">
+	      <t hangText="saml_subject">
+		REQUIRED. A structure describing the attribute to use as the
+		SAML Subject. The format of the structure is a "User Attribute"
+		as defined in Section 3.3.6 of <xref
+		target="FastFed.Core">FastFed Core</xref>. The usage of the
+		structure in this profile, including contraints upon the
+		contents, is described in <xref
+		target="SchemaBindingScimToSamlSubject"/>.
+	      </t>
+              <t hangText="desired_attributes">
+		OPTIONAL. A structure specifying the values to be included in
+		the SAML Attributes. The format of the structure is described in
+		Section 3.3.5 of <xref target="FastFed.Core">FastFed
+		Core</xref>. The usage of the structure in this profile,
+		including constraints upon the contents, is described in <xref
+		target="SchemaBindingScimToSamlAttributes"/>.
+
+		<vspace/><vspace/>Groups are not supported by this SAML
+		profile. Therefore, the following MUST be omitted from the
+		desired attributes:
+		<list style="symbols">
+                  <t>
+                    <spanx style="verb">required_group_attributes</spanx>
+                  </t>
+                  <t>
+                    <spanx style="verb">optional_group_attributes</spanx>
+                  </t>
+		</list>
+	      </t>
+	    </list>
+	  </t>
+          <t>
+            The following is a non-normative example of Application Provider
+            Metadata with the profile extensions:
+          </t>
+          <figure><artwork><![CDATA[
+ {
+   "application_provider": {
+     "entity_id": "https://tenant-67890.app.example.com/"
+     "provider_domain": "example.com",
+     "provider_contact_information": {
+       "organization": "Example Inc.",
+       "phone": "+1-800-555-5555",
+       "email": "support@example.com"
+     },
+     "display_settings": {
+       "display_name": "Example Application Provider",
+       "logo_uri": "https://app.example.com/images/logo.png",
+       "icon_uri": "https://app.example.com/images/icon.png",
+       "license": "https://openid.net/intellectual-property/licenses/fastfed/1.0/"
+     }
+     "capabilities": {
+       "provisioning_profiles": [
+         "urn:ietf:params:fastfed:1.0:provisioning:saml:2.0:enterprise"
+       ],
+       "schema_grammars": [
+         "urn:ietf:params:fastfed:1.0:schemas:scim:2.0"
+       ],
+       "signing_algorithms": [
+         "ES512",
+         "RS256"
+       ]
+     },
+     "fastfed_handshake_register_uri": "https://tenant-67890.app.example.com/fastfed/register",
+
+     "urn:ietf:params:fastfed:1.0:provisioning:saml:2.0:enterprise": {
+       "saml_subject": {
+         "urn:ietf:params:fastfed:1.0:schemas:scim:2.0": 
+           "userName"
+       },
+       "desired_attributes": {
+         "urn:ietf:params:fastfed:1.0:schemas:scim:2.0": {
+           "required_user_attributes": [
+             "displayName"
+           ],
+           "optional_user_attributes": [
+             "phoneNumbers[primary eq true].value"
+           ]
+         }
+      }
+   }
+ }
+]]></artwork></figure>
+	</section>
+
+      </section> <!-- End of FastFed Metadata -->
+      
+      <section anchor="FastFedHandshake" title="FastFed Handshake">	
+	<section anchor="FastFedHandshakeRegistrationRequest" title="FastFed Registration Request">
+	  <t>
+	    This specification extends the JWT contents of the FastFed
+	    Registration Request (Section 7.2.3.1
+	    of <xref target="FastFed.Core">FastFed Core</xref>) with an
+	    additional member sharing the same name as the profile:
+	    <vspace/><vspace/><spanx style="verb">"urn:ietf:params:fastfed:1.0:authentication:saml:2.0:enterprise"</spanx>.
+	  </t>
+	  <t>
+	    The value of the element is a structure with the following members:
+            <list style="hanging">
+              <t hangText="saml_metadata_uri">
+		REQUIRED. Contains the URL of the Identity Provider's SAML Metadata document.
+              </t>
+            </list>
+	  </t>
+	  <t>
+            The following is a non-normative example of the contents of a
+            registration request message prior to serialization:
+	  </t>
+        <figure><artwork><![CDATA[
+ {
+   "iss": "https://tenant-12345.idp.example.com",
+   "aud": "https://tenant-67890.app.example.com",
+   "exp": 1234567890,
+   "authentication_profiles": [
+     "urn:ietf:params:fastfed:1.0:authentication:saml:2.0:enterprise"
+   ],
+   "urn:ietf:params:fastfed:1.0:authentication:saml:2.0:enterprise": {
+     "saml_metadata_uri": "https://tenant-12345.idp.example.com/saml-metadata.xml"
+   }
+ }
+]]></artwork></figure>
+	</section>
+
+	<section anchor="FastFedHandshakeRegistrationResponse" 
+		 title="FastFed Registration Response">
+          <t>
+            This specification extends the contents of the FastFed Registration
+            Response (Section 7.2.3.3 of <xref target="FastFed.Core">FastFed
+            Core</xref>) with an additional member sharing the same name as the
+            profile: 
+	    <vspace/><vspace/><spanx style="verb">"urn:ietf:params:fastfed:1.0:authentication:saml:2.0:enterprise"</spanx>.
+	  </t>
+	  <t>
+	    The value of the element is a structure with the following members:
+            <list style="hanging">
+              <t hangText="saml_metadata_uri">
+		REQUIRED. Contains the URL of the Application Provider's
+		SAML Metadata document.
+              </t>
+            </list>
+          </t> 
+          <t>
+            The following is a non-normative example of the contents of a
+            registration response message:
+          </t>
+          <figure><artwork><![CDATA[
+ {
+   "urn:ietf:params:fastfed:1.0:authentication:saml:2.0:enterprise": {
+     "saml_metadata_uri": "https://tenant-56789.app.example.com/saml-metadata.xml"
+   }
+ }
+]]></artwork></figure>
+	</section>
+	
+      </section> <!-- End of FastFed Handshake Extensions -->
+    </section> <!-- End of Protocol Extensions -->
+      
+
+    <section anchor="SchemaBinding" title="Schema Binding">
+
+      <t>
+	FastFed recommmends SCIM for user schemas. However, neither SAML nor
+	SCIM specify how to represent SCIM attributes in the context of SAML
+	assertions.
+      </t>
+      <t>
+	This specification fills the gap and defines how FastFed compatible
+	Providers can use the SCIM 2.0 Schema Grammar (Section 3.3.4.1
+	of <xref target="FastFed.Core">FastFed Core</xref>) with the SAML 2.0
+	protocol.
+      </t>
+
+      <section anchor="SchemaBindingScimToSaml"
+	       title="SCIM-to-SAML Attribute Mapping">
+
+	<section anchor="SchemaBindingScimToSamlSubject"
+		 title="SAML Subject">
+	  <t>
+	    A SAML Response document contains
+	    a <spanx style="verb">Subject</spanx> element which identifies the
+	    authenticated user. 
+	  </t>
+	  <t>
+	    The Application Provider declares the attribute to populate in the
+	    SAML Subject via the <spanx style="verb">saml_subject</spanx>
+	    element in <xref
+	    target="FastFedMetadataApplicationMetadata"/>
+	  </t>
+	  <t>
+	    The value of the <spanx style="verb">saml_subject</spanx> MUST be one
+	    of the SCIM Attributes in the table below.
+	  </t>
+	  <t>
+	    Note: In the table, SCIM attributes refer to the "User" Resource
+	    Schema defined in Section 4.1 of the <xref target="RFC7643">SCIM
+	    Core Specification</xref>. Individual members of a JSON structure
+	    are referenced in the table using the JSON path syntax defined in
+	    Section 3.5.2 of the <xref target="RFC7644">SCIM Protocol</xref>.
+          </t>
+	  <texttable>
+            <ttcol>SCIM Attribute</ttcol>
+	    <ttcol>SAML NameID Format</ttcol>
+	    
+            <c>externalId</c>
+            <c>urn:oasis:names:tc:SAML:2.0:nameid-format:persistent</c>
+
+	    <c>userName</c>
+	    <c>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</c>
+			
+            <c>emails[primary eq true].value</c>
+            <c>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</c>
+          </texttable>
+	  <t>
+	    As a reference to implementors, the following considerations can be
+	    taken into account when choosing a SAML subject:
+	    <list style="symbols">
+	      <t>
+		The format of <spanx style="verb">externalId</spanx> is defined
+		in section 3.1 of the SCIM Core specification <xref
+		target="RFC7643"/>.  It is a persistent identifier, often a
+		GUID, which is intended to reliably identify a user within the
+		Identity Provider. However, it will vary between Identity
+		Providers. Therefore, if an Application anticipates that
+		Administrators may occasionally switch Identity Providers (as
+		can happen in commercial settings, for example), additional
+		matching rules may be necessary to reconcile provisioning events
+		arriving from different sources.
+		
+		<vspace/><vspace/>
+		Note that while the SCIM Core specification defines the <spanx
+		style="verb">externalId</spanx> as optional, this profile
+		requires Identity Providers to support it, and hence
+		Applications can depend upon it being available.
+		<vspace/><vspace/>
+	      </t>
+	      <t>
+		The format of <spanx style="verb">userName</spanx> is defined in
+		section 4.1.1 of the SCIM Core specification <xref
+		target="RFC7643"/>.  It is a displayable, user-friendly
+		identifier for a user. In practice, the userName can often be an
+		email, but other formats occur.  No assumptions should be made
+		about the format of the userName other than it being a string
+		that the end-user typically enters as a login when
+		authenticating.
+
+		<vspace/><vspace/>
+		If the Administrator switches Identity Providers, it is
+		usually the case that the <spanx style="verb">userName</spanx>
+		remains consistent across providers, making it easier to correlate
+		authentication and provisioning events to a single user when events are
+		arriving from different sources.
+
+		<vspace/><vspace/> Note that <spanx
+		style="verb">userName</spanx> is mutable, meaning an end-user
+		can change their <spanx style="verb">userName</spanx>. In
+		addition <spanx style="verb">userName</spanx> can be recycled
+		and reassigned to other end-users. Therefore, Applications should
+		consider how such situations will be handled. The ability to be
+		notified when <spanx style="verb">userName</spanx> is changed or
+		recycled, such as via the SCIM profile <xref
+		target="FastFedProfile.EnterpriseSCIM"/>, can help keep an
+		Application Provider up-to-date with changes.
+		<vspace/><vspace/>
+	      </t>
+	      <t>
+		The attribute "<spanx style="verb">emails[primary eq true].value"</spanx>
+		represents the primary email address of the user, where <spanx
+		style="verb">emails</spanx> is defined in section 4.1.2 of the
+		SCIM Core specification <xref target="RFC7643"/>.
+
+		<vspace/><vspace/>
+		If an end-user does not have a value for
+		email defined within the Identity Provider, the end-user will be
+		unable to authenticate to the Application. As a result, choosing
+		email as a SAML Subject is appropriate only when an Application
+		requires an email address and is willing to reject end-users who
+		lack it.
+
+		<vspace/><vspace/> In addition, emails can be
+		changed or recycled in the same manner as the <spanx
+		style="verb">userName</spanx>. Therefore, similar mechanisms are
+		necessary to handle such events.
+		<vspace/><vspace/>
+	      </t>
+	      <t>
+		In some circumstances, it may be necessary to use multiple
+		attributes to best match a SAML Authentication response against
+		a specific end-user in the Application. If this occurs, it is
+		acceptable to use both the SAML Subject and the SAML Attributes
+		in combination to perform the matching. In this scenario, the
+		choice of SAML Subject becomes somewhat flexible, and one may
+		choose whichever option is most likely to be available and
+		useful.
+	      </t>
+	    </list>
+	  </t>
+	  <t>
+	    When generating a SAML Response, the Identity Provider MUST populate
+	    the SAML Subject with a NameID containing the attribute requested by
+	    the Application Provider, and the associated NameID Format from the
+	    table above. 
+	  </t>
+	  <t>
+	    The Identity Provider MUST be able to provide a value of <spanx
+	    style="verb">externalId</spanx> and <spanx style="verb">
+	    userName</spanx> for all end-users. Email address is optional.
+	  </t>
+	  <t>
+	    If a value for an optional attribute is not defined for an end-user, the
+	    Identity Provider MUST NOT perform any authentication activity into
+	    the Application Provider for the affected end-user. To assist with
+	    diagnostics, the Identity Provider SHOULD signal to the end-user that
+	    the attribute is missing and is required by the Application. The means
+	    of doing so are outside the scope of the specification, but could
+	    include displaying an informative error message when the end-user
+	    attempts to authenticate into the application, or making error logs
+	    available to the administrators of the Identity Provider.
+	  </t>
+	  <t>
+	    The following is a non-normative example of the use of <spanx
+	    style="verb">"externalId"</spanx> as the SAML Subject:
+	  </t>
+	  <figure><artwork><![CDATA[
+ <saml:Subject>
+   <saml:NameID Format="urn:oasis:names:tc:SAML:2.0:nameid-format:persistent">1fc58220-7213-47bb-9161-bbd39ad75937</saml:NameID>
+ </saml:Subject>
+]]></artwork></figure>
+	  <t>
+	    The following is a non-normative example of the use of <spanx
+	    style="verb">"userName"</spanx> as the SAML
+	    Subject:
+          </t>
+	  <figure><artwork><![CDATA[
+  <saml:Subject>
+    <saml:NameID Format="urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified">bjensen</saml:NameID>
+  </saml:Subject>
+]]></artwork></figure>
+	  <t>
+            The following is a non-normative example of the use of <spanx
+            style="verb">"email[primary eq true].value"</spanx> as the SAML
+            Subject:
+          </t>
+          <figure><artwork><![CDATA[                                                                                          
+ <saml:Subject>
+   <saml:NameID Format="urn:oasis:names:tc:SAML:2.0:nameid-format:emailAddress">babs@example.com</saml:NameID>               
+ </saml:Subject>
+]]></artwork></figure>
+	</section>
+	
+	<section anchor="SchemaBindingScimToSamlAttributes"
+                 title="SAML Attributes">
+	  <t>
+	    If users have been pre-provisioned into the Application through
+	    mechanisms such as SCIM, the SAML Subject alone can be sufficient to
+	    correlate the incoming SAML message with the appropriate
+	    pre-existing user. However, there can be circumstances when
+	    additional user attributes are necessary.
+	  </t>
+	  <t>
+	    One such situation occurs when an application is using Just-In-Time
+	    provisioning instead of pre-provisioning. In this mode of behavior,
+	    the incoming user attributes are used to auto-instantiate a user in
+	    the Application.
+	  </t>
+	  <t>
+	    To support these scenarios, FastFed allows a subset of user attributes
+	    to be included in SAML response messages according to the mapping rules
+	    below. Any attributes not in the mapping table are only accessible via SCIM
+	    provisioning and cannot be included in SAML response messages.
+	  </t>
+	  <t>
+	    Attributes are requested by populating the member
+	    <spanx style="verb">"desired_attributes"</spanx> in the Application
+	    Provider Metadata
+	    (<xref target="FastFedMetadataApplicationMetadata"/>).
+	  </t>
+	  <t>
+            If attributes are requested, and values exist for the user, then
+            the Identity Provider MUST include SAML Attribute elements in the
+            response message with the following properties:
+            <list style="symbols">
+              <t>
+		<spanx style="verb">Name</spanx> set to the value in the mapping
+		table below.
+              </t>
+              <t>
+		<spanx style="verb">NameFormat</spanx> set
+		to <spanx style="verb">"urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified"</spanx>.
+              </t>
+              <t>
+		<spanx style="verb">AttributeValue</spanx> element
+		with <spanx style="verb">xsi:type="xs:string"</spanx> and the
+		value from the SCIM object according to the mapping table below.
+              </t>
+            </list>
+          </t>
+	  <t>
+            Note: In the table below, SCIM attributes refer to the "User"
+            Resource Schema defined in Section 4.1 of
+            the <xref target="RFC7643">SCIM Core
+            Specification</xref>. Individual members of a JSON structure are
+            referenced in the table using the JSON path syntax defined in
+            Section 3.5.2 of the <xref target="RFC7644">SCIM Protocol</xref>.
+	  </t>
+          <texttable>
+	      <ttcol>SCIM Attribute</ttcol>
+              <ttcol>SAML Attribute Name</ttcol>
+
+	      <c>externalId</c>
+              <c>externalId</c>
+
+	      <c>userName</c>
+              <c>userName</c>
+
+              <c>displayName</c>
+              <c>displayName</c>
+	      
+              <c>name.givenName</c>
+	      <c>givenName</c>
+	      
+	      <c>name.familyName</c>
+              <c>familyName</c>
+	      
+              <c>name.middleName</c>
+	      <c>middleName</c>
+	      
+              <c>emails[primary eq true].value</c>
+	      <c>email</c>
+	      
+              <c>phoneNumbers[primary eq true].value</c>
+	      <c>phoneNumber</c>
+            </texttable>
+	    
+            <t>
+	      The following is a non-normative example demonstrating a
+              transformation from a SCIM User to SAML Attributes:
+            </t>
+
+       <figure><artwork><![CDATA[
+ <saml:AttributeStatement>
+   <saml:Attribute Name="externalId" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">1fc58220-7213-47bb-9161-bbd39ad75937</saml:AttributeValue>
+   </saml:Attribute>
+   <saml:Attribute Name="userName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">bjensen</saml:AttributeValue>
+   </saml:Attribute>
+   <saml:Attribute Name="displayName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">Babs Jensen</saml:AttributeValue>
+   </saml:Attribute>
+   <saml:Attribute Name="givenName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">Barbara</saml:AttributeValue>
+   </saml:Attribute>
+   <saml:Attribute Name="familyName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">Jensen</saml:AttributeValue>
+   </saml:Attribute>
+   <saml:Attribute Name="middleName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">Jane</saml:AttributeValue>
+   </saml:Attribute>
+   <saml:Attribute Name="email" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">bjensen@example.com</saml:AttributeValue>
+   </saml:Attribute>
+   <saml:Attribute Name="phoneNumber" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+        <saml:AttributeValue xsi:type="xs:string">1-555-555-5555</saml:AttributeValue>
+   </saml:Attribute>
+ </saml:AttributeStatement>
+
+]]></artwork></figure>
+	</section>
+      </section>
+
+      <section anchor="SchemaBindingPrivacyConsiderations"
+               title="Privacy Considerations">
+        <t>
+          When exposing user information through SAML Attributes, FastFed
+          Identity Providers MUST NOT expose any attributes which were not in
+          the <spanx style="verb">desired_attributes</spanx> or <spanx
+	  style="verb">saml_subject</spanx>
+	  elements of the Application Provider Metadata
+          (<xref target="FastFedMetadataApplicationMetadata"/>).
+        </t>
+      </section>
+
+    </section> <!-- End of Schema Binding -->
+
+
+    <section anchor="Interoperability"
+	     title="Interoperability Requirements">
+     <t>
+       Each identity standard defines a set of optional features to enable usage
+       in a wide variety of circumstances.
+     </t>
+     <t>
+       However, a consequence of the flexibility is that two Providers may find
+       themselves incompabitible despite sharing the same protocols.
+     </t>
+     <t>
+       To deliver the simplified experience that is the goal of FastFed, it is
+       important that two FastFed-enabled Providers have confidence that they
+       can interoperate when sharing the same protocols.
+     </t>
+     <t>
+       The following sections describe the subset of the SAML specifications
+       that Providers MUST implement to be compatible with this profile.
+       Providers MAY support additional functionality, but MUST NOT require the
+       additional functionality when configuring federation with another
+       Provider using FastFed specifications.
+     </t>
+
+     <section anchor="SAMLInteroperabilityIdentityProviderReqs"
+	      title="Identity Provider Requirements">
+
+       <t>
+	 <list style="symbols">
+	   <t>
+             MUST implement the required functionality of a SAML Identity
+             Provider as defined in the SAML Web Browser SSO Profile (Section
+             4.1 of <xref target="SAML.Profiles"/>).
+           </t>
+	   <t> 
+	     MUST use the HTTP POST bindings for the authentication response
+	     of the Web Browswer SSO Profile.
+           </t>
+	   <t> 
+	     MUST use X509 Certificates for the Signature elements within
+	     the SAML Response object.
+           </t>
+	   <t>
+	     MUST include a Signature element for the Assertion in the SAML
+	     Response, and in addition, MAY include a Signature element for the
+	     overall Response.
+	   </t>
+	   <t>
+	     The minimum algorithm stregth for the Signature elements SHOULD be
+	     SHA-256 for the hash digest, and either RSA with 2048 bit keys, or
+	     ECDSA with Curve P-256, for the signature.
+	   </t>
+	   <t>
+	     MUST include a "Conditions" element on the Assertion with NotBefore
+	     and NotOnOrAfter properties that constrain the validity period of
+	     the Assertion to the shortest feasible duration. As a reference to
+	     implementors, a 10 minute window is often sufficient to reduce the
+	     risk of replays while still allowing a small degree of clock skew
+	     between participants.
+	   </t>
+	   <t> 
+	     MUST host a SAML Metadata document at the location specified by the
+             <spanx style="verb">saml_metadata_uri</spanx> exchanged during the
+             FastFed Handshake.
+           </t>
+	   <t> 
+	     MUST include an IDPSSODescriptor element in the SAML Metadata
+             document as specified in <xref target="SAML.Metadata"/>.
+           </t>
+	   <t>
+	     MUST populate the IDPSSODescriptor element with all values needed
+             by a SAML Service Provider to integrate with this SAML Identity
+             Provider using the capabilities described in this section.
+           </t>
+	 </list>
+       </t>
+     </section>             
+     
+     <section anchor="SAMLInteroperabilityApplicationProviderReqs"
+	      title="Application Provider Requirements">
+       <t>
+	 SAML Requirements for Application Providers:
+
+	 <list style="symbols">
+	   <t> 
+	     MUST implement the required functionality of a SAML Service
+             Provider as defined in the SAML Web Browser SSO Profile (Section
+             4.1 of <xref target="SAML.Profiles"/>).
+           </t>
+           <t> 
+	     MUST use the HTTP Redirect binding for the authentication request
+	     of the Web Browswer SSO Profile.
+           </t>
+           <t>
+	     MUST accept X509 Certificates for the Signature elements
+             containined within the SAML Response object.
+	   </t>
+	   <t>
+             SHOULD support Signature elements generated using the SHA-256
+             algorithm for the hash digest, and either RSA with 2048 bit keys,
+             or ECDSA with Curve P-256, for the signature.
+	   </t>
+           <t> 
+	     MUST host a SAML Metadata document at the location specified by the
+             <spanx style="verb">saml_metadata_uri</spanx> exchanged during the
+             FastFed Handshake.
+           </t>
+           <t> 
+	     MUST include an SPSSODescriptor element in the SAML Metadata
+             document as specified in <xref target="SAML.Metadata"/>.
+           </t>
+           <t> 
+	     MUST populate the SPSSODescriptor with all values needed by a
+             SAML Identity Provider to integrate with this SAML Service Provider
+             using the capabilities described in this section.
+           </t>
+           <t> 
+	     MAY use the information in the Identity Provider's corresponding
+             SAML Metadata document to decide whether to use additional SAML
+             capabilities, above and beyond the FastFed minimum interoperablity
+             requirements. The additional capabilities must be optional and the
+             federation MUST still succeed if one Provider does not support the
+             additional capabilities.
+           </t>
+         </list>
+       </t>
+     </section>         
+
+     <section anchor="LoginHint"
+              title="Login Hint">
+
+       <t>
+	 The Application Provider MAY include the URL-encoded query parameter
+	 <spanx style="verb">LoginHint={hint}</spanx> when initiating an
+	 authentication request via the SAML HTTP Redirect binding.
+       </t>
+       <t>
+	 The value is a hint to the Identity Provider about the login identifier
+	 the end-user might use to log in. This hint can be known to the
+	 Application Provider, for example, if it first asks the end-user for
+	 their e-mail address (or other identifier) in order to discover the
+	 authentication provider to be used for sign-in. It is RECOMMENDED that
+	 the hint value match the value used for discovery.
+       </t>
+       <t>
+	 The use of this parameter is left to the Identity Provider's discretion.
+       </t>
+       <t>
+	 The LoginHint MUST NOT be included in request signature for the HTTP
+	 Redirect Binding.
+       </t>
+       <t>
+	 The Identity Provider MUST ignore the LoginHint parameter if the SAML
+	 Authentication Request message contains
+	 a <spanx style="verb">Subject</spanx> with an identifier.
+       </t>
+       <t>
+         The following is a non-normative example of a SAML HTTP
+         Redirect request with a LoginHint:
+       </t>
+       <figure><artwork><![CDATA[
+ HTTP/1.1 302 Found
+ Location http://idp.example.com/SAML?LoginHint=bjensen%40example.org&SAMLRequest=[...omitted for brevity...]
+]]></artwork></figure>
+     </section>
+
+     <section anchor="SAMLCertificateRotationRequirements"
+              title="Certificate Rotation">
+
+       <t> 
+	 While the full SAML specification supports a variety of key types,
+         the FastFed Profile defined herein restricts Providers to only X509
+         Keys for signing SAML Assertions in Web Browser SSO response messages
+         from the Identity Provider.
+       </t>
+       <t> 
+	 FastFed Providers MUST implement automatic rotation of the X509
+         Certificates. This section describes the
+         interoperability requirements for certificate rotation.
+       </t>  
+
+       <section anchor="SAMLKeyPublicationRequirements"
+                title="Certificate Rotation Requirements for an Identity Provider">
+
+	 <t> 
+	   To rotate and publish new SAML signing certificates, the following
+	   requirements apply to the Identity Provider:
+           <list style="symbols">
+             <t>
+	       MUST include new certificates in the response to queries against
+               the SAML Metadata URL that was exchanged during the FastFed
+               Handshake.
+             </t>
+             <t>
+	       MUST publish the new certificate in the SAML Metadata at least 14
+               days before the currently active certificate will expire or be
+               revoked, where the expiration date is specified by the
+               <spanx style="verb">notAfter</spanx> attribute within the X.509
+               certificate.
+             </t>
+             <t>
+	       MUST include the new certificate in the SAML Metadata, alongside
+               the currently active certificate, using the recommended technique
+               for multiple certificates defined in the
+               <xref target="SAML.Interoperability">SAML Metadata
+               Interoperability Profile</xref>. As a reference, this
+               Interopability Profile specifies that each certificate MUST be
+               placed within its own
+               <spanx style="verb">&lt;KeyDescriptor&gt;</spanx> element.
+             </t>
+             <t>
+	       SHOULD continue using the original key for signing SAML
+               Assertions for at least 7 days after publishing the new
+               certificate, to give consumers time to read the new certificate
+               from the SAML Metadata and be ready to receive the new key.
+             </t>
+             <t>
+	       SHOULD begin signing assertions with the new key if less than 7
+               days remains until the old certificate expires. MAY continue
+               using the old key if problems arise with the new key, to give
+               time for diagnosis of the problems.
+             </t>
+             <t>
+	       SHOULD stop using the old key for signing assertions when less
+               than 1 day remains until the old certificate expires.
+             </t>
+             <t>
+	       MUST support HTTP 1.1 ETag semantics <xref target="RFC2616"/> for
+               all requests to the SAML Metadata URL, including:
+               <list style="symbols">
+                 <t>
+		   Returning an ETag response header
+                 </t>
+                 <t>
+		   Accepting an If-None-Match request header, and returning an
+                   HTTP 304 response if the SAML Metadata is unmodified.
+                 </t>
+               </list>
+             </t>
+             <t> 
+	       MAY return an HTTP 301 response code to indicate the SAML
+	       Metadata has moved to a new location.
+             </t>
+           </list>
+         </t>
+       </section> <!-- End of SAML Key Publication Requirements -->
+
+       <section anchor="SAMLKeyConsumptionRequirements"
+                title="Certificate Rotation Requirements for an Application
+                Provider">
+
+         <t>
+           To consume rotated SAML signing certificates, the following options are available
+           to the Application Provider:
+             <list style="symbols">
+               <t>
+                 MAY retrieve new keys on demand by reloading the Identity
+                 Provider's SAML Metadata file upon detecting a SAML
+                 authentication response signed with an unrecognized key.
+               </t>
+               <t>
+                 Alternatively, MAY preemptively retrieve new keys by querying
+                 the Identity Provider's SAML Metadata file on a recurring basis
+                 to check for updates.
+               </t>
+	     </list>
+	 </t>
+         <t>
+	   When preemptively querying for updates on a recurring basis, the
+           following requirements apply to the Application Provider:
+           <list style="symbols">
+             <t>
+	       MUST re-query the Identity Provider's SAML Metadata URL to check
+	       for new certificates at least once every 24 hours. Because
+	       certificates can be rotated at any time, the Application Provider
+	       MUST NOT wait for the expiration date to check for updated
+	       certificates.
+             </t>
+             <t>
+	       MUST include the If-None-Match header in the request to download
+	       the SAML Metadata, populated with the value of the ETag response
+	       header received when previously downloading the SAML Metadata.
+             </t>
+             <t>
+               SHOULD alert the Administrator if the Identity Provider has not
+               published a new certificate and less than 14 days remains until
+               expiration of the current certificate. The alert mechanism is an
+               implementation detail that is outside the scope of the
+               specification.
+             </t>
+             <t>
+	       MUST handle an HTTP 304 response code which indicates that the
+	       SAML Metadata is unchanged.
+             </t>
+             <t>
+	       SHOULD handle an HTTP 301 response code and use the new location
+	       for all future downloads of the Identity Provider's SAML
+	       Metadata.
+             </t>
+	   </list>
+	 </t>
+	 <t>
+	   In all cases of certificate refresh, both on-demand and preemptive, the
+	   following requirements apply to the Application Provider:
+	   <list style="symbols">
+             <t>
+	       MUST support the consumption of multiple certificates using the
+	       recommended techniques defined in the
+               <xref target="SAML.Interoperability">SAML Metadata
+               Interoperability Profile</xref>. As a reference, this
+               Interopability Profile specifies that each certificate MUST be
+               placed within its own
+               <spanx style="verb">&lt;KeyDescriptor&gt;</spanx> element.
+             </t>
+             <t> 
+	       MUST ignore any changes in the SAML Metadata except for
+               <spanx style="verb">&lt;KeyDescriptor&gt;</spanx> elements.
+             </t>
+             <t>
+	       MUST accept SAML assertions signed using any of the valid
+	       certificates specified within the
+               <spanx style="verb">&lt;KeyDescriptor&gt;</spanx> elements of
+               the Identity Provider SAML Metadata.
+             </t>
+           </list>
+         </t>
+       </section>
+       
+     </section> <!-- End of SAML Certificate Rotation -->    
+    </section> <!-- End of Interoperability -->
+    
+  <section anchor="Security" title="Security Considerations">
+    <t>
+      For SAML security considerations, see
+      <xref target="SAML.SecurityConsiderations">SAML Security and Privacy Considerations</xref>.
+    </t>
+    <t>
+      For FastFed security considerations, see Section 8
+      of <xref target="FastFed.Core">FastFed Core</xref>.
+    </t>
+  </section>
+  
+  <section anchor="IANA" title="IANA Considerations">
+    <t>
+      Pending
+    </t>
+  </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.2119"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.2616"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7643"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7644"?>
+
+      <reference anchor="FastFed.Core" target="http://openid.net/specs/fastfed-core-1_0.html">
+        <front>
+          <title>FastFed Core 1.0</title>
+          <author fullname="Darin" initials="K." surname="McAdams">                         
+            <organization abbrev="Amazon">Amazon</organization>               
+          </author>
+          <date day="7" month="October" year="2020"/>
+        </front>
+      </reference>
+
+      <reference anchor="FastFedProfile.EnterpriseSCIM" target="http://openid.net/specs/fastfed-scim-1_0.html">
+        <front>
+          <title>FastFed Enterprise SCIM Profile 1.0</title>
+          <author fullname="Darin" initials="K." surname="McAdams">
+            <organization abbrev="Amazon">Amazon</organization>
+          </author> <date day="7" month="October" year="2020"/>
+        </front>
+      </reference>
+  
+      <reference anchor="SAML.Interoperability" target="https://www.oasis-open.org/committees/download.php/36645/draft-sstc-metadata-iop-2.0-01.pdf">
+	<front>
+	  <title>SAML V2.0 Metadata Interoperability Profile Version 1.0</title>
+
+	  <author fullname="Scott Cantor" initials="S" surname="Cantor">
+	    <organization abbrev="Internet2">Internet2</organization>
+	  </author>
+	  <author fullname="John Kemp" initials="J" surname="Kemp">
+	    <organization abbrev="Nokia">Nokia</organization>
+	  </author>
+	  <author fullname="Rob Philpott" initials="R" surname="Philpott">
+	    <organization abbrev="RSA Security">RSA Security</organization>
+	  </author>
+	  <author fullname="Eve Maler" initials="E" surname="Maler">
+	    <organization abbrev="Sun Microsystems">Sun Microsystems</organization>
+	  </author>
+
+          <date day="4" month="August" year="2009"/>
+	</front>
+      </reference>
+
+      <reference anchor="SAML.Metadata" target="http://docs.oasis-open.org/security/saml/v2.0/saml-metadata-2.0-os.pdf">
+	<front>
+	  <title>Metadata for the OASIS Security Assertion Markup Language (SAML) V2.0</title>
+
+	  <author fullname="Scott Cantor" initials="S" surname="Cantor">
+	    <organization abbrev="Internet2">Internet2</organization>
+	  </author>
+	  <author fullname="Jahan Moreh" initials="J" surname="Moreh">
+	    <organization abbrev="Sigaba">Sigaba</organization>
+	  </author>
+	  <author fullname="Rob Philpott" initials="R" surname="Philpott">
+	    <organization abbrev="RSA Security">RSA Security</organization>
+	  </author>
+	  <author fullname="Eve Maler" initials="E" surname="Maler">
+	    <organization abbrev="Sun Microsystems">Sun Microsystems</organization>
+	  </author>
+
+          <date day="15" month="March" year="2005"/>
+	</front>
+      </reference>
+
+      <reference anchor="SAML.Profiles" target="http://docs.oasis-open.org/security/saml/v2.0/saml-profiles-2.0-os.pdf">
+	<front>
+	  <title>Profiles for the OASIS Security Assertion Markup Language (SAML) V2.0"</title>
+
+	  <author fullname="John Hughes" initials="J" surname="Hughes">
+	    <organization abbrev="Atos Origin">Atos Origin</organization>
+	  </author>
+	  <author fullname="Scott Cantor" initials="S" surname="Cantor">
+	    <organization abbrev="Internet2">Internet2</organization>
+	  </author>
+	  <author fullname="Jeff Hodges" initials="J" surname="Hodges">
+	    <organization abbrev="Neustar">Neustar</organization>
+	  </author>
+	  <author fullname="Frederick Hirsch" initials="F" surname="Hirsch">
+	    <organization abbrev="Nokia">Nokia</organization>
+	  </author>
+	  <author fullname="Prateek Mishra" initials="P" surname="Mishra">
+	    <organization abbrev="Principal Identity">Principal Identity</organization>
+	  </author>
+	  <author fullname="Rob Philpott" initials="R" surname="Philpott">
+	    <organization abbrev="RSA Security">RSA Security</organization>
+	  </author>
+	  <author fullname="Eve Maler" initials="E" surname="Maler">
+	    <organization abbrev="Sun Microsystems">Sun Microsystems</organization>
+	  </author>
+
+          <date day="15" month="March" year="2005"/>
+	</front>
+      </reference>
+
+      <reference anchor="SAML.SecurityConsiderations"
+		 target="http://docs.oasis-open.org/security/saml/v2.0/saml-sec-consider-2.0-os.pdf">
+        <front>
+          <title>Security and Privacy Considerations for the OASIS Security
+          Assertion Markup Language (SAML) V2.0</title>
+
+          <author fullname="Frederick Hirsch" initials="F" surname="Hirsch">
+            <organization abbrev="Nokia">Nokia</organization>
+          </author>
+          <author fullname="Rob Philpott" initials="R" surname="Philpott">
+            <organization abbrev="RSA Security">RSA Security</organization>
+          </author>
+          <author fullname="Eve Maler" initials="E" surname="Maler">
+            <organization abbrev="Sun Microsystems">Sun
+            Microsystems</organization>
+          </author>
+
+          <date day="15" month="March" year="2005"/>
+        </front>
+      </reference>
+
+      
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>
+	The OpenID Community would like to thank the following people for
+	their contributions to this specification:
+      </t>
+      <t>
+        <list style="empty">
+	  <t>
+	    Brian Campbell (bcampbell@pingidentity.com), Ping Identity
+	  </t>
+	  <t>
+	    Zhen Chien Chia (chiazhenchien@outlook.com), Microsoft
+	  </t>
+	  <t>
+	    Pamela Dingle (pamela.dingle@microsoft.com), Microsoft
+	  </t>
+	  <t>
+	    Matt Domsch (matt.domsch@sailpoint.com), SailPoint
+	  </t>
+	  <t>
+	    Wesley Dunnington (wesleydunnington@pingidentity.com), Ping Identity
+	  </t>
+	  <t>
+	    Erik Gustavson (erikgustavson@google.com), Google
+	  </t>
+	  <t>
+	    Dick Hardt (dick.hardt@gmail.com), Independent
+	  </t>
+	  <t>
+	    Romain Lenglet (rlenglet@google.com), Google
+	  </t>
+	  <t>
+	    Karl McGuinness (kmcguinness@okta.com), Okta
+	  </t>
+	  <t>
+	    Chuck Mortimore (cmortimore@salesforce.com), Salesforce
+	  </t>
+	  <t>
+	    Brian Rose (brian.rose@sailpoint.com), SailPoint
+	  </t>
+        </list>
+      </t>
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2020 The OpenID Foundation.</t>
+
+      <t>The OpenID Foundation (OIDF) grants to any Contributor, developer,
+      implementer, or other interested party a non-exclusive, royalty free,
+      worldwide copyright license to reproduce, prepare derivative works from,
+      distribute, perform and display, this Implementers Draft or Final
+      Specification solely for the purposes of (i) developing specifications,
+      and (ii) implementing Implementers Drafts and Final Specifications based
+      on such documents, provided that attribution be made to the OIDF as the
+      source of the material, but that such attribution does not indicate an
+      endorsement by the OIDF.</t>
+
+      <t>The technology described in this specification was made available
+      from contributions from various sources, including members of the OpenID
+      Foundation and others. Although the OpenID Foundation has taken steps to
+      help ensure that the technology is available for distribution, it takes
+      no position regarding the validity or scope of any intellectual property
+      or other rights that might be claimed to pertain to the implementation
+      or use of the technology described in this specification or the extent
+      to which any license under such rights might or might not be available;
+      neither does it represent that it has made any independent effort to
+      identify any such rights. The OpenID Foundation and the contributors to
+      this specification make no (and hereby expressly disclaim any)
+      warranties (express, implied, or otherwise), including implied
+      warranties of merchantability, non-infringement, fitness for a
+      particular purpose, or title, related to this specification, and the
+      entire risk as to implementing this specification is assumed by the
+      implementer. The OpenID Intellectual Property Rights policy requires
+      contributors to offer a patent promise not to assert certain patent
+      claims against other contributors and against implementers. The OpenID
+      Foundation invites any interested party to bring to its attention any
+      copyrights, patents, patent applications, or other proprietary rights
+      that may cover technology that may be required to practice this
+      specification.</t>
+    </section>
+    
+  </back>
+</rfc>

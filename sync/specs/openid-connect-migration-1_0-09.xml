@@ -1,0 +1,753 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml.resource.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN"
+"http://xml.resource.org/authoring/rfc2629.dtd">
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="openid-connect-openid2-migration-1_0" ipr="none">
+  <?rfc toc="yes" ?>
+
+  <?rfc tocdepth="5" ?>
+
+  <?rfc symrefs="yes" ?>
+
+  <?rfc sortrefs="yes"?>
+
+  <?rfc strict="yes" ?>
+
+  <?rfc iprnotified="no" ?>
+  
+  <?rfc private="Final" ?>
+
+  <front>
+    <title abbrev="OpenID 2.0 to OpenID Connect Migration">OpenID 2.0 to
+    OpenID Connect Migration 1.0</title>
+
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization abbrev="NRI">Nomura Research Institute,
+      Ltd.</organization>
+
+      <address>
+        <email>n-sakimura@nri.co.jp</email>
+
+        <uri>http://nat.sakimura.org/</uri>
+      </address>
+    </author>
+
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization abbrev="Ping Identity">Ping Identity</organization>
+
+      <address>
+        <email>ve7jtb@ve7jtb.com</email>
+
+        <uri>http://www.thread-safe.com/</uri>
+      </address>
+    </author>
+
+    <author fullname="Naveen Agarwal" initials="N." surname="Agarwal">
+      <organization abbrev="Google">Google</organization>
+
+      <address>
+        <email>naa@google.com</email>
+
+        <uri>http://www.google.com</uri>
+      </address>
+    </author>
+
+    <author fullname="Edmund Jay" initials="E." surname="Jay">
+      <organization abbrev="Illumila">Illumila</organization>
+
+      <address>
+        <email>ejay@illumi.la</email>
+
+        <uri>http://illumi.la</uri>
+      </address>
+    </author>
+
+    <date day="16" month="April" year="2015" />
+
+    <workgroup>OpenID Connect Working Group</workgroup>
+
+    <abstract>
+      <t>This specification defines how an OpenID Authentication 2.0 Relying
+      Party can migrate the user from OpenID 2.0 identifier to OpenID Connect
+      Identifier by using an ID Token that includes the OpenID 2.0 verified
+      claimed ID. In this specification, the method to request such an
+      additional claim and the method for the verification of the resulting ID
+      Token is specified.</t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+      <t>OpenID Authentication 2.0 is a popular authentication federation
+      protocol through which the Relying Party can obtain the user&rsquo;s
+      verified identifier from the OpenID Provider (OP) to which the user was
+      authenticated. OpenID Connect is a new version of OpenID Authentication but the
+      identifier format is different and thus Relying Parties need to migrate
+      those user identifiers to continue serving these users.</t>
+
+      <t>In this specification, a standard method for this kind of migration
+      on a per-user basis is described.</t>
+
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+        "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
+        document are to be interpreted as described in <xref
+        target="RFC2119">RFC 2119</xref>.</t>
+
+        <t>In the .txt version of this document, values are quoted to indicate
+        that they are to be taken literally. When using these values in
+        protocol messages, the quotes MUST NOT be used as part of the value.
+        In the HTML version of this document, values to be taken literally are
+        indicated by the use of <spanx style="verb">this fixed-width font</spanx>.</t>
+      </section>
+
+      <section anchor="Terminology" title="Terminology">
+        <t>The terms defined in <xref
+        target="OpenID.Core"> OpenID Connect Core 1.0</xref> and <xref
+        target="OpenID.2.0">OpenID Authentication 2.0</xref> are used by this
+        specification. When the same term is defined in both specifications,
+        the term defined in OpenID Connect Core takes precedence.</t>
+
+        <t>This specification also defines the following terms: <list
+            style="hanging">
+            <t hangText="OpenID 2.0 Identifier"><vspace /> Verified Claimed
+            Identifier as specified by OpenID Authentication 2.0. </t>
+
+            <t hangText="Connect OP"><vspace /> OpenID Connect OP</t>
+
+            <t hangText="OpenID Connect Identifier"><vspace /> OpenID Connect issuer and subject pair</t>
+          </list></t>
+      </section>
+    </section>
+
+    <section anchor="RequestOpenid2Id"
+             title="Requesting the OpenID 2.0 Identifier and OpenID Connect Identifier Together">
+      <t>To obtain the OpenID 2.0 Identifier, the RP sends a modified OpenID
+      Connect Authentication Request by adding <spanx style="verb">openid2</spanx>
+      as an additional scope value.</t>
+      
+      <t>NOTE: If the OP does not support the <spanx style="verb">openid2</spanx> scope, 
+      it SHOULD ignore it, as specified in Section 3.1.2.1 of 
+      <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.</t>
+
+      <t>If a pairwise pseudonymous identifier (PPID) was used to obtain the OpenID 2.0 Identifier,
+      <spanx style="verb">openid.realm</spanx>
+      has to be sent to the OP with the request. For this purpose, a new
+      authentication request parameter <spanx style="verb">openid2_realm</spanx>
+      is defined.</t>
+
+      <t><list style="hanging">
+          <t hangText="openid2_realm"><vspace />REQUIRED. The <spanx
+          style="verb">openid.realm</spanx> value as defined in Section 9.1 of
+          <xref target="OpenID.2.0">OpenID 2.0</xref></t>
+        </list>If the authority section of Authorization Endpoint URI is
+      different from the authority section of the OpenID 2.0 OP&rsquo;s OP
+      Endpoint URL, the client MUST issue a GET request to the OpenID 2.0
+      Identifier obtained through the ID Token, i.e., the value of
+      <spanx style="verb">openid2_id</spanx>, with
+      an Accept header set to <spanx style="verb">application/json</spanx>
+      to obtain the value of 
+      <spanx style="verb">iss</spanx> claim in it. 
+      The value of the <spanx style="verb">iss</spanx> claim 
+      obtained this way and the value of 
+      the <spanx style="verb">iss</spanx> 
+      claim in the ID Token MUST exactly match.
+      </t>
+
+      <t>NOTE: This is similar to <xref target="Yadis">Yadis</xref>.
+      In the Yadis case, it is using an Accept header with
+      its value set to <spanx style="verb">application/xml+xrds.</spanx></t>
+      
+      <t>The following is a non-normative example of an 
+      authentication request to request the OpenID 2.0 Identifier (with line
+      wraps within values for display purposes only). 
+      </t>
+      
+      <t>NOTE: This example assumes that the OpenID 2.0 OP Identifier 
+      is <spanx style="verb">https://openid2.example.com</spanx>.</t>
+
+      <figure>
+        <preamble>
+        </preamble>
+
+        <artwork><![CDATA[
+  GET /authorize?response_type=id_token
+           &scope=openid%20openid2
+           &client_id=s6BhdRkqt3
+           &state=af0ifjsldkj
+           &nonce=n-0S6_WzA2Mj
+           &openid2_realm=https%3A%2F%2Fclient.example.org
+           &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb HTTP/1.1
+  Host: server.example.com
+]]></artwork>
+
+      </figure>
+      <figure>
+         <preamble>The End-User performs authentication and 
+         authorization at the Connect OP which then returns 
+         the authentication response:
+         </preamble>
+        <artwork><![CDATA[
+  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    id_token=eyJhbGciOiJSUzI1NiIsImtpZCI6IktleTAwMSJ9.ew0KIC
+    Jpc3MiOiAiaHR0cHM6Ly9zZXJ2ZXIuZXhhbXBsZS5jb20iLA0KICJzdW
+    IiOiAiMjQ4Mjg5NzYxMDAxIiwNCiAiYXVkIjogInM2QmhkUmtxdDMiLA
+    0KICJub25jZSI6ICJuLTBTNl9XekEyTWoiLA0KICJleHAiOiAxMzExMj
+    gxOTcwLA0KICJpYXQiOiAxMzExMjgwOTcwLA0KICJvcGVuaWQyX2lkIj
+    ogImh0dHBzOi8vb3BlbmlkMi5leGFtcGxlLmNvbS91c2VyMzU5MzkwOD
+    cyMTEyIg0KfQ.xSUAiR8OqhMIX3Gs8djq5ORwunLktRFBbDnb2EUY8hZ
+    D3E7qk8518hOe7TVzC-VMCiq1o4KQrM_J0N-5MtiO2mvQ7j1I7iF-qgb
+    KQMUe6Rt26Z1sA2uWs1223QBlUQ634BPiWrCYD6NfkofPTxsBwvzfMR1
+    0e2KVCdwpo33yJc5jelgqr26TymqhTFPiMiQhfXIA7lihzNq6cyxFHUY
+    541NiwVmsziUlgfV9ZKgADOYFimTc3-WsjEq_oPHF8WN9B_-dRTw0mT1
+    p6DjW0gqcGVJAag_T_Bb4uykizeyP_c8ghVRd3WCtF-kSZcbNn-WTLKw
+    5vO8I27_tneA6mBXeKw&
+    state=af0ifjsldkj
+]]></artwork>
+      </figure>
+      <figure>
+      	<preamble>The contents of the ID Token 
+      	after decoding are:
+      	</preamble>
+        <artwork><![CDATA[      	
+  {
+     "iss": "https://server.example.com",
+     "sub": "248289761001",
+     "aud": "s6BhdRkqt3",
+     "nonce": "n-0S6_WzA2Mj",
+     "exp": 1311281970,
+     "iat": 1311280970,
+     "openid2_id": "https://openid2.example.com/user359390872112"
+  }
+]]></artwork>
+      </figure>
+
+      <figure>
+      	<preamble>To verify the issuer in the ID Token is 
+      	authoritative for <spanx style="verb">openid2_id</spanx>, get the issuer from 
+      	the OpenID 2.0 Identifier URI. 
+      	</preamble>
+        <artwork><![CDATA[      	
+   GET /user359390872112 HTTP/1.1
+   Host: openid2.example.com
+   Accept: application/json
+ 
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+   {
+       "iss": "https://server.example.com"
+   }
+]]></artwork>
+		<postamble>Verify the value of <spanx style="verb">iss</spanx> claim of ID Token 
+		exactly matches the value of <spanx style="verb">iss</spanx> claim of this response.
+		</postamble>
+      </figure>
+    </section>
+
+    <section anchor="VerifyRP"
+             title="Verification of the Relying Party by the OpenID Provider">
+      <t>There could be an attack by a malicious RP to obtain the user&rsquo;s
+      PPID for another RP to perform identity correlation. To mitigate the
+      risk, the OP MUST verify that the realm and RP&rsquo;s Redirect URI
+      matches as per Section 9.2 of <xref target="OpenID.2.0">OpenID
+      2.0</xref>.</t>
+    </section>
+
+    <section anchor="ReturnOpenID2ID"
+             title="Returning the OpenID 2.0 Identifier">
+      <t>If the verification of the Relying Party was successful and an
+      associated OpenID 2.0 Identifier for the user is found, then the OP MUST
+      include the OpenID 2.0 Identifier in the ID Token
+      with the following claim name:</t>
+
+      <t><list style="hanging">
+          <t hangText="openid2_id "><vspace />OpenID 2.0 Identifier.
+          It MUST be represented as a JSON string.</t>
+        </list></t>
+        
+      <t>If the associated OpenID 2.0 Identifier for the user is not found, 
+      then the OP MUST NOT include this claim in the response.</t>
+
+      <figure>
+        <preamble>The following is a non-normative example of ID Token claims with
+        an OpenID 2.0 Identifier claim (with line wraps within values for
+        display purposes only) whose value is a URL:</preamble>
+
+        <artwork><![CDATA[
+{
+ "iss": "https://server.example.com",
+ "sub": "248289761001",
+ "aud": "s6BhdRkqt3",
+ "nonce": "n-0S6_WzA2Mj",
+ "exp": 1311281970,
+ "iat": 1311280970,
+ "openid2_id": "https://openid2.example.com/user359390872112"
+}
+]]></artwork>
+      </figure>
+      <figure>
+        <preamble>The following is a non-normative example of ID Token claims with
+        an OpenID 2.0 Identifier claim (with line wraps within values for
+        display purposes only) whose value is an XRI Identifier:</preamble>
+		<artwork><![CDATA[
+{
+ "iss": "https://server.example.com",
+ "sub": "248289761001",
+ "aud": "s6BhdRkqt3",
+ "nonce": "n-0S6_WzA2Mj",
+ "exp": 1311281970,
+ "iat": 1311280970,
+ "openid2_id": "=!91F2.8153.F600.AE24"
+}
+]]></artwork>
+      </figure>
+
+      <section anchor="ErrorResponses" title="Error Responses">
+        <t>This specification does not define any additional Error Responses to
+	augment those defined in <xref
+        target="OpenID.Core">OpenID Connect Core 1.0</xref>. </t>
+      </section>
+    </section>
+
+    <section anchor="VerifyIDToken" title="Verification of the ID Token">
+      <t>The RP MUST verify the ID Token as specified in 3.1.3.7 of <xref
+      target="OpenID.Core">OpenID Connect Core 1.0</xref>. </t>
+    </section>
+
+    <section anchor="VerifyOPAuthority"
+             title="Verification that the OpenID Connect OP is Authoritative">
+      <t>A malicious OP may try to impersonate the user by returning the
+      OpenID 2.0 Identifier that it is not authoritative for. Therefore,
+      verifying that the Connect OP is indeed authoritative for the OpenID 2.0
+      Identifier is imperative. To verify that the Connect OP is 
+      authoritative for the OpenID 2.0 Identifier, 
+	  the RP MUST verify that one of the following
+      verification rules hold:</t>
+
+      <t><list style="numbers">
+          <t>If the RP a priori knows that the authority hosted only one
+          OpenID 2.0 OP and OpenID Connect OP each, the authority section of
+          Authorization Endpoint URI is the same as the authority section of
+          the OpenID 2.0 OP&rsquo;s OP Endpoint URL.</t>
+
+          <t>If they are not (or when a higher confidence is sought), RP MUST
+          make a GET call to the obtained verified claimed ID with an Accept
+          header set to <spanx style="verb">application/json</spanx>. 
+          The server SHOULD return a JSON with <spanx style="verb">iss</spanx> 
+          as its top level member. 
+          The value of this member MUST exactly match the 
+          <spanx style="verb">iss</spanx> 
+          in the ID Token. 
+          </t>
+          
+          <t>If the <spanx style="verb">openid2_id</spanx> does not start 
+          with <spanx style="verb">http</spanx> or <spanx style="verb">https</spanx>, it is an
+          <xref target="XRI_Syntax_2.0">XRI</xref>.  
+          In this case, the RP needs to construct the 
+          verification URI by concatenating 
+          <spanx style="verb">https://xri.net/</spanx>,
+          the value of the
+          <spanx style="verb">openid2_id</spanx> claim, and 
+          <spanx style="verb">/(+openid_iss)</spanx>. 
+          Requesting the resulting URI with GET will 
+          result in a series of HTTP 302 redirects. 
+          The RP MUST follow the redirects until 
+          HTTP status code <spanx style="verb">200 OK</spanx> 
+          comes back. The URI that resulted in 
+          <spanx style="verb">200 OK</spanx> is the 
+          authoritative issuer for the XRI. 
+          This URI MUST exactly match the 
+          <spanx style="verb">iss</spanx> 
+          in the ID Token except for the potential trailing 
+          slash (<spanx style="verb">/</spanx>) character. 
+          </t>
+        </list>If all three fail, the verification has failed and the RP MUST NOT accept the
+      OpenID 2.0 Identifier.</t>
+
+    <t>NOTE: XRI users may need to configure the forwarding service 
+    and define (+openid_iss) themselves.
+    </t>
+	<figure>
+      	<preamble>The following is a non-normative example of obtaining  
+      	the authoritative issuer from 
+      	an OpenID 2.0 Identifier URI:
+      	</preamble>
+        <artwork><![CDATA[      	
+   GET /user359390872112 HTTP/1.1
+   Host: openid2.example.com
+   Accept: application/json
+ 
+   HTTP /1.1 200 OK
+   Content-Type: application/json
+   {
+       "iss": "https://server.example.com"
+   }
+]]></artwork>
+	</figure>
+
+	<figure>
+      	<preamble>The following is a non-normative example of obtaining  
+      	the authoritative issuer from an OpenID 2.0 Identifier XRI
+	(with line wraps within values for display purposes only):
+      	</preamble>
+        <artwork><![CDATA[      	
+   GET /=!91F2.8153.F600.AE24/(+openid_iss) HTTP/1.1
+   Host: xri.net
+
+   HTTP/1.1 302 Moved Temporarily
+   Location: http://forwarding.fullxri.com/forwarding/
+     =!91F2.8153.F600.AE24/(+openid_iss)
+   
+   GET /forwarding/=!91F2.8153.F600.AE24/(+openid_iss) HTTP/1.1
+   Host: forwarding.fullxri.com
+   HTTP/1.1 302 Found
+   Location: https://forwarding.fullxri.com/forwarding/
+     =!91F2.8153.F600.AE24/(+openid_iss)
+
+   HTTP/1.1 302 Found
+   Location: https://server.example.com/
+   
+   GET / HTTP/1.1
+   Host: server.example.com
+
+   HTTP /1.1 200 OK
+   Content-Type: text/html
+]]></artwork>
+	</figure>
+
+    </section>
+
+    <section anchor="AssociateIdentifiers"
+             title="Associating the Existing OpenID 2.0 Account with the OpenID Connect Identifier">
+      <t>Once the association between the OpenID Connect Identifier and 
+      OpenID 2.0 Identifier has been
+      verified, the RP SHOULD associate the existing OpenID 2.0 account with
+      the OpenID Connect account.</t>
+    </section>
+
+    <section anchor="ImplementationConsiderations"
+             title="Implementation Considerations">
+      <t>There are OpenID 2.0 libraries that use <spanx style="verb">openid.identity</spanx>
+      instead of <spanx style="verb">openid.claimed_id</spanx> to link to the user account at
+      the RP. This is a bug as <spanx style="verb">openid.identity</spanx> may be recycled.
+      However, there are not many OpenID 2.0 Providers that use different values for
+      <spanx style="verb">openid.identity</spanx> and <spanx style="verb">openid.claimed_id</spanx>.
+      Yahoo! and Yahoo! Japan seem to be the only large scale providers that fall under this
+      category. In their case, by stripping out the fragment from the
+      <spanx style="verb">openid.claimed_id</spanx>, you can get
+      <spanx style="verb">openid.identity</spanx>. For implementations that are using these
+      buggy OpenID 2.0 libraries, they can adopt this strategy to link Yahoo! and Yahoo! Japan
+      users to their local accounts.</t>
+      <section anchor="AfterEOL" title="After End-Of-Life of the OpenID 2.0 OP">
+        <t>This standard allows the RP to verify the authenticity of the
+        OpenID 2.0 Identifier through ID Token even after the OpenID 2.0 OP is
+        taken down.</t>
+
+      </section>
+    </section>
+
+    <section anchor="PrivacyConsiderations" title="Privacy Considerations">
+      <t>This section considers the Privacy Specific Threats described in
+      Section 5.2 of <xref target="RFC6973">RFC 6973</xref>.</t>
+
+      <section anchor="Correlation" title="Correlation">
+        <t>This standard essentially is a correlation specification. It
+        correlates the OpenID Connect identifier with OpenID 2.0 Identifier.
+        In the usual case where the user has only one account and the Connect
+        and OpenID 2.0 OPs look similar, then the user probably would be
+        expecting that those identifiers to be correlated silently. However,
+        if the OPs look very different, then some users may prefer not to be
+        correlated. As such, the OP SHOULD make sure that to ask the user if
+        the user wants to correlate.</t>
+
+        <t>When multiple accounts are available for the user, the OP MUST
+        make sure that the user picks the intended identity.</t>
+      </section>
+
+      <section anchor="IdByOthers" title=" Identification by Other Parties">
+        <t>Since the channel is encrypted, this risk is low. If the channel
+        was vulnerable, then user identifiers and other attributes will be
+        exposed and thus allows the attacker to identify the user. To avoid
+        it, the parties can employ ID Token encryption as well.</t>
+      </section>
+
+      <section anchor="SecondaryUse" title="Secondary Use">
+        <t>While there is no technical control in this standard as to the
+        secondary use is concerned, RP is strongly advised to announce its
+        policy against secondary use in its privacy policy. Secondary use
+        usually is associated with privacy impact, so its legitimacy should be
+        carefully evaluated.</t>
+      </section>
+
+      <section anchor="Disclosure" title="Disclosure">
+        <t>Since the channel is encrypted, this risk is low. If the channel
+        was vulnerable, then user identifiers and other attributes will be
+        exposed and thus allows the attacker to identify the user. To avoid
+        it, the parties can employ ID Token encryption as well.</t>
+      </section>
+
+      <section anchor="Exclusion" title="Exclusion">
+        <t>To avoid Exclusion in this case, make sure to ask the user if he
+        wants the identifiers to be correlated.</t>
+      </section>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>In addition to correctly implementing the usual OpenID Connect
+      security measures, the RP MUST carefully follow and correctly
+      implementing <xref target="VerifyOPAuthority" />. If in doubt, skipping step 1 and just doing step
+      2 is safer.</t>
+    </section>
+
+   </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.2119"?>
+
+      <?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6749"?>
+
+      <reference anchor="OpenID.Core">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+	  <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+	    <organization abbrev="Salesforce">Salesforce</organization>
+	  </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+
+	<format target="http://openid.net/specs/openid-connect-core-1_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.2.0">
+        <front>
+          <title>OpenID Authentication 2.0</title>
+
+          <author fullname="OpenID Foundation">
+            <organization abbrev="OIDF">OpenID Foundation</organization>
+          </author>
+
+          <date day="5" month="December" year="2007" />
+        </front>
+
+        <format target="http://openid.net/specs/openid-authentication-2_0.txt"
+                type="TXT" />
+
+        <format target="http://openid.net/specs/openid-authentication-2_0.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="XRI_Syntax_2.0">
+          <front>
+              <title>Extensible Resource Identifier (XRI) Syntax V2.0</title>
+
+              <author fullname="Drummond Reed " initials="D." surname="Reed">
+                  <organization></organization>
+              </author>
+
+              <author fullname="Dave McAlpin" initials="D." surname="McAlpin">
+                  <organization></organization>
+              </author>
+
+              <date day="14" month="November" year="2005" />
+          </front>
+
+          <format target="http://www.oasis-open.org/committees/download.php/15376/xri-syntax-V2.0-cs.html"
+                  type="HTML" />
+
+          <format target="http://www.oasis-open.org/committees/download.php/15377/xri-syntax-V2.0-cs.pdf"
+                  type="PDF" />
+      </reference>
+    </references>
+    <references title="Informative References">
+        <?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6973"?>
+
+        <reference anchor="Yadis">
+            <front>
+                <title>Yadis Specification 1.0</title>
+                <author initials='J.M' surname='Miller' fullname="Joaquin Miller">
+                    <organization>NetMesh</organization>
+                </author>
+                <date day="18" month="March" year="2005"/>
+            </front>
+            <format type='PDF' target="http://openid.net/specs/yadis-v1.0.pdf" />
+        </reference>
+
+    </references>
+
+    <section anchor="SequenceDiagram1" title="Sequence Diagrams">
+      <figure>
+        <preamble>Migration Sequence Diagram for Implicit Flow</preamble>
+
+        <artwork><![CDATA[
+      +----+  +----------+   +--------------+ +----------+  +----------+
+      | UA |  |    RP    |   | Redirect URI | | AuthZ EP |  |OpenID2URI|
+      +-+--+  +----+-----+   +-----+--------+ +---+------+  +-----+----+
+   Click|AuthN Link|               |              |               |
+        +--------> |               |              |               |
+        |AuthN Req |               |              |               |
+        | <--------+               |              |               |
+        |          | AuthN Req     |              |               |
+        +---------------------------------------> |               |
++----+-----------------------------------------------------------------+
+|OPT |  |          | AuthN Page    |              |               |    |
++----+  | <---------------------------------------+               |    |
+|       |          | Credential    |              |               |    |
+|       +---------------------------------------> |               |    |
++----------------------------------------------------------------------+
+        |          |302 to Redirect URI           |               |
+        | <------------------------+--------------+               |
+        |          |ID Token       |              |               |
+        +------------------------> |              |               |
+        |          |               |------+       |               |
+        |          |Get OpenID2URI |      |       |               |
+        |          |from ID Token  | <----+       |               |
+        |          |               | GET w/Accept: application/json
+        |          |               +----------------------------> |
+        |          |               | iss in JSON                  |
+        |          |               | <----------------------------+
+        |          |               |              |               |
+      +-+--+  +----+-----+  +------+-------+ +----+-----+  +------+---+
+      | UA |  |    RP    |  | Redirect URI | | AuthZ EP |  |OpenID2URI|
+      +----+  +----------+  +--------------+ +----------+  +----------+
+]]></artwork>
+      </figure>
+    </section>
+
+    <section anchor="GoogleDifference" title="Differences from Google&rsquo;s Migration Guide as of June 3, 2014 ">
+      <t>In this appendix, the differences between this spec and
+      Google&rsquo;s migration guide as of June 3, 2014 are explained. The
+      differences are categorized in accordance with the section number of
+      this specification. Google's migration guide is available at <eref 
+      target="https://developers.google.com/accounts/docs/OpenID#openid-connect">
+      Migrating to OAuth 2.0 login (OpenID Connect)
+      </eref>.
+      </t>
+
+      <t><xref target="RequestOpenid2Id" format="counter" />. 
+      <xref target="RequestOpenid2Id" format="title" /></t>
+
+      <t>Google uses <spanx style="verb">openid.realm</spanx> instead of <spanx style="verb">openid2_realm</spanx>. Since
+      OpenID Connect uses <spanx style="verb">param_name</spanx> style names instead of <spanx style="verb">param.name</spanx> style
+      and the name <spanx style="verb">openid.realm</spanx> might mislead
+      users into thinking that it is a Connect parameter proper, it has been changed to
+      <spanx style="verb">openid2_realm</spanx>.</t>
+
+      <t>Google uses the existence of the
+      <spanx style="verb">openid.realm</spanx> parameter to switch the
+      behavior at the Connect OP. The new scope value <spanx style="verb">openid2</spanx>
+      has been introduced in this spec to make it more explicit and
+      semantically consistent that it is asking for a resource.</t>
+
+      <t><xref target="VerifyRP" format="counter" />. 
+      <xref target="VerifyRP" format="title" /></t>
+
+      <t>Google does not perform RP verification.</t>
+
+      <t><xref target="ReturnOpenID2ID" format="counter" />. 
+      <xref target="ReturnOpenID2ID" format="title" /></t>
+
+      <t>Google uses the claim name <spanx style="verb">openid_id</spanx> instead of <spanx
+      style="verb">openid2_id</spanx>. It was changed to <spanx style="verb">openid2_id</spanx>
+      because <spanx style="verb">openid_id</spanx> may cause confusion among
+      people that it is the Connect identifier. Since this spec allows
+      providing <spanx style="verb">openid2_id</spanx> even after the OpenID
+      2.0 OP has been taken down, this claim may persists much longer than the
+      OpenID 2.0 OP. Thus, the chance of confusion should be minimized. </t>
+
+      <t>Google does not take care of <xref target="XRI_Syntax_2.0">XRI</xref>
+      while this standard does.</t>
+
+      <t><xref target="VerifyOPAuthority" format="counter" />. 
+      <xref target="VerifyOPAuthority" format="title" /></t>
+
+      <t>Google does not perform authority verification.</t>
+    </section>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>In addition to the authors, the OpenID Community would like to thank
+      the following people for their contributions to this specification:</t>
+
+      <t>
+	<list style="empty">
+          <t>Allan Foster (allan.foster@forgerock.com), ForgeRock</t>
+          <t>Breno de Medeiros (breno@google.com), Google</t>
+          <t>Chuck Mortimore (cmortimore@salesforce.com), Salesforce</t>
+          <t>James Manger (James.H.Manger@team.telstra.com), Telstra</t>
+          <t>Justin Richer (jricher@mitre.org), MITRE Corporation</t>
+          <t>Michael B. Jones (mbj@microsoft.com), Microsoft</t>
+          <t>Nov Matake (nov@matake.jp), Independent</t>
+          <t>Ryo Ito (ryo.ito@mixi.co.jp), mixi, Inc.</t>
+          <t>Torsten Lodderstedt (torsten@lodderstedt.net), Deutsche Telekom</t>
+        </list>
+      </t>
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2015 The OpenID Foundation.</t>
+
+      <t>The OpenID Foundation (OIDF) grants to any Contributor, developer,
+      implementer, or other interested party a non-exclusive, royalty free,
+      worldwide copyright license to reproduce, prepare derivative works from,
+      distribute, perform and display, this Implementers Draft or Final
+      Specification solely for the purposes of (i) developing specifications,
+      and (ii) implementing Implementers Drafts and Final Specifications based
+      on such documents, provided that attribution be made to the OIDF as the
+      source of the material, but that such attribution does not indicate an
+      endorsement by the OIDF.</t>
+
+      <t>The technology described in this specification was made available
+      from contributions from various sources, including members of the OpenID
+      Foundation and others. Although the OpenID Foundation has taken steps to
+      help ensure that the technology is available for distribution, it takes
+      no position regarding the validity or scope of any intellectual property
+      or other rights that might be claimed to pertain to the implementation
+      or use of the technology described in this specification or the extent
+      to which any license under such rights might or might not be available;
+      neither does it represent that it has made any independent effort to
+      identify any such rights. The OpenID Foundation and the contributors to
+      this specification make no (and hereby expressly disclaim any)
+      warranties (express, implied, or otherwise), including implied
+      warranties of merchantability, non-infringement, fitness for a
+      particular purpose, or title, related to this specification, and the
+      entire risk as to implementing this specification is assumed by the
+      implementer. The OpenID Intellectual Property Rights policy requires
+      contributors to offer a patent promise not to assert certain patent
+      claims against other contributors and against implementers. The OpenID
+      Foundation invites any interested party to bring to its attention any
+      copyrights, patents, patent applications, or other proprietary rights
+      that may cover technology that may be required to practice this
+      specification.</t>
+    </section>
+  </back>
+</rfc>

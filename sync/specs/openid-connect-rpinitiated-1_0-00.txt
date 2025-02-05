@@ -1,0 +1,896 @@
+
+
+
+Draft                                                           M. Jones
+                                                               Microsoft
+                                                          B. de Medeiros
+                                                                  Google
+                                                              N. Agarwal
+                                                               Microsoft
+                                                             N. Sakimura
+                                                          NAT.Consulting
+                                                              J. Bradley
+                                                                  Yubico
+                                                           July 24, 2020
+
+
+           OpenID Connect RP-Initiated Logout 1.0 - draft 00
+
+Abstract
+
+   OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+   protocol.  It enables Clients to verify the identity of the End-User
+   based on the authentication performed by an Authorization Server, as
+   well as to obtain basic profile information about the End-User in an
+   interoperable and REST-like manner.
+
+   This specification defines a mechanism for a Relying Party to request
+   that an OpenID Provider log out the End-User.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 1]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
+     1.1.  Requirements Notation and Conventions  . . . . . . . . . .  3
+     1.2.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  3
+   2.  RP-Initiated Logout  . . . . . . . . . . . . . . . . . . . . .  4
+     2.1.  OpenID Provider Discovery Metadata . . . . . . . . . . . .  5
+   3.  Redirection to RP After Logout . . . . . . . . . . . . . . . .  6
+     3.1.  Client Registration Metadata . . . . . . . . . . . . . . .  6
+   4.  Validation . . . . . . . . . . . . . . . . . . . . . . . . . .  7
+   5.  Implementation Considerations  . . . . . . . . . . . . . . . .  8
+   6.  Security Considerations  . . . . . . . . . . . . . . . . . . .  9
+   7.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 10
+     7.1.  OAuth Authorization Server Metadata Registry . . . . . . . 10
+       7.1.1.  Registry Contents  . . . . . . . . . . . . . . . . . . 10
+     7.2.  OAuth Dynamic Client Registration Metadata Registration  . 10
+       7.2.1.  Registry Contents  . . . . . . . . . . . . . . . . . . 10
+   8.  References . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+     8.1.  Normative References . . . . . . . . . . . . . . . . . . . 11
+     8.2.  Informative References . . . . . . . . . . . . . . . . . . 12
+   Appendix A.  Acknowledgements  . . . . . . . . . . . . . . . . . . 13
+   Appendix B.  Notices . . . . . . . . . . . . . . . . . . . . . . . 14
+   Appendix C.  Document History  . . . . . . . . . . . . . . . . . . 15
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 16
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 2]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+1.  Introduction
+
+   OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+   [RFC6749] protocol.  It enables Clients to verify the identity of the
+   End-User based on the authentication performed by an Authorization
+   Server, as well as to obtain basic profile information about the End-
+   User in an interoperable and REST-like manner.
+
+   This specification complements the OpenID Connect Core 1.0
+   [OpenID.Core] specification by enabling the Relying Party to request
+   that an End-User be logged out by the OpenID Provider.
+
+   This specification can be used separately from or in combination with
+   OpenID Connect Session Management 1.0 [OpenID.Session], OpenID
+   Connect Front-Channel Logout 1.0 [OpenID.FrontChannel], and/or OpenID
+   Connect Back-Channel Logout 1.0 [OpenID.BackChannel].
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in RFC
+   2119 [RFC2119].
+
+   In the .txt version of this document, values are quoted to indicate
+   that they are to be taken literally.  When using these values in
+   protocol messages, the quotes MUST NOT be used as part of the value.
+   In the HTML version of this document, values to be taken literally
+   are indicated by the use of "this fixed-width font".
+
+1.2.  Terminology
+
+   This specification uses the terms "Authorization Endpoint",
+   "Authorization Server", "Client", and "Client Identifier" defined by
+   OAuth 2.0 [RFC6749], the term "User Agent" defined by RFC 7230
+   [RFC7230], and the terms defined by OpenID Connect Core 1.0
+   [OpenID.Core].
+
+   IMPORTANT NOTE TO READERS: The terminology definitions in this
+   section are a normative portion of this specification, imposing
+   requirements upon implementations.  All the capitalized words in the
+   text of this specification, such as "Relying Party", reference these
+   defined terms.  Whenever the reader encounters them, their
+   definitions found in this section must be followed.
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 3]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+2.  RP-Initiated Logout
+
+   An RP can notify the OP that the End-User has logged out of the site
+   and might want to log out of the OP as well.  In this case, the RP,
+   after having logged the End-User out of the RP, redirects the End-
+   User's User Agent to the OP's logout endpoint URL.  This URL is
+   normally obtained via the "end_session_endpoint" element of the OP's
+   Discovery response or may be learned via other mechanisms.
+
+   This specification also defines the following parameters that are
+   passed as query parameters in the logout request:
+
+   id_token_hint
+      RECOMMENDED.  Previously issued ID Token passed to the logout
+      endpoint as a hint about the End-User's current authenticated
+      session with the Client.  This is used as an indication of the
+      identity of the End-User that the RP is requesting be logged out
+      by the OP.  The OP need not be listed as an audience of the ID
+      Token when it is used as an "id_token_hint" value.
+
+   post_logout_redirect_uri
+      OPTIONAL.  URL to which the RP is requesting that the End-User's
+      User Agent be redirected after a logout has been performed.  The
+      value MUST have been previously registered with the OP, either
+      using the "post_logout_redirect_uris" Registration parameter or
+      via another mechanism.  If supplied, the OP SHOULD honor this
+      request following the logout.
+
+   state
+      OPTIONAL.  Opaque value used by the RP to maintain state between
+      the logout request and the callback to the endpoint specified by
+      the "post_logout_redirect_uri" query parameter.  If included in
+      the logout request, the OP passes this value back to the RP using
+      the "state" query parameter when redirecting the User Agent back
+      to the RP.
+
+   At the logout endpoint, the OP SHOULD ask the End-User whether he
+   wants to log out of the OP as well.  If the End-User says "yes", then
+   the OP MUST log out the End-User.
+
+   As part of the OP logging out the End-User, the OP uses the logout
+   mechanism(s) registered by the RPs to notify any RPs logged in as
+   that End-User that they are to likewise log out the End-User.  RPs
+   can use any of OpenID Connect Session Management 1.0
+   [OpenID.Session], OpenID Connect Front-Channel Logout 1.0
+   [OpenID.FrontChannel], and/or OpenID Connect Back-Channel Logout 1.0
+   [OpenID.BackChannel] to receive logout notifications from the OP,
+   depending upon which of these mechanisms the OP and RPs mutually
+
+
+
+Jones, et al.                                                   [Page 4]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+   support.  The RP initiating the logout is to be included in these
+   notifications before the post-logout redirection defined in Section 3
+   is performed.
+
+2.1.  OpenID Provider Discovery Metadata
+
+   To support OpenID Connect RP-Initiated Logout, the RP needs to obtain
+   the RP-Initiated Logout related OP metadata.  This OP metadata is
+   normally obtained via the OP's Discovery response, as described in
+   OpenID Connect Discovery 1.0 [OpenID.Discovery], or MAY be learned
+   via other mechanisms.
+
+   This OpenID Provider Metadata parameter MUST be included in the
+   Server's discovery responses when RP-Initiated Logout and Discovery
+   are supported:
+
+   end_session_endpoint
+      REQUIRED.  URL at the OP to which an RP can perform a redirect to
+      request that the End-User be logged out at the OP.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 5]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+3.  Redirection to RP After Logout
+
+   In some cases, the RP will request that the End-User's User Agent to
+   be redirected back to the RP after a logout has been performed.
+   Post-logout redirection is only done when the logout is RP-initiated,
+   in which case the redirection target is the
+   "post_logout_redirect_uri" query parameter value used by the
+   initiating RP; otherwise it is not done.  This specification defines
+   this Dynamic Registration parameter for this purpose, per Section 2.1
+   of OpenID Connect Dynamic Client Registration 1.0
+   [OpenID.Registration].
+
+3.1.  Client Registration Metadata
+
+   This Client Metadata parameter MAY be included in the Client's
+   Registration information when RP-Initiated Logout and Dynamic
+   Registration are supported:
+
+   post_logout_redirect_uris
+      OPTIONAL.  Array of URLs supplied by the RP to which it MAY
+      request that the End-User's User Agent be redirected using the
+      "post_logout_redirect_uri" parameter after a logout has been
+      performed.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 6]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+4.  Validation
+
+   If any of the validation procedures defined in this specification
+   fail, any operations requiring the information that failed to
+   correctly validate MUST be aborted and the information that failed to
+   validate MUST NOT be used.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 7]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+5.  Implementation Considerations
+
+   This specification defines features used by both Relying Parties and
+   OpenID Providers that choose to implement RP-Initiated Logout.  All
+   of these Relying Parties and OpenID Providers MUST implement the
+   features that are listed in this specification as being "REQUIRED" or
+   are described with a "MUST".  No other implementation considerations
+   for implementations of RP-Initiated Logout are defined by this
+   specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 8]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+6.  Security Considerations
+
+   The "id_token_hint" parameter to a logout request can be used to
+   determine which RP initiated the logout request.  Logout requests
+   without a valid "id_token_hint" value are a potential means of denial
+   of service; therefore, OPs may want to require explicit user
+   confirmation before acting upon them.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                   [Page 9]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+7.  IANA Considerations
+
+7.1.  OAuth Authorization Server Metadata Registry
+
+   This specification registers the following metadata name in the IANA
+   "OAuth Authorization Server Metadata" registry
+   [IANA.OAuth.Parameters] established by [RFC8414].
+
+7.1.1.  Registry Contents
+
+   o  Metadata Name: "end_session_endpoint"
+   o  Metadata Description: URL at the OP to which an RP can perform a
+      redirect to request that the End-User be logged out at the OP
+   o  Change Controller: OpenID Foundation Artifact Binding Working
+      Group - openid-specs-ab@lists.openid.net
+   o  Specification Document(s): Section 2.1 of this document
+
+7.2.  OAuth Dynamic Client Registration Metadata Registration
+
+   This specification registers the following client metadata definition
+   in the IANA "OAuth Dynamic Client Registration Metadata" registry
+   [IANA.OAuth.Parameters] established by [RFC7591]:
+
+7.2.1.  Registry Contents
+
+   o  Client Metadata Name: "post_logout_redirect_uris"
+   o  Client Metadata Description: Array of URLs supplied by the RP to
+      which it MAY request that the End-User's User Agent be redirected
+      using the "post_logout_redirect_uri" parameter after a logout has
+      been performed
+   o  Change Controller: OpenID Foundation Artifact Binding Working
+      Group - openid-specs-ab@lists.openid.net
+   o  Specification Document(s): Section 3.1 of this document
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                  [Page 10]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+8.  References
+
+8.1.  Normative References
+
+   [IANA.OAuth.Parameters]
+              IANA, "OAuth Parameters",
+              <http://www.iana.org/assignments/oauth-parameters>.
+
+   [OpenID.BackChannel]
+              Jones, M. and J. Bradley, "OpenID Connect Back-Channel
+              Logout 1.0", July 2020, <http://openid.net/specs/
+              openid-connect-backchannel-1_0.html>.
+
+   [OpenID.Core]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Core 1.0", November 2014,
+              <http://openid.net/specs/openid-connect-core-1_0.html>.
+
+   [OpenID.Discovery]
+              Sakimura, N., Bradley, J., Jones, M., and E. Jay, "OpenID
+              Connect Discovery 1.0", November 2014, <http://openid.net/
+              specs/openid-connect-discovery-1_0.html>.
+
+   [OpenID.FrontChannel]
+              Jones, M., "OpenID Connect Front-Channel Logout 1.0",
+              July 2020, <http://openid.net/specs/
+              openid-connect-frontchannel-1_0.html>.
+
+   [OpenID.Registration]
+              Sakimura, N., Bradley, J., and M. Jones, "OpenID Connect
+              Dynamic Client Registration 1.0", November 2014, <http://
+              openid.net/specs/openid-connect-registration-1_0.html>.
+
+   [OpenID.Session]
+              de Medeiros, B., Agarwal, N., Sakimura, N., Bradley, J.,
+              and M. Jones, "OpenID Connect Session Management 1.0",
+              July 2020,
+              <http://openid.net/specs/openid-connect-session-1_0.html>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, DOI 10.17487/
+              RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC6454]  Barth, A., "The Web Origin Concept", RFC 6454,
+              DOI 10.17487/RFC6454, December 2011,
+              <https://www.rfc-editor.org/info/rfc6454>.
+
+
+
+
+Jones, et al.                                                  [Page 11]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <https://www.rfc-editor.org/info/rfc6749>.
+
+   [RFC7159]  Bray, T., Ed., "The JavaScript Object Notation (JSON) Data
+              Interchange Format", RFC 7159, DOI 10.17487/RFC7159,
+              March 2014, <https://www.rfc-editor.org/info/rfc7159>.
+
+   [RFC7230]  Fielding, R., Ed. and J. Reschke, Ed., "Hypertext Transfer
+              Protocol (HTTP/1.1): Message Syntax and Routing",
+              RFC 7230, DOI 10.17487/RFC7230, June 2014,
+              <https://www.rfc-editor.org/info/rfc7230>.
+
+8.2.  Informative References
+
+   [RFC7591]  Richer, J., Ed., Jones, M., Bradley, J., Machulak, M., and
+              P. Hunt, "OAuth 2.0 Dynamic Client Registration Protocol",
+              RFC 7591, DOI 10.17487/RFC7591, July 2015,
+              <https://www.rfc-editor.org/info/rfc7591>.
+
+   [RFC8414]  Jones, M., Sakimura, N., and J. Bradley, "OAuth 2.0
+              Authorization Server Metadata", RFC 8414, DOI 10.17487/
+              RFC8414, June 2018,
+              <https://www.rfc-editor.org/info/rfc8414>.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                  [Page 12]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+Appendix A.  Acknowledgements
+
+   The OpenID Community would like to thank the following people for
+   their contributions to this specification:
+
+      Naveen Agarwal (Naveen.Agarwal@microsoft.com), Microsoft
+
+      Amanda Anganes (aanganes@mitre.org), MITRE
+
+      John Bradley (ve7jtb@ve7jtb.com), Yubico
+
+      Breno de Medeiros (breno@google.com), Google
+
+      George Fletcher (george.fletcher@corp.aol.com), AOL
+
+      Edmund Jay (ejay@mgi1.com), Illumila
+
+      Michael B. Jones (mbj@microsoft.com), Microsoft
+
+      Todd Lainhart (lainhart@us.ibm.com), IBM
+
+      Torsten Lodderstedt (torsten@lodderstedt.net), yes.com
+
+      Anthony Nadalin (tonynad@microsoft.com), Microsoft
+
+      Axel Nennker (axel.nennker@telekom.de), Deutsche Telekom
+
+      Justin Richer (justin@bspk.io), Bespoke Engineering (was at MITRE)
+
+      Nat Sakimura (nat@nat.consulting), NAT.Consulting
+
+      Filip Skokan (panva.ip@gmail.com), Auth0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                  [Page 13]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+Appendix B.  Notices
+
+   Copyright (c) 2020 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                  [Page 14]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+Appendix C.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -00
+
+   o  Fixed #1085 - Split RP-Initiated Logout into its own
+      specification.
+
+   o  Registered the AS metadata value end_session_endpoint.
+
+   o  Updated affiliations and acknowledgements.
+
+   o  Moved metadata sections to more logical locations.
+
+   o  Added paragraph describing the relationship between RP-Initiated
+      Logout and the three OP-initiated logout mechanisms.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                  [Page 15]
+
+                 OpenID Connect RP-Initiated Logout 1.0        July 2020
+
+
+Authors' Addresses
+
+   Michael B. Jones
+   Microsoft
+
+   Email: mbj@microsoft.com
+   URI:   http://self-issued.info/
+
+
+   Breno de Medeiros
+   Google
+
+   Email: breno@google.com
+   URI:   http://stackoverflow.com/users/311376/breno
+
+
+   Naveen Agarwal
+   Microsoft
+
+   Email: Naveen.Agarwal@microsoft.com
+   URI:   http://www.linkedin.com/in/nvnagr
+
+
+   Nat Sakimura
+   NAT.Consulting
+
+   Email: nat@nat.consulting
+   URI:   http://nat.sakimura.org/
+
+
+   John Bradley
+   Yubico
+
+   Email: ve7jtb@ve7jtb.com
+   URI:   http://www.thread-safe.com/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jones, et al.                                                  [Page 16]
+

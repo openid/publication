@@ -1,0 +1,3416 @@
+
+
+
+
+                                                         R. Hedberg, Ed.
+                                                             independent
+                                                                M. Jones
+                                                               Microsoft
+                                                              A. Solberg
+                                                                 Uninett
+                                                           S. Gulliksson
+                                                               Schibsted
+                                                              J. Bradley
+                                                                  Yubico
+                                                           June 25, 2019
+
+
+                OpenID Connect Federation 1.0 - draft 08
+                     openid-connect-federation-1_0
+
+Abstract
+
+   The OpenID Connect standard specifies how a Relying Party (RP) can
+   discover metadata about an OpenID Provider (OP), and then register to
+   obtain RP credentials.  The discovery and registration process does
+   not involve any mechanisms of dynamically establishing trust in the
+   exchanged information, but instead rely on out-of-band trust
+   establishment.
+
+   In an identity federation context, this is not sufficient.  The
+   participants of the federation must be able to trust information
+   provided about other participants in the federation.  OpenID Connect
+   Federations specifies how trust can be dynamically obtained by
+   resolving trust from a common trusted third party.
+
+   While this specification is primarily targeting OpenID Connect, it is
+   designed to allow for re-use by other protocols and in other use
+   cases.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
+     1.1.  Requirements Language . . . . . . . . . . . . . . . . . .   4
+     1.2.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   4
+   2.  Components  . . . . . . . . . . . . . . . . . . . . . . . . .   5
+     2.1.  Entity Statement  . . . . . . . . . . . . . . . . . . . .   5
+     2.2.  Trust Chain . . . . . . . . . . . . . . . . . . . . . . .   9
+   3.  Metadata  . . . . . . . . . . . . . . . . . . . . . . . . . .  10
+     3.1.  RP Metadata . . . . . . . . . . . . . . . . . . . . . . .  10
+     3.2.  OP Metadata . . . . . . . . . . . . . . . . . . . . . . .  10
+     3.3.  OAuth Authorization Server  . . . . . . . . . . . . . . .  11
+     3.4.  OAuth Client  . . . . . . . . . . . . . . . . . . . . . .  11
+
+
+
+Hedberg, et al.         Expires December 27, 2019               [Page 1]
+
+                        OpenID Connect Federation              June 2019
+
+
+     3.5.  OAuth Protected Resource  . . . . . . . . . . . . . . . .  11
+     3.6.  Federation Entity . . . . . . . . . . . . . . . . . . . .  11
+   4.  Applying Policy to Metadata . . . . . . . . . . . . . . . . .  12
+     4.1.  Policy Language . . . . . . . . . . . . . . . . . . . . .  12
+       4.1.1.  subset_of . . . . . . . . . . . . . . . . . . . . . .  12
+       4.1.2.  one_of  . . . . . . . . . . . . . . . . . . . . . . .  13
+       4.1.3.  add . . . . . . . . . . . . . . . . . . . . . . . . .  13
+       4.1.4.  value . . . . . . . . . . . . . . . . . . . . . . . .  13
+       4.1.5.  default . . . . . . . . . . . . . . . . . . . . . . .  14
+       4.1.6.  essential . . . . . . . . . . . . . . . . . . . . . .  14
+     4.2.  Policy Type Combinations  . . . . . . . . . . . . . . . .  14
+     4.3.  Combining Policies  . . . . . . . . . . . . . . . . . . .  15
+       4.3.1.  Policy Combination Example  . . . . . . . . . . . . .  15
+     4.4.  Enforcing Policy  . . . . . . . . . . . . . . . . . . . .  16
+     4.5.  Extending the Policy Language . . . . . . . . . . . . . .  16
+     4.6.  Policy Example  . . . . . . . . . . . . . . . . . . . . .  17
+   5.  The Federation API  . . . . . . . . . . . . . . . . . . . . .  18
+     5.1.  Fetching Entity Statement (REQUIRED)  . . . . . . . . . .  19
+       5.1.1.  Fetch Entity Statements Request . . . . . . . . . . .  19
+       5.1.2.  Fetch Entity Statements Response  . . . . . . . . . .  20
+     5.2.  Trust Negotiation (OPTIONAL)  . . . . . . . . . . . . . .  20
+       5.2.1.  Trust Negotiation Request . . . . . . . . . . . . . .  20
+       5.2.2.  Trust Negotiation Response  . . . . . . . . . . . . .  21
+     5.3.  Entity Listings (OPTIONAL)  . . . . . . . . . . . . . . .  22
+       5.3.1.  Entity Listings Request . . . . . . . . . . . . . . .  22
+       5.3.2.  Entity Listing Response . . . . . . . . . . . . . . .  22
+     5.4.  Generic Error Response  . . . . . . . . . . . . . . . . .  23
+   6.  Resolving Trust Chain and Metadata  . . . . . . . . . . . . .  24
+     6.1.  Fetching Entity Statements to Establish a Trust Chain . .  24
+     6.2.  Validating the Trust Chains . . . . . . . . . . . . . . .  24
+     6.3.  Choosing One of the Valid Trust Chains  . . . . . . . . .  25
+     6.4.  Calculating the Lifetime of a Trust Chain . . . . . . . .  25
+   7.  Updating Metadata, Key Rollover, and Revocation . . . . . . .  26
+     7.1.  Protocol Key Rollover . . . . . . . . . . . . . . . . . .  26
+     7.2.  Key Rollover for a Trust Anchor . . . . . . . . . . . . .  26
+     7.3.  Revocation  . . . . . . . . . . . . . . . . . . . . . . .  27
+   8.  OpenID Connect Communication  . . . . . . . . . . . . . . . .  27
+     8.1.  Automatic Registration  . . . . . . . . . . . . . . . . .  27
+       8.1.1.  The Authentication Request  . . . . . . . . . . . . .  27
+       8.1.2.  Processing the Authentication Request . . . . . . . .  28
+       8.1.3.  Authentication Error Response . . . . . . . . . . . .  28
+     8.2.  Explicit Registration . . . . . . . . . . . . . . . . . .  28
+       8.2.1.  Provider Discovery  . . . . . . . . . . . . . . . . .  29
+       8.2.2.  Client Registration . . . . . . . . . . . . . . . . .  29
+         8.2.2.1.  Client Registration Request . . . . . . . . . . .  29
+         8.2.2.2.  Client Registration Response  . . . . . . . . . .  29
+           8.2.2.2.1.  The OP Constructing Response  . . . . . . . .  29
+           8.2.2.2.2.  The RP Parsing the Response . . . . . . . . .  30
+
+
+
+Hedberg, et al.         Expires December 27, 2019               [Page 2]
+
+                        OpenID Connect Federation              June 2019
+
+
+       8.2.3.  After client registration . . . . . . . . . . . . . .  31
+         8.2.3.1.  What the RP MUST Do . . . . . . . . . . . . . . .  31
+         8.2.3.2.  What the OP MUST Do . . . . . . . . . . . . . . .  31
+       8.2.4.  Expiration Times  . . . . . . . . . . . . . . . . . .  31
+   9.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  32
+   10. Security Considerations . . . . . . . . . . . . . . . . . . .  32
+   11. References  . . . . . . . . . . . . . . . . . . . . . . . . .  32
+     11.1.  Normative References . . . . . . . . . . . . . . . . . .  32
+     11.2.  Informative References . . . . . . . . . . . . . . . . .  33
+   Appendix A.  Illustrative Example of OpenID Connect Flow Using
+                Automatic Client Registration  . . . . . . . . . . .  33
+     A.1.  Initial Setup of Foodle . . . . . . . . . . . . . . . . .  33
+     A.2.  Federation Setup  . . . . . . . . . . . . . . . . . . . .  34
+     A.3.  User Chooses to Login at Foodle . . . . . . . . . . . . .  35
+     A.4.  Foodle Discovers the OP . . . . . . . . . . . . . . . . .  35
+     A.5.  Resolving the OP's Trust Chain  . . . . . . . . . . . . .  38
+     A.6.  Extracting the OP metadata  . . . . . . . . . . . . . . .  41
+     A.7.  RP Sends Authentication Request (Automatic Registration)   43
+     A.8.  OP Fetches Entity Statements  . . . . . . . . . . . . . .  44
+     A.9.  RP Fetches Entity Statements  . . . . . . . . . . . . . .  44
+   Appendix B.  Illustrative Example of OpenID Connect Flow Using
+                Explicit Client Registration . . . . . . . . . . . .  45
+     B.1.  Initial Setup of the EREE Service . . . . . . . . . . . .  45
+     B.2.  Researcher Wants to Start a Job at the EREE Service . . .  46
+     B.3.  The EREE RP Discovers and Initiates Explicit Registration  46
+       B.3.1.  The EREE RP Discovers the OpenID Provider . . . . . .  46
+       B.3.2.  Resolving the OP's Trust Chain  . . . . . . . . . . .  48
+       B.3.3.  Validating the Trust Chain  . . . . . . . . . . . . .  50
+       B.3.4.  Extracting the OP's Metadata  . . . . . . . . . . . .  51
+       B.3.5.  EREE RP Does Federated Client Registration  . . . . .  52
+     B.4.  The OP Processes a Client Registration Request  . . . . .  54
+       B.4.1.  The OP Gathers the RP's Trust Chains  . . . . . . . .  54
+       B.4.2.  Validating the Trust Chain  . . . . . . . . . . . . .  55
+       B.4.3.  Extracting RP Metadata  . . . . . . . . . . . . . . .  55
+       B.4.4.  Constructing the Registration Response  . . . . . . .  56
+     B.5.  The RP Processes the Registration Response  . . . . . . .  57
+   Appendix C.  Notices  . . . . . . . . . . . . . . . . . . . . . .  57
+   Appendix D.  Acknowledgements . . . . . . . . . . . . . . . . . .  58
+   Appendix E.  Open Issues  . . . . . . . . . . . . . . . . . . . .  58
+   Appendix F.  Document History . . . . . . . . . . . . . . . . . .  59
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  60
+
+1.  Introduction
+
+   This specification describes how two entities that would like to
+   interact can dynamically fetch and resolve trust and metadata for a
+   given protocol through the use of third-party trust issuers.  A trust
+   issuer is an entity whose main purpose is to issue statements about
+
+
+
+Hedberg, et al.         Expires December 27, 2019               [Page 3]
+
+                        OpenID Connect Federation              June 2019
+
+
+   entities, such as OpenID Connect Relying Parties, OpenID Providers,
+   and participating organizations.  An identity federation can be
+   realized using this specification using one or more levels of trust
+   issuers.  This specification does not mandate a specific way or
+   restrict how a federation may be built.  Instead, the specification
+   provides the basic technical trust infrastructure building blocks
+   needed to build a dynamic and distributed trust network such as a
+   federation.
+
+   All entities in an OpenID Connect federation MUST have a globally
+   unique identifier.
+
+   Note that a company, as with any real-world organization, may be
+   represented by more than one entity in a federation.
+
+   OpenID Connect Federation trust chains rely on cryptographically
+   signed JSON Web Token (JWT) [RFC7519] documents, and the trust chain
+   does not at all rely on TLS [RFC8446] in order to establish trust.
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+1.2.  Terminology
+
+   This specification uses the terms "Claim Name", "Claim Value", "JSON
+   Web Token (JWT)", defined by JSON Web Token (JWT) [RFC7519] and the
+   terms "OpenID Provider (OP)" and "Relying Party (RP)" defined by
+   OpenID Connect Core 1.0 [OpenID.Core].
+
+   This specification also defines the following terms:
+
+   Entity
+      Something that has a separate and distinct existence and that can
+      be identified in a context.
+
+   Entity statement
+      An entity statement is issued by an entity, which pertains to a
+      subject entity and leaf entities.  An entity statement is always a
+      signed JWT.
+
+   Intermediate entity
+      An entity that issues an entity statement that appears somewhere
+      in between those issued by the trust anchor and the leaf entity in
+      a trust chain.
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019               [Page 4]
+
+                        OpenID Connect Federation              June 2019
+
+
+   Leaf Entity
+      An entity defined by a certain protocol, e.g., OpenID Connect
+      Relying Party or Provider.
+
+   Trust Anchor
+      An entity that represents a trusted third party.
+
+   Trust Chain
+      A sequence of entity statements that represents a trusted chain
+      starting at a leaf entity and ending in a trust anchor.
+
+2.  Components
+
+2.1.  Entity Statement
+
+   An entity statement is issued by an entity and concerns a subject
+   entity and leaf entities in a federation.  An entity statement is
+   always a signed JWT.  All entities in a federation MUST be prepared
+   to publish an entity statement about themselves.
+
+   An entity statement is composed of the following claims:
+
+   iss
+      REQUIRED.  The entity identifier of the issuer of the statement.
+      If the "iss" and the "sub" are identical, the issuer is making a
+      statement about itself.
+
+   sub
+      REQUIRED.  The entity identifier of the subject
+
+   iat
+      REQUIRED.  The time the statement was issued.  Its value is a JSON
+      number representing the number of seconds from 1970-01-01T0:0:0Z
+      as measured in UTC until the date/time.  See RFC 3339 [RFC3339]
+      for details regarding date/times in general and UTC in particular.
+
+   exp
+      REQUIRED.  Expiration time on or after which the statement MUST
+      NOT be accepted for processing.  Its value is a JSON number
+      representing the number of seconds from 1970-01-01T0:0:0Z as
+      measured in UTC until the date/time.
+
+   jwks
+      REQUIRED.  A JSON Web Key Set (JWKS) [RFC7517] representing the
+      public part of the subject entity's signing keys.  The
+      corresponding private key is used by leaf entities to sign entity
+      statements about themselves, and intermediate entities to sign
+      statements about other entities.  The keys that can be found here
+
+
+
+Hedberg, et al.         Expires December 27, 2019               [Page 5]
+
+                        OpenID Connect Federation              June 2019
+
+
+      are primarily intended to sign entity statements and should not be
+      used in other protocols.
+
+   aud
+      OPTIONAL.  The entity statement may be specifically created for a
+      entity.  The entity identifier for that entity should appear in
+      this claim.
+
+   authority_hints
+      OPTIONAL.  A JSON object where the keys are the entity IDs of the
+      intermediate entities that may issue an entity statement about the
+      issuer entity.  The value MUST be a JSON array of entities that
+      are further up in the trust chain.  The array may be an empty
+      list.  The JSON array can be used to simplify the selection of
+      trust chains without the need for following all possible trust
+      chains.  "authority_hints" values may be multiple hops up the
+      chain.  These values will typically be trust anchors.
+
+   metadata
+      OPTIONAL.  JSON object including protocol specific metadata claims
+      that represent the entity's metadata.  Each key of the JSON object
+      represents a metadata type identifier, and each value MUST be a
+      JSON object representing the metadata according to the metadata
+      schema of that metadata type.  An entity statement may contain
+      multiple metadata statements, but only one for each metadata type.
+
+   metadata_policy
+      OPTIONAL.  JSON object that describes a metadata policy.  Each key
+      of the JSON object represents a metadata type identifier, and each
+      value MUST be a JSON object representing the metadata policy
+      according to the metadata schema of that metadata type.  An entity
+      statement may contain multiple metadata policy statements, but
+      only one for each metadata type.  If the metadata type identifier
+      is "federation_entity", then the policy MUST be applied to the
+      immediate subordinate in the trust chain unless that is a leaf
+      entity.  If the metadata type identifier is not
+      "federation_entity", then the policy MUST be applied to all
+      subordinate nodes of that type in the trust chain.  Only non-leaf
+      entities contain a "metadata_policy" field.
+
+   crit
+      OPTIONAL.  The "crit" (critical) entity statement claim indicates
+      that extensions to entity statement claims defined by this
+      specification are being used that MUST be understood and
+      processed.  It is used in the same way that "crit" is used for
+      extension JWS header parameters that MUST be understood and
+      processed.  Its value is an array listing the entity statement
+      claims present in the entity statement that use those extensions.
+
+
+
+Hedberg, et al.         Expires December 27, 2019               [Page 6]
+
+                        OpenID Connect Federation              June 2019
+
+
+      If any of the listed extension entity statement claims are not
+      understood and supported by the recipient, then the entity
+      statement is invalid.  Producers MUST NOT include entity statement
+      claim names defined by this specification or names that do not
+      occur as entity statement claim names in the entity statement in
+      the "crit" list.  Producers MUST NOT use the empty list "[]" as
+      the "crit" value.
+
+   policy_language_crit
+      OPTIONAL.  The "policy_language_crit" (critical) entity statement
+      claim indicates that extensions to the policy language defined by
+      this specification are being used that MUST be understood and
+      processed.  It is used in the same way that "crit" is used for
+      extension JWS header parameters that MUST be understood and
+      processed.  Its value is an array listing the policy language
+      extensions present in the policy language statements that use
+      those extensions.  If any of the listed extension policy language
+      extensions are not understood and supported by the recipient, then
+      the entity statement is invalid.  Producers MUST NOT include
+      policy language names defined by this specification or names that
+      do not occur in policy language statements in the entity statement
+      in the "policy_language_crit" list.  Producers MUST NOT use the
+      empty list "[]" as the "policy_language_crit" value.
+
+   The entity statement is signed using the private key of the issuer
+   entity, in the form of a JSON Web Signature (JWS) [RFC7515].
+
+   The following is a non-normative example of an entity statement,
+   before serialization and adding a signature.  The example contains a
+   critical extension "jti" (JWT ID) to the entity statement and one
+   critical extension to the policy language "regexp" (Regular
+   expression).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019               [Page 7]
+
+                        OpenID Connect Federation              June 2019
+
+
+   {
+     "iss": "https://feide.no",
+     "sub": "https://ntnu.no",
+     "iat": 1516239022,
+     "exp": 1516298022,
+     "crit": ["jti"],
+     "jti": "7l2lncFdY6SlhNia",
+     "policy_language_crit": [regexp"],
+     "metadata_policy": {
+       "openid_provider": {
+         "issuer": {"value": "https://ntnu.no"},
+         "organization_name": {"value": "NTNU"},
+         "id_token_signing_alg_values_supported":
+           {"subset_of": ["RS256", "RS384", "RS512"]},
+         "op_policy_uri": {
+           "regexp": "^https:\/\/[\w-]+\.example\.com\/[\w-]+\.html"}
+       },
+       "openid_relying_party": {
+         "organization_name": {"value": "NTNU"},
+         "grant_types_supported": {
+           "subset_of": ["authorization_code", "implicit"]},
+         "scopes": {
+           "subset_of": ["openid", "profile", "email", "phone"]}
+       }
+     },
+     "jwks": {
+       "keys": [
+         {
+           "alg": "RS256",
+           "e": "AQAB",
+           "ext": true,
+           "key_ops": ["verify"],
+           "kid": "key1",
+           "kty": "RSA",
+           "n": "pnXBOusEANuug6ewezb9J_...",
+           "use": "sig"
+         }
+       ]
+     },
+     "authority_hints": {
+       "https://edugain.org/federation": [
+         "https://edugain.org/federation"
+       ]
+     }
+   }
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019               [Page 8]
+
+                        OpenID Connect Federation              June 2019
+
+
+2.2.  Trust Chain
+
+   In an OpenID Connect Identity Federation, entities that together
+   build a trust chain can be categorized as:
+
+   Trust anchor
+      An entity that represents a trusted third party
+
+   Leaf
+      In an OpenID Connect Identity Federation, an RP or an OP
+
+   Intermediate
+      Neither a leaf nor a trust anchor
+
+   A trust chain begins with a leaf entity's self-signed entity
+   statement, has zero or more entity statements issued by intermediates
+   about subordinates, and ends with an entity statement issued by the
+   trust anchor about the top-most intermediate (if there are
+   intermediates) or the leaf entity (if there are no intermediates) and
+   finally a self-signed entity statement about the trust anchor.
+
+   A simple example: If we have an RP that belongs to organization A
+   that is a member of federation F, the trust chain for such a setup
+   will contain the following entity statements:
+
+   1.  A self-signed entity statement about the RP published by the RP
+
+   2.  An entity statement about the RP published by Organization A
+
+   3.  An entity statement about Organization A published by Federation
+       F
+
+   4.  A self-signed entity statement about Federation F published by
+       Federation F.
+
+   A trust chain MUST always be possible to order such that: If we name
+   the entity statements ES[0] (the leaf entity's self-signed entity
+   statement) to ES[i] (the trust anchors self-signed entity statement),
+   i>0 then:
+
+   o  The "iss" entity in one entity statement is always the "sub"
+      entity in the next.  ES[j]['iss'] == ES[j+1]['sub'], j=0,...,i-1
+
+   o  There MUST always be a signing key carried in the "jwks" claim in
+      ES[j] that can be used to verify the signature of ES[j-1],
+      j=i,...,1 .
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019               [Page 9]
+
+                        OpenID Connect Federation              June 2019
+
+
+   The signing key that MUST be used to verify ES[i] is distributed from
+   the trust anchors to the leaf entities in some secure out-of-band's
+   way not described in this document.
+
+3.  Metadata
+
+   This specification does allow new metadata types to be defined, to
+   support use cases outside OpenID Connect federations.  The metadata
+   type identifier will uniquely identify which metadata specification
+   to utilize.
+
+   The metadata document MUST be a JSON document.  Beyond that there is
+   no restriction.
+
+   Metadata used in federations typically re-uses existing metadata
+   standards.  If needed, the metadata schema is extended with
+   additional properties relevant in a federated context.  For instance,
+   for OpenID Connect Federations, this specification uses metadata
+   values from OpenID Connect Discovery 1.0 [OpenID.Discovery] and
+   OpenID Connect Dynamic Client Registration 1.0 [OpenID.Registration]
+   and adds additional values used for federations.
+
+3.1.  RP Metadata
+
+   The metadata type identifier is "openid_relying_party".
+
+   All parameters defined in Section 2 of OpenID Connect Dynamic Client
+   Registration 1.0 [OpenID.Registration] are allowed in a metadata
+   statement.
+
+   To that list is added:
+
+   federation_type
+      REQUIRED.  String specifying the federation type being used.
+      Values defined by this specification are "automatic" and
+      "explicit".
+
+   organization_name
+      OPTIONAL.  A human readable name representing the organization
+      owning the RP.
+
+3.2.  OP Metadata
+
+   The metadata type identifier is "openid_provider".
+
+   All parameters defined in Section 3 of OpenID Connect Discovery 1.0
+   [OpenID.Discovery] are applicable.
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 10]
+
+                        OpenID Connect Federation              June 2019
+
+
+   In addition, the following parameters are defined by this
+   specification:
+
+   federation_types_supported
+      REQUIRED.  Array specifying the federation types supported.
+      Federation type values defined by this specification are
+      "automatic" and "explicit".
+
+   organization_name
+      OPTIONAL.  A human readable name representing the organization
+      owning the OP.  It is intended to be used in the user interface,
+      being recognized by the end users that would be using the OP to
+      authenticate.
+
+   federation_registration_endpoint
+      OPTIONAL.  URL of the OP's Federation specific Dynamic Client
+      Registration Endpoint.  If the OP supports explicit client
+      registration as described in Section 8.2, then this claim is
+      REQUIRED.
+
+3.3.  OAuth Authorization Server
+
+   The metadata type identifier is "oauth_authorization_server".
+
+   All parameters defined in Section 2 of RFC 8414 [RFC8414] are
+   applicable.
+
+3.4.  OAuth Client
+
+   The metadata type identifier is "oauth_client".
+
+   All parameters defined in Section 2 of RFC 7591 [RFC7591]
+
+3.5.  OAuth Protected Resource
+
+   The metadata type identifier is "oauth_resource".
+
+3.6.  Federation Entity
+
+   The metadata type identifier is "federation_entity".
+
+   Intermediates in a trust chain are of this type.
+
+   Note that the information carried here is not bound to any specific
+   protocol but of a general nature.
+
+   The following properties are allowed:
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 11]
+
+                        OpenID Connect Federation              June 2019
+
+
+   name
+      OPTIONAL.  String.  The human readable name describing the subject
+      entity.  This may be, for example, the name of an organization.
+
+   contacts
+      OPTIONAL.  JSON array with one or more strings.  Contact persons
+      at the entity.  These may contain names, e-mail addresses,
+      descriptions, phone numbers, etc.
+
+   policy_uri
+      OPTIONAL.  URL to documentation of conditions and policies
+      relevant to this entity.
+
+   homepage_uri
+      OPTIONAL.  URL to a generic home page representing this entity.
+
+4.  Applying Policy to Metadata
+
+   The metadata for a specific entity can be constructed by starting
+   with the information in leaf entity's entity statement and then
+   applying the polices defined by the trust anchor and possible
+   intermediates starting with the trust anchor.
+
+4.1.  Policy Language
+
+   Policies are expressed using a JSON object.
+
+   The following keywords represent different actions/checks that MUST
+   be applied to the metadata.
+
+4.1.1.  subset_of
+
+   The resulting value of the claim will be the intersection of the
+   values specified here and the values of the claim.  For instance, the
+   claim policy:
+
+     "response_types": {
+       "subset_of": ["code", "code token", "code id_token"]}
+
+   if applied to a metadata statement with:
+
+     "response_types": ["code", "code id_token token", "code id_token"]
+
+   will update the claim in the metadata statement to be:
+
+     "response_types": ["code", "code id_token"]
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 12]
+
+                        OpenID Connect Federation              June 2019
+
+
+4.1.2.  one_of
+
+   The value of the claim MUST be one of the ones listed here.  As an
+   example, if the claim policy:
+
+     "request_object_signing_alg": {
+       "one_of": ["ES256", "ES384", "ES512"]}
+
+   is applied to the metadata statement
+
+     "request_object_signing_alg": "ES384"
+
+   the resulting claim statement will be:
+
+     "request_object_signing_alg": "ES384"
+
+4.1.3.  add
+
+   Adds the value or values specified to the list of values for the
+   metadata statement claim.  If the specified value is already present
+   in the list, this operation has no effect.  As an example, if the
+   claim policy:
+
+     "contacts": {
+       "add": "support@federation.example.com"}
+
+   is applied to the following claim in the metadata statement:
+
+     "contacts": "support@org.example.com"
+
+   the end result will be the claim:
+
+     "contacts": ["support@org.example.com",
+                  "support@federation.example.com"]
+
+4.1.4.  value
+
+   Disregarding what value the claim had, if any, the claims value will
+   be set to what is specified here.  As an example, if the claim
+   policy:
+
+     "require_auth_time": {
+       "value": true}
+
+   is applied to a metadata statement with no such claim the result will
+   be that the metadata statement after applying the policy contains the
+   claim:
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 13]
+
+                        OpenID Connect Federation              June 2019
+
+
+     "require_auth_time": true
+
+4.1.5.  default
+
+   If no value is assigned to this claim, then the claim's value will be
+   set to what is specified here.  As an example, if the claim policy:
+
+     "require_auth_time": {
+       "default": true }
+
+   is applied to a metadata statement with the claim
+
+     "require_auth_time": false
+
+   then the metadata statement will afterwards contain:
+
+     "require_auth_time": false
+
+   if on the other hand the metadata statement did not contain a
+   "require_auth_time" claim then the following claim statement would be
+   added to the metadata statement:
+
+     "require_auth_time": true
+
+4.1.6.  essential
+
+   If 'true' then claim MUST have a value. "essential" can be combined
+   with all the other types.
+
+     "tos_uri": {
+       "essential": true}
+
+   The upshot of applying this policy to a metadata statement is that
+   the metadata statement MUST contain such a claim otherwise the
+   metadata statement is incorrect.
+
+4.2.  Policy Type Combinations
+
+   Some policy types can be combined with others.
+
+   default
+      Can be combined with "one_of" and "subset_of".
+
+   essential
+      Can be combined with all the others.  If "essential" is not
+      present that is the same as stating essential=true.
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 14]
+
+                        OpenID Connect Federation              June 2019
+
+
+4.3.  Combining Policies
+
+   If there is more than one metadata policy in a trust chain, then the
+   policies MUST be combined before they are applied to the metadata
+   statement.
+
+   Using the notation we have previously defined metadata policies are
+   combined starting with ES[i] and then adding the policies from ES[j]
+   j=i-1,..,1 before applying the combined policy to the entity's
+   metadata
+
+   These are the policy types that can be combined when combining 2
+   policies:
+
+   subset_of
+      The result of combining 2 "subset_of" policies is the intersection
+      of the values.
+
+   one_of
+      The result of combining 2 "one_of" policies is the intersection of
+      the values.
+
+   add
+      The result of combining 2 "add" policies is the union of the
+      values.
+
+   All the other policy types can NOT be combined.  Which means that
+   whatever a superior specifies are what goes.
+
+4.3.1.  Policy Combination Example
+
+   A federations policy for RPs:
+
+   {
+     "scopes": {
+       "subset_of": ["openid", "eduperson", "phone"],
+       "default": ["openid", "eduperson"]},
+     "id_token_signed_response_alg": {
+       "one_of": ["ES256", "ES384", "ES512"],
+       "default": "ES256"},
+     "contacts: {
+       "add": "helpdesk@federation.example.org"},
+      "application_type": {
+       "value": "web"}
+   }
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 15]
+
+                        OpenID Connect Federation              June 2019
+
+
+   An organization's policy for RPs:
+
+   {
+     "scopes": {
+       "subset_of": ["openid", "eduperson", "address"],
+       "default": ["openid", "eduperson"]},
+     "id_token_signed_response_alg": {
+       "one_of": ["ES256", "ES384"],
+       "default": "ES256"},
+     "contacts: {
+       "add": "helpdesk@org.example.org"},
+     "application_type": {
+       "one_of": ["web", "native"]}
+   }
+
+   The combined metadata policy then becomes:
+
+   {
+     "scopes": {
+       "subset_of": ["openid", "eduperson"],
+       "default": ["openid", "eduperson"]},
+     "id_token_signed_response_alg": {
+       "one_of": ["ES256", "ES384"],
+       "default": "ES256"},
+     "contacts: {
+       "add": ["helpdesk@federation.example.org"],
+               "helpdesk@org.example.org"]},
+     "application_type": {
+       "value": "web"}
+   }
+
+   If after combining a "default" value for a claim policy, the result
+   is not a subset of a "subset_of" policy or a "one_of" defined for
+   that claim, then an error MUST be raised and the trust chain NOT
+   used.
+
+4.4.  Enforcing Policy
+
+   If applying a policy to a metadata statement results in some claims
+   having all their values removed and it is essential that a claim has
+   a value, then such a metadata statement MUST be regarded as broken
+   and MUST NOT be used.
+
+4.5.  Extending the Policy Language
+
+   There might be parties that wants to extend the policy language
+   defined here.  If that happens then the rule is that if software
+   compliant with this specification encounters a keyword it doesn't
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 16]
+
+                        OpenID Connect Federation              June 2019
+
+
+   understand it MUST ignore it unless it is listed in a
+   "policy_language_crit" list, as is done for JWS header parameters
+   with the "crit" parameter.  If the policy language extension keyword
+   is listed in the "policy_language_crit" list and not understood, then
+   the metadata MUST be rejected.
+
+4.6.  Policy Example
+
+   The following is a non-normative example of a set of policies being
+   applied to an RP's metadata.
+
+   The RP's metadata:
+
+   {
+     "contacts": ["rp_admins@cs.example.com"],
+     "redirect_uris": ["https://cs.example.com/rp1"],
+     "response_types: ["code"]
+   }
+
+   The federations policy for RPs:
+
+   {
+     "scopes": {
+       "subset_of": ["openid", "eduperson"]},
+     "response_types": {
+       "subset_of": ["code", "code id_token"]}
+   }
+
+   The organization's policy for RPs:
+
+   {
+     "contacts": {
+       "add": "helpdesk@example.com"},
+     "logo_uri": {
+       "one_of": ["https://example.com/logo_small.jpg",
+                  "https://example.com/logo_big.jpg"],
+       "default": "https://example.com/logo_small.jpg"
+     },
+     "policy_uri": {
+       "value": "https://example.com/policy.html"},
+     "tos_uri": {
+       "value": "https://example.com/tos.html"}
+   }
+
+   The metadata for the entity in question after applying the policies
+   above, would then become:
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 17]
+
+                        OpenID Connect Federation              June 2019
+
+
+   {
+     "contacts": ["rp_admins@cs.example.com", "helpdesk@example.com"],
+     "logo_uri": "https://example.com/logo_small.jpg",
+     "policy_uri": "https://example.com/policy.html",
+     "tos_uri": "https://example.com/tos.html"
+     "scopes": ["openid", "eduperson"],
+     "response_types": ["code"],
+     "redirect_uris": ["https://cs.example.com/rp1"],
+   }
+
+5.  The Federation API
+
+   All entities that are expected to publish entity statements about
+   themselves or other entities, MUST expose a Federation API endpoint.
+
+   The federation API endpoint of an entity is resolved from the entity
+   identifier.  The Federation API endpoint is found using the Well-
+   Known URIs [RFC5785] specification, with the suffix "openid-
+   federation".  The scheme, host and port is taken directly from the
+   entity identifier combined with the following path: "/.well-known/
+   openid-federation".
+
+   If the entity identifier contains a path, it is concatenated after
+   "/.well-known/openid-federation" in the same manner that path
+   components are concatenated to the well-known identifier in the OAuth
+   2.0 Authorization Server Metadata [RFC8414] specification.  Of
+   course, in real multi-tenant deployments, in which the entity ID
+   might be of the form "https://multi-teanant-service.example.com/my-
+   tenant-identifier" the tenant is very likely to not have control over
+   the path "https://multi-teanant-service.example.com/.well-known/
+   openid-federation/my-tenant-identifier" whereas it is very likely to
+   have control over the path "https://multi-teanant-
+   service.example.com/my-tenant-identifier/.well-known/openid-
+   federation".  Therefore, if using the Federation API at the URL with
+   the tenant path after the well-known part fails, it is RECOMMENDED
+   that callers retry at the URL with the tenant path before the well-
+   known part (even though this violates [RFC5785]).
+
+   The Federation API is an HTTPS API that may support multiple
+   operations.  Fetching entity statements is one of the operations, and
+   the only one that all Federation API endpoints are REQUIRED to
+   support.  All the other operations are OPTIONAL.  The list of defined
+   operations may be extended in a future.
+
+   While all operations in the specification make use of a GET request,
+   other operations may choose to use other HTTP methods.  If the
+   "operation" parameter is left out, it is treated as a fetch entity
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 18]
+
+                        OpenID Connect Federation              June 2019
+
+
+   statements request.  Unless otherwise mentioned or agreed upon,
+   requests to the federation API does not need to be authenticated.
+
+5.1.  Fetching Entity Statement (REQUIRED)
+
+   Fetching entity statement is used to collect entity statements one by
+   one in order to gather trust chains.
+
+   In order to fetch an entity statement, an entity needs to know the
+   identifier of the entity to ask (the issuer), and the identifier of
+   the entity that you want the statement to be about (the subject).
+
+5.1.1.  Fetch Entity Statements Request
+
+   The request MUST be an HTTP request using the GET method and the
+   https scheme to a resolved federation API endpoint with the following
+   query string parameters:
+
+   operation
+      OPTIONAL.  If not present, MUST be treated as "fetch".
+
+   iss
+      REQUIRED.  The entity identifier of the issuer from which you want
+      an entity statement issued.  Because of the normalization of the
+      URL, multiple issuers may resolve to a shared federation API.
+      This parameter makes it explicit exactly which issuer we want
+      entity statements from.
+
+   sub
+      OPTIONAL.  The entity identifier of the subject for which you
+      would like an entity statement issued.  If this parameter is left
+      out, it is considered to be the same as the issuer and would
+      indicate a request for a self-issued statement.
+
+   aud
+      OPTIONAL.  The entity identifier of the requester.  The issuing
+      entity may choose to include this parameter to form the entity
+      statement specifically for this target, in which the "aud" claim
+      also SHOULD be present in the entity statement self.
+
+   The following is a non-normative example of an API request for an
+   entity statement:
+
+   GET /.well-known/openid-federation?
+   iss=https%3A%2F%2Fopenid.sunet.se%2Ffederation HTTP/1.1
+   Host: openid.sunet.se
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 19]
+
+                        OpenID Connect Federation              June 2019
+
+
+5.1.2.  Fetch Entity Statements Response
+
+   A positive response is a signed entity statement where the content
+   type MUST be set to "application/jose".  If it is negative response
+   it will be a JSON object and the content type MUST be set to
+   "application/json".  See more about error responses in Section 5.4.
+
+   The following is a non-normative example of a response:
+
+   200 OK
+   Last-Modified: Mon, 17 Dec 2018 11:15:56 GMT
+   Content-Type: application/jose
+
+   eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJodHRwczovL3Nlc...
+
+   (the signed JWT is truncated)
+
+5.2.  Trust Negotiation (OPTIONAL)
+
+   An entity may use the trust negotiation operation in order to fetch
+   resolved metadata about itself as seen/trusted by a remote peer.  The
+   result may, for instance, tell an RP what operations, scopes and
+   claims an OP would allow the RP to use if a specific trust anchor was
+   used.
+
+5.2.1.  Trust Negotiation Request
+
+   The request MUST be an HTTP request using the GET method and the
+   https scheme to a resolved federation API endpoint with the following
+   query string parameters:
+
+   operation
+      REQUIRED.  MUST be set to "resolve_metadata".
+
+   respondent
+      REQUIRED.  The entity identifier of the entity whose metadata are
+      requested.  Because of the normalization of the URL, multiple
+      entity identifiers may resolve to a shared federation API.  This
+      parameter makes it explicit exactly which entity is expected.
+
+   peer
+      REQUIRED.  The entity identifier of the entity the information is
+      requested for.  This must be a leaf entity.
+
+   type
+      REQUIRED.  The metadata type to resolve.  In this document, we use
+      the metadata types listed in Section 3.
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 20]
+
+                        OpenID Connect Federation              June 2019
+
+
+   anchor
+      REQUIRED.  The trust anchor the remote peer MUST use when
+      resolving the metadata.
+
+   The following is a non-normative example of an API request for trust
+   negotiation:
+
+   GET /.well-known/openid-federation?
+   op=resolve_metadata&
+   respondent=https%3A%2F%2Fopenid.sunet.se%2Ffederation&
+   type=openid_provider&
+   anchor=https%3A%2F%2Fswamid.se&
+   peer=https%3A%2F%2Fidp.umu.se%2Fopenid HTTP/1.1
+   Host: openid.sunet.se
+
+5.2.2.  Trust Negotiation Response
+
+   The response is a metadata statement that is the result of applying
+   the metadata polices in the trust chain on the entity's metadata.
+
+   The following is a non-normative example of a response:
+
+   200 OK
+   Last-Modified: Wed, 22 Jul 2018 19:15:56 GMT
+   Content-Type: application/json
+
+   {
+     "organization": "University of Ume?",
+     "contacts": ["legal@umu.se", "technical@umu.se"],
+     "logo_uri":
+       "https://www.umu.se/SRWStatic/img/umu-logo-left-neg-SE.svg",
+     "policy_uri":
+       "https://www.umu.se/en/about-the-website/legal-information/",
+     "authorization_endpoint":
+       "https://idp.umu.se/openid/authorization",
+     "token_endpoint": "https://idp.umu.se/openid/token",
+     "response_types_supported": ["code", "code id_token", "token"],
+     "grant_types_supported": [
+       "authorization_code",
+       "implicit",
+       "urn:ietf:params:oauth:grant-type:jwt-bearer"
+     ],
+     "subject_types_supported": ["pairwise"],
+     "id_token_signing_alg_values_supported": ["RS256"]
+   }
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 21]
+
+                        OpenID Connect Federation              June 2019
+
+
+5.3.  Entity Listings (OPTIONAL)
+
+   An entity may query another entity for a list of all the entities
+   immediately subordinate to that entity that that entity is prepared
+   to issue statements about.  (In some cases, this may be a very large
+   list.)
+
+5.3.1.  Entity Listings Request
+
+   The request MUST be an HTTP request using the GET method and the
+   https scheme to a resolved federation API endpoint with the following
+   query string parameters:
+
+   operation
+      REQUIRED.  MUST be set to "listing".
+
+   iss
+      REQUIRED.  The entity identifier of the entity from which an
+      entity listing is requested.  Because of the normalization of the
+      URL, multiple entity identifiers may resolve to a shared
+      federation API.  This parameter makes it explicit exactly which
+      entity is expected.
+
+   is_leaf
+      OPTIONAL.  If left out, result should include both leaf entities
+      and intermediate nodes.  If set to "true", the response should
+      contain only leaf entities.  If set to "false", the response
+      should contain only intermediate nodes.
+
+   The following is a non-normative example of an API request for trust
+   negotiation:
+
+   GET /.well-known/openid-federation?
+   op=listing&
+   iss=https%3A%2F%2Fopenid.sunet.se%2Ffederation&
+   type=openid_relying_party HTTP/1.1
+   Host: openid.sunet.se
+
+5.3.2.  Entity Listing Response
+
+   The response MUST contain an JSON list with the known entity
+   identifiers.
+
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 22]
+
+                        OpenID Connect Federation              June 2019
+
+
+   The following is a non-normative example of a response:
+
+   200 OK
+   Last-Modified: Wed, 22 Jul 2018 19:15:56 GMT
+   Content-Type: application/json
+
+   [
+     "https://ntnu.andreas.labs.uninett.no/",
+     "https://blackboard.ntnu.no/openid/callback",
+     "https://serviceprovider.andreas.labs.uninett.no/application17"
+   ]
+
+5.4.  Generic Error Response
+
+   If the request was malformed, or some error occurred during
+   processing of the request, the following standardized error format
+   should be used regardless of the operation specified.
+
+   The HTTP response code MUST be something in 400/500-range, giving an
+   indication of the type of error.  The response body MUST be a JSON
+   object containing the claims below and the content type MUST be set
+   to "application/json".
+
+   operation
+      REQUIRED.  The operation of the request.
+
+   error
+      REQUIRED.  The error code.
+
+   error_description
+      REQUIRED.  A human readable short text describing the error.
+
+   The following is a non-normative example of an error response:
+
+   400 Bad request
+   Last-Modified: Wed, 22 Jul 2018 19:15:56 GMT
+   Content-Type: application/json
+
+   {
+     "operation": "fetch",
+     "error": "invalid_request",
+     "error_description":
+       "Required request parameter [iss] was missing."
+   }
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 23]
+
+                        OpenID Connect Federation              June 2019
+
+
+6.  Resolving Trust Chain and Metadata
+
+   An entity (e.g., the Consumer) that wants to establish trust with a
+   remote peer, must have the remote peer's entity identifier and a list
+   of entity IDs of trusted trust anchors together with the public
+   version of their signing keys.  The Consumer will first have to fetch
+   sufficient entity statements to establish at least one chain of trust
+   from the remote peer to one or more of the configured trust anchors.
+   After that the entity MUST validate the trust chains independently,
+   and -- if there are multiple valid trust chains and if the
+   application demands it -- choose one.
+
+6.1.  Fetching Entity Statements to Establish a Trust Chain
+
+   Depending on the circumstances, the Consumer may either be handed the
+   remote peer's self-issued entity statement, or it may have to fetch
+   it by itself.  If it needs to fetch it, it will use the process
+   described in Section 5.1.1 with both "iss" and "sub" set to the
+   entity ID of the remote peer.
+
+   The next step is to iterate through the list of intermediates listed
+   in "authority_hints", ignoring the authority hints that end in an
+   unknown trust anchor, requesting an entity statement about the remote
+   peer from each of the intermediates.  If the received entity
+   statement contains an authority hint this process is repeated.  This
+   time with the "iss" set to the intermediates entity ID and the "sub"
+   to be the "iss" of the previous query.  The Consumer should never
+   attempt to fetch entity statements it already has fetched during this
+   process (loop prevention).
+
+   Once the Consumer has found a trust anchor it wants to use it MUST
+   complete the trust chain by fetching the trust anchor's self-signed
+   entity statement.
+
+   A successful operation will return one or more lists of entity
+   statements.  Each of the lists terminating in a self-signed entity
+   statement issued by a trust anchor.
+
+   If there is no path from the remote peer to at least one of the
+   trusted trust anchors, then the list will be empty and there is no
+   way of establishing trust in the remote peer's information.  How the
+   Consumer deals with this is out of scope for this specification.
+
+6.2.  Validating the Trust Chains
+
+   As described in Section 2.2, a trust chain consists of an ordered
+   list of entity statements.  So whichever way the Consumer has
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 24]
+
+                        OpenID Connect Federation              June 2019
+
+
+   acquired the set of entity statements, it must now verify that it is
+   a proper trust chain using the rules laid out in that section.
+
+   To validate the chain, the following must be done:
+
+   o  For each entity statement ES[j] j=i,..,0:
+
+      *  Verify that the statement contains all the required claims.
+
+      *  Verify that "iat" has a value in the past
+
+      *  Verify that "exp" has a value that is in the future.
+
+   o  For j=0,i verify that "iss" == "sub".
+
+   o  For j=1,...,i-1: Verify that ES[j]['iss'] == ES[j+1]['sub']
+
+   o  For j=0,...,i-1: Verify the signature of ES[j] using the public
+      key carried in ES[j+1]['jwks'].
+
+   o  For j == i: verify the signature with the configured public key of
+      the trust anchor.
+
+   Verifying the signature is a much more expensive operation then
+   verifying the correctness of the statement and the timestamps.  An
+   implementer MAY therefor chose to not verify the signature until all
+   the other checks have been done.
+
+   No information in the chain of statements should be used before the
+   signature chain has been validated.
+
+6.3.  Choosing One of the Valid Trust Chains
+
+   If multiple valid trust chains are found, the Consumer will need to
+   decide on which one to use.
+
+   One simple rule would be to prefer a shorter chain over a longer one.
+
+6.4.  Calculating the Lifetime of a Trust Chain
+
+   Each entity statement in a trust chain is signed and MUST have a
+   expiration time (exp) set.  The expiration time of the whole trust
+   chain is set to the minimum value of exp within the chain.
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 25]
+
+                        OpenID Connect Federation              June 2019
+
+
+7.  Updating Metadata, Key Rollover, and Revocation
+
+   This specification allows for a smooth process of updating metadata
+   and public keys.
+
+   As described above in Section 6.4, each trust chain has an expiration
+   time.  A consumer of metadata using this specification MUST support
+   refreshing a trust chain when it expires.  How often a consumer
+   SHOULD re-evaluate the trust chain depends on how quickly the
+   consumer wants to find out that something has changed in the trust
+   chain.
+
+7.1.  Protocol Key Rollover
+
+   If a leaf entity publishes its public keys in the metadata part using
+   "jwks", setting an expiration time on the self-signed entity
+   statement can be used to control how often the remote party is
+   fetching an updated version of the public key.
+
+   If a leaf entity uses "jwks_uri", the remote party will in the normal
+   OpenID Connect way fetch the keys anew from the "jwks_uri" URI when
+   it discovers that the entity uses a key it has never seen before.
+
+7.2.  Key Rollover for a Trust Anchor
+
+   A trust anchor must publish a self-signed entity statement about
+   itself.  As described above in Section 2.2, it should be at the end
+   of the trust chain.  The trust anchor SHOULD set a reasonable
+   expiration time on that statement, such that the consumers will re-
+   fetch the entity statement at reasonable intervals.  If the trust
+   root wants to roll over its signing keys it would have to:
+
+   1.  Add the new keys to the "jwks" representing the trust anchors
+       signing keys.
+
+   2.  Keep signing the entity statement using the old keys for a long
+       enough time period to allow all subordinates to have gotten
+       access to the new keys.
+
+   3.  Switch to signing with the new keys.
+
+   4.  After a reasonable time period remove the old keys.  What is
+       regarded as a reasonable time is dependent on the security
+       profile and risk assessment of the trust anchor.
+
+   It must be taken into consideration that clients may have manually
+   configured pubic keys as part of their configuration.
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 26]
+
+                        OpenID Connect Federation              June 2019
+
+
+7.3.  Revocation
+
+   Since the consumers are expected to check the trust chain at regular,
+   reasonably frequent times, this specification does not specify a
+   standard revocation process.  Specific federations may make a
+   different choice and will then have to add such a process.
+
+8.  OpenID Connect Communication
+
+   This section describes how the trust framework in this specification
+   is used to establish trust between an RP and an OP that has no
+   explicit configuration or registration in advance.
+
+   There are two alternative approaches to establish trust between an RP
+   and an OP, which we call automatic and explicit registration.
+   Members of a federation or a community should agree upon which one to
+   use.  While implementations should support both methods, deployments
+   may choose to disable the use of one of them.
+
+8.1.  Automatic Registration
+
+   The trust between the entities is established using the above
+   described extensions in the first two steps of the communication
+   between an RP and an OP.  How the RP found the OP in the first place
+   is out of scope for this document.
+
+   ------                                       ------
+   |    | <--- 1) Discovery ------------------> |    |
+   | RP | ---- 2) Authentication request -----> | OP |
+   |    |                                       |    |
+   ------                                       ------
+
+   The "client_id" of the RP MUST be set identically to the RP entity
+   identifier.
+
+   Without a registration process, the RP does not have a client_secret.
+   Instead the automatic registration model requires the RP to make use
+   of asymmetric cryptography.
+
+   The RP MUST host a Federation API that allows the OP to fetch the
+   entity statements.
+
+8.1.1.  The Authentication Request
+
+   The authentication request is as specified in OpenID Connect Core.
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 27]
+
+                        OpenID Connect Federation              June 2019
+
+
+   The RP MUST authenticate at the authentication endpoint using the
+   private_key_jwt method described in the client authentication section
+   of OpenID Connect Core 1.0 [OpenID.Core].
+
+   An authorization request example:
+
+   GET /authorization?
+     redirect_uri=https%3A%2F%2Fexample.com%2Fauthz_cb
+     &scope=openid+profile+email+address+phone
+     &response_type=code
+     &nonce=4LX0mFMxdBjkGmtx7a8WIOnB&state=JpRTpu9eGXiP4thsK ...
+     &state=YmX8PM9I7WbNoMnnieKKBiptVW0sP2OZ
+     &client_id=https%3A%2F%2Flocalhost%3A8090%2Firp
+     &client_assertion=eyJhbGciOiJSUzI1NiIs ... qx7xHcvPOdIhnpg
+     &client_assertion_type=
+       urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
+     HTTP/1.1
+   Host: https://example.org
+
+8.1.2.  Processing the Authentication Request
+
+   When the OP receives an incoming authentication request, the OP
+   supports OpenID Connect Federation and the incoming client_id is a
+   valid URL, the OP should try to resolve and fetch trust chains
+   starting with the RP's entity statement as described in Section 6.1.
+
+   The OP should validate the possible trust chains, as described in
+   Section 6.2, and resolve the RP metadata with type
+   "openid_relying_party".
+
+   The OP should consider the resolved metadata of the RP, and verify
+   that it complies with the client metadata specification in OpenID
+   Connect Dynamic Client Registration 1.0 [OpenID.Registration].
+
+   Once the OP has the RP's metadata, it can verify the client
+   authentication.
+
+8.1.3.  Authentication Error Response
+
+   If the OP fails to establish trust with the RP, it should use the
+   "invalid_request" error code, and an "error_description" that aids
+   the RP to understand what is wrong.
+
+8.2.  Explicit Registration
+
+   This method involves performing an explicit registration of a new
+   client the first time a RP interacts with an OP using something that
+   basically follows the steps in OpenID Connect Dynamic Client
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 28]
+
+                        OpenID Connect Federation              June 2019
+
+
+   Registration 1.0 [OpenID.Registration] but where the client
+   registration request is a signed entity statement.
+
+8.2.1.  Provider Discovery
+
+   The RP will start by gathering the OP's metadata using the process
+   specified in Section 6 above.
+
+8.2.2.  Client Registration
+
+8.2.2.1.  Client Registration Request
+
+   The OP MUST support OpenID Dynamic Client Registration as extended by
+   this specification.  This is signaled by having the claim
+   "federation_registration_endpoint" in the OP's metadata.
+
+   Given that the OP supports explicit registration, the RP progresses
+   as follows:
+
+   1.  Once it has the list of acceptable trust chains for the OP it
+       MUST choose the subset it wants to progress with.  The subset can
+       be as small as one trust chain, but it can also contain more than
+       one.
+
+   2.  Based on the trust anchors referenced in the subset of trust
+       chains, the RP will choose a set of "authority_hints" from its
+       own set that terminates in those trust anchors.
+
+   3.  The RP will now construct a self-signed entity statement where
+       the metadata statement chosen is influenced by the OPs metadata
+       and the "authority_hints" included are picked by the process
+       described above.
+
+   4.  The entity statement is sent to the
+       "federation_registration_endpoint" defined in this document.
+
+8.2.2.2.  Client Registration Response
+
+8.2.2.2.1.  The OP Constructing Response
+
+   1.  After the OP receives the request, it collects and evaluates the
+       trust chains starting with the "authority_hints" in the
+       registration request.  After it has verified at least one trust
+       chain it can verify that the signature on the received
+       registration request is correct.
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 29]
+
+                        OpenID Connect Federation              June 2019
+
+
+   2.  If it finds more than one acceptable trust chain, it MUST choose
+       one trust anchor from those chains as the one it will proceed
+       with.
+
+   3.  At this point, if there already exists a client registration
+       under the same entity ID then that registration MUST be regarded
+       as invalid.  "Note" that key material from the previous
+       registration MUST be kept to make key rollover possible.
+
+   4.  The OP will now construct a metadata policy that, if applied to
+       the RP's metadata statement, will result in metadata that the OP
+       finds acceptable.  "Note" that the client_id the OP chooses does
+       not have to be the same as the entity ID of the RP.  To the
+       entity statement it will add one or more "authority_hints", from
+       its collection, that terminate in the trust anchor chosen above.
+
+   5.  It will sign and return the registration response (a signed
+       entity statement) to the RP.
+
+8.2.2.2.2.  The RP Parsing the Response
+
+   1.  The RP verifies the correctness of the received entity statement,
+       making sure that the trust chains starting at the
+       "authority_hints" terminates in trust anchors that were
+       referenced in the entity statement it sent to the OP.
+
+   2.  The RP MUST NOT apply metadata policies from the trust chains
+       that the OP provides because those are not valid for the RP's
+       metadata.  The RP MUST apply policies to the metadata using one
+       of its own trust chains that ends in the trust anchor that the OP
+       chose.  Once it has applied those policies it can the apply the
+       policy returned from the OP.  When it has applied all the
+       metadata policies to its metadata statement, it then stores the
+       result and can continue communicating with the OP using the
+       agreed-upon metadata.
+
+   3.  At this point the RP also knows which trust chain it should use
+       when evaluating the OP's metadata.  It can therefore apply the
+       metadata policies on the OP's metadata using the relevant trust
+       chain and store the result as the OPs metadata.
+
+   4.  If the RP was not OK, for some reason, with the received entity
+       statement then it has the choice to restart the registration
+       process or to give up.
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 30]
+
+                        OpenID Connect Federation              June 2019
+
+
+8.2.3.  After client registration
+
+   A client registration using this specification is not expected to be
+   valid forever.  The entity statements exchanged all have expiration
+   times, which means that the registration will eventually time out.
+   An OP can also for administrative reasons decide that a client
+   registration is not valid anymore.  An example of this could be that
+   the OP leaves the federation in use.
+
+8.2.3.1.  What the RP MUST Do
+
+   At regular intervals the RP MUST:
+
+   1.  Starting with the OP's entity statement, resolve and verify the
+       trust chains it chooses to use when constructing the registration
+       request.  If those trust chains do not exist anymore or do not
+       verify, then the registration should be regarded as invalid and a
+       new registration process should be started.
+
+   2.  If the OP's entity statement was properly formed the RP must now
+       verify that the entity statement it received about itself from
+       the OP is still valid.  Again, if that is not the case the
+       registration should be regarded as invalid and a new registration
+       process should be started.
+
+   What is regarded as reasonable intervals will depend on federation
+   policies and risk assessment by the maintainer of the RP.
+
+8.2.3.2.  What the OP MUST Do
+
+   At regular intervals the OP MUST:
+
+   1.  If the signature on the registration request has expired it MUST
+       mark the registration as invalid and demand that the RP MUST re-
+       register.  Else
+
+   2.  starting with the RP's client registration request, the OP MUST
+       verify that there still is a valid trust chain terminating in the
+       trust anchor the OP chose during the registration process.
+
+8.2.4.  Expiration Times
+
+   An OP MUST NOT assign an expiration time to a RP's registration that
+   is later then the trust chains expiration time.
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 31]
+
+                        OpenID Connect Federation              June 2019
+
+
+9.  IANA Considerations
+
+   TBD Register federation_types_supported for OP metadata with initial
+   values automatic, explicit.
+
+   TBD Register federation_type for RP registration metadata.
+
+   TBD Register federation_registration_endpoint for the OP metadata.
+
+10.  Security Considerations
+
+   TBD
+
+11.  References
+
+11.1.  Normative References
+
+   [OpenID.Core]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Discovery 1.0", August 2015,
+              <http://openid.net/specs/openid-connect-core-1_0.html>.
+
+   [OpenID.Discovery]
+              Sakimura, N., Bradley, J., Jones, M., and E. Jay, "OpenID
+              Connect Discovery 1.0", August 2015,
+              <http://openid.net/specs/
+              openid-connect-discovery-1_0.html>.
+
+   [OpenID.Registration]
+              Sakimura, N., Bradley, J., and M. Jones, "OpenID Connect
+              Dynamic Client Registration 1.0", August 2015,
+              <http://openid.net/specs/
+              openid-connect-registration-1_0.html>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC3339]  Klyne, G. and C. Newman, "Date and Time on the Internet:
+              Timestamps", RFC 3339, DOI 10.17487/RFC3339, July 2002,
+              <https://www.rfc-editor.org/info/rfc3339>.
+
+   [RFC5785]  Nottingham, M. and E. Hammer-Lahav, "Defining Well-Known
+              Uniform Resource Identifiers (URIs)", RFC 5785,
+              DOI 10.17487/RFC5785, April 2010,
+              <https://www.rfc-editor.org/info/rfc5785>.
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 32]
+
+                        OpenID Connect Federation              June 2019
+
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <https://www.rfc-editor.org/info/rfc6749>.
+
+   [RFC7515]  Jones, M., Bradley, J., and N. Sakimura, "JSON Web
+              Signature (JWS)", RFC 7515, DOI 10.17487/RFC7515, May
+              2015, <https://www.rfc-editor.org/info/rfc7515>.
+
+   [RFC7517]  Jones, M., "JSON Web Key (JWK)", RFC 7517,
+              DOI 10.17487/RFC7517, May 2015,
+              <https://www.rfc-editor.org/info/rfc7517>.
+
+   [RFC7519]  Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token
+              (JWT)", RFC 7519, DOI 10.17487/RFC7519, May 2015,
+              <https://www.rfc-editor.org/info/rfc7519>.
+
+   [RFC7591]  Richer, J., Ed., Jones, M., Bradley, J., Machulak, M., and
+              P. Hunt, "OAuth 2.0 Dynamic Client Registration Protocol",
+              RFC 7591, DOI 10.17487/RFC7591, July 2015,
+              <https://www.rfc-editor.org/info/rfc7591>.
+
+   [RFC8414]  Jones, M., Sakimura, N., and J. Bradley, "OAuth 2.0
+              Authorization Server Metadata", RFC 8414,
+              DOI 10.17487/RFC8414, June 2018,
+              <https://www.rfc-editor.org/info/rfc8414>.
+
+11.2.  Informative References
+
+   [RFC8446]  Rescorla, E., "The Transport Layer Security (TLS) Protocol
+              Version 1.3", RFC 8446, DOI 10.17487/RFC8446, August 2018,
+              <https://www.rfc-editor.org/info/rfc8446>.
+
+Appendix A.  Illustrative Example of OpenID Connect Flow Using Automatic
+             Client Registration
+
+   A service Foodle would like to offer its services to all OPs in
+   eduGAIN.  Foodle is managed and registered by the university NTNU.
+   NTNU is part of the Norwegian Feide federation.  Foodle is also
+   directly trusted in the Swedish SWAMID federation.  Both Feide and
+   SWAMID are part of the international eduGAIN federation.
+
+A.1.  Initial Setup of Foodle
+
+   The Foodle service chooses to use the entity identifier
+   "https://foodl.org/".  And upon deployment, Foodle is setup with an
+   RSA key pair, with the following public key:
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 33]
+
+                        OpenID Connect Federation              June 2019
+
+
+   {
+     "kid": "key1",
+     "use": "sig",
+     "kty": "RSA",
+     "alg": "RS256",
+     "n": "pnXBOusEANuug6ewezb9J_XbxbSGEISyA75wBGkerPNg6WTXmmxJ-DV1U4sCu
+   RqhSdo3Uncmw6-01bZKCtAyRHT_TOZN2TMfNPRsfLkOstVofyfxg5oIWViLX9IDG_iZVd
+   q6_T6yOuufOIvqpaeBMwSKuDXHNa_DU0aUu_3kOAc5_2hD4Dq-XXtum-oix2EPkNSbFfP
+   qFIp5n4gS1XrzGzuNQiDw82k-H6mWN0wlVWfqLxJA9DZikAX7x9feipn36wxDH-XUlzDD
+   Ui3nfnC8GSkT-CYII3oZPsIgMV527iQGVsehIV9KqTF2FnaP83cqV9YgvMfhs1wrx4L3Z
+   -3B8Q",
+     "e": "AQAB",
+     "key_ops": ["verify"],
+     "ext": true
+   }
+
+   Foodle offers a WebFinger interface and a metadata API according to
+   this specification, with the ability to issue entity statements about
+   itself.
+
+A.2.  Federation Setup
+
+   How trust is established and how entities become part of a federation
+   is out of scope of this specification.  It could involve some kind of
+   non-technical contract, agreement or term of use that is established,
+   followed by a federation or trust issuer that registers an entity
+   identifier, public key and a set of metadata that restricts the
+   delegated trust that is represented in the entity statement about the
+   joining party.
+
+   The following example, assumes the following trust relations are
+   established, and the following entities are able to issue entity
+   statements:
+
+   o  Foodle issues an entity statement about itself
+
+   o  NTNU issues an entity statement about Foodle
+
+   o  SWAMID issues an entity statement about Foodle
+
+   o  Feide issues an entity statement about NTNU
+
+   o  eduGAIN issues an entity statement about Feide
+
+   o  eduGAIN issues an entity statement about SWAMID
+
+   o  eudGAIN issues an entity statement about itself
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 34]
+
+                        OpenID Connect Federation              June 2019
+
+
+   o  SWAMID issues an entity statement about the university of Umea -
+      an OP for employees and students at the university of Umea
+
+   o  SWAMID issues an entity statement about itself
+
+   Foodle has a local trust root configuration that contains public
+   signing keys for known federations:
+
+   "https://www.sunet.se/swamid"
+
+   {
+     "keys": [
+       {
+         "kty": "RSA",
+         "alg": "RS256",
+         "n": "v6xydqciFKGfvQaqYGmk9A7etbfvNY...",
+         "e": "AQAB",
+         "key_ops": ["verify"],
+         "ext": true,
+         "kid": "9Gx7-Kkz_18DhpQ...",
+         "use": "sig"
+       }
+     ]
+   }
+
+A.3.  User Chooses to Login at Foodle
+
+   Let us assume a student from Umeae would like to login at Foodle.
+   Some sort of discovery process involves the end user choosing an OP.
+   OpenID Discovery using the e-mail address is one option.  Foodle
+   presenting a list of available OPs for the user to choose from is
+   another.
+
+   After the discovery process, Foodle knows that the user would like to
+   login using the OP with entity identifier "https://www.umu.se/
+   openid".
+
+A.4.  Foodle Discovers the OP
+
+   Foodle performs a request to fetch the self-issued entity statement
+   using the Federation API of the OP.
+
+   GET /.well-known/openid-federation/openid?
+   iss=https%3A%2F%2Fumu.se%2Fopenid HTTP/1.1
+   Host: www.umu.se
+
+   Yielding this response:
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 35]
+
+                        OpenID Connect Federation              June 2019
+
+
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+   "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InVtdSJ9.eyJpYXQi..."
+
+   The API endpoint returns a signed entity statement.  In this case we
+   looked for a self-issued statement from the Umeae university.  We
+   then decode and inspect the content:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 36]
+
+                        OpenID Connect Federation              June 2019
+
+
+   {
+     "iat": 1539174048,
+     "exp": 1539177648,
+     "iss": "https://umu.se/openid",
+     "sub": "https://umu.se/openid",
+     "metadata": {
+       "openid_provider": {
+         "federation_types_supported": ["automatic", "explicit"],
+         "authorization_endpoint":
+           "https://idp.umu.se/openid/authorization",
+         "token_endpoint": "https://idp.umu.se/openid/token",
+         "response_types_supported": ["code", "code id_token", "token"],
+         "grant_types_supported": [
+           "authorization_code",
+           "implicit",
+           "urn:ietf:params:oauth:grant-type:jwt-bearer"
+         ],
+         "subject_types_supported": ["pairwise", "public"],
+         "id_token_signing_alg_values_supported": ["RS256"],
+         "logo_uri":
+           "https://www.umu.se/img/umu-logo-left-neg-SE.svg",
+         "policy_uri":
+           "https://www.umu.se/en/website/legal-information/"
+       }
+     },
+     "authority_hints": {
+       "https://www.sunet.se/swamid": ["https://edugain.org/oidc"],
+       "https://kalmar2.org/openid": []
+     },
+     "jwks": {
+       "keys": [
+         {
+           "kty": "RSA",
+           "alg": "RS256",
+           "n": "z1V1kyi6qwmXfKsfhVqKUMmQH3AixN...",
+           "e": "AQAB",
+           "key_ops": ["verify"],
+           "ext": true,
+           "kid": "8S9-dy4GN8_-z...",
+           "use": "sig"
+         }
+       ]
+     }
+   }
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 37]
+
+                        OpenID Connect Federation              June 2019
+
+
+A.5.  Resolving the OP's Trust Chain
+
+   In order to establish trust with this OP, the Foodle RP would need to
+   fetch sufficient entity statements to represent a complete chain from
+   the self-issued statement to the locally configured trust root, which
+   contains SWAMID.
+
+   The information found in the "authority_hints" is critical in order
+   to dynamically discover the trust chain.  If such hints are not
+   present, the RP may fall back to fixed configured trust roots to ask
+   for entity statements.
+
+   In this example, Foodle now fetches an entity statement from SWAMID
+   using the Federation API endpoint of SWAMID, discovered in the
+   "authority_hints" claim.
+
+   GET /.well-known/openid-federation?
+   iss=https%3A%2F%2Fwww.sunet.se%2Fswamid&
+   sub=https%3A%2F%2Fumu.se%2Fopenid HTTP/1.1
+   Host: www.sunet.se
+
+   Yielding this response:
+
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+   "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZlaWRlIn0.eyJpY..."
+
+   The decoded version of the entity statement is:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 38]
+
+                        OpenID Connect Federation              June 2019
+
+
+   {
+     "iat": 1539174048,
+     "exp": 1539177648,
+     "metadata_policy": {
+       "openid_provider": {
+         "subject_types_supported": {
+           "value": ["pairwise"]},
+         "id_token_signing_alg_values_supported":{
+             "subset_of": ["RS256", "RS512"],
+             "default": ["RS256", "RS512"]
+           }
+         "organization": {
+           "value": "University of Ume&aring;"},
+         "contacts": {
+           "add": ["legal@umu.se", "technical@umu.se"]}
+       },
+       "openid_relying_party": {}
+     },
+     "iss": "https://www.sunet.se/swamid",
+     "sub": "https://umu.se/openid",
+     "jwks": {
+       "keys": [
+         {
+           "kty": "RSA",
+           "alg": "RS256",
+           "n": "v6xydqciFKGfvQaqYGmk9A7etbfvNY...",
+           "e": "AQAB",
+           "key_ops": ["verify"],
+           "ext": true,
+           "kid": "9Gx7-Kkz_18DhpQ...",
+           "use": "sig"
+         }
+       ]
+     },
+     "authority_hints": {
+       "https://www.sunet.se/swamid": ["https://www.sunet.se/swamid"]
+     }
+   }
+
+   Notice that the entity statement about University of Umeae also
+   contains an entry for openid_relying_party metadata.  This metadata
+   policy indicates that SWAMID expresses this university to be trusted
+   to issue its own OpenID Relying Parties and OpenID Providers without
+   the need for registering these directly in SWAMID.
+
+   The last step then is that Foodle now fetches an entity statement
+   from SWAMID about SWAMID using the Federation API endpoint of SWAMID,
+   discovered in the "authority_hints" claim.
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 39]
+
+                        OpenID Connect Federation              June 2019
+
+
+   GET /.well-known/openid-federation?
+   iss=https%3A%2F%2Fwww.sunet.se%2Fswamid&
+   sub=https%3A%2F%2Fwww.sunet.se%2Fswamid HTTP/1.1
+   Host: www.sunet.se
+
+   Yielding this response:
+
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+   "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImZlaWRlIn0.eyJpY..."
+
+   The decoded version of the entity statement is:
+
+   {
+     "iat": 1539174050,
+     "exp": 1539177650,
+     "metadata": {
+       "federation_entity": {
+           "name": "SWAMID",
+           "homepage_uri": "https://swamid.se/index.html"
+       },
+     },
+     "iss": "https://www.sunet.se/swamid",
+     "sub": "https://www.sunet.se/swamid",
+     "jwks": {
+       "keys": [
+         {
+           "e": "AQAB",
+           "kid": "SnJJSVFodkFXOX...",
+           "kty": "RSA",
+           "n": "5uGR_-KKce9ycV6...",
+           "use": "sig"
+         }
+       ]
+     }
+   }
+
+   These three entity statements are sufficient to establish a path from
+   the locally configured trust anchor which trust SWAMID, to the self-
+   issued statement from the University of Umeae.  Here are the steps
+   performed to validate the trust chain:
+
+   o  Find the trusted public keys for SWAMID in the local trust
+      configuration.
+
+   o  Use these keys to validate the signature of the signed entity
+      statement issued by SWAMID about SWAMID.
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 40]
+
+                        OpenID Connect Federation              June 2019
+
+
+   o  Extract the "jwks" entry from this entity statement.  These are
+      the signing keys of SWAMID.  If there are keys in this field that
+      do not appear in the local trust configuration, add them to the
+      local trust configuration.  This is a necessary step to allow
+      SWAMID, in this case, to rotate their signing keys.
+
+   o  Use the SWAMID keys to validate the signature of the signed entity
+      statement issued by SWAMID about the University of Umeae.
+
+   o  Check that the "sub" from the trust configuration matches the
+      "iss" value of the first entity statement.
+
+   o  Extract the "jwks" entry from this entity statement.  These are
+      the signing keys of the University of Umeae.
+
+   o  Validate the self-signed statement from University of Umeae using
+      the keys found above.
+
+   o  Check that the "sub" from the previous statement matches the "iss"
+      of the self-issued statement.
+
+   o  Check that the self-issued statement has the same values for "iss"
+      and "sub".
+
+A.6.  Extracting the OP metadata
+
+   The output from the trust chain validation is an ordered list of
+   entity statements.  In order to extract the needed metadata, we need
+   to look at the metadata type relevant in the given context.  In this
+   case, we are establishing trust with an OP, and we take the
+   "openid_provider" metadata object from the entity statement published
+   by the OP and the policy statements from the other entities in the
+   trust chain:
+
+   SWAMID's metadata policy for an openid_provider:
+
+   {}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 41]
+
+                        OpenID Connect Federation              June 2019
+
+
+   UMU's metadata policy for an openid_provider:
+
+   {
+     "subject_types_supported": {"value": ["pairwise"]},
+     "id_token_signing_alg_values_supported":
+       {
+         "subset_of": ["RS256", "RS512"],
+         "default": ["RS256", "RS512"]
+       }
+     "organization": {"value": "University of Ume&aring;"},
+     "contacts": {"add": ["legal@umu.se", "technical@umu.se"]}
+   }
+
+   and finally
+
+   The OP's metadata statement:
+
+   {
+     "authorization_endpoint":
+       "https://idp.umu.se/openid/authorization",
+     "token_endpoint": "https://idp.umu.se/openid/token",
+     "response_types_supported": ["code", "code id_token", "token"],
+     "grant_types_supported": [
+       "authorization_code",
+       "implicit",
+       "urn:ietf:params:oauth:grant-type:jwt-bearer"
+     ],
+     "subject_types_supported": ["pairwise", "public"],
+     "id_token_signing_alg_values_supported": ["RS256"],
+     "logo_uri":
+         "https://www.umu.se/SRWStatic/img/umu-logo-left-neg-SE.svg",
+     "policy_uri":
+         "https://www.umu.se/en/about-the-website/legal-information/"
+   }
+
+   Applying the metadata policies to the metadata produces the following
+   result:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 42]
+
+                        OpenID Connect Federation              June 2019
+
+
+   {
+     "organization": "University of Ume&aring;",
+     "contacts": ["legal@umu.se", "technical@umu.se"],
+     "logo_uri":
+       "https://www.umu.se/SRWStatic/img/umu-logo-left-neg-SE.svg",
+     "policy_uri":
+       "https://www.umu.se/en/about-the-website/legal-information/",
+     "authorization_endpoint":
+       "https://idp.umu.se/openid/authorization",
+     "token_endpoint": "https://idp.umu.se/openid/token",
+     "response_types_supported": ["code", "code id_token", "token"],
+     "grant_types_supported": [
+       "authorization_code",
+       "implicit",
+       "urn:ietf:params:oauth:grant-type:jwt-bearer"
+     ],
+     "subject_types_supported": ["pairwise"],
+     "id_token_signing_alg_values_supported": ["RS256"]
+   }
+
+A.7.  RP Sends Authentication Request (Automatic Registration)
+
+   Foodle after establishing trust with the University of Umeae and
+   extracted metadata and a set of metadata policies, will send an
+   authentication request to the OP.  This example uses automatic
+   registration.
+
+   Here is an example of an authentication request:
+
+   GET /authorize?
+     response_type=code
+     &scope=openid%20profile%20email
+     &client_id=https%3A%2F%2Ffoodl.org%2F
+     &state=2ff7e589-3848-46da-a3d2-949e1235e671
+     &redirect_uri=https%3A%2F%2Ffoodl.org%2Fopenid%2Fcallback
+     &client_assertion=eyJhbGciOiJSUzI1NiIs ... qx7xHcvPOdIhnpg
+     &client_assertion_type=
+       urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
+     HTTP/1.1
+   Host: idp.umu.se
+
+   The OP receiving this authentication request will, unless the RP is
+   cached or statically configured, start to dynamically fetch and
+   establish trust with the RP.
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 43]
+
+                        OpenID Connect Federation              June 2019
+
+
+A.8.  OP Fetches Entity Statements
+
+   The OP needs to establish a trust chain for the RP from which an
+   authentication was received.  The OP in this example are configured
+   with public key of 2 federations:
+
+   "https://edugain.org/oidc"
+
+    {
+     "keys": [
+       {
+         "kty": "RSA",
+         "use": "sig",
+         "alg": "RS256",
+         "n": "qnd5_krrHKzuJzb5_YEt4sP-YOGSbf...",
+         "e": "AQAB",
+         "key_ops": ["verify"],
+         "ext": true,
+         "kid": "SX7_-Q0heLZq6T..."
+       }
+     ]
+   }
+
+   and
+
+   "https://www.sunet.se/swamid"
+
+   {
+     "keys": [
+       {
+         "kty": "RSA",
+         "alg": "RS256",
+         "n": "v6xydqciFKGfvQaqYGmk9A7etbfvNY...",
+         "e": "AQAB",
+         "key_ops": ["verify"],
+         "ext": true,
+         "kid": "9Gx7-Kkz_18DhpQ...",
+         "use": "sig"
+       }
+     ]
+   }
+
+A.9.  RP Fetches Entity Statements
+
+   The RP starts to resolve metadata for the client identifier
+   https://foodl.org/ by fetching the self-issued entity statement using
+   the Federation API, as described in Section 6.1.
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 44]
+
+                        OpenID Connect Federation              June 2019
+
+
+   In this case, there are two possible trust chains:
+
+   o  eduGAIN -> Feide -> NTNU -> Foodle
+
+   o  SWAMID -> Foodle
+
+Appendix B.  Illustrative Example of OpenID Connect Flow Using Explicit
+             Client Registration
+
+   A research project has pooled resources and bought an extremely rare
+   and expensive equipment (EREE) that MUST be accessible by all project
+   participants disregarding which university/research organization/
+   company they belong for.  To that end, the research project has
+   created its own federation (EREE) and is expecting the participants
+   to get their organization's OPs to register with the EREE federation.
+   These OPs are, of course, expected to be members in one or more other
+   federations.  Therefore, we have to an EREE service and an EREE
+   federation.  Since the EREE equipment is located in Sweden, the EREE
+   service is also member of the SWAMID federation.
+
+B.1.  Initial Setup of the EREE Service
+
+   The EREE service choose to use the entity identifier
+   "https://srv.eree.example.org/".  And upon deployment, EREE is setup
+   with an elliptic curve key pair, with the following public key:
+
+   {
+     "keys": [
+       {
+         "kty": "EC",
+         "use": "sig",
+         "kid":
+           "bmRkVmk0QUY3UUdnM3NDekI4VGptRUIxVk5lRXIyVE9rRUZpMUpNbGJ...",
+         "crv": "P-256",
+         "x": "ypFDCBLLT7lRP8UPo12ycnIkyFjeL1yco_Iu7VZoeDk",
+         "y": "1sO4UIY1Iil0_PYobPKhuhs5ocQqVWYCujXcfo47epg"
+       }
+     ]
+   }
+
+   The EREE service is provided files containing "authority_hints" by
+   its superiors.  From the EREE federation it gets:
+
+   {"https://eree.example.org":["https://eree.example.org"]}
+
+   from SWAMID:
+
+   {"https://swamid.se":["https://swamid.se"]}
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 45]
+
+                        OpenID Connect Federation              June 2019
+
+
+   and from UNINETT:
+
+   {"https://uninett.no":["https://uninett.no"]}
+
+   and so on...
+
+   On the federations side:
+
+   o  SWAMID is prepared to issue an entity statement about the EREE
+      service.
+
+   o  The EREE federation is prepared to issue an entity statement about
+      the EREE service.
+
+   o  UNINETT is prepared to issue an entity statement about the EREE
+      service.
+
+   And finally, from the federations the EREE service also receives the
+   public part of the federations signing keys.
+
+B.2.  Researcher Wants to Start a Job at the EREE Service
+
+   A researcher from Umeae wants to access the EREE service.  The EREE
+   service provides a discovery service which allows the researcher to
+   choose which OP to use.  In this case, "https://op.umu.se/".
+
+B.3.  The EREE RP Discovers and Initiates Explicit Registration
+
+B.3.1.  The EREE RP Discovers the OpenID Provider
+
+   Using the entity ID (issuer ID) of the OP the service performs a
+   fetch entity statement request as described in Section 5.1.1.
+
+    GET
+    /.well-known/openid-federation?iss=https%3A%2F%2Fop.umu.se
+    HTTP/1.1
+    Host: op.umu.se
+
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+
+   eyJhbGciOiJFUzI1NiIsImtpZCI6IlFVOUxUbkpzTjJ4VVRYQkZSM040T1Z...
+
+   The decoded version of the entity statement is:
+
+   {
+     "authority_hints": {
+       "https://eree.example.org": [
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 46]
+
+                        OpenID Connect Federation              June 2019
+
+
+         "https://eree.example.org"
+       ],
+       "https://swamid.se": [
+         "https://swamid.se"
+       ]
+     },
+     "exp": 1543851936,
+     "iat": 1543247136,
+     "iss": "https://op.umu.se",
+     "sub": "https://op.umu.se",
+     "jwks": {
+       "keys": [
+         {
+           "crv": "P-256",
+           "kid":
+             "QU9LTnJsN2xUTXBFR3N4OVZOeTlyejFrWWthYWlaTllYMDR...",
+           "kty": "EC",
+           "use": "sig",
+           "x": "DU6e1SjvW3Gqcd7up-n8s1N6Zlm2cNlZjYqL3O36v1A",
+           "y": "pEtk0_fSKN56V-2hDnzFUbaw8-v0QBjNoT2KaZ7pqIc"
+         }
+       ]
+     },
+     "metadata": {
+       "openid_provider": {
+         "federation_types_supported": ["explicit"],
+         "authorization_endpoint":
+           "https://op.umu.se/authorization",
+         "federation_registration_endpoint":
+           "https://op.umu.se/fedreg",
+         "grant_types_supported": [
+           "authorization_code",
+           "implicit",
+           "urn:ietf:params:oauth:grant-type:jwt-bearer"
+         ],
+         "id_token_signing_alg_values_supported": [
+           "RS256"
+         ],
+         "logo_uri":
+           "https://www.umu.se/img/umu-logo-left-neg-SE.svg",
+         "policy_uri":
+           "https://www.umu.se/en/website/legal-information/",
+         "response_types_supported": [
+           "code",
+           "code id_token",
+           "token"
+         ],
+         "subject_types_supported": [
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 47]
+
+                        OpenID Connect Federation              June 2019
+
+
+           "pairwise",
+           "public"
+         ],
+         "token_endpoint": "https://op.umu.se/token",
+         "userinfo_endpoint": "https://op.umu.se/user"
+       }
+     }
+   }
+
+B.3.2.  Resolving the OP's Trust Chain
+
+   In order to establish trust with this OP, the EREE service provider
+   would need to fetch sufficient entity statements to represent a
+   complete chain from the self-issued statement to the trust anchor
+   that represents the EREE federations.
+
+   The "authority_hints" in the self-signed entity statement points to 2
+   trust anchors "https://eree.example.org" and "https://swamid.se" of
+   these only the "EREE" one is interesting.  The RP therefore chooses
+   to only follow that trust path.  The next step being to fetch an
+   entity statement about "https://op.umu.se" signed by the EREE
+   federation.  This is done by doing a fetch entity statement:
+
+   GET
+   /.well-known/openid-federation?
+   iss=https%3A%2F%2Feree.example.org&
+   sub=https%3A%2F%2Fop.umu.se HTTP/1.1
+   Host: eree.example.org
+
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+
+   eyJhbGciOiJFUzI1NiIsImtpZCI6IlFuRlJWMEZ6YjE5NVdW...
+
+   The decoded version of the returned entity statement is:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 48]
+
+                        OpenID Connect Federation              June 2019
+
+
+   {
+     "exp": 1543852816,
+     "iat": 1543248016,
+     "iss": "https://eree.example.org/",
+     "jwks": {
+       "keys": [
+         {
+           "crv": "P-256",
+           "kid":
+           "QU9LTnJsN2xUTXBFR3N4OVZOeTlyejFrWWthYWlaTllYMDRXSk",
+           "kty": "EC",
+           "use": "sig",
+           "x": "DU6e1SjvW3Gqcd7up-n8s1N6Zlm2cNlZjYqL3O36v1A",
+           "y": "pEtk0_fSKN56V-2hDnzFUbaw8-v0QBjNoT2KaZ7pqIc"
+         }
+       ]
+     },
+     "metadata_policy": {
+       "openid_provider": {}
+     },
+     "sub": "https://op.umu.se",
+     "authority_hints": {
+       "https://eree.example.org": [
+         "https://eree.example.org"
+       ]
+     }
+   }
+
+   A thing worth noting about the response:
+
+   o  The federation does not have any restrictions on what the OP can
+      be configured to do.  This means that there are no metadata
+      policies to apply to the metadata statement of the OP.
+
+   The final step is to get the federation's view of itself:
+
+   GET
+   /.well-known/openid-federation?
+   iss=https%3A%2F%2Feree.example.org&
+   sub=https%3A%2F%2Feree.example.org HTTP/1.1
+   Host: eree.example.org
+
+   With the response:
+
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+
+   eyJhbGciOiJFUzI1NiIsImtpZCI6IlFuRlJWMEZ6YjE5NVdW...
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 49]
+
+                        OpenID Connect Federation              June 2019
+
+
+   The decoded version of the returned entity statement is:
+
+   {
+     "exp": 1543852820,
+     "iat": 1543248020,
+     "iss": "https://eree.example.org/",
+     "sub": "https://eree.example.org/",
+     "jwks": {
+       "keys": [
+         {
+           "crv": "P-256",
+           "kid": "QnRSZUlvUWJ6UHdoU0V0VmFoOWs0d...",
+           "kty": "EC",
+           "x": "Dy8Va4JFw419muNj1gEYb3cF9xNonrY1PfpEEyqKH6A",
+           "y": "lbLVj3opCTspgrySmBVvSPwgxRTCAJUfqZMcN3b0Wvk"
+           "use": "sig",
+         }
+       ]
+     },
+     "metadata": {
+       "federation_entity": {
+           "name": "Extremely rare and expensive equipment",
+           "homepage_uri": "https://www.eree.org/index.html"
+       },
+     }
+   }
+
+   A thing worth noting about the response:
+
+   o  There is no "authority_hints" entry, which means this entity
+      statement describes a trust anchor.
+
+B.3.3.  Validating the Trust Chain
+
+   These three entity statements are sufficient to establish a path from
+   the locally configured trust anchor that trusts the EREE federation,
+   to the self-issued statement from the OP at the University of Umeae.
+   Here are the steps performed to validate the trust chain, as
+   described in Section 6.2.  We start with the signed entity statement
+   issued by EREE about itself.
+
+   1.  Verify that the "sub" in the entity statement is the EREE's
+       entity ID.
+
+   2.  Extract the "jwks" from the entity statement and add possible
+       extra keys in it to the trusted public keys for the EREE
+       federation.
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 50]
+
+                        OpenID Connect Federation              June 2019
+
+
+   3.  Move on to the entity statement issued by EREE about the OP.
+       Verify that the "sub" in the entity statement is the OP's entity
+       ID.
+
+   4.  Use the trusted public keys for the EREE federation to validate
+       the signature of the signed entity statement.
+
+   5.  Extract the "jwks" from the entity statement.
+
+   Now we can work on the self-signed entity statement published by the
+   OP at UmU.
+
+   1.  Verify that the "sub" and the "iss" in the entity statement is
+       the OP's entity ID.
+
+   2.  Using the keys extracted above, verify the signature of the
+       signed entity statement.
+
+B.3.4.  Extracting the OP's Metadata
+
+   The output from the trust chain validation is an ordered list of
+   entity statements.  In order to extract the needed metadata, we need
+   to look at the metadata type relevant in the given context.  In this
+   case, we are establishing trust with an OP, and we use the
+   "openid_provider" metadata and "metadata_policy" objects of the trust
+   chain.
+
+   Metadata polices:
+
+     {}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 51]
+
+                        OpenID Connect Federation              June 2019
+
+
+   Metadata statement:
+
+     {
+       "authorization_endpoint":
+       "https://op.umu.se/authorization",
+       "federation_registration_endpoint":
+         "https://op.umu.se/fedreg",
+       "grant_types_supported": [
+         "authorization_code",
+         "implicit",
+         "urn:ietf:params:oauth:grant-type:jwt-bearer"
+       ],
+       "id_token_signing_alg_values_supported": [
+         "RS256"
+       ],
+       "logo_uri":
+         "https://www.umu.se/img/umu-logo-left-neg-SE.svg",
+       "policy_uri":
+         "https://www.umu.se/en/website/legal-information/",
+       "response_types_supported": [
+         "code",
+         "code id_token",
+         "token"
+       ],
+       "subject_types_supported": [
+         "pairwise",
+         "public"
+       ],
+       "token_endpoint": "https://op.umu.se/token",
+       "userinfo_endpoint": "https://op.umu.se/user"
+     }
+
+   Since there is no metadata policy defined earlier in the trust chain,
+   the response will just be the metadata statement as it is.
+
+B.3.5.  EREE RP Does Federated Client Registration
+
+   Now when the RP has trusted information about the OP it can do a
+   dynamic client registration.  To that end it collects information
+   about itself that it wants to register.  This should be no different
+   from what a normal OpenID Connect RP using dynamic client
+   registration does.  To this it adds "federation_type"="explicit", the
+   RP federation signing keys, the "sub" and "authority_hints".  Ones it
+   has all that information it creates an entity statement.  The result
+   of all this work may look something like this:
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 52]
+
+                        OpenID Connect Federation              June 2019
+
+
+   {
+     "authority_hints": {
+       "https://eree.example.org": [
+         "https://eree.example.org"
+       ]
+     },
+     "jwks": {
+       "keys": [
+         {
+           "crv": "P-256",
+           "kid":
+             "bmRkVmk0QUY3UUdnM3NDekI4VGptRUIxVk5lRXIyVE9rRUZpMUpNb...",
+           "kty": "EC",
+           "use": "sig",
+           "x": "ypFDCBLLT7lRP8UPo12ycnIkyFjeL1yco_Iu7VZoeDk",
+           "y": "1sO4UIY1Iil0_PYobPKhuhs5ocQqVWYCujXcfo47epg"
+         }
+       ]
+     },
+     "metadata": {
+       "openid_relying_party": {
+         "federation_type": "explicit",
+         "application_type": "web",
+         "request_object_signing_alg": "ES256",
+         "response_types": [
+           "code"
+         ],
+         "scope": [
+           "openid",
+           "email"
+         ],
+         "token_endpoint_auth_method": "private_key_jwt",
+         "token_endpoint_auth_signing_alg": "ES256",
+         "userinfo_signed_response_alg": "ES256"
+       }
+     },
+     "iss": "https://rp.eree.example.org",
+     "sub": "https://rp.eree.example.org"
+   }
+
+   Next, it self-signs this statement and sends it as a client
+   registration request to the "federation_registration_endpoint" of the
+   OP.
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 53]
+
+                        OpenID Connect Federation              June 2019
+
+
+B.4.  The OP Processes a Client Registration Request
+
+B.4.1.  The OP Gathers the RP's Trust Chains
+
+   To collect the trust chains, the OP uses the "authority_hints" in the
+   self-signed entity statement it received from the RP (the client
+   registration request).
+
+   In this case, there is only one, which points to
+   "https://eree.example.org".  Therefore, the OP fetches the entity
+   statement that the EREE federation publishes on the EREE RP.
+
+   GET
+   /.well-known/openid-federation?
+   iss=https%3A%2F%2Feree.example.org&
+   sub=https%3A%2F%2Frp.eree.example.org HTTP/1.1
+   Host: eree.example.org
+
+   With the response:
+
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+
+   eyJhbGciOiJFUzI1NiIsImtpZCI6IlFuRlJWMEZ6YjE5NVd...
+
+   Unpacked this becomes:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 54]
+
+                        OpenID Connect Federation              June 2019
+
+
+   {
+     "exp": 1543865440,
+     "iat": 1543260640,
+     "iss": "https://eree.example.org",
+     "jwks": {
+       "keys": [
+         {
+           "crv": "P-256",
+           "kid":
+             "bmRkVmk0QUY3UUdnM3NDekI4VGptRUIxVk5lRXIyVE9rRUZpM...",
+           "kty": "EC",
+           "use": "sig",
+           "x": "ypFDCBLLT7lRP8UPo12ycnIkyFjeL1yco_Iu7VZoeDk",
+           "y": "1sO4UIY1Iil0_PYobPKhuhs5ocQqVWYCujXcfo47epg"
+         }
+       ]
+     },
+     "metadata_policy": {
+       "openid_relying_party": {
+         "federation_type": "explicit",
+         "application_type": {"value": "web"},
+         "request_object_signing_alg": {"value":"ES256"},
+         "response_types": {"subset_of":["code"]},
+         "scope": {"subset_of":["openid","email"]},
+         "token_endpoint_auth_method":
+           {"value": "private_key_jwt"},
+         "token_endpoint_auth_signing_alg":
+           {"value":"ES256"},
+         "userinfo_signed_response_alg":
+           {"value": "ES256"}
+       }
+     },
+     "sub": "https://rp.eree.example.org"
+   }
+
+B.4.2.  Validating the Trust Chain
+
+   The process here is the one described in Section 6.2.
+
+B.4.3.  Extracting RP Metadata
+
+   The OP applies the metadata policies on the leaf entity's metadata,
+   all from the trust chain and comes up with:
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 55]
+
+                        OpenID Connect Federation              June 2019
+
+
+   {
+     "application_type": "web",
+     "application_name": "EREE",
+     "contacts": ["ops@eree.example.org"],
+     "jwks_uri": "https://rp.eree.example.org/static/jwks.json",
+     "redirect_uris": [
+       "https://rp.eree.example.org/authz_cb"
+     ],
+     "request_object_signing_alg": "ES256",
+     "response_types": [
+       "code"
+     ],
+     "scope": [
+       "openid",
+       "email"
+     ],
+     "token_endpoint_auth_method": "private_key_jwt",
+     "token_endpoint_auth_signing_alg": "ES256",
+     "userinfo_signed_response_alg": "ES256"
+   }
+
+B.4.4.  Constructing the Registration Response
+
+   Happy with the information in the client registration request the OP
+   constructs its metadata policy and creates an entity statement by
+   adding "sub" and "authority_hints":
+
+   {
+     "authority_hints": {
+       "https://eree.example.org": [
+         "https://eree.example.org"
+       ]
+     },
+     "exp": 1543931097,
+     "iat": 1543326297,
+     "iss": "https://op.umu.se",
+     "metadata_policy": {
+       "openid_relying_party": {
+         "client_id": {"value": "FjeL1yco_Iu7VZoeDk"}
+       }
+     },
+     "sub": "https://rp.eree.example.org"
+   }
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 56]
+
+                        OpenID Connect Federation              June 2019
+
+
+B.5.  The RP Processes the Registration Response
+
+   The RP MUST collect the trust chain ending in the EREE trust anchor
+   using the process described in Section 6, but refrain from processing
+   the metadata.  This since the entity statement issued by the EREE
+   federation about the UmU OP are only valid for that entity and not
+   for the EREE RP.  The trust chain should only be used to verify that
+   the entity statement actually comes from the expected OP.
+
+   If the RP is OK with what the OP decided on regarding the RP's
+   metadata, then it will store this to be used in the following OpenID
+   Connect protocol exchange with the OP.
+
+   In this example, the RP decided on one specific trust anchor before
+   sending the registration request.  If that was not the case but the
+   RP had chosen to send a registration request with more than one
+   authority hint, then this by time the RP could not apply any metadata
+   polices to the metadata statement, since it would not know which to
+   use.
+
+Appendix C.  Notices
+
+   Copyright (c) 2019 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 57]
+
+                        OpenID Connect Federation              June 2019
+
+
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+Appendix D.  Acknowledgements
+
+   The authors wish to acknowledge the contributions of the following
+   individuals and organizations to this specification: Heather
+   Flanagan, Misha Salle, Peter Schober, Michael Schwartz, and the
+   JRA3T3 task force of GEANT4-2.
+
+Appendix E.  Open Issues
+
+   The following open issues remain to be addressed in this
+   specification.
+
+   o  The representation for RPs that are native applications needs to
+      be defined.
+
+   o  How are federation operator keys retrieved?
+
+   o  A mechanism is needed for key rotation of federation operator keys
+      for long-term security and maintainability of federations.
+
+   o  A mechanism may be needed for bounding key lifetimes.
+
+   o  Discuss that key IDs may be chosen as the JWK Thumbprint [RFC
+      7638] of the key.
+
+   o  Discuss localization of human-readable strings.
+
+   o  SAML2 as used in Research and Education federations uses
+      post-/prefix matching on metadata in some cases.  We might need
+      something similar or just use regular expressions.
+
+   o  Define the relationship between trust roots and Federation
+      Operators, as people will expect to find the Federation Operator
+      term in the specification.
+
+   o  Add a diagram showing the relationships between FOs, orgs, sub-
+      orgs, and leaf entities.
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 58]
+
+                        OpenID Connect Federation              June 2019
+
+
+Appendix F.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -08
+
+   o  Incorporated review feedback from Michael B.  Jones.  Major
+      changes were as follows.
+
+   o  Deleted "sub_is_leaf" entity statement since it was redundant.
+
+   o  Added "federation_type" RP registration metadata value and
+      "federation_types_supported" OP metadata value.
+
+   o  Deleted "openid_discovery" metadata type identifier since its
+      purpose is already served by "openid_provider".
+
+   o  Entity identifier paths are now included when using the Federation
+      API, enabling use in multi-tenant deployments sharing a common
+      domain name.
+
+   o  Renamed "sub_is_leaf" to "is_leaf" in the Entity Listings Request
+      operation parameters.
+
+   o  Added "crit" and "policy_language_crit", enabling control over
+      which entity statement and policy language extensions MUST be
+      understood and processed.
+
+   o  Renamed "openid_client" to "openid_relying_party".
+
+   o  Renamed "oauth_service" to "oauth_authorization_server".
+
+   o  Renamed "implicit" registration to "automatic" registration to
+      avoid naming confusion with the implicit grant type.
+
+   o  Renamed "op" to "operation" to avoid naming confusion with the use
+      of "OP" as an acronym for "OpenID Provider".
+
+   o  Renamed "url" to "uri" in several identifiers.
+
+   o  Restored Open Issues appendix.
+
+   o  Corrected document formatting issues.
+
+   -07
+
+   o  Split metadata into metadata and metadata_policy
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 59]
+
+                        OpenID Connect Federation              June 2019
+
+
+   o  Updated example
+
+   -06
+
+   o  Some rewrites
+
+   o  Added example of explicit client registration
+
+   -05
+
+   o  A major rewrite.
+
+   -04
+
+   o  Changed client metadata names "scopes" to "rp_scopes" and "claims"
+      to "rp_claims".
+
+   o  Added Open Issues appendix.
+
+   o  Added additional references.
+
+   o  Editorial improvements.
+
+   o  Added standard Notices section, which is present in all OpenID
+      specifications.
+
+Authors' Addresses
+
+   Roland Hedberg (editor)
+   independent
+
+   Email: roland@catalogix.se
+
+
+   Michael B. Jones
+   Microsoft
+
+   Email: mbj@microsoft.com
+   URI:   http://self-issued.info/
+
+
+   Andreas Aekre Solberg
+   Uninett AS
+
+   Email: andreas.solberg@uninett.no
+   URI:   https://www.linkedin.com/in/andreassolberg/
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 60]
+
+                        OpenID Connect Federation              June 2019
+
+
+   Samuel Gulliksson
+   Schibsted Media Group
+
+   Email: samuel.gulliksson@gmail.com
+
+
+   John Bradley
+   Yubico
+
+   Email: ve7jtb@ve7jtb.com
+   URI:   http://www.thread-safe.com/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hedberg, et al.         Expires December 27, 2019              [Page 61]

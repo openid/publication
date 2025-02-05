@@ -1,0 +1,846 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.nl" -->
+<!DOCTYPE rfc SYSTEM 'rfc2629.dtd' []>
+<rfc ipr="trust200902" category="std" xml:lang="en" >
+<?rfc toc="yes"?><?rfc symrefs="yes"?><?rfc sortrefs="yes"?><?rfc compact="yes"?><?rfc subcompact="no"?><?rfc comments="no"?><?rfc iprnotified="no" ?> <?rfc tocdepth="5" ?> <?rfc private="Final" ?>
+<front>
+<title abbrev="FAPI 1.0 Advanced">Financial-grade API Security Profile 1.0 - Part 2: Advanced</title><author initials="N." surname="Sakimura" fullname="Nat Sakimura"><organization abbrev="Nat Consulting">Nat Consulting</organization><address><postal><street></street>
+</postal><email>nat@nat.consulting</email>
+<uri>http://nat.sakimura.org/</uri>
+</address></author>
+<author initials="J." surname="Bradley" fullname="John Bradley"><organization abbrev="Yubico">Yubico</organization><address><postal><street></street>
+</postal><email>ve7jtb@ve7jtb.com</email>
+<uri>http://www.thread-safe.com/</uri>
+</address></author>
+<author initials="E." surname="Jay" fullname="Illumila"><organization abbrev="Illumila">Illumila</organization><address><postal><street></street>
+</postal><email>ejay@mgi1.com</email>
+<uri>http://illumi.la/</uri>
+</address></author>
+<date/>
+<area>Internet</area><workgroup>OpenID FAPI</workgroup><keyword>FAPI</keyword>
+<keyword>Advanced  Security</keyword>
+
+<note title="Foreword">
+<t>The OpenID Foundation (OIDF) promotes, protects and nurtures the OpenID community and technologies. As a non-profit international standardizing body, it is comprised by over 160 participating entities (workgroup participants). The work of preparing implementer drafts and final international standards is carried out through OIDF workgroups in accordance with the OpenID Process. Participants interested in a subject for which a workgroup has been established have the right to be represented in that workgroup. International organizations, governmental and non-governmental, in liaison with OIDF, also take part in the work. OIDF collaborates closely with other standardizing bodies in the related fields.</t>
+<t>Final drafts adopted by the Workgroup through consensus are circulated publicly for the public review for 60 days and for the OIDF members for voting. Publication as an OIDF Standard requires approval by at least 50 % of the members casting a vote. There is a possibility that some of the elements of this document may be the subject to patent rights. OIDF shall not be held responsible for identifying any or all such patent rights.</t>
+<t>Financial-grade API Security Profile 1.0 consists of the following parts:</t>
+<t>
+<list style="symbols">
+<t><eref target="https://openid.net/specs/openid-financial-api-part-1-1_0.html">Financial-grade API Security Profile 1.0 - Part 1: Baseline</eref></t>
+<t>Financial-grade API Security Profile 1.0 - Part 2: Advanced</t>
+</list>
+</t>
+<t>These parts are intended to be used with <eref target="https://tools.ietf.org/html/rfc6749">RFC6749</eref>, <eref target="https://tools.ietf.org/html/rfc6750">RFC6750</eref>, <eref target="https://tools.ietf.org/html/rfc7636">RFC7636</eref>, and <eref target="http://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref>.</t>
+</note>
+
+<note title="Introduction">
+<t>The Financial-grade API is a highly secured OAuth profile that aims to provide specific implementation guidelines for security and interoperability. The Financial-grade API security profile can be applied to APIs in any market area that requires a higher level of security than provided by standard <eref target="https://tools.ietf.org/html/rfc6749">OAuth</eref> or <eref target="http://openid.net/specs/openid-connect-core-1_0.html">OpenID Connect</eref>. Among other security enhancements, this specification provides a secure alternative to screen scraping. Screen scraping accesses user's data and functions by impresonating a user through password sharing. This brittle, inefficient, and insecure practice creates security vulnerabilities which require financial institutions to allow what appears to be an automated attack against their applications.</t>
+<t>This document is Part 2 of FAPI Security Profile 1.0 that specifies an advanced security profile of OAuth that is suitable to be used for protecting APIs with high inherent risk. Examples include APIs that give access to highly sensitive data or that can be used to trigger financial transactions (e.g., payment initiation). This document specifies the controls against attacks such as: authorization request tampering, authorization response tampering including code injection, state injection, and token request phishing. Additional details are available in the security considerations section.</t>
+<t>Although it is possible to code an OpenID Provider and Relying Party from first principles using this specification, the main audience for this specification is parties who already have a certified implementation of OpenID Connect and want to achieve a higher level of security. Implementers are encouraged to understand the security considerations contained in Section 8.7 before embarking on a 'from scratch' implementation.</t>
+</note>
+
+<note title="Notational Conventions">
+<t>The keywords &quot;shall&quot;, &quot;shall not&quot;,
+&quot;should&quot;, &quot;should not&quot;, &quot;may&quot;, and
+&quot;can&quot; in this document are to be interpreted as described in
+<eref target="https://www.iso.org/sites/directives/current/part2/index.xhtml">ISO Directive Part 2</eref>.
+These keywords are not used as dictionary terms such that
+any occurrence of them shall be interpreted as keywords
+and are not to be interpreted with their natural language meanings.</t>
+</note>
+
+</front>
+
+<middle>
+
+<section anchor="scope" title="Scope">
+<t>This part of the document specifies the method of</t>
+<t>
+<list style="symbols">
+<t>applications to obtain the OAuth tokens in an appropriately secure manner for higher risk access to data;</t>
+<t>applications to use OpenID Connect to identify the customer; and</t>
+<t>using tokens to interact with the REST endpoints that provides protected data;</t>
+</list>
+</t>
+<t>This document is applicable to higher risk use cases which includes commercial and investment banking and other similar industries.</t>
+</section>
+
+<section anchor="normative-references" title="Normative references">
+<t>The following referenced documents are indispensable for the application of this document. For dated references, only the edition cited applied. For undated references, the latest edition of the referenced document (including any amendments) applies.</t>
+<t><eref target="https://www.iso.org/sites/directives/current/part2/index.xhtml">ISODIR2</eref> - ISO/IEC Directives Part 2</t>
+<t><eref target="https://tools.ietf.org/html/rfc6749">RFC6749</eref> - The OAuth 2.0 Authorization Framework</t>
+<t><eref target="https://tools.ietf.org/html/rfc6750">RFC6750</eref> - The OAuth 2.0 Authorization Framework: Bearer Token Usage</t>
+<t><eref target="https://tools.ietf.org/html/rfc7636">RFC7636</eref> - Proof Key for Code Exchange by OAuth Public Clients</t>
+<t><eref target="https://tools.ietf.org/html/rfc6819">RFC6819</eref> - OAuth 2.0 Threat Model and Security Considerations</t>
+<t><eref target="https://tools.ietf.org/html/rfc7519">RFC7519</eref> - JSON Web Token (JWT)</t>
+<t><eref target="https://tools.ietf.org/html/rfc7591">RFC7591</eref> - OAuth 2.0 Dynamic Client Registration Protocol</t>
+<t><eref target="https://tools.ietf.org/html/rfc7592">RFC7592</eref> - OAuth 2.0 Dynamic Client Registration Management Protocol</t>
+<t><eref target="https://tools.ietf.org/html/bcp195">BCP195</eref> - Recommendations for Secure Use of Transport Layer Security (TLS) and Datagram Transport Layer Security (DTLS)</t>
+<t><eref target="http://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref> - OpenID Connect Core 1.0 incorporating errata set 1</t>
+<t><eref target="http://openid.net/specs/openid-connect-discovery-1_0.html">OIDD</eref> -  OpenID Connect Discovery 1.0 incorporating errata set 1</t>
+<t><eref target="https://tools.ietf.org/html/rfc8705">MTLS</eref> - OAuth 2.0 Mutual TLS Client Authentication and Certificate Bound Access Tokens</t>
+<t><eref target="https://bitbucket.org/openid/fapi/src/master/Financial_API_JWT_Secured_Authorization_Response_Mode.md">JARM</eref> - Financial-grade API: JWT Secured Authorization Response Mode for OAuth 2.0 (JARM)</t>
+<t><eref target="https://tools.ietf.org/html/draft-ietf-oauth-par">PAR</eref> - OAuth 2.0 Pushed Authorization Requests</t>
+<t><eref target="https://tools.ietf.org/html/draft-ietf-oauth-jwsreq">JAR</eref> - OAuth 2.0 JWT Secured Authorization Request</t>
+</section>
+
+<section anchor="terms-and-definitions" title="Terms and definitions">
+<t>For the purpose of this document, the terms defined in <eref target="https://tools.ietf.org/html/rfc6749">RFC6749</eref>, <eref target="https://tools.ietf.org/html/rfc6750">RFC6750</eref>, <eref target="https://tools.ietf.org/html/rfc7636">RFC7636</eref>, <eref target="http://openid.net/specs/openid-connect-core-1_0.html">OpenID Connect Core</eref> and <eref target="http://standards.iso.org/ittf/PubliclyAvailableStandards/c045123_ISO_IEC_29100_2011.zip">ISO29100</eref> apply.</t>
+</section>
+
+<section anchor="symbols-and-abbreviated-terms" title="Symbols and Abbreviated terms">
+<t><spanx style="strong">API</spanx> – Application Programming Interface</t>
+<t><spanx style="strong">CSRF</spanx> - Cross Site Request Forgery</t>
+<t><spanx style="strong">FAPI</spanx> - Financial-grade API</t>
+<t><spanx style="strong">HTTP</spanx> – Hyper Text Transfer Protocol</t>
+<t><spanx style="strong">OIDF</spanx> - OpenID Foundation</t>
+<t><spanx style="strong">REST</spanx> – Representational State Transfer</t>
+<t><spanx style="strong">TLS</spanx> – Transport Layer Security</t>
+</section>
+
+<section anchor="advanced-security-profile" title="Advanced security profile">
+
+<section anchor="introduction-1" title="Introduction">
+<t>The OIDF Financial-grade API (FAPI) security profile specifies security requirements
+for high risk API resources protected by the OAuth 2.0 Authorization Framework that
+consists of <eref target="https://tools.ietf.org/html/rfc6749">RFC6749</eref>, <eref target="https://tools.ietf.org/html/rfc6750">RFC6750</eref>, <eref target="https://tools.ietf.org/html/rfc7636">RFC7636</eref>, and other specifications.</t>
+<t>There are different levels of risks associated with access to these APIs.
+For example, read and write access to a bank API has a higher financial risk than read-only access. As
+such, the security profiles of the authorization framework protecting these
+APIs are also different.</t>
+<t>This profile describes security provisions for the server and client that are appropriate for Financial-grade APIs by defining the measures to mitigate:</t>
+<t>
+<list style="symbols">
+<t>attacks that leverage the weak binding of endpoints in <eref target="e.g. malicious endpoint attacks, IdP mix-up attacks">RFC6749</eref>, and</t>
+<t>attacks that modify authorization requests and responses unprotected in <eref target="https://tools.ietf.org/html/rfc6749">RFC6749</eref>.</t>
+</list>
+</t>
+<t>This profile does not support public clients.</t>
+<t>The following ways are specified to protect against modifications of authorization responses: Implementations can leverage OpenID Connect's Hybrid Flow that returns an ID Token in the authorization response or they can utilize the JWT Secured Authorization Response Mode for OAuth 2.0 (<eref target="https://bitbucket.org/openid/fapi/src/master/Financial_API_JWT_Secured_Authorization_Response_Mode.md">JARM</eref>) that returns and protects all authorization response parameters in a JWT.</t>
+
+<section anchor="id-token-as-detached-signature" title="ID Token as Detached Signature">
+<t>While the name ID Token (as used in the OpenID Connect Hybrid Flow) suggests that it is something that provides the identity of the resource owner (subject), it is not necessarily so. While it does identify the authorization server by including the issuer identifier,
+it is perfectly fine to have an ephemeral subject identifier. In this case, the ID Token acts as a detached signature of the issuer to the authorization response and it was an explicit design decision of OpenID Connect Core to make the ID Token act as a detached signature.</t>
+<t>This document leverages this fact and protects the authorization response by including the hash of all of the unprotected response parameters, e.g. <spanx style="verb">code</spanx> and <spanx style="verb">state</spanx>, in the ID Token.</t>
+<t>While the hash of the <spanx style="verb">code</spanx> is defined in <eref target="http://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref>, the hash of the <spanx style="verb">state</spanx> is not defined.
+Thus this document defines it as follows.</t>
+<t><spanx style="strong">s_hash</spanx></t>
+<t>
+<list style="empty">
+<t>State hash value. Its value is the base64url encoding of the left-most half of the hash of the octets of the ASCII representation
+of the <spanx style="verb">state</spanx> value, where the hash algorithm used is the hash algorithm used
+in the <spanx style="verb">alg</spanx> header parameter of the ID Token's JOSE header. For instance,
+if the <spanx style="verb">alg</spanx> is <spanx style="verb">HS512</spanx>, hash the state value with SHA-512, then take the left-most 256 bits and base64url encode them.
+The <spanx style="verb">s_hash</spanx> value is a case sensitive string.</t>
+</list></t>
+</section>
+
+<section anchor="jwt-secured-authorization-response-mode-for-oauth-2-0-jarm" title="JWT Secured Authorization Response Mode for OAuth 2.0 (JARM)">
+<t>An authorization server may protect authorization responses to clients using the &quot;JWT Secured Authorization Response Mode&quot; <eref target="https://bitbucket.org/openid/fapi/src/master/Financial_API_JWT_Secured_Authorization_Response_Mode.md">JARM</eref>.</t>
+<t><eref target="https://bitbucket.org/openid/fapi/src/master/Financial_API_JWT_Secured_Authorization_Response_Mode.md">JARM</eref> allows a client to request that an authorization server encodes the authorization response (of any response type) in a JWT. It is an alternative to utilizing ID Tokens as detached signatures for providing financial-grade security on authorization responses and can be used with plain OAuth.</t>
+<t>This specification facilitates use of <eref target="https://bitbucket.org/openid/fapi/src/master/Financial_API_JWT_Secured_Authorization_Response_Mode.md">JARM</eref> in conjunction with the response type <spanx style="verb">code</spanx>.</t>
+<t><spanx style="strong">NOTE:</spanx> <eref target="https://bitbucket.org/openid/fapi/src/master/Financial_API_JWT_Secured_Authorization_Response_Mode.md">JARM</eref> can be used to protect OpenID Connect authentication responses. In this case, the OpenID RP would use response type <spanx style="verb">code</spanx>, response mode <spanx style="verb">jwt</spanx> and scope <spanx style="verb">openid</spanx>. This means <eref target="https://bitbucket.org/openid/fapi/src/master/Financial_API_JWT_Secured_Authorization_Response_Mode.md">JARM</eref> protects the authentication response (instead of the ID Token) and the ID Token containing End-User Claims is obtained from the token endpoint. This facilitates privacy since no End-User Claims are sent through the front channel. It also provides decoupling of
+message protection and identity providing since a client (or RP) can basically use <eref target="https://bitbucket.org/openid/fapi/src/master/Financial_API_JWT_Secured_Authorization_Response_Mode.md">JARM</eref> to protect all
+authorization responses and turn on OpenID if needed (e.g. to log the user in).</t>
+</section>
+</section>
+
+<section anchor="advanced-security-provisions" title="Advanced security provisions">
+
+<section anchor="introduction-2" title="Introduction">
+<t>API resources may contain sensitive data and/or have increased security requirements.
+In order to fulfill different security needs, FAPI Security Profile 1.0 defines an advanced profile that
+is beyond the baseline security requirements defined in the <eref target="https://openid.net/specs/openid-financial-api-part-1-1_0.html">Part 1: Baseline</eref> document.</t>
+<t>As a profile of the OAuth 2.0 Authorization Framework, this document mandates the following for the advanced profile of the FAPI Security Profile 1.0.</t>
+</section>
+
+<section anchor="authorization-server" title="Authorization server">
+<t>The authorization server shall support the provisions specified in clause 5.2.2 of
+<eref target="https://openid.net/specs/openid-financial-api-part-1-1_0.html">Financial-grade API Security Profile 1.0 - Part 1: Baseline</eref>, with the exception
+that Section 5.2.2-7 (enforcement of <eref target="https://tools.ietf.org/html/rfc7636">RFC7636</eref>) is not required.</t>
+<t>In addition, the authorization server</t>
+<t>
+<list style="numbers">
+<t>shall require a JWS signed JWT request object passed by value with the <spanx style="verb">request</spanx> parameter or by reference with the <spanx style="verb">request_uri</spanx> parameter;</t>
+<t>shall require
+<list style="numbers">
+<t>the <spanx style="verb">response_type</spanx> value <spanx style="verb">code id_token</spanx>, or</t>
+<t>the <spanx style="verb">response_type</spanx> value <spanx style="verb">code</spanx> in conjunction with the <spanx style="verb">response_mode</spanx> value <spanx style="verb">jwt</spanx>;</t>
+</list></t>
+<t>(moved to 5.2.2.1);</t>
+<t>(moved to 5.2.2.1);</t>
+<t>shall only issue sender-constrained access tokens;</t>
+<t>shall support <eref target="https://tools.ietf.org/html/rfc8705">MTLS</eref> as mechanism for constraining the legitimate senders of access tokens;</t>
+<t>(withdrawn);</t>
+<t>(moved to 5.2.2.1);</t>
+<t>(moved to 5.2.2.1);</t>
+<t>shall only use the parameters included in the signed request object passed via the <spanx style="verb">request</spanx> or <spanx style="verb">request_uri</spanx> parameter;</t>
+<t>may support the pushed authorization request endpoint as described in <eref target="https://tools.ietf.org/html/draft-ietf-oauth-par">PAR</eref>;</t>
+<t>(withdrawn);</t>
+<t>shall require the request object to contain an <spanx style="verb">exp</spanx> claim that has a lifetime of no longer than 60 minutes after the <spanx style="verb">nbf</spanx> claim;</t>
+<t>shall authenticate the confidential client using one of the following methods (this overrides <eref target="https://openid.net/specs/openid-financial-api-part-1-1_0.html">FAPI Security Profile 1.0 - Part 1: Baseline</eref> clause 5.2.2-4):
+<list style="numbers">
+<t><spanx style="verb">tls_client_auth</spanx> or <spanx style="verb">self_signed_tls_client_auth</spanx> as specified in section 2 of <eref target="https://tools.ietf.org/html/rfc8705">MTLS</eref>, or</t>
+<t><spanx style="verb">private_key_jwt</spanx> as specified in section 9 of <eref target="http://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref>;</t>
+</list></t>
+<t>shall require the aud claim in the request object to be, or to be an array containing, the OP's Issuer Identifier URL;</t>
+<t>shall not support public clients;</t>
+<t>shall require the request object to contain an <spanx style="verb">nbf</spanx> claim that is no longer than 60 minutes in the past; and</t>
+<t>shall require <eref target="https://tools.ietf.org/html/draft-ietf-oauth-par">PAR</eref> requests, if supported, to use PKCE (<eref target="https://tools.ietf.org/html/rfc7636">RFC7636</eref>) with <spanx style="verb">S256</spanx> as the code challenge method.</t>
+</list>
+</t>
+<t><spanx style="strong">NOTE:</spanx> MTLS is currently the only mechanism for sender-constrained access tokens that has been widely deployed. Future versions of this specification are likely to allow other mechanisms for sender-constrained access tokens.</t>
+<t><spanx style="strong">NOTE:</spanx> <eref target="https://tools.ietf.org/html/draft-ietf-oauth-par">PAR</eref> does not present any additional security concerns that necessitated the requirement to use PKCE - the reason PKCE is not required in other cases is merely to be backwards compatible with earlier drafts of this standard.</t>
+
+<section anchor="id-token-as-detached-signature-1" title="ID Token as detached signature">
+<t>In addition, if the <spanx style="verb">response_type</spanx> value <spanx style="verb">code id_token</spanx> is used, the authorization server</t>
+<t>
+<list style="numbers">
+<t>shall support <eref target="http://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref>;</t>
+<t>shall support signed ID Tokens;</t>
+<t>should support signed and encrypted ID Tokens;</t>
+<t>shall return ID Token as a detached signature to the authorization response;</t>
+<t>shall include state hash, <spanx style="verb">s_hash</spanx>, in the ID Token to protect the <spanx style="verb">state</spanx> value if the client supplied a value for <spanx style="verb">state</spanx>. <spanx style="verb">s_hash</spanx> may be omitted from the ID Token returned from the Token Endpoint when <spanx style="verb">s_hash</spanx> is present in the ID Token returned from the Authorization Endpoint; and</t>
+<t>should not return sensitive PII in the ID Token in the authorization response, but if it needs to, then it should encrypt the ID Token.</t>
+</list>
+</t>
+<t><spanx style="strong">NOTE:</spanx> The authorization server may return more claims in the ID Token from the token endpoint than in the one from the authorization response</t>
+</section>
+
+<section anchor="jarm" title="JARM">
+<t>In addition, if the <spanx style="verb">response_type</spanx> value <spanx style="verb">code</spanx> is used in conjunction with the <spanx style="verb">response_mode</spanx> value <spanx style="verb">jwt</spanx>, the authorization server</t>
+<t>
+<list style="numbers">
+<t>shall create JWT-secured authorization responses as specified in <eref target="https://bitbucket.org/openid/fapi/src/master/Financial_API_JWT_Secured_Authorization_Response_Mode.md">JARM</eref>, Section 4.3.</t>
+</list>
+</t>
+</section>
+</section>
+
+<section anchor="confidential-client" title="Confidential client">
+<t>A confidential client shall support the provisions specified in clause 5.2.3 and 5.2.4 of <eref target="https://openid.net/specs/openid-financial-api-part-1-1_0.html">Financial-grade API Security Profile 1.0 - Part 1: Baseline</eref>, except for <eref target="https://tools.ietf.org/html/rfc7636">RFC7636</eref> support.</t>
+<t>In addition, the confidential client</t>
+<t>
+<list style="numbers">
+<t>shall support <eref target="https://tools.ietf.org/html/rfc8705">MTLS</eref> as mechanism for sender-constrained access tokens;</t>
+<t>shall include the <spanx style="verb">request</spanx> or <spanx style="verb">request_uri</spanx> parameter as defined in Section 6 of <eref target="http://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref> in the authentication request;</t>
+<t>shall ensure the Authorization Server has authenticated the user to an appropriate Level of Assurance for the client's intended purpose;</t>
+<t>(moved to 5.2.3.1);</t>
+<t>(withdrawn);</t>
+<t>(withdrawn);</t>
+<t>(moved 5.2.3.1);</t>
+<t>shall send all parameters inside the authorization request's signed request object;</t>
+<t>shall additionally send duplicates of the <spanx style="verb">response_type</spanx>, <spanx style="verb">client_id</spanx>, and <spanx style="verb">scope</spanx> parameters/values using the OAuth 2.0 request syntax as required by Section 6.1 of the OpenID Connect specification if not using <eref target="https://tools.ietf.org/html/draft-ietf-oauth-par">PAR</eref>;</t>
+<t>shall send the <spanx style="verb">aud</spanx> claim in the request object as the OP's Issuer Identifier URL;</t>
+<t>shall send an <spanx style="verb">exp</spanx> claim in the request object that has a lifetime of no longer than 60 minutes;</t>
+<t>(moved to 5.2.3.1);</t>
+<t>(moved to 5.2.3.1);</t>
+<t>shall send a <spanx style="verb">nbf</spanx> claim in the request object;</t>
+<t>shall use <eref target="https://tools.ietf.org/html/rfc7636">RFC7636</eref> with <spanx style="verb">S256</spanx> as the code challenge method if using <eref target="https://tools.ietf.org/html/draft-ietf-oauth-par">PAR</eref>; and</t>
+<t>shall additionally send a duplicate of the <spanx style="verb">client_id</spanx> parameter/value using the OAuth 2.0 request syntax to the authorization endpoint, as required by Section 5 of <eref target="https://tools.ietf.org/html/draft-ietf-oauth-jwsreq">JAR</eref>, if using <eref target="https://tools.ietf.org/html/draft-ietf-oauth-par">PAR</eref>.</t>
+</list>
+</t>
+
+<section anchor="id-token-as-detached-signature-2" title="ID Token as detached signature">
+<t>In addition, if the <spanx style="verb">response_type</spanx> value <spanx style="verb">code id_token</spanx> is used, the client</t>
+<t>
+<list style="numbers">
+<t>shall include the value <spanx style="verb">openid</spanx> into the <spanx style="verb">scope</spanx> parameter in order to activate <eref target="http://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref> support;</t>
+<t>shall require JWS signed ID Token be returned from endpoints;</t>
+<t>shall verify that the authorization response was not tampered using ID Token as the detached signature;</t>
+<t>shall verify that <spanx style="verb">s_hash</spanx> value is equal to the value calculated from the <spanx style="verb">state</spanx> value in the authorization response in addition to all the requirements in 3.3.2.12 of <eref target="http://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref>; and
+<spanx style="strong">NOTE:</spanx> This enables the client to verify that the authorization response was not tampered with, using the ID Token as a detached signature.</t>
+<t>shall support both signed and signed &amp; encrypted ID Tokens.</t>
+</list>
+</t>
+</section>
+
+<section anchor="jarm-1" title="JARM">
+<t>In addition, if the <spanx style="verb">response_type</spanx> value <spanx style="verb">code</spanx> is used in conjunction with the <spanx style="verb">response_mode</spanx> value <spanx style="verb">jwt</spanx>, the client</t>
+<t>
+<list style="numbers">
+<t>shall verify the authorization responses as specified in <eref target="https://bitbucket.org/openid/fapi/src/master/Financial_API_JWT_Secured_Authorization_Response_Mode.md">JARM</eref>, Section 4.4.</t>
+</list>
+</t>
+</section>
+</section>
+
+<section anchor="withdrawn" title="(withdrawn)">
+</section>
+
+<section anchor="withdrawn-1" title="(withdrawn)">
+</section>
+</section>
+</section>
+
+<section anchor="accessing-protected-resources-using-tokens" title="Accessing protected resources (using tokens)">
+
+<section anchor="introduction-3" title="Introduction">
+<t>The FAPI endpoints are OAuth 2.0 protected resource endpoints that return protected information for the resource owner associated with the submitted access token.</t>
+</section>
+
+<section anchor="advanced-access-provisions" title="Advanced access provisions">
+
+<section anchor="protected-resources-provisions" title="Protected resources provisions">
+<t>The protected resources supporting this document</t>
+<t>
+<list style="numbers">
+<t>shall support the provisions specified in clause 6.2.1 <eref target="https://openid.net/specs/openid-financial-api-part-1-1_0.html">Financial-grade API Security Profile 1.0 - Part 1: Baseline</eref>; and</t>
+<t>shall adhere to the requirements in <eref target="https://tools.ietf.org/html/rfc8705">MTLS</eref>.</t>
+</list>
+</t>
+</section>
+
+<section anchor="client-provisions" title="Client provisions">
+<t>The client supporting this document shall support the provisions specified in clause 6.2.2 of <eref target="https://openid.net/specs/openid-financial-api-part-1-1_0.html">Financial-grade API Security Profile 1.0 - Part 1: Baseline</eref>.</t>
+</section>
+</section>
+</section>
+
+<section anchor="withdrawn-2" title="(Withdrawn)">
+</section>
+
+<section anchor="security-considerations" title="Security considerations">
+
+<section anchor="introduction-4" title="Introduction">
+<t>As a profile of the OAuth 2.0 Authorization Framework, this specification references the security considerations defined in Section 10 of <eref target="https://tools.ietf.org/html/rfc6749">RFC6749</eref>, as well as <eref target="https://tools.ietf.org/html/rfc6819">RFC6819</eref> - OAuth 2.0 Threat Model and Security Considerations, which details various threats and mitigations. The security of OAuth 2.0 has been proven formally - under certain assumptions - in <eref target="https://arxiv.org/abs/1601.01229">OAUTHSEC</eref>. A detailed security analysis of FAPI Security Profile 1.0 can be found in <eref target="https://arxiv.org/abs/1901.11520">FAPISEC</eref>.</t>
+</section>
+
+<section anchor="uncertainty-of-resource-server-handling-of-access-tokens" title="Uncertainty of resource server handling of access tokens">
+<t>There is no way that the client can find out whether the resource access was granted for a bearer or sender-constrained access token.
+The two differ in the risk profile and the client may want to differentiate them.
+The protected resources that conform to this document differentiate them.
+The protected resources that conform to this document shall not accept a bearer access token.
+They shall only support sender-constrained access tokens via <eref target="https://tools.ietf.org/html/rfc8705">MTLS</eref>.</t>
+</section>
+
+<section anchor="attacks-using-weak-binding-of-authorization-server-endpoints" title="Attacks using weak binding of authorization server endpoints">
+
+<section anchor="introduction-5" title="Introduction">
+<t>In <eref target="https://tools.ietf.org/html/rfc6749">RFC6749</eref> and <eref target="https://tools.ietf.org/html/rfc6750">RFC6750</eref>, the endpoints that the authorization server offers are not tightly bound together.
+There is no notion of authorization server identifier (issuer identifier) and it is not indicated in
+the authorization response unless the client uses different redirection URI per authorization server.
+While it is assumed in the OAuth model, it is not explicitly spelled out and thus many clients
+use the same redirection URI for different authorization servers exposing an attack surface.
+Several attacks have been identified and the threats are explained in detail in <eref target="https://tools.ietf.org/html/rfc6819">RFC6819</eref>.</t>
+</section>
+
+<section anchor="client-credential-and-authorization-code-phishing-at-token-endpoint" title="Client credential and authorization code phishing at token endpoint">
+<t>In this attack, the client developer is socially engineered into believing that the token endpoint has changed
+to the URL that is controlled by the attacker. As a result, the client sends the <spanx style="verb">code</spanx> and the client secret to
+the attacker, which will be replayed subsequently.</t>
+<t>When the FAPI Security Profile 1.0 client uses <eref target="https://tools.ietf.org/html/rfc8705">MTLS</eref>, the client's secret (the private key corresponding to its TLS certificate) is
+not exposed to the attacker, which therefore cannot authenticate towards the token endpoint of the authorization server.</t>
+</section>
+
+<section anchor="identity-provider-idp-mix-up-attack" title="Identity provider (IdP) mix-up attack">
+<t>In this attack, the client has registered multiple IdPs and one of them is a rogue IdP that returns the same <spanx style="verb">client_id</spanx>
+that belongs to one of the honest IdPs. When a user clicks on a malicious link or visits a compromised site,
+an authorization request is sent to the rogue IdP.
+The rogue IdP then redirects the client to the honest IdP that has the same <spanx style="verb">client_id</spanx>.
+If the user is already logged on at the honest IdP,
+then the authentication may be skipped and a code is generated and returned to the client.
+Since the client was interacting with the rogue IdP, the code is sent to the rogue IdP's token endpoint.
+At the point, the attacker has a valid code that can be exchanged for an access token at the honest IdP. See <eref target="https://arxiv.org/abs/1601.01229">OAUTHSEC</eref> for a detailed description of the attack.</t>
+<t>This attack is mitigated by the use of OpenID Connect Hybrid Flow in which the honest IdP's issuer identifier is included as the value of <spanx style="verb">iss</spanx> or <eref target="https://bitbucket.org/openid/fapi/src/master/Financial_API_JWT_Secured_Authorization_Response_Mode.md">JARM</eref>
+where the <spanx style="verb">iss</spanx> included in the response JWT. On receiving the authorization response, the client compares the <spanx style="verb">iss</spanx> value from the response with the
+issuer URL of the IdP it sent the authorization request to (the rogue IdP). The client detects the conflicting issuer values and aborts the transaction.</t>
+</section>
+
+<section anchor="removed" title="(removed)">
+</section>
+
+<section anchor="access-token-phishing" title="Access token phishing">
+<t>Various mechanisms in this specification aim at preventing access token phishing, e.g., the requirement of exactly matching redirect URIs and the restriction on response types that do not return access tokens in the front channel. As a second layer of defense, FAPI Security Profile 1.0 Advanced clients use <eref target="https://tools.ietf.org/html/rfc8705">MTLS</eref> meaning the access token is bound to the client's TLS certificate. Even if an access token is phished, it cannot be used by the attacker. An attacker could try to trick a client under his control to make use of the access token as described in [FAPISEC] (&quot;Cuckoo's Token Attack&quot; and &quot;Access Token Injection with ID Token Replay&quot;), but these attacks additionally require a rogue AS or misconfigured token endpoint.</t>
+</section>
+</section>
+
+<section anchor="attacks-that-modify-authorization-requests-and-responses" title="Attacks that modify authorization requests and responses">
+
+<section anchor="introduction-6" title="Introduction">
+<t>In <eref target="https://tools.ietf.org/html/rfc6749">RFC6749</eref> the authorization request and responses are not integrity protected.
+Thus, an attacker can modify them.</t>
+</section>
+
+<section anchor="authorization-request-parameter-injection-attack" title="Authorization request parameter injection attack">
+<t>In <eref target="https://tools.ietf.org/html/rfc6749">RFC6749</eref>, the authorization request is sent as a query parameter.
+Although <eref target="https://tools.ietf.org/html/rfc6749">RFC6749</eref> mandates the use of TLS, the TLS is terminated in the browser and thus not protected within the browser; as a result an attacker can tamper the authorization request and insert any parameter values.</t>
+<t>The use of a <spanx style="verb">request</spanx> object or <spanx style="verb">request_uri</spanx> in the authorization request will prevent tampering with the request parameters.</t>
+<t>The IdP confusion attack reported in <eref target="https://www.nds.rub.de/media/ei/veroeffentlichungen/2017/01/30/oidc-security.pdf">SoK: Single Sign-On Security – An Evaluation of OpenID Connect</eref> is an example of this kind of attack.</t>
+</section>
+
+<section anchor="authorization-response-parameter-injection-attack" title="Authorization response parameter injection attack">
+<t>This attack occurs when the victim and attacker use the same relying party client. The attacker is somehow able to
+capture the authorization code and state from the victim's authorization response and uses them in his own
+authorization response.</t>
+<t>This can be mitigated by using OpenID Connect Hybrid Flow where the <spanx style="verb">c_hash</spanx>, <spanx style="verb">at_hash</spanx>,
+and <spanx style="verb">s_hash</spanx> can be used to verify the validity of the authorization code, access token,
+and state parameters. It can also be mitigated using <eref target="https://bitbucket.org/openid/fapi/src/master/Financial_API_JWT_Secured_Authorization_Response_Mode.md">JARM</eref> by verifying the integrity of the authorization response JWT.</t>
+<t>The server can verify that the state is the same as what was stored in the browser session at the time of the authorization request.</t>
+</section>
+</section>
+
+<section anchor="tls-considerations" title="TLS considerations">
+<t>As confidential information is being exchanged, all interactions shall be encrypted with TLS (HTTPS).</t>
+<t>Section 7.1 of <eref target="https://openid.net/specs/openid-financial-api-part-1-1_0.html">Financial-grade API Security Profile 1.0 - Part 1: Baseline</eref> shall apply, with the following additional requirements:</t>
+<t>
+<list style="numbers">
+<t>For TLS versions below 1.3, only the following 4 cipher suites shall be permitted:
+<list style="symbols">
+<t><spanx style="verb">TLS_DHE_RSA_WITH_AES_128_GCM_SHA256</spanx></t>
+<t><spanx style="verb">TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256</spanx></t>
+<t><spanx style="verb">TLS_DHE_RSA_WITH_AES_256_GCM_SHA384</spanx></t>
+<t><spanx style="verb">TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384</spanx></t>
+</list></t>
+<t>For the <spanx style="verb">authorization_endpoint</spanx>, the authorization server MAY allow additional cipher suites that are permitted by the latest version of <eref target="https://tools.ietf.org/html/bcp195">BCP195</eref>, if necessary to allow sufficient interoperability with users' web browsers or are required by local regulations.
+<spanx style="strong">NOTE:</spanx> Permitted cipher suites are those that <eref target="https://tools.ietf.org/html/bcp195">BCP195</eref> does not explicity say MUST NOT use.</t>
+<t>When using the <spanx style="verb">TLS_DHE_RSA_WITH_AES_128_GCM_SHA256</spanx> or <spanx style="verb">TLS_DHE_RSA_WITH_AES_256_GCM_SHA384</spanx> cipher suites, key lengths of at least 2048 bits are required.</t>
+</list>
+</t>
+</section>
+
+<section anchor="algorithm-considerations" title="Algorithm considerations">
+<t>For JWS, both clients and authorization servers</t>
+<t>
+<list style="numbers">
+<t>shall use <spanx style="verb">PS256</spanx> or <spanx style="verb">ES256</spanx> algorithms;</t>
+<t>should not use algorithms that use RSASSA-PKCS1-v1_5 (e.g. <spanx style="verb">RS256</spanx>); and</t>
+<t>shall not use <spanx style="verb">none</spanx>.</t>
+</list>
+</t>
+
+<section anchor="encryption-algorithm-considerations" title="Encryption algorithm considerations">
+<t>For JWE, both clients and authorization servers</t>
+<t>
+<list style="numbers">
+<t>shall not use the <spanx style="verb">RSA1_5</spanx> algorithm.</t>
+</list>
+</t>
+</section>
+</section>
+
+<section anchor="incomplete-or-incorrect-implementations-of-the-specifications" title="Incomplete or incorrect implementations of the specifications">
+<t>To achieve the full security benefits, it is important the implementation of this specification, and the underlying OpenID Connect and OAuth specifications, are both complete and correct.</t>
+<t>The OpenID Foundation provides tools that can be used to confirm that an implementation is correct:</t>
+<t><eref target="https://openid.net/certification/">https://openid.net/certification/</eref></t>
+<t>The OpenID Foundation maintains a list of certified implementations:</t>
+<t><eref target="https://openid.net/developers/certified/">https://openid.net/developers/certified/</eref></t>
+<t>Deployments that use this specification should use a certified implementation.</t>
+</section>
+
+<section anchor="session-fixation" title="Session Fixation">
+<t>An attacker could prepare an authorization request URL and trick a victim
+into authorizing access to the requested resources, e.g. by sending the URL
+via e-Mail or utilizing it on a fake site.</t>
+<t>OAuth 2.0 prevents this kind of attack since the process for obtaining the
+access token (code exchange, CSRF protection etc.) is designed in a way that the
+attacker will be unable to obtain and use the token as long as it does not
+control the victim's browser.</t>
+<t>However, if the API allows execution of any privileged action in the course of
+the authorization process before the access token is issued, these controls are
+rendered ineffective. Implementers of this specification therefore shall ensure
+any action is executed using the access token issued by the authorization
+process.</t>
+<t>For example, payments shall not be executed in the authorization process but
+after the Client has exchanged the authorization code for a token and sent an
+&quot;execute payment&quot; request with the access token to a protected endpoint.</t>
+</section>
+
+<section anchor="jwks-uris" title="JWKS URIs">
+<t>This profile requires both Clients and Authorization Servers to verify payloads
+with keys from the other party. The AS verifies request objects and <spanx style="verb">private_key_jwt</spanx>
+assertions. The Client verifies ID Tokens and authorization response JWTs. For AS's
+this profile strongly recommends the use of JWKS URI endpoints to distribute
+public keys. For Clients this profile recommends either the use of JWKS URI endpoints
+or the use of the <spanx style="verb">jwks</spanx> parameter in combination with <eref target="https://tools.ietf.org/html/rfc7591">RFC7591</eref>
+and <eref target="https://tools.ietf.org/html/rfc7592">RFC7592</eref>.</t>
+<t>The definition of the AS <spanx style="verb">jwks_uri</spanx> can be found in <eref target="https://tools.ietf.org/html/rfc8414">RFC8414</eref>, while the definition
+of the Client <spanx style="verb">jwks_uri</spanx> can be found in <eref target="https://tools.ietf.org/html/rfc7591">RFC7591</eref>.</t>
+<t>In addition, this profile</t>
+<t>
+<list style="numbers">
+<t>requires that <spanx style="verb">jwks_uri</spanx> endpoints shall be served over TLS;</t>
+<t>recommends that JOSE headers for <spanx style="verb">x5u</spanx> and <spanx style="verb">jku</spanx> should not be used; and</t>
+<t>recommends that the JWK set does not contain multiple keys with the same <spanx style="verb">kid</spanx>.</t>
+</list>
+</t>
+</section>
+
+<section anchor="multiple-clients-sharing-the-same-key" title="Multiple clients sharing the same key">
+<t>The use of <eref target="https://tools.ietf.org/html/rfc8705">MTLS</eref> for client authentication and sender constraining access tokens brings
+significant security benefits over the use of shared secrets. However in some deployments
+the certificates used for <eref target="https://tools.ietf.org/html/rfc8705">MTLS</eref> are issued by a Certificate Authority at an organization
+level rather than a client level. In such situations it may be common for an organization
+with multiple clients to use the same certificates (or certificates with the same DN)
+across clients. Implementers should be aware that such sharing means that a compromise
+of any one client, would result in a compromise of all clients sharing the same key.</t>
+</section>
+
+<section anchor="duplicate-key-identifiers" title="Duplicate Key Identifiers">
+<t>JWK sets should not contain multiple keys with the same <spanx style="verb">kid</spanx>. However, to increase
+interoperability when there are multiple keys with the same <spanx style="verb">kid</spanx>,  the verifier shall
+consider other JWK attributes, such as <spanx style="verb">kty</spanx>, <spanx style="verb">use</spanx>, <spanx style="verb">alg</spanx>, etc., when selecting the
+verification key for the particular JWS message. For example, the following algorithm
+could be used in selecting which key to use to verify a message signature:</t>
+<t>
+<list style="numbers">
+<t>find keys with a <spanx style="verb">kid</spanx> that matches the <spanx style="verb">kid</spanx> in the JOSE header;</t>
+<t>if a single key is found, use that key;</t>
+<t>if multiple keys are found, then the verifier should iterate through the keys until a key is found that has a matching <spanx style="verb">alg</spanx>, <spanx style="verb">use</spanx>, <spanx style="verb">kty</spanx>, or <spanx style="verb">crv</spanx> that corresponds to the message being verified.</t>
+</list>
+</t>
+</section>
+</section>
+
+<section anchor="privacy-considerations" title="Privacy considerations">
+
+<section anchor="introduction-7" title="Introduction">
+<t>There are many factors to be considered in terms of privacy
+when implementing this document. However, since this document
+is a profile of OAuth and OpenID Connect, all of them
+are generic and applies to OAuth or OpenID Connect and
+not specific to this document. Implementers are advised to
+perform a thorough privacy impact assessment and manage identified risks appropriately.</t>
+<t><spanx style="strong">NOTE:</spanx> Implementers can consult documents like
+<eref target="http://standards.iso.org/ittf/PubliclyAvailableStandards/c045123_ISO_IEC_29100_2011.zip">ISO29100</eref> and [ISO29134] for this purpose.</t>
+<t>Privacy threats to OAuth and OpenID Connect implementations include the following:</t>
+<t>
+<list style="symbols">
+<t>(Inappropriate privacy notice) A privacy notice provided at a <spanx style="verb">policy_url</spanx> or by other means can be inappropriate.</t>
+<t>(Inadequate choice) Providing a consent screen without adequate choices does not form consent.</t>
+<t>(Misuse of data) An AS, RS or Client can potentially use the data not according to the purpose that was agreed.</t>
+<t>(Collection minimization violation) Clients asking for more data than it absolutely needs to fulfil the purpose is violating the collection minimization principle.</t>
+<t>(Unsolicited personal data from the Resource) Some bad resource server implementations may return more data than was requested. If the data is personal data, then this would be a  violation of privacy principles.</t>
+<t>(Data minimization violation) Any process that is processing more data than it needs is violating the data minimization principle.</t>
+<t>(RP tracking by AS/OP) AS/OP identifying what data is being provided to which Client/RP.</t>
+<t>(User tracking by RPs) Two or more RPs correlating access tokens or ID Tokens to track users.</t>
+<t>(RP misidentification by User at AS) User misunderstands who the RP is due to a confusing representation of the RP at
+the AS's authorization page.</t>
+<t>(Mismatch between User’s understanding or what RP is displaying to a user and the actual authorization request). To enhance
+the trust of the ecosystem, best practice is for the AS to make clear what is included in the authorisation request (for example,
+what data will be released to the RP).</t>
+<t>(Attacker observing personal data in authorization request) Authorization request might contain personal data. This can be observed by an attacker.</t>
+<t>(Attacker observing personal data in authorization endpoint response) In some frameworks, even state is deemed personal data.
+This can be observed by an attacker through various means.</t>
+<t>(Data leak from AS) AS stores personal data. If AS is compromised, these data can leak or be modified.</t>
+<t>(Data leak from Resource) Some resource servers (RS) store personal data. If a RS is compromised, these data can leak or be modified.</t>
+<t>(Data leak from Clients) Some clients store personal data. If the client is compromised, these data can leak or be modified.</t>
+</list>
+</t>
+<t>These can be mitigated by choosing appropriate options in OAuth or OpenID, or by introducing some operational rules.
+For example, &quot;Attacker observing personal data in authorization request&quot; can be mitigated by either using authorization request by reference
+using <spanx style="verb">request_uri</spanx> or by encrypting the request object.
+Similarly, &quot;Attacker observing personal data in authorization endpoint response&quot; can be mitigated by encrypting the ID Token or JARM response.</t>
+</section>
+</section>
+
+<section anchor="acknowledgement" title="Acknowledgement">
+<t>The following people contributed to this document:</t>
+<t>
+<list style="symbols">
+<t>Nat Sakimura (NAT Consulting) -- Chair, Editor</t>
+<t>Anoop Saxena (Intuit) -- Co-chair, FS-ISAC Liaison</t>
+<t>Anthony Nadalin (Microsoft) -- Co-chair, SC 27 Liaison</t>
+<t>Edmund Jay (Illumila) -- Co-editor</t>
+<t>Dave Tonge (Moneyhub) -- Co-chair, UK Implementation Entity Liaison</t>
+<t>Paul A. Grassi (NIST) -- X9 Liaison</t>
+<t>Joseph Heenan (Authlete)</t>
+<t>Sascha H. Preibisch (CA)</t>
+<t>Henrik Biering (Peercraft)</t>
+<t>Anton Taborszky (Deutsche Telecom)</t>
+<t>John Bradley (Yubico)</t>
+<t>Tom Jones (Independent)</t>
+<t>Axel Nennker (Deutsche Telekom)</t>
+<t>Daniel Fett (yes.com)</t>
+<t>Torsten Lodderstedt (yes.com)</t>
+<t>Ralph Bragg (Raidiam)</t>
+<t>Brian Campbell (Ping Identity)</t>
+<t>Dima Postnikov (Independent)</t>
+<t>Stuart Low (Biza.io)</t>
+<t>Takahiko Kawasaki (Authlete)</t>
+<t>Vladimir Dzhuvinov (Connect2Id)</t>
+<t>Chris Michael (Open Banking)</t>
+<t>Freddi Gyara (Open Banking)</t>
+<t>Rob Otto (Ping Identity)</t>
+<t>Francis Pouatcha (adorsys)</t>
+<t>Kosuke Koiwai (KDDI)</t>
+<t>Bjorn Hjelm (Verizon)</t>
+<t>Lukasz Jaromin (Cloudentity)</t>
+<t>James Manger</t>
+</list>
+</t>
+</section>
+
+<section anchor="bibliography" title="Bibliography">
+<t>
+<list style="symbols">
+<t><eref target="https://openid.net/specs/openid-financial-api-part-1-1_0.html">Part1</eref> Financial-grade API Security Profile 1.0 - Part 1: Baseline</t>
+<t><eref target="https://www.iso.org/sites/directives/current/part2/index.xhtml">ISODIR2</eref> ISO/IEC Directives Part 2</t>
+<t><eref target="http://standards.iso.org/ittf/PubliclyAvailableStandards/c045123_ISO_IEC_29100_2011.zip">ISO29100</eref> ISO/IEC 29100 Information technology — Security techniques — Privacy framework</t>
+<t>[ISO29134] ISO/IEC 29134 Information technology — Security techniques — Guidelines for privacy impact assessment</t>
+<t>[ISO29184] ISO/IEC 29184 Information technology — Online privacy notices and consent</t>
+<t><eref target="https://tools.ietf.org/html/rfc6749">RFC6749</eref> The OAuth 2.0 Authorization Framework</t>
+<t><eref target="https://tools.ietf.org/html/rfc6750">RFC6750</eref> The OAuth 2.0 Authorization Framework: Bearer Token Usage</t>
+<t><eref target="https://tools.ietf.org/html/rfc7636">RFC7636</eref> Proof Key for Code Exchange by OAuth Public Clients</t>
+<t><eref target="https://tools.ietf.org/html/rfc6819">RFC6819</eref> OAuth 2.0 Threat Model and Security Considerations</t>
+<t><eref target="https://tools.ietf.org/html/rfc7519">RFC7519</eref> JSON Web Token (JWT)</t>
+<t><eref target="https://tools.ietf.org/html/rfc7591">RFC7591</eref> OAuth 2.0 Dynamic Client Registration Protocol</t>
+<t><eref target="https://tools.ietf.org/html/rfc7592">RFC7592</eref> OAuth 2.0 Dynamic Client Registration Management Protocol</t>
+<t><eref target="https://tools.ietf.org/html/rfc8414">RFC8414</eref> OAuth 2.0 Authorization Server Metadata</t>
+<t><eref target="http://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref> OpenID Connect Core 1.0 incorporating errata set 1</t>
+<t><eref target="http://openid.net/specs/openid-connect-discovery-1_0.html">OIDD</eref> OpenID Connect Discovery 1.0 incorporating errata set 1</t>
+<t><eref target="https://tools.ietf.org/html/bcp195">BCP195</eref> Recommendations for Secure Use of Transport Layer Security (TLS) and Datagram Transport Layer Security (DTLS)</t>
+<t><eref target="https://tools.ietf.org/html/rfc8705">MTLS</eref> OAuth 2.0 Mutual TLS Client Authentication and Certificate Bound Access Tokens</t>
+<t><eref target="https://bitbucket.org/openid/fapi/src/master/Financial_API_JWT_Secured_Authorization_Response_Mode.md">JARM</eref> Financial-grade API: JWT Secured Authorization Response Mode for OAuth 2.0</t>
+<t><eref target="https://tools.ietf.org/html/draft-ietf-oauth-par">PAR</eref> OAuth 2.0 Pushed Authorization Requests</t>
+<t><eref target="https://tools.ietf.org/html/draft-ietf-oauth-jwsreq">JAR</eref> OAuth 2.0 JWT Secured Authorization Request</t>
+<t><eref target="https://www.nds.ruhr-uni-bochum.de/media/ei/veroeffentlichungen/2017/01/30/oidc-security.pdf">SoK</eref> Mainka, C., Mladenov, V., Schwenk, J., and T. Wich: SoK: Single Sign-On Security – An Evaluation of OpenID Connect</t>
+<t><eref target="https://arxiv.org/abs/1901.11520">FAPISEC</eref> Fett, D., Hosseyni, P., Kuesters, R.: An Extensive Formal Security Analysis of the OpenID Financial-grade API</t>
+<t><eref target="https://arxiv.org/abs/1601.01229">OAUTHSEC</eref> Fett, D., Kuesters, R., Schmitz, G.: A Comprehensive Formal Security Analysis of OAuth 2.0</t>
+</list>
+</t>
+</section>
+
+<section anchor="iana-considerations" title="IANA Considerations">
+
+<section anchor="additions-to-jwt-claims-registry" title="Additions to JWT Claims Registry">
+<t>This specification adds the following values to the &quot;JSON Web Token Claims&quot; registry
+established by <eref target="https://tools.ietf.org/html/rfc7519">RFC7519</eref>.</t>
+
+<section anchor="registry-contents" title="Registry Contents">
+<t>
+<list style="symbols">
+<t>Claim name: s_hash</t>
+<t>Claim Description: State hash value</t>
+<t>Change Controller: OpenID Foundation Financial-Grade API Working Group - openid-specs-fapi@lists.openid.net</t>
+<t>Reference: Section 5 of [[ this specification ]]</t>
+</list>
+</t>
+</section>
+</section>
+</section>
+
+</middle>
+
+<back>
+
+<section anchor="examples" title="Examples">
+<t>The following are non-normative examples of various objects compliant with this specification, with line wraps within values for display purposes only.</t>
+<t>The examples signed by the client may be verified with the following JWK:</t>
+
+<figure><artwork>{
+  &quot;kty&quot;: &quot;RSA&quot;,
+  &quot;e&quot;: &quot;AQAB&quot;,
+  &quot;use&quot;: &quot;sig&quot;,
+  &quot;kid&quot;: &quot;client-2020-08-28&quot;,
+  &quot;alg&quot;: &quot;PS256&quot;,
+  &quot;n&quot;: &quot;i0Ybm4TJyErnD5FIs-6sgAdtP6fG631FXbe5gcOGYgn9aC2BS2h9Ah5cRGQpr3aLLVKCRWU6
+HRfnGseUBOejo57vI-kgab2YsQJSwedAxvtKrIrJlgKn1gTXMNsz-NQd1LyLSV50qJVEy5l9RtsdDzOV
+8_kLCbzroEL3rc00iqVZBcQiYm8Bx4z0G8LYZ4oMJAG462Mf_znJkKXsuSIH735xnSmx74CC8TOe6G-V
+0Wi_wVSJ9bHPphSki_kWUtjVGcnyjYuQVE0LRj3qrGPAX9bsVKSqs8T9AM41TB9oV5Sjz5YhggwICvvC
+CGwil9qhUoQRkeXtWuGCfvCSeTdawQ&quot;
+}
+</artwork></figure>
+
+<t>The examples signed by the server may be verified with the following JWK:</t>
+
+<figure><artwork>{
+  &quot;kty&quot;: &quot;RSA&quot;,
+  &quot;e&quot;: &quot;AQAB&quot;,
+  &quot;use&quot;: &quot;sig&quot;,
+  &quot;kid&quot;: &quot;server-2020-08-28&quot;,
+  &quot;alg&quot;: &quot;PS256&quot;,
+  &quot;n&quot;: &quot;pz6g0h7Cu63SHE8_Ib4l3hft8XuptZ-Or7v_j1EkCboyAEn_ZCuBrQOmpUIoPKrA0JNWK_fF
+eZ2q1_26Gvn3E4dQlcOWpiWkKmxAhYCWnNDv3urVgldDp_kw0Dx2H8yn9tmFW28E_WvrZRwHEF5Czigb
+xlmFIrkniMHRzjyYQTHRU0gW3DRV9MrQQrmP71McvfLPeMBPPgsHgLo7KmUBDoUjsgnwgycEOWPm8MWJ
+13dpTsVnoWNIFQqVNz1L5pRU3Uoknl0MGoE6v0M9lfgQgzxIX9gSB1VGp5zZRcsnZGU3MFpwBhOWwiCU
+wqztoX0H5P0g7OWocspHrDn6YOgxHw&quot;
+}
+</artwork></figure>
+
+
+<section anchor="example-request-object" title="Example request object">
+
+<figure><artwork>eyJraWQiOiJjbGllbnQtMjAyMC0wOC0yOCIsImFsZyI6IlBTMjU2In0.eyJhdWQiOiJodHRwczpcL1wv
+ZmFwaS1hcy5leGFtcGxlLmNvbVwvIiwibmJmIjoxNTk0MTQwMDMwLCJzY29wZSI6Im9wZW5pZCBwYXlt
+ZW50cyIsImlzcyI6IjUyNDgwNzU0MDUzIiwicmVzcG9uc2VfdHlwZSI6ImNvZGUgaWRfdG9rZW4iLCJy
+ZWRpcmVjdF91cmkiOiJodHRwczpcL1wvZmFwaS1jbGllbnQuZXhhbXBsZS5vcmdcL2ZhcGktYXMtY2Fs
+bGJhY2siLCJzdGF0ZSI6IlZnU1VJRW5mbG5EeFRlMXZBdHI1NG8iLCJleHAiOjE1OTQxNDAzOTAsIm5v
+bmNlIjoiN3hEQ0h2aXVQTVNYSklpZ2tIT2NEaSIsImNsaWVudF9pZCI6IjUyNDgwNzU0MDUzIn0.VSo5
+VWN3lOiCry2KItU5RI62i9KG2KQlBdpsDT0DI0vSMK-q85aJZvsMiHBNBv1PQ9qAWmU3oJS-yi-Ks_lD
+lP6lIMFrOL_Ym3VxJ_SM6lrc8JSZH_nNx6sqxPpeMQTF4SFPx30vHrlBVJaCGfnCMVC6Nbzwef0vOEpN
+ixZT-9cwa3dZ-pddAyt58dKGxS76NR_wxdBaSKN0AfPoui0HSSaAkIdRds21NKIOf4r9BjV5lr1Oi-4I
+JUQp-xdeLCPD3fD6Y-TJbHFToJ4FsQzglN83BfNYaeXV_yTtK7yeSw2R-ee0b3uMV0iD1ee77b7bbcjR
+3msLISFjM40d9Pv8qQ
+</artwork></figure>
+
+<t>which when decoded has the following body:</t>
+
+<figure><artwork>{
+  &quot;aud&quot;: &quot;https://fapi-as.example.com/&quot;,
+  &quot;nbf&quot;: 1594140030,
+  &quot;scope&quot;: &quot;openid payments&quot;,
+  &quot;iss&quot;: &quot;52480754053&quot;,
+  &quot;response_type&quot;: &quot;code id_token&quot;,
+  &quot;redirect_uri&quot;: &quot;https://fapi-client.example.org/fapi-as-callback&quot;,
+  &quot;state&quot;: &quot;VgSUIEnflnDxTe1vAtr54o&quot;,
+  &quot;exp&quot;: 1594140390,
+  &quot;nonce&quot;: &quot;7xDCHviuPMSXJIigkHOcDi&quot;,
+  &quot;client_id&quot;: &quot;52480754053&quot;
+}
+</artwork></figure>
+
+</section>
+
+<section anchor="example-signed-id-token-for-authorization-endpoint-response" title="Example signed id_token for authorization endpoint response">
+
+<figure><artwork>eyJraWQiOiJzZXJ2ZXItMjAyMC0wOC0yOCIsImFsZyI6IlBTMjU2In0.eyJzdWIiOiIxMDAxIiwiYXVk
+IjoiNTI0ODA3NTQwNTMiLCJjX2hhc2giOiJRUjJ6dWNmWVpraUxyYktCS0RWcGdRIiwic19oYXNoIjoi
+OXM2Q0JiT3hpS0U2NWQ5LVFyMFFJUSIsImF1dGhfdGltZSI6MTU5NDE0MDA5MCwiaXNzIjoiaHR0cHM6
+XC9cL2ZhcGktYXMuZXhhbXBsZS5jb21cLyIsImV4cCI6MTU5NDE0MDM5MCwiaWF0IjoxNTk0MTQwMDkw
+LCJub25jZSI6Ijd4RENIdml1UE1TWEpJaWdrSE9jRGkifQ.Z-LpQRuYoiTqEBfVfctn-e6bLwSMqi8wA
+3TuARGW6GyD05gPF6TVlUwHgJnSUlhETrzhEUAKKiyGDxGspuBU0OAnB4qepgrEBizk980NjCEVXNkog
+v0ANv9VX_01Lcl0d_6_c-AUjwDSuKY8rDfvggKSJFzRilbQuB8b1drAIAZpc6kMObY3PcQZ_vKTMsQ8l
+HCuXXRuAo__0xRE6l_iiRCos_940GrJr0Sih9uTQpnCWBoEab1dC0l-vUp4lP0TQRKNpDoPoMOj10KJA
+8T8pKhjZ8TKM-wo9A4qH2LBgUIYJyjd8bWfKTZxCNmLRzRr-_JBG7fF_fpOUhGT_DhzMw
+</artwork></figure>
+
+<t>which when decoded has the following body:</t>
+
+<figure><artwork>{
+  &quot;sub&quot;: &quot;1001&quot;,
+  &quot;aud&quot;: &quot;52480754053&quot;,
+  &quot;c_hash&quot;: &quot;QR2zucfYZkiLrbKBKDVpgQ&quot;,
+  &quot;s_hash&quot;: &quot;9s6CBbOxiKE65d9-Qr0QIQ&quot;,
+  &quot;auth_time&quot;: 1594140090,
+  &quot;iss&quot;: &quot;https://fapi-as.example.com/&quot;,
+  &quot;exp&quot;: 1594140390,
+  &quot;iat&quot;: 1594140090,
+  &quot;nonce&quot;: &quot;7xDCHviuPMSXJIigkHOcDi&quot;
+}
+</artwork></figure>
+
+</section>
+
+<section anchor="example-signed-and-encrypted-id-token-for-authorization-endpoint-response" title="Example signed and encrypted id_token for authorization endpoint response">
+
+<figure><artwork>eyJraWQiOiJjbGllbnQtZW5jLTIwMjAtMDgtMjgiLCJjdHkiOiJKV1QiLCJlbmMiOiJBMjU2R0NNIiwi
+YWxnIjoiUlNBLU9BRVAtMjU2In0.LFvxFCzJ-1NRl48pXTUs8f2axm5MRe9Cv0dgV6sXTRKwkT3nC2SJ
+QlutOol36VARLd3uaIoj4Z7LVV_MrdIYYvDci2WLlKSlI_NRgR3qJ25N3S6fCqNEYRgDDbNzSr15MDRc
+WQR5Jdl3VP8g748cowD_2gaopaCzZWTa3r_J2VOEETfcBAIMX0NbtVA3hHW-rQ0aCC7UIbP0_oEB2YF0
+u6qAXCXuC02nO6coMSpSHTDZwkqkmFiFEKERM_Gayz3lVddlgfcPR2k76bCUjWy934-rOrOBGcLyS1Ww
+aTIqMUS3WEIsAwCDr1Jt4pAioryRLZfLmWNff4QZSBxWejRqpw.uRANzseIWYB9YeAW.sJGqF2ERkMEE
+jm8h62tUA4UeZIBqvVRpkQqjTuae7-4ac-4sSth0A3zeERvlyC5GcP0W2tj7uxMi0I4gpN33OfAOR-tA
+9E_47oCHXrOH-7cpLgVIxxWZFx43dhxUh5QHuBfli4nHErMVUsFq6CzQj8Z5SHvBD2Qx3suPEeCNo_M2
+woohCprwjOKhE-Q_VkWUJb-Elrq9HxJcBtadw0spolqgYYTIWvV4fcKmbtGANYLac29oKWd5-jyDAsSF
+FZrSCNxv-BtJUiUVWUn5eVufjJYCx62Ju-MZ8vsPNTE-_I5em9RTBja6ylcivjzhW9Ncl6yKVfnB0XJN
+cSSHQSFhc6Gvy7oYMBXx1C5G31OsiklkKQX2gsAZlxFQ_X25AXpMoV8-5xsUwdMdTaPxIIsccbrK2dfA
+aP0rUruSV8zrlrbsN3ftjTJSka2XGG3kra76EPAlzSwxy6XdFVtEV31hirV3f9g04Gj_e-Q7J7HR62eY
+3_09WyARShQL3DVXWOcK_8YrLr58JjNAbm0s5dAUq-zt9cMv8rl05t_dE59Gi6Hnl2YAiRdYG6B71FxJ
+CE2Uqciy2jLe6mCDFDfqkog4G5R9FzNz5VzhVpmZVm3OJkug-UzayN7nwZ7jsmxQ2ucCM03xq-0MLdsk
+H-cleahkFw5S-W40cn5hLrRXSqUoYfKmVSd9RltOZ6T0VrYpw2LaF2uUYEO9w9bMmg2zzfxft4WHsEbD
+OlJVb5SE8mUjzBBZAcgaHYSv0Wii70lEJvLSdnVI1r9kuu9ae_j1Tu08RVyFGfgixYjI9z2L_sc8uOoO
+HJ-Tq1iuncL3lCQJBuwBFoxyINlFgz4YV2AgreNsX8bDfE9XbRB9TnfvSd6rmes9lO0-3VQFlsC0C5dx
+VXgp5o05E8nisPwuLmlGO5BTtBzCQ3tIH2SuTLTG-gohTEUVn4fACwIiyuXdPXcF4GxJNRNgNOH7xwxx
+55qEM0xl2GuSseV59FiZR-WKMMs.kScy0JLB4XECklDAwTIVNA
+</artwork></figure>
+
+<t>which when decrypted using the following key:</t>
+
+<figure><artwork>{
+    &quot;kty&quot;: &quot;RSA&quot;,
+    &quot;d&quot;: &quot;OjDe8EkZXgvB-Gy5A4EdU8fBuAjdHLMyHKAtMaS_W_joEJHDvZRhIYbh1jAyHYoR3kFMXu
+tCIYpRjDrsUEhjYuVKLm90CVtysoRjjkiXyupcEW3o--X_HBJhKm1Y-0I7LQ-cA7CotJpTVMR2fRTqP1
+T4FsORAjg9l-fbdpVmeDiZBRbL2zCWmKWhtDpHyy7vbSCRghntihz_M5Hrchk7r8ito_K3dFrV9IZSF9
+RoEY7kyK5bL36Kpgai44PYCzqOzqP2fteO_rZ9fn-uK59pI3ySo_PgSbJ55n14Nd9Z8m70zE9Z4aIeND
+EFspZUhavngRwc7MuJ7f_hVGQ9RFbbkQ&quot;,
+    &quot;e&quot;: &quot;AQAB&quot;,
+    &quot;use&quot;: &quot;enc&quot;,
+    &quot;kid&quot;: &quot;client-enc-2020-08-28&quot;,
+    &quot;n&quot;: &quot;jVc92j0ntTV0V1nwZ3mpGaV2bME4d6AMS2SRrJBM0fLehaTEqDNzGu0warz2SC9bhcBOB5
+_q3mYBFjmTwWzSbsk6RYETnAgViXg67PgH7Vkx2NCtwgQW3cNdnUZWRNYHsoevkx_Ta1X6Vi9ulebU_B
+CKjrF-6CjVcGgEsO_S5DKcukGHdf81WlQOq3zGQg4h7MLArrbPSTHHORDsu_87qY9m2EhiYSOBSF5rHs
+fDo7zWI5FWNG-_HO-CBM005bykIIS1aXCXx1jOW1OrKcp5xv3e-BR6MJTxncZJ4o1GtynJI8kLXRgltL
+ArSOkbzNEr9GjU9lnSSxKLMtRLKkG2Ow&quot;
+}
+</artwork></figure>
+
+<t>has the following body:</t>
+
+<figure><artwork>{
+  &quot;sub&quot;: &quot;1001&quot;,
+  &quot;aud&quot;: &quot;2334382354153498&quot;,
+  &quot;acr&quot;: &quot;urn:cds.au:cdr:2&quot;,
+  &quot;c_hash&quot;: &quot;BLfy9hvQUZTDq6_KmF4kDQ&quot;,
+  &quot;s_hash&quot;: &quot;9s6CBbOxiKE65d9-Qr0QIQ&quot;,
+  &quot;auth_time&quot;: 1595827190,
+  &quot;iss&quot;: &quot;https://fapi-as.example.com/&quot;,
+  &quot;exp&quot;: 1595827490,
+  &quot;iat&quot;: 1595827190,
+  &quot;nonce&quot;: &quot;7xDCHviuPMSXJIigkHOcDi&quot;
+}
+</artwork></figure>
+
+</section>
+
+<section anchor="example-jarm-response" title="Example JARM response">
+
+<figure><artwork>eyJraWQiOiJzZXJ2ZXItMjAyMC0wOC0yOCIsImFsZyI6IlBTMjU2In0.eyJhdWQiOiI0NjkxODA2NDgw
+MzkwNTEiLCJjb2RlIjoiendrR2FjOWp1TFg4RjhmcmFwRElTaTNLMkZ3bG40cXh3eWZOSUkzQ2p6MCIs
+ImlzcyI6Imh0dHBzOlwvXC9mYXBpLWFzLmV4YW1wbGUuY29tXC8iLCJzdGF0ZSI6IlZnU1VJRW5mbG5E
+eFRlMXZBdHI1NG8iLCJleHAiOjE1OTQxNDEwOTB9.k_3df0dIDX6watKxQkzAHOLgf4FBi_xIPN-n8aT
+5hMX3gaBbeDqdUA5NR764L4ugdDgXyQm8dNcZrZldKIPfSfRcjBTtSx9PEdiffn_xUkwnS18YNAfEoq0
+HjvkOQ59F21ImKn113kon00uC2dqBGByRrZcaUYOnvW2DdHCVA0VTW2je5nzbI02z9csLa8uGGGwjWRP
+Ec9j9bvR1Adc2m2Z-o0QCRIBl81sZz6_AnE-wPTw-KZFQBs3FgS-r0FDYOzE7FHIMgDBSKAg1J5tWY3J
+wRuIv_oAbYdSlxdYzrbFQ9grX4MA0p7pk5lS-kwnN845GZ2k1_yaOLtYYyvRFrw
+</artwork></figure>
+
+<t>which when decoded has the following body:</t>
+
+<figure><artwork>{
+  &quot;aud&quot;: &quot;469180648039051&quot;,
+  &quot;code&quot;: &quot;zwkGac9juLX8F8frapDISi3K2Fwln4qxwyfNII3Cjz0&quot;,
+  &quot;iss&quot;: &quot;https://fapi-as.example.com/&quot;,
+  &quot;state&quot;: &quot;VgSUIEnflnDxTe1vAtr54o&quot;,
+  &quot;exp&quot;: 1594141090
+}
+</artwork></figure>
+
+</section>
+
+<section anchor="example-private-key-jwt-client-assertion" title="Example private_key_jwt client assertion">
+
+<figure><artwork>eyJraWQiOiJjbGllbnQtMjAyMC0wOC0yOCIsImFsZyI6IlBTMjU2In0.eyJzdWIiOiI1MjQ4MDc1NDA1
+MyIsImF1ZCI6Imh0dHBzOlwvXC9mYXBpLWFzLmV4YW1wbGUuY29tXC9hcGlcL3Rva2VuIiwiaXNzIjoi
+NTI0ODA3NTQwNTMiLCJleHAiOjE1OTQxNDAxNTEsImlhdCI6MTU5NDE0MDA5MSwianRpIjoiNHZCY3RN
+U2tLNHdmdU91aTlDeWMifQ.h3i0k2DWc7V6WEiinHAsse-pOFiWxe5kD4KetdGX65Q03orj0Fh6EWfdE
+AntCrOodUsypKjM1ia3evbQmsSkhIb4YK5s53hYYtEbJC_eG9jFnVc4ki7Qc5O-1K-D80w7WT1UI--Ih
+Ku-i22Ai_nMed-71UWLHcPi7W20SCroPHXfaLiFj_TOsr7I8h7VNsoa7P3-coHlXT5q4cMjIA7t8cRag
+sGtKlIgwdFYySlimtSESDM0U-_NUPperTgnF8FVn7SqtizBJneZNAWwSLJD9AVsnMOH6kOeNLtpopsru
+Dcs54S_aIlroP-BdiHw9R1qRTIVSoX3k_EStvoWSf8NcQ
+</artwork></figure>
+
+<t>which when decoded has the following body:</t>
+
+<figure><artwork>{
+  &quot;sub&quot;: &quot;52480754053&quot;,
+  &quot;aud&quot;: &quot;https://fapi-as.example.com/api/token&quot;,
+  &quot;iss&quot;: &quot;52480754053&quot;,
+  &quot;exp&quot;: 1594140151,
+  &quot;iat&quot;: 1594140091,
+  &quot;jti&quot;: &quot;4vBctMSkK4wfuOui9Cyc&quot;
+}
+</artwork></figure>
+
+</section>
+</section>
+
+<section anchor="copyright-notice-license" title="Copyright notice &amp; license">
+<t>Copyright (c) 2021 The OpenID Foundation.</t>
+<t>The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer, or other interested party a non-exclusive, royalty-free, worldwide copyright license to reproduce, prepare derivative works from, distribute, perform and display, this Implementers Draft or Final Specification solely for the purposes of (i) developing specifications, and (ii) implementing Implementers Drafts and Final Specifications based on such documents, provided that attribution be made to the OIDF as the source of the material, but that such attribution does not indicate an endorsement by the OIDF.</t>
+<t>The technology described in this specification was made available from contributions from various sources, including members of the OpenID Foundation and others. Although the OpenID Foundation has taken steps to help ensure that the technology is available for distribution, it takes no position regarding the validity or scope of any intellectual property or other rights that might be claimed to pertain to the implementation or use of the technology described in this specification or the extent to which any license under such rights might or might not be available; neither does it represent that it has made any independent effort to identify any such rights. The OpenID Foundation and the contributors to this specification make no (and hereby expressly disclaim any) warranties (express, implied, or otherwise), including implied warranties of merchantability, non-infringement, fitness for a particular purpose, or title, related to this specification, and the entire risk as to implementing this specification is assumed by the implementer. The OpenID Intellectual Property Rights policy requires contributors to offer a patent promise not to assert certain patent claims against other contributors and against implementers. The OpenID Foundation invites any interested party to bring to its attention any copyrights, patents, patent applications, or other proprietary rights that may cover technology that may be required to practice this specification.</t>
+</section>
+
+</back>
+
+</rfc>

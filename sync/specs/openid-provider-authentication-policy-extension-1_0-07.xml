@@ -1,0 +1,901 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<rfc category="info"
+     docName="openid-provider-authentication-policy-extension-1_0" ipr="none">
+  <?xml-stylesheet type='text/xsl' href='http://xml.resource.org/authoring/rfc2629.xslt' ?>
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="2" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc iprnotified="no" ?>
+  <?rfc strict="yes" ?>
+  <?rfc private="Draft" ?>
+  <?rfc comments="no" ?>
+  <front>
+    <title abbrev="OpenID Provider Auth Policy Extension">OpenID Provider
+    Authentication Policy Extension 1.0 - Draft 7</title>
+    <author fullname="David Recordon" initials="D.R" surname="Recordon">
+      <organization abbrev="Six Apart">Six Apart, Ltd.</organization>
+      <address>
+      <postal>
+        <street>548 4th Street</street>
+        <city>San Francisco</city>
+        <region>CA</region>
+        <code>94107</code>
+        <country>USA</country>
+      </postal>
+      <email>david@sixapart.com</email>
+      <uri>http://www.sixapart.com/</uri>
+      </address>
+    </author>
+    <author fullname="Michael B. Jones" initials="M.J" surname="Jones">
+      <organization abbrev="Microsoft">Microsoft Corporation</organization>
+      <address>
+      <postal>
+        <street>One Microsoft Way, Building 40/5138</street>
+        <city>Redmond</city>
+        <region>WA</region>
+        <code>98052</code>
+        <country>USA</country>
+      </postal>
+      <email>mbj@microsoft.com</email>
+      <uri>http://www.microsoft.com/</uri>
+      </address>
+    </author>
+    <author fullname="Johnny Bufu" initials="J.B" role="editor" surname="Bufu">
+      <organization>Independent</organization>
+      <address>
+      <email>johnny.bufu@gmail.com</email>
+      <uri></uri>
+      </address>
+    </author>
+    <author fullname="Jonathan Daugherty" initials="J.D" role="editor"
+            surname="Daugherty">
+      <organization>JanRain</organization>
+      <address>
+      <postal>
+        <street>5331 SW Macadam Ave. #375</street>
+        <city>Portland</city>
+        <region>OR</region>
+        <code>97239</code>
+        <country>USA</country>
+      </postal>
+      <email>cygnus@janrain.com</email>
+      <uri>http://janrain.com/</uri>
+      </address>
+    </author>
+    <author fullname="Nat Sakimura" initials="N.S" surname="Sakimura">
+      <organization abbrev="NRI">Nomura Research Institute,
+        Ltd.</organization>
+      <address>
+      <postal>
+        <street>Marunouchi Kitaguchi Building, 1-6-5 Marunouchi</street>
+        <city>Chiyoda-ku</city>
+        <region>Tokyo</region>
+        <code>100-0005</code>
+        <country>Japan</country>
+      </postal>
+      <email>n-sakimura@nri.co.jp</email>
+      <uri>http://www.nri.co.jp/</uri>
+      </address>
+    </author>
+    <date day="19" month="October" year="2008" />
+    <abstract>
+      <t>This extension to the OpenID Authentication protocol provides a
+        mechanism by which a Relying Party can request that particular
+        authentication policies be applied by the OpenID Provider when
+        authenticating an End User. This extension also provides a mechanism by
+        which an OpenID Provider may inform a Relying Party which authentication
+        policies were used. Thus a Relying Party can request that the End User
+        authenticate, for example, using a phishing-resistant or multi-factor
+        authentication method.</t>
+      <t>This extension also provides a mechanism by which a Relying Party can
+        request that the OpenID Provider communicate the levels of authentication
+        used, as defined within one or more sets of requested custom Assurance Levels,
+        and for the OpenID Provider to communicate the levels used.</t>
+      <t>This extension is not intended to provide all information regarding
+        the quality of an OpenID Authentication assertion. Rather, it is
+        designed to be balanced with information the Relying Party already has
+        with regard to the OpenID Provider and the level of trust it places in
+        it. If additional information is needed about processes such as new End
+        User enrollment on the OpenID Provider, such information should either
+        be transmitted out-of-band or in other extensions such as OpenID
+        Attribute Exchange. Other aspects (e.g. security characteristics,
+        credential provisioning, etc) could be dealt with in the future.</t>
+      <t>This extension is optional, though its use is certainly recommended.
+        This extension can be used with OpenID Authentication versions 1.1 and
+        2.0.</t>
+      <t>While none of the information transmitted using this extension can be
+        verified by the Relying Party using technology alone, this does not
+        limit the utility of this extension. Because there is no trust model
+        specified by OpenID, Relying Parties must decide for themselves which
+        Providers are
+        trustworthy; likewise, RPs can decide whether to trust authentication
+        policy claims from such OpenID Providers as well. As with other OpenID
+        extensions, it is the Relying Party's responsibility to implement policy
+        relative to the OpenID Provider's response.</t>
+    </abstract>
+  </front>
+  <middle>
+    <section title="Definitions">
+      <section title="Requirements Notation">
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+          document are to be interpreted as described in
+          <xref
+        target="RFC2119" />
+          .</t>
+      </section>
+      <section title="Conventions">
+        <t>Throughout this document, values are quoted to indicate that they
+          are to be taken literally. When using these values in protocol
+          messages, the quotes MUST NOT be used as part of the value.</t>
+        <t>All OpenID 2.0 messages that contain a Provider Authentication
+          Policy Extension (PAPE) element
+          MUST contain the following extension namespace declaration, as
+          specified in the Extensions section of
+          <xref
+        target="OpenIDAuthentication2.0" />
+          .</t>
+        <figure>
+          <artwork><![CDATA[openid.ns.<alias>=http://specs.openid.net/extensions/pape/1.0]]></artwork>
+        </figure>
+        <t>The actual extension namespace alias should be determined on a
+          per-message basis by the party composing the messages, in such a
+          manner as to avoid conflicts between multiple extensions. For the
+          purposes of this document and when constructing OpenID 1.1
+          messages, the extension namespace alias SHALL be "pape".</t>
+        <t>Additionally, this specification uses name spaces for the custom
+          authentication level identification. It is in the form of</t>
+        <figure>
+          <artwork><![CDATA[openid.pape.auth_level.ns.<cust>=http://some.authlevel.uri]]></artwork>
+        </figure>
+        <t>The actual extension namespace alias should be determined on a
+          per-message basis by the party composing the messages, in such a
+          manner as to avoid conflicts between multiple extensions. For the
+          purposes of this document and when constructing OpenID 1.1
+          messages, the one custom authentication level identification extension
+          namespace defined by this specification is "nist". Others may also be
+          defined and used by implementations, for example, "jisa".</t>
+      </section>
+      <section title="Terminology">
+        <t>The following terms are defined in
+          <xref
+        target="OpenIDAuthentication2.0" />
+          :</t>
+        <t>
+          <list style="symbols">
+            <t>Identifier</t>
+            <t>OpenID Provider (OP)</t>
+            <t>Relying Party (RP)</t>
+            <t>User-Agent</t>
+          </list>
+        </t>
+        <t>
+          <list style="hanging">
+            <t hangText="Authentication Method:">An Authentication Method is a
+              single mechanism by which the End User authenticated to their
+              OpenID Provider, for example, a password or a hardware credential.</t>
+            <t hangText="Authentication Policy:">An Authentication Policy is a
+              plain-text description of requirements that dictate which
+              Authentication Methods can be used by an End User when
+              authenticating to their OpenID Provider. An Authentication Policy
+              is defined by a URI which must be previously agreed upon by one or
+              more OPs and RPs.</t>
+          </list>
+        </t>
+      </section>
+    </section>
+    <section title="Extension Overview">
+      <t>
+        <list style="numbers">
+          <t>As part of the
+            <xref target="Yadis" />
+            Discovery process, OpenID
+            Providers can optionally add supported authentication policies to an
+            End User's XRDS document. This aids Relying Parties in choosing
+            between multiple listed OPs depending on authentication policy
+            requirements.</t>
+          <t>The Relying Party includes parameters in the OpenID
+            Authentication request describing its preferences for authentication
+            policy for the current assertion.</t>
+          <t>The OpenID Provider processes the PAPE request, prompting the End
+            User to fulfill the requested policies during the authentication
+            process.</t>
+          <t>As part of the OpenID Provider's response to the Relying Party,
+            the OP includes PAPE information around the End User's
+            authentication. An OP MAY include this response information even if
+            not requested by the RP.</t>
+          <t>When processing the OpenID Provider's response, the Relying Party
+            takes the PAPE information into account when determining if the End
+            User should be sent through additional verification steps or if the
+            OpenID login process cannot proceed due to not meeting policy
+            requirements.</t>
+        </list>
+      </t>
+    </section>
+    <section anchor="advertising" title="Advertising Supported Authentication Policies">
+      <t>Via the use of
+        <xref target="Yadis" />
+        within OpenID, Relying Parties
+        are able to discover OpenID Provider service information in an automated
+        fashion. This is used within OpenID Authentication for a RP to discover
+        what version of the protocol each OP listed supports as well as any
+        extensions, such as this one, that are supported. To aide in the process
+        of a Relying Party selecting which OP they wish to interact with, it is
+        STRONGLY RECOMMENDED that the following information be added to the
+        End User's XRDS document.
+        An OP may choose to advertise both custom levels and supported
+        polices in the same &lt;xrd:Service&gt;.  An OP should only
+        advertise the authentication policies and custom assurance
+        level namespaces that it supports.</t>
+      <t>When advertising supported policies, each policy URI MUST be added as
+        the value of an &lt;xrd:Type&gt; element of an OpenID
+        &lt;xrd:Service&gt; element in an XRDS document.</t>
+      <figure>
+        <preamble>Example:</preamble>
+<artwork><![CDATA[<xrd>
+  <Service>
+    <Type>http://specs.openid.net/auth/2.0/signon</Type>
+    <Type>
+  http://schemas.openid.net/pape/policies/2007/06/phishing-resistant
+    </Type>
+    <URI>https://example.com/server</URI>
+  </Service>
+</xrd>
+]]></artwork>
+      </figure>
+      <t>When advertising supported custom Assurance Level name
+      spaces, each name space URI MUST be added as the value of an
+      &lt;xrd:Type&gt; element of an OpenID &lt;xrd:Service&gt; element
+      in an XRDS document.</t>
+      <figure>
+        <preamble>Example:</preamble>
+<artwork><![CDATA[<xrd>
+  <Service>
+    <Type>http://specs.openid.net/auth/2.0/signon</Type>
+    <Type>
+  http://csrc.nist.gov/publications/nistpubs/800-63/SP800-63V1_0_2.pdf
+    </Type>
+    <URI>https://example.com/server</URI>
+  </Service>
+</xrd>
+]]></artwork>
+      </figure>
+    </section>
+    <section anchor="auth_policies" title="Defined Authentication Policies">
+      <t>The following are defined policies and policy identifiers describing
+        how the End User may authenticate to an OP. Additional policies can
+        be specified elsewhere and used without making changes to this document.
+        The policies described below are designed to be a starting point to
+        cover the most common use-cases. Additional polices can be found at
+        http://schemas.openid.net/pape/policies/.</t>
+      <t>When multiple policies are listed in the Relying Party's
+        request, the OpenID Provider SHOULD satisfy as many of the
+        requested policies as possible.  This may require, for
+        instance, that a user who has already been authenticated using
+        one authentication method be re-authenticated with different
+        or additional methods that satisfy the request made by the
+        Relying Party.  It is always the responsibility of the RP to
+        determine whether the particular authentication performed by
+        the OP satisfied its requirements; this determination may
+        involve information contained in the PAPE response, specific
+        knowledge that the RP has about the OP, and additional
+        information that it may possess or obtain about the particular
+        authentication performed.</t>
+      <t>
+        <list style="symbols">
+          <t>Phishing-Resistant Authentication
+            <list style="empty">
+              <t><figure><artwork>http://schemas.openid.net/pape/policies/2007/06/phishing-resistant</artwork></figure></t>
+              <t>An authentication mechanism where a party potentially under
+                the control of the Relying Party can not gain sufficient
+                information to be able to successfully authenticate to the End
+                User's OpenID Provider as if that party were the End User. (Note
+                that the potentially malicious Relying Party controls where the
+                User-Agent is redirected to and thus may not send it to the End
+                User's actual OpenID Provider).</t>
+            </list>
+          </t>
+          <t>Multi-Factor Authentication
+            <list style="empty">
+              <t><figure><artwork>http://schemas.openid.net/pape/policies/2007/06/multi-factor</artwork></figure></t>
+              <t>An authentication mechanism where the End User authenticates
+                to the OpenID Provider by providing more than one authentication
+                factor. Common authentication factors are something you know,
+                something you have, and something you are. An example would be
+                authentication using a password and a software token or digital
+                certificate.</t>
+            </list>
+          </t>
+          <t>Physical Multi-Factor Authentication
+            <list style="empty">
+              <t><figure><artwork>http://schemas.openid.net/pape/policies/2007/06/multi-factor-physical</artwork></figure></t>
+              <t>An authentication mechanism where the End User authenticates
+                to the OpenID Provider by providing more than one authentication
+                factor where at least one of the factors is a physical factor
+                such as a hardware device or biometric. Common authentication
+                factors are something you know, something you have, and
+                something you are. This policy also implies the Multi-Factor
+                Authentication policy
+                (http://schemas.openid.net/pape/policies/2007/06/multi-factor)
+                and both policies MAY BE specified in conjunction without
+                conflict. An example would be authentication using a password
+                and a hardware token.</t>
+            </list>
+          </t>
+        </list>
+      </t>
+      <t>Of the policies defined above, two are not independent.  All
+        authentications satisfying the Multi-Factor Physical policy also
+        satisfy the Multi-Factor policy.  Therefore, whenever the OP
+        returns a result saying that Multi-Factor Physical
+        authentication was performed it MUST also indicate that
+        Multi-Factor authentication was performed.</t>
+      <section title="Custom Assurance Level Name Spaces">
+        <t>Custom Assurance Levels are optional.  The namespaces may
+          be defined by various parties, such as country or industry
+          specific standards bodies, or other groups or individuals.</t>
+        <t>The namespace URI should be chosen with care to be unambiguous
+          when used as a &lt;xrd:Type&gt; element to advertise the namespaces
+          supported by the OP.</t>
+        <t>The custom Assurance Level namespace should define the meaning
+          of the strings that are returned by the OP in the
+          openid.pape.auth_level.&lt;cust&gt; element.</t>
+      </section>
+    </section>
+    <section title="Authentication Protocol">
+      <section title="Request Parameters">
+        <t>The following parameters MUST be included during an
+          <xref
+        target="OpenIDAuthentication2.0">OpenID Authentication request</xref>
+          by the Relying Party that uses this extension unless marked as optional.</t>
+        <t>
+          <list style="symbols">
+            <t>openid.ns.pape
+              <list style="empty">
+                <t>Value: <figure><artwork>http://specs.openid.net/extensions/pape/1.0</artwork></figure></t>
+              </list>
+            </t>
+            <t>openid.pape.max_auth_age
+              <list style="empty">
+                <t>(Optional) If the End User has not actively authenticated
+                  to the OP within the number of seconds specified in a manner
+                  fitting the requested policies, the OP SHOULD authenticate the
+                  End User for this request using the requested policies.
+                  The OP MUST actively authenticate the user and not rely on a
+                  browser cookie from a previous authentication.</t>
+                <t>Value: Integer value greater than or equal to zero in
+                  seconds.</t>
+                <t>If an OP does not satisfy a request for timely
+                  authentication, the RP may decide not to grant the End User
+                  access to the services provided by the RP.  If this
+                  parameter is absent from the request, the OP should authenticate
+                  the user at its own discretion.</t>
+              </list>
+            </t>
+            <t>openid.pape.preferred_auth_policies
+              <list style="empty">
+                <t>Zero or more authentication policy URIs
+                  representing authentication policies that the OP SHOULD
+                  satisfy when authenticating the user. If multiple policies
+                  are requested, the OP SHOULD satisfy as many of them as it can.</t>
+                <t>Value: Space separated list of authentication policy
+                  URIs.</t>
+                <t>If no policies are requested, the RP may be interested in
+                  other information such as the authentication age.</t>
+                <t>
+                  <figure>
+                    <preamble>Example:</preamble>
+<artwork>openid.pape.preferred_auth_policies=
+  http://schemas.openid.net/pape/policies/2007/06/phishing-resistant
+  http://schemas.openid.net/pape/policies/2007/06/multi-factor</artwork>
+                  </figure>
+                </t>
+              </list>
+            </t>
+            <t>openid.pape.auth_level.ns.&lt;cust&gt;
+              <list style="empty">
+                <t>(Optional) The name space for the custom Assurance Level.
+                  Assurance levels and their name spaces are defined by
+                  various parties, such as country or industry specific
+                  standards bodies, or other groups or individuals.</t>
+                <t>Value: URL that represents this Assurance Level.</t>
+                <t>
+                  <figure>
+                    <preamble>Example:</preamble>
+<artwork>openid.pape.auth_level.ns.nist=
+  http://csrc.nist.gov/publications/nistpubs/800-63/SP800-63V1_0_2.pdf
+openid.pape.auth_level.ns.jisa=
+  http://www.jisa.or.jp/spec/auth_level.html</artwork>
+                  </figure>
+                </t>
+              </list>
+            </t>
+            <t>openid.pape.preferred_auth_level_types
+              <list style="empty">
+                <t>(Optional) The space separated list of the name spaces of
+                  the custom Assurance Level that RP requests, in the order of
+                  its preference.</t>
+                <t>Value: The space separated list of the name space aliases
+                  of the custom Assurance Level that RP requests, in the order
+                  of its preference.</t>
+                <t>
+                  <figure>
+                    <preamble>Example:</preamble>
+                    <artwork>openid.pape.preferred_auth_levels=jisa nist</artwork>
+                  </figure>
+                </t>
+              </list>
+            </t>
+          </list>
+        </t>
+      </section>
+      <section title="Response Parameters">
+        <t>In response to a Relying Party's request, the following parameters
+          MUST be included in the OpenID Authentication Response. All response
+          parameters MUST be included in the signature of the Authentication
+          Response. It is RECOMMENDED that an OP supporting this extension
+          include the following parameters even if not requested by the Relying
+          Party.</t>
+        <t>All response parameters MUST describe the End User's current
+          session with the OpenID Provider.</t>
+        <t>
+          <list style="symbols">
+            <t>openid.ns.pape
+              <list style="empty">
+                <t>Value: <figure><artwork>http://specs.openid.net/extensions/pape/1.0</artwork></figure></t>
+              </list>
+            </t>
+            <t>openid.pape.auth_policies
+              <list style="empty">
+                <t>One or more authentication policy URIs representing policies
+                  that the OP satisfied when authenticating the End User.</t>
+                <t>Value: Space separated list of authentication policy
+                  URIs.</t>
+                <t>Note: If no policies were met though the OP wishes to
+                  convey other information in the response, this parameter MUST
+                  be included with the value of
+                  http://schemas.openid.net/pape/policies/2007/06/none.</t>
+                <t>
+                  <figure>
+                    <preamble>Example:</preamble>
+<artwork>openid.pape.auth_policies=
+  http://schemas.openid.net/pape/policies/2007/06/multi-factor
+  http://schemas.openid.net/pape/policies/2007/06/multi-factor-physical</artwork>
+                  </figure>
+                </t>
+              </list>
+            </t>
+            <t>openid.pape.auth_time
+              <list style="empty">
+                <t>(Optional) The most recent timestamp when the End User has
+                  actively authenticated to the OP in a manner fitting the
+                  asserted policies.</t>
+                <t>Value: The timestamp MUST be formatted as specified in
+                  section 5.6 of
+                  <xref target="RFC3339" />
+                  , with the following
+                  restrictions:
+                  <list style="symbols">
+                    <t>All times must be in the UTC time zone, indicated with a
+                      "Z".</t>
+                    <t>No fractional seconds are allowed</t>
+                  </list>
+                </t>
+                <t>
+                  <figure>
+                    <preamble>Example:</preamble>
+                    <artwork>2005-05-15T17:11:51Z</artwork>
+                  </figure>
+                </t>
+              </list>
+              <list style="empty">
+                <t>Note: If the RP's request included the
+                  "openid.pape.max_auth_age" parameter then the OP MUST include
+                  "openid.pape.auth_time" in its response. If
+                  "openid.pape.max_auth_age" was not requested, the OP MAY
+                  choose to include "openid.pape.auth_time" in its response.</t>
+              </list>
+            </t>
+            <t>openid.pape.auth_level.ns.&lt;cust&gt;
+              <list style="empty">
+                <t>(Optional) The name space for the custom Assurance Level
+                  defined by various parties, such as a country or industry
+                  specific standards body, or other groups or individuals.</t>
+                <t>Value: URL that represents this Assurance Level.</t>
+                <t>
+                  <figure>
+                    <preamble>Example:</preamble>
+<artwork>openid.pape.auth_level.ns.nist=
+  http://csrc.nist.gov/publications/nistpubs/800-63/SP800-63V1_0_2.pdf
+openid.pape.auth_level.ns.jisa=
+  http://www.jisa.or.jp/spec/auth_level.html</artwork>
+                  </figure>
+                </t>
+              </list>
+            </t>
+            <t>openid.pape.auth_level.&lt;cust&gt;
+              <list style="empty">
+                <t>(Optional) The Assurance Level as defined by the above
+                  standards body, group, or individual that corresponds to
+                  the authentication method and policies employed by the
+                  OP when authenticating the End User.</t>
+                <t>Value: Strings defined according to this Assurance
+                  Level.</t>
+                <t>
+                  <figure>
+                    <preamble>Example:</preamble>
+<artwork>openid.pape.auth_level.nist=1
+openid.pape.auth_level.jisa=2</artwork>
+                  </figure>
+                </t>
+              </list>
+            </t>
+          </list>
+        </t>
+      </section>
+    </section>
+    <section title="Security Considerations">
+      <t>Per commonly accepted security practices, it should be noted that
+        the overall strength of any authentication is only as strong as its
+        weakest step. It is thus recommended that provisioning of
+        phishing-resistant and other credentials stronger than shared secrets
+        should be accomplished using methods that are at least as strong as the
+        credential being provisioned. By counter-example, allowing people to
+        retrieve a phishing-resistant credential using only a phishable shared
+        secret negates much of the value provided by the phishing-resistant
+        credential itself.
+        Similarly, sometimes using a phishing-resistant method when a
+        phishable method continues to also sometimes be employed may still
+        enable phishing attacks to compromise the OpenID.</t>
+      <t>OPs SHOULD attempt to satisfy the authentication policies
+        requested by the RP and the reply SHOULD minimally contain at
+        least the subset of the requested policies that the authentication
+        performed satisfied.  The OP MAY also choose to return
+        additional policies that the authentication performed satisfied,
+        even if not requested.</t>
+      <t>If the RP requested that an authentication level or levels be
+        returned and the OP supports some or all of those level types,
+        then the OP SHOULD return the actual level value for each of
+        the supported types requested, if available.</t>
+      <section title="NIST Assurance Levels">
+        <t>National Institute of Standards and Technology (NIST) in
+          <xref
+        target="NIST_SP800-63">Special Publication 800-63</xref>
+          defines a set
+          of Assurance Levels from 1 to 4. These may be returned by the OP to
+          the RP to communicate which NIST level the identity proofing,
+          authentication method, and policies employed by the OP when
+          authenticating the End User corresponds to.</t>
+        <t>Value: Integer value between 0 and 4 inclusive.</t>
+        <t>Note: Level 0 is not an assurance level defined by NIST, but rather
+          SHOULD be used to signify that the OP recognizes the parameter and the
+          End User authentication did not meet the requirements of Level 1. See
+          <xref target="NIST_Examples" />
+          for high-level example classifications
+          of authentication methods within the defined levels. Authentication
+          using a long-lived browser cookie, for instance, is one example where
+          the use of "level 0" is appropriate.
+          Authentications with level 0 should never be used to authorize
+          access to any resource of any monetary value whatsoever.  The
+          previous sentence should not be construed as implying that any
+          of the other levels are recommended or appropriate for accessing
+          resources with monetary value either without the Relying Party doing
+          an appropriate risk assessment of the particular OpenID provider
+          asserting them and their issuance and authentication procedures as
+          they apply to the particular online interaction in question.</t>
+        <t>Depending on the particular use case being satisfied by the
+          authentication response and PAPE information, the OpenID Provider will
+          have to make a decision, ideally with the consent of the End User, as
+          if it will include the "openid.pape.auth_level.nist" parameter. This
+          information is designed to give Relying Parties more information
+          around the strength of credentials used without actually disclosing
+          the specific credential type. Disclosing the specific credential type
+          can be considered a potential privacy or security risk.</t>
+        <t>It is RECOMMENDED that this parameter always be included in the
+          response from the OP. This holds true even in cases where the End User
+          authentication does not meet one of the defined Authentication
+          Policies. For example, if the End User is authenticating using a
+          password via HTTPS there is still value to the RP in knowing if the
+          strength of the Password corresponds to the entropy requirements laid
+          out by Level 1 or 2 or that it does not even meet the minimum
+          requirement for the lowest level. With that said, discretion needs to
+          be used by OP's as conveying that one of their End User's has a weak
+          password to an "un-trustworthy" RP would not generally be considered a
+          good idea.</t>
+      </section>
+    </section>
+    <appendix anchor="examples" title="Examples">
+      <appendix title="Authentication Method Classifications">
+        <t>This non-normative section illustrates classification of various
+          common authentication methods and their respective conformance within
+          the defined policies and levels.</t>
+        <appendix anchor="policy_examples"
+                  title="Authentication Policy Examples">
+          <texttable>
+            <preamble>This table provides examples of common authentication
+              technologies and their mapping to the Authentication Policies
+              defined in
+              <xref target="auth_policies" />
+              .</preamble>
+            <ttcol>Method</ttcol>
+            <ttcol>Phishing-Resistant</ttcol>
+            <ttcol>Multi-Factor</ttcol>
+            <ttcol>Physical Multi-Factor</ttcol>
+            <c>Password via HTTPS</c>
+            <c />
+            <c />
+            <c />
+            <c>Visual secret via HTTPS</c>
+            <c />
+            <c />
+            <c />
+            <c>PIN and digital certificate via HTTPS</c>
+            <c>X</c>
+            <c>X</c>
+            <c />
+            <c>PIN and "soft" OTP token via HTTPS</c>
+            <c />
+            <c>X</c>
+            <c />
+            <c>PIN and "hard" OTP token via HTTPS</c>
+            <c />
+            <c>X</c>
+            <c>X</c>
+            <c>PIN and "hard" crypto token via HTTPS</c>
+            <c>X</c>
+            <c>X</c>
+            <c>X</c>
+            <c>Information Card via HTTPS</c>
+            <c>X</c>
+            <c>X</c>
+            <c />
+          </texttable>
+        </appendix>
+        <appendix anchor="NIST_Examples"
+                  title="NIST Authentication Mechanism Levels">
+          <t>This section is designed to highlight the Authentication
+            Mechanism Levels described in
+            <xref target="NIST_SP800-63" />
+            . All normative and authoritative text can be found in
+            <xref target="NIST_SP800-63" />
+            . Note that assurance level is not
+            only comprised of Authentication Mechanism employed but also
+            the nature of the identity proofing performed. The overall
+            assurance level is determined as a combination of these factors.</t>
+          <texttable>
+            <preamble>This table is republished from page 39 of
+              <xref
+            target="NIST_SP800-63" />
+              .</preamble>
+            <ttcol>Token Type</ttcol>
+            <ttcol>Level 1</ttcol>
+            <ttcol>Level 2</ttcol>
+            <ttcol>Level 3</ttcol>
+            <ttcol>Level 4</ttcol>
+            <c>Hard crypto token</c>
+            <c>X</c>
+            <c>X</c>
+            <c>X</c>
+            <c>X</c>
+            <c>One-time password device</c>
+            <c>X</c>
+            <c>X</c>
+            <c>X</c>
+            <c />
+            <c>Soft crypto token</c>
+            <c>X</c>
+            <c>X</c>
+            <c>X</c>
+            <c />
+            <c>Passwords &amp; PINs</c>
+            <c>X</c>
+            <c>X</c>
+            <c />
+            <c />
+          </texttable>
+          <texttable>
+            <preamble>This table is republished from page 39 of
+              <xref
+            target="NIST_SP800-63" />
+              .</preamble>
+            <ttcol>Protect Against</ttcol>
+            <ttcol>Level 1</ttcol>
+            <ttcol>Level 2</ttcol>
+            <ttcol>Level 3</ttcol>
+            <ttcol>Level 4</ttcol>
+            <c>On-line guessing</c>
+            <c>X</c>
+            <c>X</c>
+            <c>X</c>
+            <c>X</c>
+            <c>Replay</c>
+            <c>X</c>
+            <c>X</c>
+            <c>X</c>
+            <c>X</c>
+            <c>Eavesdropper</c>
+            <c />
+            <c>X</c>
+            <c>X</c>
+            <c>X</c>
+            <c>Verifier impersonation</c>
+            <c />
+            <c />
+            <c>X</c>
+            <c>X</c>
+            <c>Man-in-the-middle</c>
+            <c />
+            <c />
+            <c>X</c>
+            <c>X</c>
+            <c>Session hijacking</c>
+            <c />
+            <c />
+            <c />
+            <c>X</c>
+          </texttable>
+          <texttable>
+            <preamble>The following table illustrates the minimum number of
+              factors required at each Authentication Mechanism
+              Level.</preamble>
+            <ttcol>Level</ttcol>
+            <ttcol>Factors</ttcol>
+            <c>1</c>
+            <c>1</c>
+            <c>2</c>
+            <c>1</c>
+            <c>3</c>
+            <c>2</c>
+            <c>4</c>
+            <c>2</c>
+          </texttable>
+          <t>In all cases, implementing a commonly accepted nonce and
+            cross-site scripting protection when entering authentication
+            credentials is required to satisfy all four Authentication Mechanism
+            Levels. All examples below assume this requirement is met.</t>
+          <t>It should be noted that NIST Authentication Mechanism Levels 1
+            and 2 have differing password entropy requirements. When working
+            with passwords, you should refer to the
+            <xref
+          target="NIST_SP800-63" />
+            specification for more details. All
+            examples below assume the password meets these requirements.</t>
+          <texttable>
+            <preamble>This table provides examples of common authentication
+              technologies and their mapping to NIST Authentication Mechanism
+              Levels, please be aware that there are details not represented in
+              these examples that may bear on the resulting Authentication
+              Mechanism Level.</preamble>
+            <ttcol>Method</ttcol>
+            <ttcol>Level 1</ttcol>
+            <ttcol>Level 2</ttcol>
+            <ttcol>Level 3</ttcol>
+            <ttcol>Level 4</ttcol>
+            <c>Password via HTTP</c>
+            <c>Yes, if challenge-response</c>
+            <c />
+            <c />
+            <c />
+            <c>Password via HTTPS</c>
+            <c>Yes</c>
+            <c>Yes</c>
+            <c />
+            <c />
+            <c>PIN and Digital Certificate via HTTPS</c>
+            <c>Yes</c>
+            <c>Yes</c>
+            <c>Yes</c>
+            <c />
+            <c>PIN and "soft" OTP token via HTTPS</c>
+            <c>Yes</c>
+            <c>Yes</c>
+            <c>Yes</c>
+            <c />
+            <c>PIN and "hard" OTP token via HTTPS</c>
+            <c>Yes</c>
+            <c>Yes</c>
+            <c>Yes</c>
+            <c />
+            <c>PIN and "hard" crypto token via HTTPS</c>
+            <c>Yes</c>
+            <c>Yes</c>
+            <c>Yes</c>
+            <c>Yes, if FIPS 140-2 Level 2 crypto and Level 3 physical</c>
+          </texttable>
+        </appendix>
+      </appendix>
+    </appendix>
+    <appendix title="Acknowledgements">
+      <t>The authors would like to thank
+        John Bradley,
+        Kim Cameron,
+        Barry Ferg,
+        George Fletcher,
+        Dick Hardt,
+        Nate Klingstein,
+        Gary Krall,
+        Ben Laurie,
+        Arun Nanda,
+        Drummond Reed,
+        Tatsuki Sakushima,  
+        and
+        Allen Tom
+        for their feedback when
+        drafting this specification. David Recordon would also like to
+        acknowledge VeriSign who employed him during the original authoring of
+        this specification.</t>
+    </appendix>
+  </middle>
+  <back>
+    <references title="Normative References">
+      <reference anchor="RFC2119">
+        <front>
+          <title>Key words for use in RFCs to Indicate Requirement
+          Levels</title>
+          <author fullname="Scott Bradner" initials="B.S" surname="Bradner">
+            <organization>Alis Technologies</organization>
+          </author>
+          <date year="1997" />
+        </front>
+        <seriesInfo name="RFC" value="2119" />
+      </reference>
+      <reference anchor="OpenIDAuthentication2.0">
+        <front>
+          <title>OpenID Authentication 2.0</title>
+          <author initials="" surname="specs@openid.net" fullname="specs@openid.net">
+            <organization />
+          </author>
+          <date year="2007" />
+        </front>
+        <format target="http://www.openid.net/specs/openid-authentication-2_0.txt"
+                type="TXT" />
+        <format target="http://www.openid.net/specs/openid-authentication-2_0.html"
+                type="HTML" />
+      </reference>
+      <reference anchor="Yadis">
+        <front>
+          <title>Yadis Specification 1.0</title>
+          <author fullname="Joaquin Miller" initials="J.M" role="editor"
+                  surname="Miller">
+            <organization>NetMesh</organization>
+          </author>
+          <date year="2005" />
+        </front>
+        <format target="http://yadis.org/papers/yadis-v1.0.pdf" type="PDF" />
+        <format target="http://yadis.org/papers/yadis-v1.0.odt" type="ODT" />
+      </reference>
+      <reference anchor="NIST_SP800-63">
+        <front>
+          <title>Electronic Authentication Guideline</title>
+          <author fullname="William E. Burr" initials="W.E.B" surname="Burr">
+            <organization>NIST</organization>
+          </author>
+          <author fullname="Donna F. Dodson" initials="D.F.D" surname="Dodson">
+            <organization>NIST</organization>
+          </author>
+          <author fullname="W. Timothy Polk" initials="W.T.P" role="editor"
+                  surname="Polk">
+            <organization>NIST</organization>
+          </author>
+          <date month="April" year="2006" />
+        </front>
+        <format target="http://csrc.nist.gov/publications/nistpubs/800-63/SP800-63V1_0_2.pdf"
+                type="PDF" />
+      </reference>
+      <reference anchor="RFC3339">
+        <front>
+          <title>Date and Time on the Internet: Timestamps</title>
+          <author fullname="Graham Klyne" initials="G.K" surname="Klyne">
+            <organization>Clearswift Corporation</organization>
+          </author>
+          <author fullname="Chris Newman" initials="C.N" surname="Newman">
+            <organization>Sun Microsystems</organization>
+          </author>
+        </front>
+        <seriesInfo name="RFC" value="3339" />
+      </reference>
+    </references>
+  </back>
+</rfc>

@@ -1,0 +1,2505 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
+<rfc version="3" ipr="none" docName="openid-4-verifiable-presentations-1_0-16" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" consensus="true">
+
+<front>
+<title abbrev="openid-4-vp">OpenID for Verifiable Presentations</title><seriesInfo value="openid-4-verifiable-presentations-1_0-16" status="standard" name="Internet-Draft"></seriesInfo>
+<author initials="O." surname="Terbu" fullname="Oliver Terbu"><organization>Spruce Systems, Inc.</organization><address><postal><street></street>
+</postal><email>oliver.terbu@spruceid.com</email>
+</address></author>
+<author initials="T." surname="Lodderstedt" fullname="Torsten Lodderstedt"><organization>yes.com</organization><address><postal><street></street>
+</postal><email>torsten@lodderstedt.net</email>
+</address></author>
+<author initials="K." surname="Yasuda" fullname="Kristina Yasuda"><organization>Microsoft</organization><address><postal><street></street>
+</postal><email>kristina.yasuda@microsoft.com</email>
+</address></author>
+<author initials="A." surname="Lemmon" fullname="Adam Lemmon"><organization>Convergence.tech</organization><address><postal><street></street>
+</postal><email>adam@convergence.tech</email>
+</address></author>
+<author initials="T." surname="Looker" fullname="Tobias Looker"><organization>Mattr</organization><address><postal><street></street>
+</postal><email>tobias.looker@mattr.global</email>
+</address></author>
+<date/>
+<area>Internet</area>
+<workgroup>connect</workgroup>
+<keyword>security</keyword>
+<keyword>openid</keyword>
+<keyword>ssi</keyword>
+
+<abstract>
+<t>This specification defines a protocol for requesting and presenting Verifiable Credentials.</t>
+</abstract>
+
+</front>
+
+<middle>
+
+<section anchor="introduction"><name>Introduction</name>
+<t>This specification defines a mechanism on top of OAuth 2.0 <xref target="RFC6749"></xref> that enables presentation of Verifiable Credentials as Verifiable Presentations. Verifiable Credentials and Verifiable Presentations can be of any format, including, but not limited to W3C Verifiable Credentials Data Model <xref target="VC_DATA"></xref>, ISO mdoc <xref target="ISO.18013-5"></xref>, and AnonCreds <xref target="Hyperledger.Indy"></xref>.</t>
+<t>OAuth 2.0 <xref target="RFC6749"></xref> is used as a base protocol as it provides the required rails to build simple, secure, and developer-friendly Credential presentation on top of it. Moreover, implementers can, in a single interface, support Credential presentation and the issuance of Access Tokens for access to APIs based on Verifiable Credentials in the Wallet. OpenID Connect <xref target="OpenID.Core"></xref> deployments can also extend their implementations using this specification with the ability to transport Verifiable Presentations.</t>
+<t>This specification can also be combined with <xref target="SIOPv2"></xref>, if implementers require OpenID Connect features, such as the issuance of subject-signed ID Tokens.</t>
+</section>
+
+<section anchor="terminology"><name>Terminology</name>
+<t>This specification uses the terms &quot;Access Token&quot;, &quot;Authorization Request&quot;, &quot;Authorization Response&quot;, &quot;Client&quot;, &quot;Client Authentication&quot;, &quot;Client Identifier&quot;, &quot;Grant Type&quot;, &quot;Response Type&quot;, &quot;Token Request&quot; and &quot;Token Response&quot; defined by OAuth 2.0 <xref target="RFC6749"></xref>, the terms &quot;End-User&quot;, &quot;Entity&quot;, &quot;Request Object&quot;, &quot;Request URI&quot; as defined by OpenID Connect Core <xref target="OpenID.Core"></xref>, the term &quot;JSON Web Token (JWT)&quot; defined by JSON Web Token (JWT) <xref target="RFC7519"></xref>, the term &quot;JOSE Header&quot; and the term &quot;Base64url Encoding&quot; defined by JSON Web Signature (JWS) <xref target="RFC7515"></xref>, and the term &quot;Response Mode&quot; defined by OAuth 2.0 Multiple Response Type Encoding Practices <xref target="OAuth.Responses"></xref>.</t>
+<t>This specification also defines the following terms. In the case where a term has a definition that differs, the definition below is authoritative.</t>
+
+<dl>
+<dt>Credential:</dt>
+<dd><t>A set of one or more claims about a subject made by a Credential Issuer. Note that this definition of a term &quot;credential&quot; in this specification is different from that in <xref target="OpenID.Core"></xref>.</t>
+</dd>
+<dt>Verifiable Credential (VC):</dt>
+<dd><t>An Issuer-signed Credential whose authenticity can be cryptographically verified. Can be of any format used in the Issuer-Holder-Verifier Model, including, but not limited to those defined in <xref target="VC_DATA"></xref>, <xref target="ISO.18013-5"></xref> (mdoc) and <xref target="Hyperledger.Indy"></xref> (AnonCreds).</t>
+</dd>
+<dt>W3C Verifiable Credential:</dt>
+<dd><t>A Verifiable Credential compliant to the <xref target="VC_DATA"></xref> specification.</t>
+</dd>
+<dt>Presentation:</dt>
+<dd><t>Data that is presented to a specific Verifier, derived from one or more Verifiable Credentials that can be from the same or different Credential Issuers.</t>
+</dd>
+<dt>Verifiable Presentation (VP):</dt>
+<dd><t>A Holder-signed Credential whose authenticity can be cryptographically verified to provide Cryptographic Holder Binding. Can be of any format used in the Issuer-Holder-Verifier Model, including, but not limited to those defined in <xref target="VC_DATA"></xref>, <xref target="ISO.18013-5"></xref> (mdoc) and <xref target="Hyperledger.Indy"></xref> (AnonCreds).</t>
+</dd>
+<dt>W3C Verifiable Presentation:</dt>
+<dd><t>A Verifiable Presentations compliant to the <xref target="VC_DATA"></xref> specification.</t>
+</dd>
+<dt>Credential Issuer:</dt>
+<dd><t>An entity that issues Verifiable Credentials. Also called Issuer.</t>
+</dd>
+<dt>Holder:</dt>
+<dd><t>An entity that receives Verifiable Credentials and has control over them to present them to the Verifiers as Verifiable Presentations.</t>
+</dd>
+<dt>Verifier:</dt>
+<dd><t>An entity that requests, receives and validates Verifiable Presentations. During presentation of Credentials, Verifier acts as an OAuth 2.0 Client towards the Wallet that is acting as an OAuth 2.0 Authorization Server. The Verifier is a specific case of OAuth 2.0 Client, just like Relying Party (RP) in <xref target="OpenID.Core"></xref>.</t>
+</dd>
+<dt>Issuer-Holder-Verifier Model:</dt>
+<dd><t>A model for exchanging claims, where claims are issued in the form of Verifiable Credentials independent of the process of presenting them as Verifiable Presentation to the Verifiers. An issued Verifiable Credential can (but must not necessarily) be used multiple times.</t>
+</dd>
+<dt>Holder Binding:</dt>
+<dd><t>Ability of the Holder to prove legitimate possession of a Verifiable Credential.</t>
+</dd>
+<dt>Cryptographic Holder Binding:</dt>
+<dd><t>Ability of the Holder to prove legitimate possession of a Verifiable Credential by proving control over the same private key during the issuance and presentation. Mechanism might depend on the Credential Format. For example, in <tt>jwt_vc_json</tt> Credential Format, a VC with Cryptographic Holder Binding contains a public key or a reference to a public key that matches to the private key controlled by the Holder.</t>
+</dd>
+<dt>Claim-based Holder Binding:</dt>
+<dd><t>Ability of the Holder to prove legitimate possession of a Verifiable Credential by proofing certain claims, e.g. name and date of birth, for example by presenting another Verifiable Credential. Claim-based Holder Binding allows long term, cross device use of a Credential as it does not depend on cryptographic key material stored on a certain device. One example of such a Verifiable Credential could be a Diploma.</t>
+</dd>
+<dt>Biometrics-based Holder Binding:</dt>
+<dd><t>Ability of the Holder to prove legitimate possession of a Verifiable Credential by demonstrating a certain biometric trait, such as finger print or face. One example of a Verifiable Credential with biometric Holder Binding is a mobile drivers license <xref target="ISO.18013-5"></xref>, which contains a portrait of the Holder.</t>
+</dd>
+<dt>VP Token:</dt>
+<dd><t>An artifact defined in this specification that contains a single Verifiable Presentation or an array of Verifiable Presentations as defined in <xref target="response-parameters"></xref>.</t>
+</dd>
+<dt>Wallet:</dt>
+<dd><t>An entity used by the Holder to receive, store, present, and manage Verifiable Credentials and key material. There is no single deployment model of a Wallet: Verifiable Credentials and keys can both be stored/managed locally, or by using a remote self-hosted service, or a remote third-party service. In the context of this specification, the Wallet acts as an OAuth 2.0 Authorization Server (see <xref target="RFC6749"></xref>) towards the Credential Verifier which acts as the OAuth 2.0 Client.</t>
+</dd>
+</dl>
+</section>
+
+<section anchor="overview"><name>Overview</name>
+<t>This specification defines a mechanism on top of OAuth 2.0 to request and present Verifiable Credentials as Verifiable Presentations.</t>
+<t>As the primary extension, OpenID for Verifiable Presentations introduces the VP Token as a container to enable End-Users to present Verifiable Presentations to Verifiers using the Wallet. A VP Token contains one or more Verifiable Presentations in the same or different Credential formats.</t>
+<t>This specification supports any Credential format used in the Issuer-Holder-Verifier Model, including, but not limited to those defined in <xref target="VC_DATA"></xref>, <xref target="ISO.18013-5"></xref> (mdoc), and <xref target="Hyperledger.Indy"></xref> (AnonCreds). Multiple Credential formats can be presented in the same transaction. The examples given in the main part of this specification use W3C Verifiable Credentials, examples in other Credential formats are given in <xref target="alternative_credential_formats"></xref>.</t>
+<t>Implementations can use any pre-existing OAuth 2.0 Grant Type and Response Type in conjunction with this specifications to support different deployment architectures.</t>
+<t>OpenID for Verifiable Presentations supports scenarios where the Authorization Request is sent both when the Verifier is interacting with the End-User using the same or different device on which requested Credential(s) are stored.</t>
+<t>This specification supports the response being sent using a redirect but also using an HTTP POST request. This enables the response to be sent across devices, or when the response size exceeds the redirect URL character size limitation.</t>
+<t>Implementations can also be built on top of OpenID Connect Core, since OpenID Connect Core is based on OAuth 2.0. To benefit from the subject-signed ID Token feature, this specification can also be combined with the Self-Issued OP v2 specification <xref target="SIOPv2"></xref>.</t>
+<t>Any of the OAuth 2.0 related specifications, such as <xref target="RFC9126"></xref>, and <xref target="RFC9101"></xref> and Best Current Practice (BCP) documents, such as <xref target="RFC8252"></xref> and <xref target="I-D.ietf-oauth-security-topics"></xref>, can be implemented on top of this specification.</t>
+</section>
+
+<section anchor="scope"><name>Scope</name>
+<t>OpenID for Verifiable Presentations extends existing OAuth 2.0 mechanisms as following:</t>
+
+<ul>
+<li><t>A new <tt>presentation_definition</tt> Authorization Request parameter that uses the <xref target="DIF.PresentationExchange"></xref> syntax is defined to request presentation of Verifiable Credentials in arbitrary formats. See <xref target="vp_token_request"></xref> for more details.</t>
+</li>
+<li><t>A new <tt>vp_token</tt> response parameter is defined to return Verifiable Presentations to the Verifier in either Authorization or Token Response depending on the response type. See <xref target="response"></xref> for more details.</t>
+</li>
+<li><t>New Response Types <tt>vp_token</tt> and <tt>id_token vp_token</tt> are defined to request Verifiable Credentials to be returned in the Authorization Response (standalone or along with an OpenID Connect ID Token <xref target="OpenID.Core"></xref>). See <xref target="response"></xref> for more details.</t>
+</li>
+<li><t>A new OAuth 2.0 Response Mode <tt>direct_post</tt> is defined to support sending the response across devices, or when the size of the response exceeds the redirect URL character size limitation. See <xref target="response_mode_post"></xref> for more detials.</t>
+</li>
+<li><t>The <xref target="DIF.PresentationExchange"></xref> <tt>format</tt> parameter is used throughout the protocol in order to enable customization according to the specific needs of a particular Credential format. Examples in <xref target="alternative_credential_formats"></xref> are given for credential formats as specified in <xref target="VC_DATA"></xref>, <xref target="ISO.18013-5"></xref>, and <xref target="Hyperledger.Indy"></xref>.</t>
+</li>
+<li><t>A new <tt>client_id_scheme</tt> Authorization Request parameter is defined to enable deployments of this specification to use different mechanisms to obtain and validate metadata of the Verifier beyond the scope of <xref target="RFC6749"></xref>.</t>
+</li>
+</ul>
+<t>Presentation of Credentials using OpenID for Verifiable Presentations can be combined with the user authentication using <xref target="SIOPv2"></xref>, and the issuance of OAuth 2.0 Access Tokens.</t>
+</section>
+
+<section anchor="vp_token_request"><name>Authorization Request</name>
+<t>The Authorization Request follows the definition given in <xref target="RFC6749"></xref>.</t>
+<t>The Verifier may send Authorization Request as Request Object by value or by reference as defined in Section 6.1 of <xref target="OpenID.Core"></xref> or <xref target="RFC9101"></xref>.</t>
+<t>This specification defines the following new parameters:</t>
+
+<dl>
+<dt><tt>presentation_definition</tt>:</dt>
+<dd><t>CONDITIONAL. A string containing a Presentation Definition JSON object as defined in Section 5 of <xref target="DIF.PresentationExchange"></xref>. See <xref target="request_presentation_definition"></xref> for more details.</t>
+</dd>
+<dt><tt>presentation_definition_uri</tt>:</dt>
+<dd><t>CONDITIONAL. A string containing an HTTPS URL pointing to a resource where a Presentation Definition JSON object as defined in Section 5 of <xref target="DIF.PresentationExchange"></xref> can be retrieved. See <xref target="request_presentation_definition_uri"></xref> for more details.</t>
+</dd>
+<dt><tt>client_metadata</tt>:</dt>
+<dd><t>OPTIONAL. This parameter enables Verifier's metadata to be passed in a single, self-contained parameter. The value is a JSON object containing metadata values. The <tt>client_metadata</tt> parameter value is represented in an OAuth 2.0 request as a UTF-8 encoded JSON object. MUST NOT be present if <tt>client_metadata_uri</tt> parameter is present.</t>
+</dd>
+<dt><tt>client_metadata_uri</tt>:</dt>
+<dd><t>OPTIONAL. This parameter enables Verifier's metadata to be passed by reference, rather than by value. The value is a URL referencing a resource containing a Verifier's metadata object. The scheme used in the <tt>client_metadata_uri</tt> value MUST be https. The <tt>client_metadata_uri</tt> value MUST be reachable by the Wallet. MUST NOT be present if <tt>client_metadata</tt> parameter is present.</t>
+</dd>
+<dt><tt>client_id_scheme</tt>:</dt>
+<dd><t>OPTIONAL. A string identifying the scheme of the value in the <tt>client_id</tt> Authorization Request parameter (Client Identifier scheme). The Verifier uses this parameter to indicate how the Wallet is supposed to interpret the Client Identifier and associated data in the process of Client identification, authentication, and authorization. A certain Client Identifier scheme MAY require the Verifier to sign the request as means of authentication and/or pass additional request parameters and require the Wallet to process those additional request parameters. The <tt>client_id_scheme</tt> parameter enables deployments of this specification to use different mechanisms to obtain and validate Client metadata beyond the scope of <xref target="RFC6749"></xref>. If the parameter is not present, the Wallet MUST behave as specified in <xref target="RFC6749"></xref>. See <xref target="client_metadata_management"></xref> for the values defined by this specification.
+The <tt>client_id_scheme</tt> parameter namespaces the respective Client Identifier. This means if a request uses the <tt>client_id_scheme</tt> parameter, the Wallet MUST interpret the Client Identifier of the Verifier in the context of the Client Identifier scheme. If the same Client Identifier is used with different Client Identifier schemes, those occurences MUST be treated as different Verifiers. Note that the Verifier needs determine which client id schemes the Wallet supports prior to sending the Authorisation Request in order to choose a supported scheme.</t>
+</dd>
+</dl>
+<t>Presentation Definition is a JSON Object that articulates what Verifiable Presentation(s) the Verifier is requesting to be presented as defined in Section 5 of <xref target="DIF.PresentationExchange"></xref>.</t>
+<t>Claims to be included in <tt>client_metadata</tt> and <tt>client_metadata_uri</tt> parameters are defined in Section 4.3 and Section 2.1 of the OpenID Connect Dynamic Client Registration 1.0 <xref target="OpenID.Registration"></xref> specification as well as <xref target="RFC7591"></xref>.</t>
+<t>A public key to be used by the Wallet as an input to the key agreement to encrypt Authorization Response (see <xref target="jarm"></xref>) MAY be passed by the Verifier using <tt>jwks</tt> or <tt>jwks_uri</tt> claim within the <tt>client_metadata</tt> or <tt>client_metadata_uri</tt> request parameter.</t>
+<t>The following additional considerations are given for pre-existing Authorization Request parameters:</t>
+
+<dl>
+<dt><tt>nonce</tt>:</dt>
+<dd><t>REQUIRED. Defined in  <xref target="OpenID.Core"></xref>. It is used to securely bind the Verifiable Presentation(s) provided by the Wallet to the particular transaction.</t>
+</dd>
+<dt><tt>scope</tt>:</dt>
+<dd><t>OPTIONAL. Defined in <xref target="RFC6749"></xref>. The Wallet MAY allow Verifiers to request presentation of Verifiable Credentials by utilizing a pre-defined scope value. See <xref target="request_scope"></xref> for more details.</t>
+</dd>
+<dt><tt>response_mode</tt>:</dt>
+<dd><t>OPTIONAL. Defined in <xref target="OAuth.Responses"></xref>. This parameter is used (through the new response mode <tt>direct_post</tt>) to ask the Wallet to send the response to the Verifier via an HTTPS connection (see <xref target="response_mode_post"></xref> for more details). It is also used to request signing and encrypting (see <xref target="jarm"></xref> for more details). If the parameter is not present, the default value is <tt>fragment</tt>.</t>
+</dd>
+</dl>
+<t>The three ways to request Credential presentation are mutually exclusive. A request MUST NOT contain more than one of <tt>presentation_definition</tt>, <tt>presentation_definition_uri</tt>, or a <tt>scope</tt> value representing a Presentation Definition. The Wallet MUST refuse any request violating this requirement.</t>
+<t>This is an example Authorization Request:</t>
+
+<artwork>  GET /authorize?
+    response_type=vp_token
+    &amp;client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;presentation_definition=...
+    &amp;nonce=n-0S6_WzA2Mj HTTP/1.1
+</artwork>
+
+<section anchor="request_presentation_definition"><name><tt>presentation_definition</tt> Parameter</name>
+<t>This parameter contains a Presentation Definition JSON object conforming to the syntax defined in Section 5 of <xref target="DIF.PresentationExchange"></xref>.</t>
+<t>The following shows an example <tt>presentation_definition</tt> parameter:</t>
+
+<sourcecode type="json">{
+    &quot;id&quot;: &quot;vp token example&quot;,
+    &quot;input_descriptors&quot;: [
+        {
+            &quot;id&quot;: &quot;id card credential&quot;,
+            &quot;format&quot;: {
+                &quot;ldp_vc&quot;: {
+                    &quot;proof_type&quot;: [
+                        &quot;Ed25519Signature2018&quot;
+                    ]
+                }
+            },
+            &quot;constraints&quot;: {
+                &quot;fields&quot;: [
+                    {
+                        &quot;path&quot;: [
+                            &quot;$.type&quot;
+                        ],
+                        &quot;filter&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;pattern&quot;: &quot;IDCardCredential&quot;
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}
+</sourcecode>
+<t>This simple example requests the presentation of a Credential of a certain type.</t>
+<t>The following example shows how the Verifier can request selective disclosure or certain claims from a Credential of a particular type.</t>
+
+<sourcecode type="json">{
+    &quot;id&quot;: &quot;vp token example&quot;,
+    &quot;input_descriptors&quot;: [
+        {
+            &quot;id&quot;: &quot;id card credential with constraints&quot;,
+            &quot;format&quot;: {
+                &quot;ldp_vc&quot;: {
+                    &quot;proof_type&quot;: [
+                        &quot;Ed25519Signature2018&quot;
+                    ]
+                }
+            },
+            &quot;constraints&quot;: {
+                &quot;limit_disclosure&quot;: &quot;required&quot;,
+                &quot;fields&quot;: [
+                    {
+                        &quot;path&quot;: [
+                            &quot;$.type&quot;
+                        ],
+                        &quot;filter&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;pattern&quot;: &quot;IDCardCredential&quot;
+                        }
+                    },
+                    {
+                        &quot;path&quot;: [
+                            &quot;$.credentialSubject.given_name&quot;
+                        ]
+                    },
+                    {
+                        &quot;path&quot;: [
+                            &quot;$.credentialSubject.family_name&quot;
+                        ]
+                    },
+                    {
+                        &quot;path&quot;: [
+                            &quot;$.credentialSubject.birthdate&quot;
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}
+</sourcecode>
+<t>Clients can also ask for alternative Verifiable Credentials being presented, which is shown in the next example:</t>
+
+<sourcecode type="json">{
+    &quot;id&quot;: &quot;alternative credentials&quot;,
+    &quot;submission_requirements&quot;: [
+        {
+            &quot;name&quot;: &quot;Citizenship Information&quot;,
+            &quot;rule&quot;: &quot;pick&quot;,
+            &quot;count&quot;: 1,
+            &quot;from&quot;: &quot;A&quot;
+        }
+    ],
+    &quot;input_descriptors&quot;: [
+        {
+            &quot;id&quot;: &quot;id card credential&quot;,
+            &quot;group&quot;: [
+                &quot;A&quot;
+            ],
+            &quot;format&quot;: {
+                &quot;ldp_vc&quot;: {
+                    &quot;proof_type&quot;: [
+                        &quot;Ed25519Signature2018&quot;
+                    ]
+                }
+            },
+            &quot;constraints&quot;: {
+                &quot;fields&quot;: [
+                    {
+                        &quot;path&quot;: [
+                            &quot;$.type&quot;
+                        ],
+                        &quot;filter&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;pattern&quot;: &quot;IDCardCredential&quot;
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            &quot;id&quot;: &quot;passport credential&quot;,
+            &quot;format&quot;: {
+                &quot;jwt_vc_json&quot;: {
+                    &quot;alg&quot;: [
+                        &quot;RS256&quot;
+                    ]
+                }
+            },
+            &quot;group&quot;: [
+                &quot;A&quot;
+            ],
+            &quot;constraints&quot;: {
+                &quot;fields&quot;: [
+                    {
+                        &quot;path&quot;: [
+                            &quot;$.vc.type&quot;
+                        ],
+                        &quot;filter&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;pattern&quot;: &quot;PassportCredential&quot;
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}
+</sourcecode>
+<t>The VC and VP formats supported by the Wallet should be published in its metadata using the metadata parameter <tt>vp_formats_supported</tt> (see <xref target="as_metadata_parameters"></xref>).</t>
+<t>The formats supported by a Verifier may be set up using the metadata parameter <tt>vp_formats</tt> (see <xref target="client_metadata_parameters"></xref>). The Wallet MUST ignore any <tt>format</tt> property inside a <tt>presentation_definition</tt> object if that <tt>format</tt> was not included in the <tt>vp_formats</tt> property of the metadata.</t>
+<t>Note that when a Verifier is requesting presentation of a VP containing a VC, the Verifier MUST indicate in the <tt>vp_formats</tt> parameter the supported formats of both VC and VP.</t>
+</section>
+
+<section anchor="request_presentation_definition_uri"><name><tt>presentation_definition_uri</tt> Parameter</name>
+<t><tt>presentation_definition_uri</tt> is used to retrieve the Presentation Definition from the resource at the specified URL, rather than being passed by value. The Wallet will send a GET request without additional parameters. The resource MUST be exposed without further need to authenticate or authorize.</t>
+<t>The protocol for the <tt>presentation_definition_uri</tt> MUST be HTTPS.</t>
+<t>For example the parameter value <tt>https://server.example.com/presentationdefs?ref=idcard_presentation_request</tt> will result in the following request</t>
+
+<artwork>  GET /presentationdefs?ref=idcard_presentation_request HTTP/1.1
+  Host: server.example.com
+</artwork>
+<t>and response:</t>
+
+<artwork>HTTP/1.1 200 OK
+...
+Content-Type: application/json
+
+{
+    &quot;id&quot;: &quot;vp token example&quot;,
+    &quot;input_descriptors&quot;: [
+        {
+            &quot;id&quot;: &quot;id card credential&quot;,
+            &quot;format&quot;: {
+                &quot;ldp_vc&quot;: {
+                    &quot;proof_type&quot;: [
+                        &quot;Ed25519Signature2018&quot;
+                    ]
+                }
+            },
+            &quot;constraints&quot;: {
+                &quot;fields&quot;: [
+                    {
+                        &quot;path&quot;: [
+                            &quot;$.type&quot;
+                        ],
+                        &quot;filter&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;pattern&quot;: &quot;IDCardCredential&quot;
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}
+</artwork>
+</section>
+
+<section anchor="request_scope"><name>Using <tt>scope</tt> Parameter to Request Verifiable Credential(s)</name>
+<t>Wallets MAY support requesting presentation of Verifiable Credentials using OAuth 2.0 scope values.</t>
+<t>Such a scope value MUST be an alias for a well-defined Presentation Definition as it will be
+referred to in the <tt>presentation_submission</tt> response parameter.</t>
+<t>The concrete scope values and the mapping between a certain scope value and the respective
+Presentation Definition is out of scope of this specification.</t>
+<t>Possible options include normative text in a separate specification defining scope values along with a description of their
+semantics or machine readable definitions in the Wallet's server metadata, mapping a scope value to an equivalent
+<tt>presentation_definition</tt> object.</t>
+<t>Such definition of a scope value MUST allow the Verifier to determine the identifiers of the Presentation Definition and Input Descriptor(s) in the <tt>presentation_submission</tt> response parameter (<tt>definition_id</tt> and <tt>descriptor_map.id</tt> respectively) as well as the Credential formats and types in the <tt>vp_token</tt> response parameter defined in <xref target="response-parameters"></xref>.</t>
+<t>It is RECOMMENDED to use collision-resistant scopes values.</t>
+<t>Below is a non-normative example of an Authorization Request using the scope value <tt>com.example.IDCardCredential_presentation</tt>,
+which is an alias for the first Presentation Definition example given in <xref target="request_presentation_definition"></xref>:</t>
+
+<artwork>  GET /authorize?
+    response_type=vp_token
+    &amp;client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;scope=com.example.healthCardCredential_presentation
+    &amp;nonce=n-0S6_WzA2Mj HTTP/1.1
+</artwork>
+</section>
+
+<section anchor="response_type_vp_token"><name>Response Type <tt>vp_token</tt></name>
+<t>This specification defines the response type <tt>vp_token</tt>.</t>
+
+<dl>
+<dt><tt>vp_token</tt>:</dt>
+<dd><t>When supplied as the <tt>response_type</tt> parameter in an Authorization Request, a successful response MUST include the <tt>vp_token</tt> parameter. The Wallet SHOULD NOT return an OAuth 2.0 Authorization Code, Access Token, or Access Token Type in a successful response to the grant request. The default Response Mode for this Response Type is <tt>fragment</tt>, i.e. the Authorization Response parameters are encoded in the fragment added to the <tt>redirect_uri</tt> when redirecting back to the Client. The response type <tt>vp_token</tt> can be used with other response modes as defined in <xref target="OAuth.Responses"></xref>. Both successful and error responses SHOULD be returned using the supplied Response Mode, or if none is supplied, using the default Response Mode.</t>
+</dd>
+</dl>
+<t>See <xref target="response"></xref> on how the <tt>response_type</tt> value determines the response used to return a VP Token.</t>
+</section>
+
+<section anchor="passing-authorization-request-across-devices"><name>Passing Authorization Request Across Devices</name>
+<t>There are use-cases when the Authorization Request is being displayed on a device different from a device on which the requested Credential is stored. In those cases, an Authorization Request can be passed across devices by being rendered as a QR Code.</t>
+<t>The usage of the response mode <tt>direct_post</tt> (see <xref target="response_mode_post"></xref>) in conjunction with <tt>request_uri</tt> is RECOMMENDED, since Authorization Request size might be large and might not fit in a QR code.</t>
+</section>
+
+<section anchor="aud-of-a-request-object"><name><tt>aud</tt> of a Request Object</name>
+<t>When the Verifier is sending a Request Object as defined in Section 6.1 of <xref target="OpenID.Core"></xref> or <xref target="RFC9101"></xref>, the <tt>aud</tt> Claim value depends on whether the recipient of the request can be identified by the Verifier or not:</t>
+
+<ul>
+<li><t>the <tt>aud</tt> Claim MUST equal to the <tt>issuer</tt> Claim value, when Dynamic Discovery is performed.</t>
+</li>
+<li><t>the <tt>aud</tt> Claim MUST be &quot;<eref target="https://self-issued.me/v2&quot;">https://self-issued.me/v2"</eref>, when Static Discovery metadata is used.</t>
+</li>
+</ul>
+<t>Note: &quot;<eref target="https://self-issued.me/v2&quot;">https://self-issued.me/v2"</eref> is a symbolic string and can be used as an <tt>aud</tt> Claim value even when this specification is used standalone, without SIOPv2.</t>
+</section>
+
+<section anchor="client_metadata_management"><name>Client Metadata Management</name>
+<t>The <tt>client_id_scheme</tt> enables deployments of this specification to use different mechanisms to obtain and validate metadata of the Verifier beyond the scope of <xref target="RFC6749"></xref>.</t>
+<t>This specification defines the following values for the <tt>client_id_scheme</tt> parameter, followed by the examples where applicable:</t>
+
+<ul>
+<li><t><tt>pre-registered</tt>: This value represents the <xref target="RFC6749"></xref> default behavior, i.e., the Client Identifier needs to be known to the Wallet in advance of the Authorization Request. The Verifier's metadata is obtained using <xref target="RFC7591"></xref> or through out-of-band mechanisms.</t>
+</li>
+<li><t><tt>redirect_uri</tt>: This value indicates that the Verifier's Redirect URI is also the value of the Client Identifier. In this case, the Authorization Request MUST NOT be signed, the Verifier MAY omit the <tt>redirect_uri</tt> Authorization Request parameter, and all Client metadata parameters MUST be passed using the <tt>client_metadata</tt> or <tt>client_metadata_uri</tt> parameter defined in <xref target="vp_token_request"></xref>.</t>
+</li>
+</ul>
+<t>Below is a non-normative example of a request when <tt>client_id</tt> equals <tt>redirect_uri</tt>.</t>
+
+<artwork>  HTTP/1.1 302 Found
+  Location: https://client.example.org/universal-link?
+    response_type=vp_token
+    &amp;client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;client_id_scheme=redirect_uri
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;presentation_definition=...
+    &amp;nonce=n-0S6_WzA2Mj
+    &amp;client_metadata=%7B%22vp_formats%22:%7B%22jwt_vp%22:%
+    7B%22alg%22:%5B%22EdDSA%22,%22ES256K%22%5D%7D,%22ldp
+    _vp%22:%7B%22proof_type%22:%5B%22Ed25519Signature201
+    8%22%5D%7D%7D%7D
+</artwork>
+
+<ul>
+<li><t><tt>entity_id</tt>: This value indicates that the Client Identifier is an Entity Identifier defined in OpenID Connect Federation <xref target="OpenID.Federation"></xref>. Processing rules given in <xref target="OpenID.Federation"></xref> MUST be followed. Automatic Registration as defined in <xref target="OpenID.Federation"></xref> MUST be used. The Authorization Request MAY also contain a <tt>trust_chain</tt> parameter. The Wallet MUST obtain Client metadata only from the Entity Statement(s). The <tt>client_metadata</tt> or <tt>client_metadata_uri</tt> parameter MUST NOT be present in the Authorization Request when this Client Identifier scheme is used.</t>
+</li>
+<li><t><tt>did</tt>: This value indicates that the Client Identifier is a DID defined in <xref target="DID-Core"></xref>. The request MUST be signed with a private key associated with the DID. A public key to verify the signature MUST be obtained from the <tt>verificationMethod</tt> property of a DID Document. Since DID Document may include multiple public keys, a particular public key used to sign the request in question MUST be identified by the <tt>kid</tt> in the JOSE Header. To obtain the DID Document, the Wallet MUST use DID Resolution defined by the DID method used by the Verifier. All Verifier metadata other than the public key MUST be obtained from the <tt>client_metadata</tt> or the <tt>client_metadata_uri</tt> parameter as defined in <xref target="vp_token_request"></xref>.</t>
+</li>
+</ul>
+<t>Below is a non-normative example of a signed request when <tt>client_id</tt> is a DID:</t>
+<t>Header</t>
+
+<sourcecode type="json">{
+    &quot;typ&quot;: &quot;oauth-authz-req+jwt&quot;,
+    &quot;alg&quot;: &quot;RS256&quot;,
+    &quot;kid&quot;: &quot;did:example:123/1&quot;
+}
+</sourcecode>
+<t>Body</t>
+
+<sourcecode type="json">{
+   &quot;client_id&quot;: &quot;did:example:123&quot;,
+   &quot;client_id_scheme&quot;: &quot;did&quot;,
+   &quot;response_types&quot;: &quot;vp_token&quot;,
+   &quot;redirect_uri&quot;: &quot;https://client.example.org/callback&quot;,
+   &quot;nonce&quot;:&quot;n-0S6_WzA2Mj&quot;,
+   &quot;presentation_definition&quot;: &quot;...&quot;,
+   &quot;client_metadata&quot;: {
+      &quot;vp_formats&quot;: {
+         &quot;jwt_vp&quot;: {
+            &quot;alg&quot;: [
+               &quot;EdDSA&quot;,
+               &quot;ES256K&quot;
+            ]
+         },
+         &quot;ldp_vp&quot;: {
+            &quot;proof_type&quot;: [
+               &quot;Ed25519Signature2018&quot;
+            ]
+         }
+      }
+   }
+}
+</sourcecode>
+<t>Note that to use <tt>client_id_scheme</tt> values <tt>entity_id</tt> and <tt>did</tt>, Verifiers MUST be confidential clients. This might require changes to the technical design of native apps as such apps are typically public clients.</t>
+<t>Other specifications can define further values for the <tt>client_id_scheme</tt> parameter. It is RECOMMENDED to use collision-resistant names for such values.</t>
+</section>
+</section>
+
+<section anchor="response"><name>Response</name>
+<t>A VP Token is only returned if the corresponding Authorization Request contained a <tt>presentation_definition</tt> parameter, a <tt>presentation_definition_uri</tt> parameter, or a <tt>scope</tt> parameter representing a Presentation Definition <xref target="vp_token_request"></xref>.</t>
+<t>VP Token can be returned in the Authorization Response or the Token Response depending on the Response Type used. See <xref target="response_type_vp_token"></xref> for more details.</t>
+<t>If the Response Type value is <tt>vp_token</tt>, the VP Token is returned in the Authorization Response. When the Response Type value is <tt>vp_token id_token</tt> and the <tt>scope</tt> parameter contains <tt>openid</tt>, the VP Token is returned in the Authorization Response alongside a Self-Issued ID Token as defined in <xref target="SIOPv2"></xref>.</t>
+<t>If the Response Type value is <tt>code</tt> (Authorization Code Grant Type), the VP Token is provided in the Token Response.</t>
+<t>The expected behavior is summarized in the following table:</t>
+<table>
+<thead>
+<tr>
+<th align="left"><tt>response_type</tt> parameter value</th>
+<th align="left">Response containing the VP Token</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><tt>vp_token</tt></td>
+<td align="left">Authorization Response</td>
+</tr>
+
+<tr>
+<td align="left"><tt>vp_token id_token</tt></td>
+<td align="left">Authorization Response</td>
+</tr>
+
+<tr>
+<td align="left"><tt>code</tt></td>
+<td align="left">Token Response</td>
+</tr>
+</tbody>
+</table><t>Table 1: OpenID for Verifiable Presentations <tt>response_type</tt> values</t>
+<t>The behavior with respect to the VP Token is unspecified for any other individual Response Type value, or a combination of Response Type values.</t>
+
+<section anchor="response-parameters"><name>Response Parameters</name>
+<t>When VP Token is returned, the respective response MUST include the following parameters:</t>
+
+<dl>
+<dt><tt>vp_token</tt>:</dt>
+<dd><t>REQUIRED. JSON String or JSON object that MUST contain a single Verifiable Presentation or an array of JSON Strings and JSON objects each of them containing a Verifiable Presentations. Each Verifiable Presentation MUST be represented as a JSON string (that is a Base64url encoded value) or a JSON object depending on a format as defined in Annex E of <xref target="OpenID.VCI"></xref>.  When a single Verifiable Presentation is returned, the array syntax MUST NOT be used.  If Appendix E of <xref target="OpenID.VCI"></xref> defines a rule for encoding the respective Credential format in the Credential Response, this rules MUST also be followed when encoding credentials of this format in the <tt>vp_token</tt> response parameter. Otherwise, this specification does not require any additional encoding when a Credential format is already represented as a JSON object or a JSON string.</t>
+</dd>
+<dt><tt>presentation_submission</tt>:</dt>
+<dd><t>REQUIRED. The <tt>presentation_submission</tt> element as defined in <xref target="DIF.PresentationExchange"></xref> links the identifier of the <tt>input_descriptor</tt> element in the corresponding request to the respective Verifiable Presentations within the VP Token. The root of the path expressions in the descriptor map is the respective Verifiable Presentation, pointing to the respective Verifiable Credentials.</t>
+</dd>
+</dl>
+<t>Other parameters, such as <tt>state</tt> or <tt>code</tt> (from <xref target="RFC6749"></xref>), or <tt>id_token</tt> (from <xref target="OpenID.Core"></xref>), and <tt>iss</tt> (from <xref target="RFC9207"></xref>) MAY be included in the response as defined in the respective specifications.</t>
+<t>The <tt>presentation_submission</tt> element MUST be included as a separate response parameter alongside the vp_token. Clients MUST ignore any <tt>presentation_submission</tt> element included inside a VP.</t>
+<t>Including the <tt>presentation_submission</tt> parameter as a separate response parameter allows the Wallet to provide the Verifier with additional information about the format and structure in advance of the processing of the VP Token, and can be used even with the Credential formats that do not allow for the direct inclusion of <tt>presentation_submission</tt> parameters inside a Credential itself.</t>
+<t>In case the Wallet returns a single Verifiable Presentation in the VP Token, the <tt>descriptor_map</tt> would then contain a simple path expression &quot;$&quot;.</t>
+<t>The following is an example response to a request of a response type <tt>vp_token</tt>, where the <tt>presentation_submission</tt> is a separate response parameter:</t>
+
+<artwork>  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    presentation_submission=...
+    &amp;vp_token=...
+</artwork>
+<t>This is an example of a VP Token containing a single Verifiable Presentation</t>
+
+<sourcecode type="json">{
+    &quot;@context&quot;: [
+        &quot;https://www.w3.org/2018/credentials/v1&quot;
+    ],
+    &quot;type&quot;: [
+        &quot;VerifiablePresentation&quot;
+    ],
+    &quot;verifiableCredential&quot;: [
+        {
+            &quot;@context&quot;: [
+                &quot;https://www.w3.org/2018/credentials/v1&quot;,
+                &quot;https://www.w3.org/2018/credentials/examples/v1&quot;
+            ],
+            &quot;id&quot;: &quot;https://example.com/credentials/1872&quot;,
+            &quot;type&quot;: [
+                &quot;VerifiableCredential&quot;,
+                &quot;IDCardCredential&quot;
+            ],
+            &quot;issuer&quot;: {
+                &quot;id&quot;: &quot;did:example:issuer&quot;
+            },
+            &quot;issuanceDate&quot;: &quot;2010-01-01T19:23:24Z&quot;,
+            &quot;credentialSubject&quot;: {
+                &quot;given_name&quot;: &quot;Fredrik&quot;,
+                &quot;family_name&quot;: &quot;Strömberg&quot;,
+                &quot;birthdate&quot;: &quot;1949-01-22&quot;
+            },
+            &quot;proof&quot;: {
+                &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+                &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+                &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..PT8yCqVjj5ZHD0W36zsBQ47oc3El07WGPWaLUuBTOT48IgKI5HDoiFUt9idChT_Zh5s8cF_2cSRWELuD8JQdBw&quot;,
+                &quot;proofPurpose&quot;: &quot;assertionMethod&quot;,
+                &quot;verificationMethod&quot;: &quot;did:example:issuer#keys-1&quot;
+            }
+        }
+    ],
+    &quot;id&quot;: &quot;ebc6f1c2&quot;,
+    &quot;holder&quot;: &quot;did:example:holder&quot;,
+    &quot;proof&quot;: {
+        &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+        &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+        &quot;challenge&quot;: &quot;n-0S6_WzA2Mj&quot;,
+        &quot;domain&quot;: &quot;https://client.example.org/cb&quot;,
+        &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..GF5Z6TamgNE8QjE3RbiDOj3n_t25_1K7NVWMUASe_OEzQV63GaKdu235MCS3hIYvepcNdQ_ZOKpGNCf0vIAoDA&quot;,
+        &quot;proofPurpose&quot;: &quot;authentication&quot;,
+        &quot;verificationMethod&quot;: &quot;did:example:holder#key-1&quot;
+    }
+}
+</sourcecode>
+<t>with a matching <tt>presentation_submission</tt>.</t>
+
+<sourcecode type="json">{
+    &quot;id&quot;: &quot;Selective disclosure example presentation&quot;,
+    &quot;definition_id&quot;: &quot;Selective disclosure example&quot;,
+    &quot;descriptor_map&quot;: [
+        {
+            &quot;id&quot;: &quot;ID Card with constraints&quot;,
+            &quot;format&quot;: &quot;ldp_vp&quot;,
+            &quot;path&quot;: &quot;$&quot;,
+            &quot;path_nested&quot;: {
+                &quot;format&quot;: &quot;ldp_vc&quot;,
+                &quot;path&quot;: &quot;$.verifiableCredential[0]&quot;
+            }
+        }
+    ]
+}
+</sourcecode>
+<t>A <tt>descriptor_map</tt> element MUST contain a <tt>path_nested</tt> parameter referring to the actual Credential carried in the respective Verifiable Presentation.</t>
+<t>This is an example of a VP Token containing multiple Verifiable Presentations,</t>
+
+<sourcecode type="json">[
+    {
+        &quot;@context&quot;: [
+            &quot;https://www.w3.org/2018/credentials/v1&quot;
+        ],
+        &quot;type&quot;: [
+            &quot;VerifiablePresentation&quot;
+        ],
+        &quot;verifiableCredential&quot;: [
+            {
+                &quot;@context&quot;: [
+                    &quot;https://www.w3.org/2018/credentials/v1&quot;,
+                    &quot;https://www.w3.org/2018/credentials/examples/v1&quot;
+                ],
+                &quot;id&quot;: &quot;https://example.com/credentials/1872&quot;,
+                &quot;type&quot;: [
+                    &quot;VerifiableCredential&quot;,
+                    &quot;IDCardCredential&quot;
+                ],
+                &quot;issuer&quot;: {
+                    &quot;id&quot;: &quot;did:example:issuer&quot;
+                },
+                &quot;issuanceDate&quot;: &quot;2010-01-01T19:23:24Z&quot;,
+                &quot;credentialSubject&quot;: {
+                    &quot;given_name&quot;: &quot;Fredrik&quot;,
+                    &quot;family_name&quot;: &quot;Strömberg&quot;,
+                    &quot;birthdate&quot;: &quot;1949-01-22&quot;
+                },
+                &quot;proof&quot;: {
+                    &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+                    &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+                    &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..PT8yCqVjj5ZHD0W36zsBQ47oc3El07WGPWaLUuBTOT48IgKI5HDoiFUt9idChT_Zh5s8cF_2cSRWELuD8JQdBw&quot;,
+                    &quot;proofPurpose&quot;: &quot;assertionMethod&quot;,
+                    &quot;verificationMethod&quot;: &quot;did:example:issuer#keys-1&quot;
+                }
+            }
+        ],
+        &quot;id&quot;: &quot;ebc6f1c2&quot;,
+        &quot;holder&quot;: &quot;did:example:holder&quot;,
+        &quot;proof&quot;: {
+            &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+            &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+            &quot;challenge&quot;: &quot;n-0S6_WzA2Mj&quot;,
+            &quot;domain&quot;: &quot;https://client.example.org/cb&quot;,
+            &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..GF5Z6TamgNE8QjE3RbiDOj3n_t25_1K7NVWMUASe_OEzQV63GaKdu235MCS3hIYvepcNdQ_ZOKpGNCf0vIAoDA&quot;,
+            &quot;proofPurpose&quot;: &quot;authentication&quot;,
+            &quot;verificationMethod&quot;: &quot;did:example:holder#key-1&quot;
+        }
+    },
+        &quot;eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImRpZDpleGFtcGxlOjB4YWJjI2tleTEifQ.
+        eyJpc3MiOiJkaWQ6ZXhhbXBsZTplYmZlYjFmNzEyZWJjNmYxYzI3NmUxMmVjMjEiLCJqdGkiOiJ1cm46
+        dXVpZDozOTc4MzQ0Zi04NTk2LTRjM2EtYTk3OC04ZmNhYmEzOTAzYzUiLCJhdWQiOiJkaWQ6ZXhhbXBs
+        ZTo0YTU3NTQ2OTczNDM2ZjZmNmM0YTRhNTc1NzMiLCJuYmYiOjE1NDE0OTM3MjQsImlhdCI6MTU0MTQ5
+        MzcyNCwiZXhwIjoxNTczMDI5NzIzLCJub25jZSI6IjM0M3MkRlNGRGEtIiwidnAiOnsiQGNvbnRleHQi
+        OlsiaHR0cHM6Ly93d3cudzMub3JnLzIwMTgvY3JlZGVudGlhbHMvdjEiLCJodHRwczovL3d3dy53My5v
+        cmcvMjAxOC9jcmVkZW50aWFscy9leGFtcGxlcy92MSJdLCJ0eXBlIjpbIlZlcmlmaWFibGVQcmVzZW50
+        YXRpb24iLCJDcmVkZW50aWFsTWFuYWdlclByZXNlbnRhdGlvbiJdLCJ2ZXJpZmlhYmxlQ3JlZGVudGlh
+        bCI6WyJleUpoYkdjaU9pSlNVekkxTmlJc0luUjVjQ0k2SWtwWFZDSXNJbXRwWkNJNkltUnBaRHBsZUdG
+        dGNHeGxPbUZpWm1VeE0yWTNNVEl4TWpBME16RmpNamMyWlRFeVpXTmhZaU5yWlhsekxURWlmUS5leUp6
+        ZFdJaU9pSmthV1E2WlhoaGJYQnNaVHBsWW1abFlqRm1OekV5WldKak5tWXhZekkzTm1VeE1tVmpNakVp
+        TENKcWRHa2lPaUpvZEhSd09pOHZaWGhoYlhCc1pTNWxaSFV2WTNKbFpHVnVkR2xoYkhNdk16Y3pNaUlz
+        SW1semN5STZJbWgwZEhCek9pOHZaWGhoYlhCc1pTNWpiMjB2YTJWNWN5OW1iMjh1YW5kcklpd2libUpt
+        SWpveE5UUXhORGt6TnpJMExDSnBZWFFpT2pFMU5ERTBPVE0zTWpRc0ltVjRjQ0k2TVRVM016QXlPVGN5
+        TXl3aWJtOXVZMlVpT2lJMk5qQWhOak0wTlVaVFpYSWlMQ0oyWXlJNmV5SkFZMjl1ZEdWNGRDSTZXeUpv
+        ZEhSd2N6b3ZMM2QzZHk1M015NXZjbWN2TWpBeE9DOWpjbVZrWlc1MGFXRnNjeTkyTVNJc0ltaDBkSEJ6
+        T2k4dmQzZDNMbmN6TG05eVp5OHlNREU0TDJOeVpXUmxiblJwWVd4ekwyVjRZVzF3YkdWekwzWXhJbDBz
+        SW5SNWNHVWlPbHNpVm1WeWFXWnBZV0pzWlVOeVpXUmxiblJwWVd3aUxDSlZibWwyWlhKemFYUjVSR1Zu
+        Y21WbFEzSmxaR1Z1ZEdsaGJDSmRMQ0pqY21Wa1pXNTBhV0ZzVTNWaWFtVmpkQ0k2ZXlKa1pXZHlaV1Vp
+        T25zaWRIbHdaU0k2SWtKaFkyaGxiRzl5UkdWbmNtVmxJaXdpYm1GdFpTSTZJanh6Y0dGdUlHeGhibWM5
+        SjJaeUxVTkJKejVDWVdOallXeGhkWExEcVdGMElHVnVJRzExYzJseGRXVnpJRzUxYmNPcGNtbHhkV1Z6
+        UEM5emNHRnVQaUo5ZlgxOS5LTEpvNUdBeUJORDNMRFRuOUg3RlFva0VzVUVpOGpLd1hoR3ZvTjNKdFJh
+        NTF4ck5EZ1hEYjBjcTFVVFlCLXJLNEZ0OVlWbVIxTklfWk9GOG9HY183d0FwOFBIYkYySGFXb2RRSW9P
+        Qnh4VC00V05xQXhmdDdFVDZsa0gtNFM2VXgzclNHQW1jek1vaEVFZjhlQ2VOLWpDOFdla2RQbDZ6S1pR
+        ajBZUEIxcng2WDAteGxGQnM3Y2w2V3Q4cmZCUF90WjlZZ1ZXclFtVVd5cFNpb2MwTVV5aXBobXlFYkxa
+        YWdUeVBsVXlmbEdsRWRxclpBdjZlU2U2UnR4Snk2TTEtbEQ3YTVIVHphbllUV0JQQVVIRFpHeUdLWGRK
+        dy1XX3gwSVdDaEJ6STh0M2twRzI1M2ZnNlYzdFBnSGVLWEU5NGZ6X1FwWWZnLS03a0xzeUJBZlFHYmci
+        XX19.ft_Eq4IniBrr7gtzRfrYj8Vy1aPXuFZU-6_ai0wvaKcsrzI4JkQEKTvbJwdvIeuGuTqy7ipO-EY
+        i7V4TvonPuTRdpB7ZHOlYlbZ4wA9WJ6mSVSqDACvYRiFvrOFmie8rgm6GacWatgO4m4NqiFKFko3r58L
+        ueFfGw47NK9RcfOkVQeHCq4btaDqksDKeoTrNysF4YS89INa-prWomrLRAhnwLOo1Etp3E4ESAxg73CR
+        2kA5AoMbf5KtFueWnMcSbQkMRdWcGC1VssC0tB0JffVjq7ZV6OTyV4kl1-UVgiPLXUTpupFfLRhf9Qpq
+        MBjYgP62KvhIvW8BbkGUelYMetA&quot;
+]
+</sourcecode>
+<t>with a matching <tt>presentation_submission</tt> parameter.</t>
+
+<sourcecode type="json">{
+    &quot;id&quot;: &quot;Selective disclosure example presentation&quot;,
+    &quot;definition_id&quot;: &quot;Selective disclosure example&quot;,
+    &quot;descriptor_map&quot;: [
+        {
+            &quot;id&quot;: &quot;ID Card with constraints&quot;,
+            &quot;format&quot;: &quot;ldp_vp&quot;,
+            &quot;path&quot;: &quot;$[0]&quot;,
+            &quot;path_nested&quot;: {
+                &quot;format&quot;: &quot;ldp_vc&quot;,
+                &quot;path&quot;: &quot;$[0].verifiableCredential[0]&quot;
+            }
+        },
+        {
+            &quot;id&quot;: &quot;Ontario Health Insurance Plan&quot;,
+            &quot;format&quot;: &quot;jwt_vp_json&quot;,
+            &quot;path&quot;: &quot;$[1].presentation&quot;,
+            &quot;path_nested&quot;: {
+                &quot;format&quot;: &quot;jwt_vc_json&quot;,
+                &quot;path&quot;: &quot;$[1].presentation.vp.verifiableCredential[0]&quot;
+            }
+        }
+    ]
+}
+</sourcecode>
+</section>
+
+<section anchor="response_mode_post"><name>Response Mode &quot;direct_post&quot;</name>
+<t>The response mode <tt>direct_post</tt> allows the Wallet to send the response data to an endpoint controlled by the Verifier via a HTTPS POST request.</t>
+<t>It has been defined to address the following use cases:</t>
+
+<ul>
+<li><t>Verifier and Wallet are located on different devices, thus the Wallet cannot send the Authorization Response to the Wallet using a redirect.</t>
+</li>
+<li><t>The Authorization Response size exeeds the URL length limits of user agents.</t>
+</li>
+<li><t>The wallet is unable to, due to its application architecture, host an endpoint where the verifier can retrieve the response from.</t>
+</li>
+</ul>
+<t>The Response Mode is defined in accordance with <xref target="OAuth.Responses"></xref> as follows:</t>
+
+<dl>
+<dt><tt>direct_post</tt>:</dt>
+<dd><t>In this mode, Authorization Response parameters are encoded in the body using the <tt>application/x-www-form-urlencoded</tt> content type and sent using the HTTP <tt>POST</tt> method instead of redirecting back to the Client.</t>
+</dd>
+</dl>
+<t>The new Authorization Request parameter are defined to be used in conjunction with Response Mode <tt>direct_post</tt> as follows:</t>
+
+<dl>
+<dt><tt>response_uri</tt>:</dt>
+<dd><t>The URI to which the Wallet MUST send the Authorization Response using an HTTPS POST request as defined by the Response Mode <tt>direct_post</tt>. When this parameter is present, <tt>redirect_uri</tt> Request parameter MUST NOT be present.</t>
+</dd>
+</dl>
+<t>If <tt>redirect_uri</tt> request parameter is present when the Response Mode is <tt>direct_post</tt>, the Wallet MUST return an <tt>invalid_request</tt> Authorization Response error.</t>
+<t>The Response URI receives all parameters as defined by the respective Response Type.</t>
+<t>Additionally, the following parameters are defined to be returned in the response from the Verifier to the Wallet upon receiving Authorization Response at the Response URI:</t>
+
+<dl>
+<dt><tt>nonce</tt>:</dt>
+<dd><t>The value as received by the Wallet in the <tt>nonce</tt> Authorization Request parameter.<br />
+</t>
+</dd>
+</dl>
+<t>The following is a non-normative example Request Object with Response Mode <tt>direct_post</tt>:</t>
+
+<sourcecode type="json">{
+   &quot;client_id&quot;: &quot;https://client.example.org/post&quot;,
+   &quot;response_uri&quot;: &quot;https://client.example.org/post&quot;,
+   &quot;response_type&quot;: &quot;vp_token&quot;,
+   &quot;response_mode&quot;: &quot;direct_post&quot;,
+   &quot;presentation_definition&quot;: {...},
+   &quot;nonce&quot;: &quot;n-0S6_WzA2Mj&quot;
+}
+</sourcecode>
+<t>that could be used in a Request URI like this (either directly or as QR Code).</t>
+
+<artwork>https://wallet.example.com?
+    client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;request_uri=https%3A%2F%2Fclient.example.org%2F567545564
+</artwork>
+<t>The following is a non-normative example of the response object that is sent via an HTTPS POST request to the Response URI:</t>
+
+<artwork>  POST /post HTTP/1.1
+    Host: client.example.org
+    Content-Type: application/x-www-form-urlencoded
+
+    presentation_submission=...&amp;
+    vp_token=...&amp;
+    nonce=n-0S6_WzA2Mj
+
+</artwork>
+<t>If the request was processed sucessfully, the Verifier MUST respond with HTTP status code 200. The response MAY contain the following parameters:</t>
+<t><tt>redirect_uri</tt>:
+:<tt>redirect_uri</tt>. The Wallet MUST send the User Agent to this URI. This allows the Verifier to continue the interaction with the End-User after the Wallet sends Authorization Response as an HTTPS POST request. It also allows the Verifier to ensure the transaction was conducted in a Wallet residing on the same device where the transaction started, or ensure the End-User interaction continues on the device where the Wallet resides when the transaction started on the different device. So that only the entitled front end can pick up the data from the Verifier's backend, Verifier's Response URI MUST add a secret to the Redirect URI, e.g. a code, that cannot be guessed by an attacker and validate this secrect when the response data is processed. For details how the Verifier MAY use this URI to ensure the End-to-End device binding of the transaction see <xref target="security_consideration_direct_post_same_device"></xref>.</t>
+<t>The following is a non-normative example of the response from the Verifier to the Wallet upon receiving Authorization Response at the Response URI:</t>
+
+<artwork>  HTTP/1.1 200 OK
+  Content-Type: application/json;charset=UTF-8
+  Cache-Control: no-store
+
+  {
+    &quot;redirect_uri&quot;:&quot;https://client.example.org/cb#code=091535f699ea575c7937fa5f0f454aee&quot;,
+  }
+</artwork>
+<t>If the response does not contain a parameter, the Wallet is not required by this specification to perform any further steps.</t>
+<t>Note: Response Mode <tt>direct_post</tt> without the <tt>redirect_uri</tt> could be less secure than the redirect-based Response Modes. For details, see <xref target="session-binding"></xref>.</t>
+<t>Note that in the Response Mode <tt>direct_post</tt> or <tt>direct_post.jwt</tt>, the Wallet can change the UI based on the Verifier's response to the HTTP POST request.</t>
+</section>
+
+<section anchor="jarm"><name>Signed and Encrypted Responses</name>
+<t>This section defines how Authorization Response containing a VP Token can be signed and/or encrypted at the application level when the Response Type value is <tt>vp_token</tt> or <tt>vp_token id_token</tt>.</t>
+<t>To sign, or sign and encrypt the Authorization Response, implementations MAY use JWT Secured Authorization Response Mode for OAuth 2.0 (JARM) <xref target="JARM"></xref>.</t>
+<t>To encrypt an unsigned Authorization Response, this specification extends <xref target="JARM"></xref> to allow the JWT containing the response parameters to be only encrypted as a JWE.</t>
+<t>If the JWT is only a JWE, the following processing rules MUST be followed:</t>
+
+<ul>
+<li><t><tt>iss</tt>, <tt>exp</tt> and <tt>aud</tt> MAY be omitted in the JWT Claims Set of the JWE, and if omitted the processing rules as per <xref target="JARM"></xref> Section 2.4 related to these claims do not apply.</t>
+</li>
+<li><t>The processing rules as per <xref target="JARM"></xref> Section 2.4 related to JWS processing MUST be ignored.</t>
+</li>
+</ul>
+<t>The following is a non-normative example of a JWT Claims Set used in an Authorization Response that is encrypted and not signed:</t>
+
+<sourcecode type="json">{
+    &quot;vp_token&quot;: &quot;eyJhbGciOiJSUzI1NiIsInR5cCI6I...pupFfLRhf9QpqMBjYgP62KvhIvW8BbkGUelYMetA&quot;,
+    &quot;presentation_submission&quot;: {
+        &quot;definition_id&quot;: &quot;example_jwt_vc&quot;,
+        &quot;id&quot;: &quot;example_jwt_vc_presentation_submission&quot;,
+        &quot;descriptor_map&quot;: [
+            {
+                &quot;id&quot;: &quot;id_credential&quot;,
+                &quot;path&quot;: &quot;$&quot;,
+                &quot;format&quot;: &quot;jwt_vp&quot;,
+                &quot;path_nested&quot;: {
+                    &quot;path&quot;: &quot;$.vp.verifiableCredential[0]&quot;,
+                    &quot;format&quot;: &quot;jwt_vc&quot;
+                }
+            }
+        ]
+    }
+}
+</sourcecode>
+<t>The JWT response document MUST include <tt>vp_token</tt> and <tt>presentation_submission</tt> parameters as defined in <xref target="response-parameters"></xref>.</t>
+<t>The key material used for encryption and signing SHOULD be determined using existing metadata mechanisms.</t>
+<t>To obtain Verifier's public key for the input to the key agreement to encrypt the Authorization Response, the Wallet MUST use <tt>jwks</tt> or <tt>jwks_uri</tt> claim within the <tt>client_metadata</tt> request parameter, or within the metadata defined in the Entity Configuration when <xref target="OpenID.Federation"></xref> is used.</t>
+<t>To sign the Authorization Response, the Wallet MUST use a private key that corresponds to a public key made available in its metadata.</t>
+
+<section anchor="direct_post_jwt"><name>Response Mode &quot;direct_post.jwt&quot;</name>
+<t>This specification also defines a new Response Mode <tt>direct_post.jwt</tt>, which allows for JARM to be used with response mode <tt>direct_post</tt> defined in <xref target="response_mode_post"></xref>.</t>
+<t>The Response Mode <tt>direct_post.jwt</tt> causes the Wallet to send the Authorization Response using the HTTP <tt>POST</tt> method instead of redirecting back to the Verifier as defined in <xref target="response_mode_post"></xref>. The Wallet adds the <tt>response</tt> parameter containing the JWT as defined in section 4.1. of <xref target="JARM"></xref> and <xref target="jarm"></xref> in the body of HTTP POST request using the <tt>application/x-www-form-urlencoded</tt> content type.</t>
+<t>The following is a non-normative example of a response using the <tt>presentation_submission</tt> and <tt>vp_token</tt> values from <xref target="jwt_vc"></xref>. (line breaks for display purposes only):</t>
+
+<sourcecode type="txt">  POST /post HTTP/1.1
+    Host: client.example.org
+    Content-Type: application/x-www-form-urlencoded
+
+    response=eyJraWQiOiIyMTc1YTU5Yi0yMjMxLTQyOTUt...X_lssReM3V-wU0uRPeeiLepYhw09t2LQ
+</sourcecode>
+<t>This is the JWT used in the example above before base64url encoding and signing:</t>
+
+<sourcecode type="json">{
+    &quot;iss&quot;: &quot;did:example:ebfeb1f712ebc6f1c276e12ec21&quot;,
+    &quot;aud&quot;: &quot;https://client.example.org/cb&quot;,
+    &quot;exp&quot;: 1573029723,
+    &quot;vp_token&quot;: &quot;eyJhbGciOiJSUzI1NiIsInR5cCI6I...pupFfLRhf9QpqMBjYgP62KvhIvW8BbkGUelYMetA&quot;,
+    &quot;presentation_submission&quot;: {
+        &quot;definition_id&quot;: &quot;example_jwt_vc&quot;,
+        &quot;id&quot;: &quot;example_jwt_vc_presentation_submission&quot;,
+        &quot;descriptor_map&quot;: [
+            {
+                &quot;id&quot;: &quot;id_credential&quot;,
+                &quot;path&quot;: &quot;$&quot;,
+                &quot;format&quot;: &quot;jwt_vp&quot;,
+                &quot;path_nested&quot;: {
+                    &quot;path&quot;: &quot;$.vp.verifiableCredential[0]&quot;,
+                    &quot;format&quot;: &quot;jwt_vc&quot;
+                }
+            }
+        ]
+    }
+}
+</sourcecode>
+</section>
+</section>
+
+<section anchor="error-response"><name>Error Response</name>
+<t>The error response follows the rules as defined in <xref target="RFC6749"></xref>, with the following additional clarifications:</t>
+<t><tt>invalid_scope</tt>:</t>
+
+<ul>
+<li><t>Requested scope value is invalid, unknown, or malformed.</t>
+</li>
+</ul>
+<t><tt>invalid_request</tt>:</t>
+
+<ul>
+<li><t>The request contains more than one out of the following three options to communicate a requested credential: a <tt>presentation_definition</tt> parameter, a <tt>presentation_definition_uri</tt> parameter, or a scope value representing a Presentation Definition.</t>
+</li>
+<li><t>Requested Presentation Definition does not conform to the DIF PEv2 specification <xref target="DIF.PresentationExchange"></xref>.</t>
+</li>
+<li><t>The Wallet does not support the <tt>client_id_scheme</tt> value passed in the Authorization Request.</t>
+</li>
+<li><t>The Client Identifier passed in the request did not belong to the Client Identifier scheme indicated in the Authorization Request, or requirements of a certain scheme was violated, for example an unsigned request was sent with Client Identifier scheme <tt>entity_id</tt>.<br />
+</t>
+</li>
+</ul>
+<t><tt>invalid_client</tt>:</t>
+
+<ul>
+<li><t><tt>client_metadata</tt> or <tt>client_metadata_uri</tt> parameter defined in <xref target="vp_token_request"></xref> is present, but the Wallet recognizes Client Identifier and knows metadata associated with it.</t>
+</li>
+<li><t>Verifier's pre-registered metadata has been found based on the Client Identifier, but <tt>client_metadata</tt> parameter is also present.</t>
+</li>
+</ul>
+<t>Usage of <tt>client_metadata</tt> or <tt>client_metadata_uri</tt> parameters with <tt>client_id</tt> that the Wallet might be seeing for the first time is mutually exclusive with the registration mechanism where Self-Issued OP assigns <tt>client_id</tt> to the Verifier after receiving Verifier's metadata.</t>
+<t>This document also defines the following additional error codes and error descriptions:</t>
+<t><tt>vp_formats_not_supported</tt>:</t>
+
+<ul>
+<li><t>The Wallet does not support any of the formats requested by the Verifier, such as those included in the <tt>vp_formats</tt> registration parameter.</t>
+</li>
+</ul>
+<t><tt>invalid_presentation_definition_uri</tt>:</t>
+
+<ul>
+<li><t>The Presentation Definition URL cannot be reached.</t>
+</li>
+</ul>
+<t><tt>invalid_presentation_definition_reference</tt>:</t>
+
+<ul>
+<li><t>The Presentation Definition URL can be reached, but the specified <tt>presentation_definition</tt> cannot be found at the URL.</t>
+</li>
+</ul>
+</section>
+</section>
+
+<section anchor="wallet-invocation"><name>Wallet Invocation</name>
+<t>The Verifier has the choice of the following mechanisms to invoke a Wallet:</t>
+
+<ul>
+<li><t>Custom URL scheme as an <tt>authorization_endpoint</tt> (for example, <tt>openid4vp://</tt> as defined in <xref target="openid4vp-profile"></xref>)</t>
+</li>
+<li><t>Domain-bound Universal Links/App link as an <tt>authorization_endpoint</tt></t>
+</li>
+<li><t>no specific <tt>authorization_endpoint</tt>, user scanning a QR code with Authorization Request using a manually opened Wallet, instead of an arbitrary camera application on a user-device (neither custom URL scheme nor Universal/App link is used)</t>
+</li>
+</ul>
+</section>
+
+<section anchor="as_metadata_parameters"><name>Wallet Metadata (Authorization Server Metadata)</name>
+<t>This specification defines how the Verifier can determine Credential formats, proof types and algorithms supported by the Wallet to be used in a protocol exchange.</t>
+
+<section anchor="additional-wallet-metadata-parameters"><name>Additional Wallet Metadata Parameters</name>
+<t>This specification defines new metadata parameters according to <xref target="RFC8414"></xref>.</t>
+
+<ul>
+<li><t><tt>presentation_definition_uri_supported</tt>: OPTIONAL. Boolean value specifying whether the Wallet supports the transfer of <tt>presentation_definition</tt> by reference, with true indicating support. If omitted, the default value is true.</t>
+</li>
+<li><t><tt>vp_formats_supported</tt>: REQUIRED. An object containing a list of key value pairs, where the key is a string identifying a Credential format supported by the Wallet. Valid Credential format identifier values are defined in Annex E of <xref target="OpenID.VCI"></xref>. Other values may be used when defined in the profiles of this specification. The value is an object containing a parameter defined below:</t>
+
+<ul>
+<li><t><tt>alg_values_supported</tt>: An object where the value is an array of case sensitive strings that identify the cryptographic suites that are supported. Cipher suites for Verifiable Credentials in <tt>jwt_vc_json</tt>, <tt>json_vc_json-ld</tt>, <tt>jwt_vp_json</tt>, <tt>json_vp_json-ld</tt> formats should use algorithm names defined in <eref target="https://www.iana.org/assignments/jose/jose.xhtml#web-signature-encryption-algorithms">IANA JOSE Algorithms Registry</eref>. Cipher suites for Verifiable Credentials in <tt>ldp_vc</tt> and <tt>ldp_vp</tt> format should use signature suites names defined in <eref target="https://w3c-ccg.github.io/ld-cryptosuite-registry/">Linked Data Cryptographic Suite Registry</eref>. Cipher suites for Verifiable Credentials in <tt>mso_mdoc</tt> format should use signature suites names defined in ISO/IEC 18013-5:2021. Parties using other Credential formats will need to agree upon the meanings of the values used, which may be context-specific.</t>
+</li>
+</ul></li>
+</ul>
+<t>Below is a non-normative example of a <tt>vp_formats_supported</tt> parameter:</t>
+
+<artwork>vp_formats_supported&quot;: {
+‌ &quot;jwt_vc_json&quot;: {
+  ‌ &quot;alg_values_supported&quot;: [
+    ‌ &quot;ES256K&quot;,
+    ‌ &quot;ES384&quot;
+  ‌ ]
+‌ },
+‌ &quot;jwt_vp_json&quot;: {
+  ‌ &quot;alg_values_supported&quot;: [
+    ‌ &quot;ES256K&quot;,
+     &quot;EdDSA&quot;
+  ‌ ]
+‌ }
+}
+</artwork>
+
+<dl>
+<dt><tt>client_id_schemes_supported</tt>:</dt>
+<dd><t>OPTIONAL. Array of JSON Strings containing the values of the Client Identifier schemes that the Wallet supports. The values defined by this specification are <tt>pre-registered</tt>, <tt>redirect_uri</tt>, <tt>entity_id</tt>, <tt>did</tt>. If omitted, the default value is <tt>pre-registered</tt>. Other values may be used when defined in the profiles of this specification.</t>
+</dd>
+</dl>
+</section>
+
+<section anchor="obtaining-wallet-s-metadata"><name>Obtaining Wallet's Metadata</name>
+<t>Verifier utilizing this specification has multiple options to obtain Wallet's metadata:</t>
+
+<ul>
+<li><t>Verifier obtains Wallet's metadata prior to a transaction, e.g. using <xref target="RFC8414"></xref> or out-of-band mechanisms. See <xref target="as_metadata_parameters"></xref> for the details.</t>
+</li>
+<li><t>Verifier has pre-obtained static set of Wallet's metadata. See <xref target="openid4vp-profile"></xref> for the example.</t>
+</li>
+</ul>
+</section>
+</section>
+
+<section anchor="client_metadata"><name>Verifier Metadata (Client Metadata)</name>
+<t>Client metadata defined in Section 2 of <xref target="RFC7591"></xref> is used to convey Verifier's metadata.</t>
+<t>This specification defines how the Wallet can determine Credential formats, proof types and algorithms supported by the Verifier to be used in a protocol exchange.</t>
+
+<section anchor="client_metadata_parameters"><name>Additional Verifier Metadata Parameters</name>
+<t>This specification defines the following new metadata parameters according to <xref target="RFC7591"></xref>, to be used by the Verifier:</t>
+
+<dl>
+<dt><tt>vp_formats</tt>:</dt>
+<dd><t>REQUIRED. An object defining the formats and proof types of Verifiable Presentations and Verifiable Credentials that a Verifier supports. Valid format identifier values are defined in Annex E of <xref target="OpenID.VCI"></xref> and include <tt>jwt_vc_json</tt>, <tt>jwt_vc_json-ld</tt>, <tt>ldp_vc</tt>, <tt>jwt_vp_json</tt>, <tt>jwt_vp_json-ld</tt>, <tt>ldp_vp</tt>, and <tt>mso_mdoc</tt>. Deployments can extend the formats supported, provided Issuers, Holders and Verifiers all understand the new format.</t>
+</dd>
+<dt><tt>client_id_scheme</tt>:</dt>
+<dd><t>OPTIONAL. JSON String identifying the client's id scheme. The value range defined by this specification is <tt>pre-registered</tt>, <tt>redirect_uri</tt>, <tt>entity_id</tt>, <tt>did</tt>. If omitted, the default value is <tt>pre-registered</tt>.</t>
+</dd>
+</dl>
+</section>
+</section>
+
+<section anchor="implementation-considerations"><name>Implementation Considerations</name>
+
+<section anchor="static-configuration-values-of-the-wallets"><name>Static Configuration Values of the Wallets</name>
+<t>This document lists profiles that define static configuration values of the Wallets and defines one set of static configuration values that can be used by the Verifier when it is unable to perform dynamic discovery and is not using any of the profiles.</t>
+
+<section anchor="profiles-that-define-static-configuration-values"><name>Profiles that Define Static Configuration Values</name>
+<t>Below is a list of profiles that define static configuration values of Wallets:</t>
+
+<ul>
+<li><t><eref target="https://identity.foundation/jwt-vc-presentation-profile/">JWT VC Presentation Profile</eref></t>
+</li>
+</ul>
+</section>
+
+<section anchor="openid4vp-profile"><name>A Set of Static Configuration Values bound to <tt>openid4vp://</tt></name>
+<t>Below is a set of static configuration values that can be used with <tt>vp_token</tt> as a supported <tt>response_type</tt>, bound to a custom URL scheme <tt>openid4vp://</tt> as an <tt>authorization_endpoint</tt>:</t>
+
+<sourcecode type="json">{
+  &quot;authorization_endpoint&quot;: &quot;openid4vp:&quot;,
+  &quot;response_types_supported&quot;: [
+    &quot;vp_token&quot;
+  ],
+  &quot;vp_formats_supported&quot;: {
+    &quot;jwt_vp_json&quot;: {
+      &quot;alg_values_supported&quot;: [&quot;ES256&quot;]
+    },
+    &quot;jwt_vc_json&quot;: {
+      &quot;alg_values_supported&quot;: [&quot;ES256&quot;]
+    }
+  },
+  &quot;request_object_signing_alg_values_supported&quot;: [
+    &quot;ES256&quot;
+  ]
+}
+</sourcecode>
+</section>
+</section>
+
+<section anchor="support-for-federations-trust-schemes"><name>Support for Federations/Trust Schemes</name>
+<t>Often Clients will want to request Verifiable Credentials from a Credential Issuer who is a participant of a federation, or adheres to a known trust scheme, rather than from a specific Credential Issuer, for example, a &quot;BSc Chemistry Degree&quot; Credential from a US University rather than from a specifically named university.</t>
+<t>In order to facilitate this, federations will need to determine how a Credential Issuer can indicate in a Verifiable Credential that they are a member of one or more federations/trust schemes. Once this is done, the Verifier will be able to create a <tt>presentation_definition</tt> that includes this filtering criteria. This will enable the Wallet to select all the Verifiable Credentials that match this criteria and then by some means (for example, by asking the user) determine which matching Verifiable Credential to return to the Client. Upon receiving this Verifiable Credential, the Verifier will be able to call its federation API to determine if the Credential Issuer is indeed a member of the federation/trust scheme that it says it is.</t>
+<t>Indicating the federations/trust schemes used by a Credential Issuer MAY be achieved by defining a <tt>termsOfUse</tt> property <xref target="VC_DATA"></xref>.</t>
+<t>Note: <xref target="VC_DATA"></xref> describes terms of use as &quot;can be utilized by a Credential Issuer ... to communicate the terms under which a Verifiable Credential ... was issued.&quot;</t>
+<t>The following terms of use may be defined:</t>
+
+<sourcecode type="json">{
+   &quot;termsOfUse&quot;:[
+      {
+         &quot;type&quot;:&quot;&lt;uri that identifies this type of terms of use&gt;&quot;,
+         &quot;federations&quot;:[
+            &quot;&lt;list of federations/trust schemes the Credential Issuer asserts it is a member of&gt;&quot;
+         ]
+      }
+   ]
+}
+</sourcecode>
+<t>Federations that conform to those specified in <xref target="OpenID.Federation"></xref> are identified by the <tt>type</tt> <tt>urn:ietf:params:oauth:federation</tt>. Individual federations are identified by the Entity Identifier of the trust anchor. If the federation decides to use trust marks as signs of whether an entity belongs to a federation or not then the federation is identified by the <tt>type</tt> <tt>urn:ietf:params:oauth:federation_trust_mark</tt> and individual federations are identified by the Entity Identifier of the trust mark issuer.</t>
+<t>Trust schemes that conform to the TRAIN <xref target="TRAIN"></xref> trust scheme are identified by the <tt>type</tt> <tt>https://train.trust-scheme.de/info</tt>. Individual federations are identified by their DNS names.</t>
+<t>An example <tt>claims</tt> parameter containing a <tt>presentation_definition</tt> that filters VCs based on their federation memberships is given below.</t>
+
+<sourcecode type="json">{
+    &quot;vp_token&quot;: {
+        &quot;presentation_definition&quot;: {
+            &quot;id&quot;: &quot;32f54163-7166-48f1&quot;,
+            &quot;input_descriptors&quot;: [
+                {
+                    &quot;id&quot;: &quot;federationExample&quot;,
+                    &quot;purpose&quot;: &quot;To pick a UK university that is a member of the UK academic federation&quot;,
+                    &quot;constraints&quot;: {
+                        &quot;fields&quot;: [
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.termsOfUse.type&quot;
+                                ],
+                                &quot;filter&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;const&quot;: &quot;https://train.trust-scheme.de/info&quot;
+                                }
+                            },
+                            {
+                                &quot;path&quot;: [
+                                    &quot;$.termsOfUse.federations&quot;
+                                ],
+                                &quot;filter&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;const&quot;: &quot;ukuniversities.ac.uk&quot;
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
+</sourcecode>
+<t>This example will choose a VC that has been issued by a university that is a member of the <tt>ukuniversities.ac.uk</tt> federation and that uses the TRAIN terms of use specification for asserting federation memberships.</t>
+</section>
+
+<section anchor="nested-verifiable-presentations"><name>Nested Verifiable Presentations</name>
+<t>Current version of this document does not support presentation of a VP nested inside another VP, even though <xref target="DIF.PresentationExchange"></xref> specification theoretically supports this by stating that the nesting of <tt>path_nested</tt> objects &quot;may be any number of levels deep&quot;.</t>
+<t>One level of nesting <tt>path_nested</tt> objects is sufficient to describe a VC included inside a VP.</t>
+</section>
+</section>
+
+<section anchor="security_considerations"><name>Security Considerations</name>
+
+<section anchor="sending-vp-token-using-response-mode-direct-post"><name>Sending VP Token using Response Mode &quot;direct_post&quot;</name>
+
+<section anchor="security_consideration_direct_post_same_device"><name>With Redirect URI</name>
+<t>The Redirect URI allows the Verifier to check whether the transaction was concluded in a Wallet residing on the same device where the flow was started. The Verifier MUST therefore include a transaction specific secret into the Redirect URI.</t>
+<t>The concrete design is at the discretion of the Verifier since it does not affect the interface between the Verifier and the Wallet.</t>
+<t>This specification proposes a design that is inspired by the way the Authorization Code flow <xref target="RFC6749"></xref> works in conjunction with PKCE <xref target="RFC7636"></xref>.</t>
+<t>This is the design proposal:</t>
+
+<ol>
+<li><t>The Verifier creates a transaction specific secret <tt>secret</tt> and hashes it with a suitable hashing algorithm.</t>
+</li>
+<li><t>The Verifier sends the hashed secret as <tt>nonce</tt> parameter value with the authorization request.</t>
+</li>
+<li><t>The Wallet will send the <tt>nonce</tt> value with the request to the Response URI.</t>
+</li>
+<li><t>The Verifier (Backend) stores the response data (linked to the <tt>nonce</tt> value) and creates a fresh response code that it also links with the respective response data.</t>
+</li>
+<li><t>The Verifier (Backend) returns the Redirect URI, which contains the Response Code as <tt>code</tt> parameter.</t>
+</li>
+<li><t>The Verifier (Frontend) receives the Request and extracts the <tt>code</tt> parameter.</t>
+</li>
+<li><t>The Verifier (Frontend) sends the <tt>code</tt> and the transaction specific secret <tt>secret</tt> to its backend to process the authorization response.</t>
+</li>
+<li><t>The Verifier (Backend) checks whether <tt>code</tt> and the hash of <tt>secret</tt> is associated with any of the response data packages it has stored.</t>
+</li>
+<li><t>If this check succeeds, the transaction continues with the processing of the respective response data. Otherwise, the transaction is aborted.</t>
+</li>
+</ol>
+</section>
+
+<section anchor="session-binding"><name>Without Redirect URI</name>
+<t>When HTTP &quot;POST&quot; method is used to send VP Token without the further protection provided by the redirect URI, there is no session for the Verifier to validate whether the Response is sent by the same Wallet that has received the Authorization Request. It is RECOMMENDED for the Verifiers to implement mechanisms to strengthen such binding. For more details on possible attacks and mitigations see <xref target="I-D.ietf-oauth-cross-device-security"></xref>.</t>
+</section>
+</section>
+
+<section anchor="preventing-replay"><name>Preventing Replay Attacks</name>
+<t>To prevent replay attacks, Verifiable Presentation container objects MUST be linked to <tt>client_id</tt> and <tt>nonce</tt> from the Authentication Request. The <tt>client_id</tt> is used to detect presentation of Verifiable Credentials to a different party other than the intended. The <tt>nonce</tt> value binds the Presentation to a certain authentication transaction and allows the Verifier to detect injection of a Presentation in the flow, which is especially important in the flows where the Presentation is passed through the front-channel.</t>
+<t>Note: These values MAY be represented in different ways in a Verifiable Presentation (directly as claims or indirectly be incorporation in proof calculation) according to the selected proof format denoted by the format claim in the Verifiable Presentation container.</t>
+<t>Note: This specification assumes that a Verifiable Credential is always presented with a cryptographic proof of possession which can be a Verifiable Presentation. This cryptographic proof of possession is bound to audience and transaction as described in this section.</t>
+<t>Here is a non-normative example of a Verifiable Presentation with a format identifier <tt>jwt_vp_json</tt> (only relevant part):</t>
+
+<sourcecode type="json">{
+  &quot;iss&quot;: &quot;did:example:ebfeb1f712ebc6f1c276e12ec21&quot;,
+  &quot;jti&quot;: &quot;urn:uuid:3978344f-8596-4c3a-a978-8fcaba3903c5&quot;,
+  &quot;aud&quot;: &quot;s6BhdRkqt3&quot;,
+  &quot;nonce&quot;: &quot;343s$FSFDa-&quot;,
+  &quot;nbf&quot;: 1541493724,
+  &quot;iat&quot;: 1541493724,
+  &quot;exp&quot;: 1573029723,
+  &quot;vp&quot;: {
+    &quot;@context&quot;: [
+      &quot;https://www.w3.org/2018/credentials/v1&quot;,
+      &quot;https://www.w3.org/2018/credentials/examples/v1&quot;
+    ],
+    &quot;type&quot;: [&quot;VerifiablePresentation&quot;],
+
+    &quot;verifiableCredential&quot;: [&quot;&quot;]
+  }
+}
+</sourcecode>
+<t>In the example above, the requested <tt>nonce</tt> value is included as the <tt>nonce</tt> and <tt>client_id</tt> as the <tt>aud</tt> value in the proof of the Verifiable Presentation.</t>
+<t>Here is a non-normative example for format=<tt>ldp_vp</tt> (only relevant part):</t>
+
+<sourcecode type="json">{
+  &quot;@context&quot;: [ ... ],
+  &quot;type&quot;: &quot;VerifiablePresentation&quot;,
+  &quot;verifiableCredential&quot;: [ ... ],
+  &quot;proof&quot;: {
+    &quot;type&quot;: &quot;RsaSignature2018&quot;,
+    &quot;created&quot;: &quot;2018-09-14T21:19:10Z&quot;,
+    &quot;proofPurpose&quot;: &quot;authentication&quot;,
+    &quot;verificationMethod&quot;: &quot;did:example:ebfeb1f712ebc6f1c276e12ec21#keys-1&quot;,    
+    &quot;challenge&quot;: &quot;343s$FSFDa-&quot;,
+    &quot;domain&quot;: &quot;s6BhdRkqt3&quot;,
+    &quot;jws&quot;: &quot;eyJhbGciOiJSUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..kTCYt5
+      XsITJX1CxPCT8yAV-TVIw5WEuts01mq-pQy7UJiN5mgREEMGlv50aqzpqh4Qq_PbChOMqs
+      LfRoPsnsgxD-WUcX16dUOqV0G_zS245-kronKb78cPktb3rk-BuQy72IFLN25DYuNzVBAh
+      4vGHSrQyHUGlcTwLtjPAnKb78&quot;
+  }
+}
+</sourcecode>
+<t>In the example above, the requested <tt>nonce</tt> value is included as the <tt>challenge</tt> and <tt>client_id</tt> as the <tt>domain</tt> value in the proof of the Verifiable Presentation.</t>
+</section>
+
+<section anchor="validation-of-verifiable-presentations"><name>Validation of Verifiable Presentations</name>
+<t>A Verifier MUST validate the integrity, authenticity, and Holder Binding of any Verifiable Presentation provided by an OP according to the rules of the respective Presentation format.</t>
+<t>This requirement holds true even if those Verifiable Presentations are embedded within a signed OpenID Connect assertion, such as an ID Token or a UserInfo response. This is required because Verifiable Presentations might be signed by the same Holder but with different key material and/or the OpenID Connect assertions may be signed by a third party (e.g., a traditional OP). In both cases, just checking the signature of the respective OpenID Connect assertion does not, for example, check the Holder Binding.</t>
+<t>Note: Some of the available mechanisms are outlined in Section 4.3.2 of <xref target="DIF.PresentationExchange"></xref>.</t>
+<t>It is NOT RECOMMENDED for the Subject to delegate the presentation of the Credential to a third party.</t>
+</section>
+
+<section anchor="fetching-presentation-definitions-by-reference"><name>Fetching Presentation Definitions by Reference</name>
+<t>In many instances the referenced server will be operated by a known federation or other trusted operator, and the URL's domain name will already be widely known. OPs (including SIOPs) using this URI can mitigate request forgeries by having a pre-configured set of trusted domain names and only fetching Presentation Definition from these sources. In addition, the Presentation Definitions could be signed by a trusted authority, such as the ICO or federation operator.</t>
+</section>
+
+<section anchor="user-authentication-using-verifiable-credentials"><name>User Authentication using Verifiable Credentials</name>
+<t>Clients intending to authenticate the end-user utilizing a claim in a Verifiable Credential MUST ensure this claim is stable for the end-user as well locally unique and never reassigned within the Credential Issuer to another end-user. Such a claim MUST also only be used in combination with the Credential Issuer identifier to ensure global uniqueness and to prevent attacks where an attacker obtains the same claim from a different Credential Issuer and tries to impersonate the legitimate user.</t>
+</section>
+
+<section anchor="jsonpath-and-arbitrary-scripting"><name>JSONPath and Arbitrary Scripting</name>
+<t>Implementers MUST make sure that JSONPath used as part of <tt>presentation_definition</tt> and <tt>presentation_submission</tt> parameters cannot be used to execute arbitrary scripts on a server. This can be achieved, for example, by implementing the entire syntax of the query without relying on the parsers of programming language engine. For details, see Section 4 of <xref target="I-D.ietf-jsonpath-base"></xref>.</t>
+</section>
+</section>
+
+</middle>
+
+<back>
+<references><name>Normative References</name>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.7636.xml"/>
+<reference anchor="SIOPv2" target="https://openid.bitbucket.io/connect/openid-connect-self-issued-v2-1_0.html">
+  <front>
+    <title>Self-Issued OpenID Provider V2</title>
+    <author fullname="Kristina Yasuda">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Michael B. Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Torsten Lodderstedt" initials="T." surname="Lodderstedt">
+      <organization>yes.com</organization>
+    </author>
+    <date year="2023" month="January" day="1"></date>
+  </front>
+</reference>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.7515.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.8414.xml"/>
+<reference anchor="OpenID.Registration" target="https://openid.net/specs/openid-connect-registration-1_0.html">
+  <front>
+    <title>OpenID Connect Dynamic Client Registration 1.0 incorporating errata set 1</title>
+    <author fullname="Nat Sakimura">
+      <organization>NRI</organization>
+    </author>
+    <author fullname="John Bradley">
+      <organization>Ping Identity</organization>
+    </author>
+    <author fullname="Michael B. Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <date year="2014" month="Nov" day="8"></date>
+  </front>
+</reference>
+<reference anchor="OpenID.Core" target="http://openid.net/specs/openid-connect-core-1_0.html">
+  <front>
+    <title>OpenID Connect Core 1.0 incorporating errata set 1</title>
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization>NRI</organization>
+    </author>
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization>Ping Identity</organization>
+    </author>
+    <author fullname="Michael B. Jones" initials="M." surname="Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+      <organization>Google</organization>
+    </author>
+    <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+      <organization>Salesforce</organization>
+    </author>
+    <date year="2014" month="Nov" day="8"></date>
+  </front>
+</reference>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.9101.xml"/>
+<reference anchor="DIF.PresentationExchange" target="https://identity.foundation/presentation-exchange">
+  <front>
+    <title>Presentation Exchange 2.0.0</title>
+    <author fullname="Daniel Buchner">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Brent Zundel">
+      <organization>Evernym</organization>
+    </author>
+    <author fullname="Martin Riedel">
+      <organization>Consensys Mesh</organization>
+    </author>
+    <author fullname="Kim Hamilton Duffy">
+      <organization>Centre Consortium</organization>
+    </author>
+    <date></date>
+  </front>
+</reference>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.7591.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6749.xml"/>
+<reference anchor="DID-Core" target="https://www.w3.org/TR/2021/PR-did-core-20210803/">
+  <front>
+    <title>Decentralized Identifiers (DIDs) v1.0</title>
+    <author fullname="Manu Sporny">
+      <organization>Digital Bazaar</organization>
+    </author>
+    <author fullname="Amy Guy">
+      <organization>Digital Bazaar</organization>
+    </author>
+    <author fullname="Markus Sabadello">
+      <organization>Danube Tech</organization>
+    </author>
+    <author fullname="Drummond Reed">
+      <organization>Evernym</organization>
+    </author>
+    <date year="2021" month="Aug" day="3"></date>
+  </front>
+</reference>
+<reference anchor="OpenID.VCI" target="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html">
+  <front>
+    <title>OpenID for Verifiable Credential Issuance</title>
+    <author fullname="Torsten Lodderstedt" initials="T." surname="Lodderstedt">
+      <organization>yes.com</organization>
+    </author>
+    <author fullname="Kristina Yasuda" initials="K." surname="Yasuda">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Tobias Looker" initials="T." surname="Looker">
+      <organization>Mattr</organization>
+    </author>
+    <date year="2023" month="February" day="3"></date>
+  </front>
+</reference>
+<reference anchor="JARM" target="https://openid.net/specs/oauth-v2-jarm-final.html">
+  <front>
+    <title>JWT Secured Authorization Response Mode for OAuth 2.0 (JARM)</title>
+    <author fullname="Torsten Lodderstedt">
+      <organization>yes.com</organization>
+    </author>
+    <author fullname="Brian Campbell">
+      <organization>Ping Identity</organization>
+    </author>
+    <date year="2022" month="Nov" day="9"></date>
+  </front>
+</reference>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.7519.xml"/>
+<reference anchor="OAuth.Responses" target="https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html">
+  <front>
+    <title>OAuth 2.0 Multiple Response Type Encoding Practices</title>
+    <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+      <organization>Google</organization>
+    </author>
+    <author fullname="M. Scurtescu" initials="M." surname="Scurtescu">
+      <organization>Google</organization>
+    </author>
+    <author fullname="Facebook" initials="P." surname="Tarjan">
+      <organization>Evernym</organization>
+    </author>
+    <author fullname="Michael B. Jones" initials="M." surname="Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <date year="2014" month="Feb" day="25"></date>
+  </front>
+</reference>
+</references>
+<references><name>Informative References</name>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.9126.xml"/>
+<reference anchor="OpenID.Federation" target="https://openid.net/specs/openid-connect-federation-1_0.html">
+  <front>
+    <title>OpenID Connect Federation 1.0 - draft 17&gt;</title>
+    <author fullname="R. Hedberg, Ed.">
+      <organization>Independent</organization>
+    </author>
+    <author fullname="Michael B. Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="A. Solberg">
+      <organization>Uninett</organization>
+    </author>
+    <author fullname="S. Gulliksson">
+      <organization>Schibsted</organization>
+    </author>
+    <author fullname="John Bradley">
+      <organization>Yubico</organization>
+    </author>
+    <date year="2021" month="Sept" day="9"></date>
+  </front>
+</reference>
+<reference anchor="TRAIN" target="https://oid2022.compute.dtu.dk/index.html">
+  <front>
+    <title>A novel approach to establish trust in Verifiable Credential&#xA;issuers in Self-Sovereign Identity ecosystems using TRAIN</title>
+    <author fullname="Isaac Henderson Johnson Jeyakumar">
+      <organization>University of Stuttgart</organization>
+    </author>
+    <author fullname="David W Chadwick">
+      <organization>Crossword Cybersecurity</organization>
+    </author>
+    <author fullname="Michael Kubach">
+      <organization>Fraunhofer IAO</organization>
+    </author>
+    <date year="2022" month="July" day="8"></date>
+  </front>
+</reference>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml-ids/reference.I-D.ietf-oauth-cross-device-security.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml-ids/reference.I-D.ietf-jsonpath-base.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.9207.xml"/>
+<reference anchor="ISO.18013-5" target="https://www.iso.org/standard/69084.html">
+  <front>
+    <title>ISO/IEC 18013-5:2021 Personal identification — ISO-compliant driving licence — Part 5: Mobile driving licence (mDL)  application</title>
+    <author>
+      <organization> ISO/IEC JTC 1/SC 17 Cards and security devices for personal identification</organization>
+    </author>
+    <date year="2021"></date>
+  </front>
+</reference>
+<reference anchor="Hyperledger.Indy" target="https://www.hyperledger.org/use/hyperledger-indy">
+  <front>
+    <title>Hyperledger Indy Project</title>
+    <author>
+      <organization>Hyperledger Indy Project</organization>
+    </author>
+    <date year="2022"></date>
+  </front>
+</reference>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.8252.xml"/>
+<reference anchor="VC_DATA" target="https://www.w3.org/TR/vc-data-model">
+  <front>
+    <title>Verifiable Credentials Data Model 1.0</title>
+    <author fullname="Manu Sporny">
+      <organization>Digital Bazaar</organization>
+    </author>
+    <author fullname="Grant Noble">
+      <organization>ConsenSys</organization>
+    </author>
+    <author fullname="Dave Longley">
+      <organization>Digital Bazaar</organization>
+    </author>
+    <author fullname="Daniel C. Burnett">
+      <organization>ConsenSys</organization>
+    </author>
+    <author fullname="Brent Zundel">
+      <organization>Evernym</organization>
+    </author>
+    <author fullname="David Chadwick">
+      <organization>University of Kent</organization>
+    </author>
+    <date year="2019" month="Nov" day="19"></date>
+  </front>
+</reference>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml-ids/reference.I-D.ietf-oauth-security-topics.xml"/>
+</references>
+
+<section anchor="alternative_credential_formats"><name>Examples</name>
+<t>OpenID for Verifiable Presentations is Credential format agnostic, i.e. it is designed to allow applications to request and receive Verifiable Presentations and Verifiable Credentials in any format, not limited to the formats defined in <xref target="VC_DATA"></xref>. This section aims to illustrate this with examples utilizing different Credential formats. Customization of OpenID for Verifiable Presentation for Credential formats other than those defined in <xref target="VC_DATA"></xref> uses extension points of Presentation Exchange <xref target="DIF.PresentationExchange"></xref>.</t>
+
+<section anchor="w3c-verifiable-credentials"><name>W3C Verifiable Credentials</name>
+
+<section anchor="jwt_vc"><name>VC signed as a JWT, not using JSON-LD</name>
+<t>The following is an example of a presentation of a Credential conformant to <xref target="VC_DATA"></xref> that is signed using JWS, and does not use JSON-LD. It will be used throughout this section.</t>
+<t>The Credential format identifiers are <tt>jwt_vc_json</tt> for a W3C Verifiable Credential and <tt>jwt_vp_json</tt> for W3C Verifiable Presentation.</t>
+
+<section anchor="example-credential"><name>Example Credential</name>
+<t>The following is a JWT-based W3C Verifiable Credential that will be used through this section.</t>
+
+<sourcecode type="json">{
+    &quot;iss&quot;: &quot;https://example.gov/issuers/565049&quot;,
+    &quot;nbf&quot;: 1262304000,
+    &quot;jti&quot;: &quot;http://example.gov/credentials/3732&quot;,
+    &quot;sub&quot;: &quot;did:example:ebfeb1f712ebc6f1c276e12ec21&quot;,
+    &quot;vc&quot;: {
+        &quot;@context&quot;: [
+            &quot;https://www.w3.org/2018/credentials/v1&quot;,
+            &quot;https://www.w3.org/2018/credentials/examples/v1&quot;
+        ],
+        &quot;type&quot;: [
+            &quot;VerifiableCredential&quot;,
+            &quot;IDCredential&quot;
+        ],
+        &quot;credentialSubject&quot;: {
+            &quot;given_name&quot;: &quot;Max&quot;,
+            &quot;family_name&quot;: &quot;Mustermann&quot;,
+            &quot;birthdate&quot;: &quot;1998-01-11&quot;,
+            &quot;address&quot;: {
+                &quot;street_address&quot;: &quot;Sandanger 25&quot;,
+                &quot;locality&quot;: &quot;Musterstadt&quot;,
+                &quot;postal_code&quot;: &quot;123456&quot;,
+                &quot;country&quot;: &quot;DE&quot;
+            }
+        }
+    }
+}
+</sourcecode>
+</section>
+
+<section anchor="presentation-request"><name>Presentation Request</name>
+<t>This is an example presentation request.</t>
+
+<sourcecode type="txt">  GET /authorize?
+    response_type=vp_token
+    &amp;client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;presentation_definition=...
+    &amp;nonce=n-0S6_WzA2Mj HTTP/1.1
+  Host: wallet.example.com
+</sourcecode>
+<t>The requirements regarding the Credential to be presented are conveyed in the <tt>presentation_definition</tt> parameter. Its content is given in the following example.</t>
+
+<sourcecode type="json">{
+    &quot;id&quot;: &quot;example_jwt_vc&quot;,
+    &quot;input_descriptors&quot;: [
+        {
+            &quot;id&quot;: &quot;id_credential&quot;,
+            &quot;format&quot;: {
+                &quot;jwt_vc_json&quot;: {
+                    &quot;proof_type&quot;: [
+                        &quot;JsonWebSignature2020&quot;
+                    ]
+                }
+            },
+            &quot;constraints&quot;: {
+                &quot;fields&quot;: [
+                    {
+                        &quot;path&quot;: [
+                            &quot;$.vc.type&quot;
+                        ],
+                        &quot;filter&quot;: {
+                            &quot;type&quot;: &quot;array&quot;,
+                            &quot;contains&quot;: {
+                                &quot;const&quot;: &quot;IDCredential&quot;
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}
+</sourcecode>
+<t>It contains a single <tt>input_descriptor</tt> element, which sets the desired format to JWT VC and defines a constraint over the <tt>vc.type</tt> parameter to select Verifiable Credentials of type <tt>IDCredential</tt>.</t>
+</section>
+
+<section anchor="presentation-response"><name>Presentation Response</name>
+<t>An example presentation response would look like this:</t>
+
+<sourcecode type="txt">HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    presentation_submission=...
+    &amp;vp_token=...
+</sourcecode>
+<t>The content of the <tt>presentation_submission</tt> is given in the following:</t>
+
+<sourcecode type="json">{
+  &quot;definition_id&quot;: &quot;example_jwt_vc&quot;,
+  &quot;id&quot;: &quot;example_jwt_vc_presentation_submission&quot;,
+  &quot;descriptor_map&quot;: [
+    {
+      &quot;id&quot;: &quot;id_credential&quot;,
+      &quot;path&quot;: &quot;$&quot;,
+      &quot;format&quot;: &quot;jwt_vp_json&quot;,
+      &quot;path_nested&quot;: {
+        &quot;path&quot;: &quot;$.vp.verifiableCredential[0]&quot;,
+        &quot;format&quot;: &quot;jwt_vc_json&quot;
+      }
+    }
+  ]
+}
+</sourcecode>
+<t>It refers to the VP in the <tt>vp_token</tt> parameter provided in the same response, which looks as follows.</t>
+
+<sourcecode type="json">{
+    &quot;iss&quot;: &quot;did:example:ebfeb1f712ebc6f1c276e12ec21&quot;,
+    &quot;jti&quot;: &quot;urn:uuid:3978344f-8596-4c3a-a978-8fcaba3903c5&quot;,
+    &quot;aud&quot;: &quot;https://client.example.org/cb&quot;,
+    &quot;nbf&quot;: 1541493724,
+    &quot;iat&quot;: 1541493724,
+    &quot;exp&quot;: 1573029723,
+    &quot;nonce&quot;: &quot;n-0S6_WzA2Mj&quot;,
+    &quot;vp&quot;: {
+        &quot;@context&quot;: [
+            &quot;https://www.w3.org/2018/credentials/v1&quot;,
+            &quot;https://www.w3.org/2018/credentials/examples/v1&quot;
+        ],
+        &quot;type&quot;: [
+            &quot;VerifiablePresentation&quot;
+        ],
+        &quot;verifiableCredential&quot;: [
+            &quot;eyJhbGci...Qssw5c&quot;
+        ]
+    }
+}
+</sourcecode>
+<t>Note: the VP's <tt>nonce</tt> claim contains the value of the <tt>nonce</tt> of the presentation request and the <tt>aud</tt> claims contains the Client ID of the Verifier. This allows the Verifier to detect replay of a Presentation as recommended in <xref target="preventing-replay"></xref>.</t>
+</section>
+</section>
+
+<section anchor="ldp-vcs"><name>LDP VCs</name>
+<t>The following is an example of a presentation of a Credential conformant to <xref target="VC_DATA"></xref> that is secured using Data Integrity, using JSON-LD. It will be used throughout this section.</t>
+<t>The Credential format identifiers are <tt>ldp_vc</tt> for a W3C Verifiable Credential and <tt>ldp_vp</tt> for W3C Verifiable Presentation.</t>
+
+<sourcecode type="json">{
+    &quot;@context&quot;: [
+        &quot;https://www.w3.org/2018/credentials/v1&quot;,
+        &quot;https://www.w3.org/2018/credentials/examples/v1&quot;
+    ],
+    &quot;id&quot;: &quot;https://example.com/credentials/1872&quot;,
+    &quot;type&quot;: [
+        &quot;VerifiableCredential&quot;,
+        &quot;IDCredential&quot;
+    ],
+    &quot;issuer&quot;: {
+        &quot;id&quot;: &quot;did:example:issuer&quot;
+    },
+    &quot;issuanceDate&quot;: &quot;2010-01-01T19:23:24Z&quot;,
+    &quot;credentialSubject&quot;: {
+        &quot;given_name&quot;: &quot;Max&quot;,
+        &quot;family_name&quot;: &quot;Mustermann&quot;,
+        &quot;birthdate&quot;: &quot;1998-01-11&quot;,
+        &quot;address&quot;: {
+            &quot;street_address&quot;: &quot;Sandanger 25&quot;,
+            &quot;locality&quot;: &quot;Musterstadt&quot;,
+            &quot;postal_code&quot;: &quot;123456&quot;,
+            &quot;country&quot;: &quot;DE&quot;
+        }
+    },
+    &quot;proof&quot;: {
+        &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+        &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+        &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..PT8yCqVjj5ZHD0W36zsBQ47oc3El07WGPWaLUuBTOT48IgKI5HDoiFUt9idChT_Zh5s8cF_2cSRWELuD8JQdBw&quot;,
+        &quot;proofPurpose&quot;: &quot;assertionMethod&quot;,
+        &quot;verificationMethod&quot;: &quot;did:example:issuer#keys-1&quot;
+    }
+}
+</sourcecode>
+
+<section anchor="presentation-request-1"><name>Presentation Request</name>
+<t>This is an example presentation request.</t>
+
+<sourcecode type="txt">  GET /authorize?
+    response_type=vp_token
+    &amp;client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;presentation_definition=...
+    &amp;nonce=n-0S6_WzA2Mj HTTP/1.1
+  Host: wallet.example.com
+</sourcecode>
+<t>The requirements regarding the Credential to be presented are conveyed in the <tt>presentation_definition</tt> parameter. Its content is given in the following example.</t>
+
+<sourcecode type="json">{
+    &quot;id&quot;: &quot;example_ldp_vc&quot;,
+    &quot;input_descriptors&quot;: [
+        {
+            &quot;id&quot;: &quot;id_credential&quot;,
+            &quot;format&quot;: {
+                &quot;ldp_vc&quot;: {
+                    &quot;proof_type&quot;: [
+                        &quot;Ed25519Signature2018&quot;
+                    ]
+                }
+            },
+            &quot;constraints&quot;: {
+                &quot;fields&quot;: [
+                    {
+                        &quot;path&quot;: [
+                            &quot;$.type&quot;
+                        ],
+                        &quot;filter&quot;: {
+                            &quot;type&quot;: &quot;array&quot;,
+                            &quot;contains&quot;: {
+                                &quot;const&quot;: &quot;IDCredential&quot;
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}
+</sourcecode>
+<t>It contains a single <tt>input_descriptor</tt> element, which sets the desired format to LDP VC and defines a constraint over the <tt>type</tt> parameter to select Verifiable Credentials of type <tt>IDredential</tt>.</t>
+</section>
+
+<section anchor="presentation-response-1"><name>Presentation Response</name>
+<t>An example presentation response would look like this:</t>
+
+<sourcecode type="txt">HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    presentation_submission=...
+    &amp;vp_token=...
+</sourcecode>
+<t>The content of the <tt>presentation_submission</tt> is given in the following:</t>
+
+<sourcecode type="json">{
+    &quot;definition_id&quot;: &quot;example_ldp_vc&quot;,
+    &quot;id&quot;: &quot;example_ldp_vc_presentation_submission&quot;,
+    &quot;descriptor_map&quot;: [
+        {
+            &quot;id&quot;: &quot;id_credential&quot;,
+            &quot;path&quot;: &quot;$&quot;,
+            &quot;format&quot;: &quot;ldp_vp&quot;,
+            &quot;path_nested&quot;: {
+                &quot;format&quot;: &quot;ldp_vc&quot;,
+                &quot;path&quot;: &quot;$.verifiableCredential[0]&quot;
+            }
+        }
+    ]
+}
+</sourcecode>
+<t>It refers to the VP in the <tt>vp_token</tt> parameter provided in the same response, which looks as follows.</t>
+
+<sourcecode type="json">{
+    &quot;@context&quot;: [
+        &quot;https://www.w3.org/2018/credentials/v1&quot;
+    ],
+    &quot;type&quot;: [
+        &quot;VerifiablePresentation&quot;
+    ],
+    &quot;verifiableCredential&quot;: [
+        {
+            &quot;@context&quot;: [
+                &quot;https://www.w3.org/2018/credentials/v1&quot;,
+                &quot;https://www.w3.org/2018/credentials/examples/v1&quot;
+            ],
+            &quot;id&quot;: &quot;https://example.com/credentials/1872&quot;,
+            &quot;type&quot;: [
+                &quot;VerifiableCredential&quot;,
+                &quot;IDCredential&quot;
+            ],
+            &quot;issuer&quot;: {
+                &quot;id&quot;: &quot;did:example:issuer&quot;
+            },
+            &quot;issuanceDate&quot;: &quot;2010-01-01T19:23:24Z&quot;,
+            &quot;credentialSubject&quot;: {
+                &quot;given_name&quot;: &quot;Max&quot;,
+                &quot;family_name&quot;: &quot;Mustermann&quot;,
+                &quot;birthdate&quot;: &quot;1998-01-11&quot;,
+                &quot;address&quot;: {
+                    &quot;street_address&quot;: &quot;Sandanger 25&quot;,
+                    &quot;locality&quot;: &quot;Musterstadt&quot;,
+                    &quot;postal_code&quot;: &quot;123456&quot;,
+                    &quot;country&quot;: &quot;DE&quot;
+                }
+            },
+            &quot;proof&quot;: {
+                &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+                &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+                &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..PT8yCqVjj5ZHD0W36zsBQ47oc3El07WGPWaLUuBTOT48IgKI5HDoiFUt9idChT_Zh5s8cF_2cSRWELuD8JQdBw&quot;,
+                &quot;proofPurpose&quot;: &quot;assertionMethod&quot;,
+                &quot;verificationMethod&quot;: &quot;did:example:issuer#keys-1&quot;
+            }
+        }
+    ],
+    &quot;id&quot;: &quot;ebc6f1c2&quot;,
+    &quot;holder&quot;: &quot;did:example:holder&quot;,
+    &quot;proof&quot;: {
+        &quot;type&quot;: &quot;Ed25519Signature2018&quot;,
+        &quot;created&quot;: &quot;2021-03-19T15:30:15Z&quot;,
+        &quot;challenge&quot;: &quot;n-0S6_WzA2Mj&quot;,
+        &quot;domain&quot;: &quot;https://client.example.org/cb&quot;,
+        &quot;jws&quot;: &quot;eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..GF5Z6TamgNE8QjE3RbiDOj3n_t25_1K7NVWMUASe_OEzQV63GaKdu235MCS3hIYvepcNdQ_ZOKpGNCf0vIAoDA&quot;,
+        &quot;proofPurpose&quot;: &quot;authentication&quot;,
+        &quot;verificationMethod&quot;: &quot;did:example:holder#key-1&quot;
+    }
+}
+</sourcecode>
+<t>Note: the VP's <tt>challenge</tt> claim contains the value of the <tt>nonce</tt> of the presentation request and the <tt>domain</tt> claims contains the Client ID of the Verifier. This allows the Verifier to detect replay of a presentation as recommended in <xref target="preventing-replay"></xref>.</t>
+</section>
+</section>
+</section>
+
+<section anchor="anoncreds"><name>AnonCreds</name>
+<t>AnonCreds is a Credential format defined as part of the Hyperledger Indy project <xref target="Hyperledger.Indy"></xref>.</t>
+<t>To be able to request AnonCreds, there needs to be a set of identifiers for Verifiable Credentials, Verifiable Presentations (&quot;proofs&quot; in Indy terminology) and crypto schemes.</t>
+<t>Credential format identifier is <tt>ac_vc</tt> for a Credential, and <tt>ac_vp</tt> for a Presentation.</t>
+<t>Identifier for a CL-signature crypto scheme used in the examples in this section is <tt>CLSignature2019</tt>.</t>
+
+<section anchor="example-credential-1"><name>Example Credential</name>
+<t>The following is an example AnonCred Credential that will be used through this section.</t>
+
+<sourcecode type="json">{
+    &quot;schema_id&quot;: &quot;3QowxFtwciWceMFr7WbwnM:2:BasicScheme:0.1&quot;,
+    &quot;cred_def_id&quot;: &quot;CsiDLAiFkQb9N4NDJKUagd:3:CL:4687:awesome_cred&quot;,
+    &quot;rev_reg_id&quot;: null,
+    &quot;values&quot;: {
+        &quot;first_name&quot;: {
+            &quot;raw&quot;: &quot;Alice&quot;,
+            &quot;encoded&quot;: &quot;6874ecdbdb214ee888e37c8c983e2f1c9c0ed16907b519704db42bb6&quot;
+        },
+        &quot;last_name&quot;: {
+            &quot;raw&quot;: &quot;Wonderland&quot;,
+            &quot;encoded&quot;: &quot;f5e16db78511f23bf2bcf0f450f20180951557cd75efe88b276988fd&quot;
+        },
+        &quot;email&quot;: {
+            &quot;raw&quot;: &quot;alice@example.com&quot;,
+            &quot;encoded&quot;: &quot;0fbaa7f92a47fe3c5201e97f063983c702432e90dd7bf0c723386543&quot;
+        }
+    },
+    &quot;signature&quot;: {
+        &quot;p_credential&quot;: {
+            &quot;m_2&quot;: &quot;99219524012997799443220800218760023447537107640621419137185629243278403921312&quot;,
+            &quot;a&quot;: &quot;54855652574677988116650236306088516361537734570414909367032672219103444197205489674846545082012012711261249754371310495367475614729209653850720034913398482184757254920537051297936910125023613323255317515823974231493572903991640659741108603715378490408836507643191051986137793268856316333600932915078337920001692235029278931184173692694366223663131943657834349339828618978436402973046999961539444380116581314372906598415014528562207334745774098097000567515212222894771357044500544552372314335894883000614144994856702181141090905033428221403654636324918343808136750040908443212492359485782471636294013062295153997068252&quot;,
+            &quot;e&quot;: &quot;259344723055062059907025491480697571938277889515152306249728583105665800713306759149981690559193987143012367913206299323899696942213235956742930239825562861075148170278284639129199&quot;,
+            &quot;v&quot;: &quot;9774232256179658261610308745866736090602538333363396375105120427156273261155207775732400073422905045147609169788952804683922921383859274758479842100138659865591976937215264032734277416744113491766616076612368115891637834588143840477778776159325514034900968730327459279564615858068472282705529798808334108833124505594371791348317639533993310391511620579199112357959170076753792711700533312522910797352842323445933004238048599164039686432144165884599052061538014126710866075791210006585893465085621395503182710866197817129408546193805893321161372355187962990595781339533851533077334790530438016817333603675910702146635975282253747819810788129751055728368937483121363992748831475139233180853145906108476753713239644943541916540123456371366974874702598201796929261151925643543132170495933035112012082080893049915977209167597&quot;
+        },
+        &quot;r_credential&quot;: null
+    },
+    &quot;signature_correctness_proof&quot;: {
+        &quot;se&quot;: &quot;8986500246928105545119249693120482606913996376875337975817228090569777886100120575851444392132175485176800946276729875298747664099989412623249056022784348808658577491758644556594901203598819936532435225959211617545841036816799892165118015169512229910557670483101499028188851318984001732266955939801843049852569586066803442690248386970226324039561954050567607010646624132392374280640663854092050106203821468403658338788408023014151088931308776669398184180228869449717267624484235796469721889284094131533549692106113602342932288350356591343546227828642494647872633442330361211149649432468143339518371824496555067302935&quot;,
+        &quot;c&quot;: &quot;93582993140981799598406702841334282100000866001274710165299804498679784215598&quot;
+    },
+    &quot;rev_reg&quot;: null,
+    &quot;witness&quot;: null
+}
+</sourcecode>
+<t>The most important parts for the purpose of this example are <tt>scheme_id</tt> parameter and <tt>values</tt> parameter that contains the actual End-User claims.</t>
+</section>
+
+<section anchor="presentation-request-2"><name>Presentation Request</name>
+
+<section anchor="request-example"><name>Request Example</name>
+<t>The example presentation request looks as follows:</t>
+
+<sourcecode type="txt">  GET /authorize?
+    response_type=vp_token
+    &amp;client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;presentation_definition=...
+    &amp;nonce=n-0S6_WzA2Mj HTTP/1.1
+  Host: wallet.example.com
+</sourcecode>
+<t>The following is the content of the <tt>presentation_definition</tt> parameter.</t>
+
+<sourcecode type="json">{
+    &quot;id&quot;: &quot;example_vc_ac&quot;,
+    &quot;input_descriptors&quot;: [
+        {
+            &quot;id&quot;: &quot;id_credential&quot;,
+            &quot;format&quot;: {
+                &quot;ac_vc&quot;: {
+                    &quot;proof_type&quot;: [
+                        &quot;CLSignature2019&quot;
+                    ]
+                }
+            },
+            &quot;constraints&quot;: {
+                &quot;fields&quot;: [
+                    {
+                        &quot;path&quot;: [
+                            &quot;$.schema_id&quot;
+                        ],
+                        &quot;filter&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;const&quot;: &quot;did:indy:idu:test:3QowxFtwciWceMFr7WbwnM:2:BasicScheme:0\\.1&quot;
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}
+</sourcecode>
+<t>The <tt>format</tt> object in the <tt>input_descrioptor</tt> element uses the format identifier <tt>ac_vc</tt> as defined above and sets the <tt>proof_type</tt> to <tt>CLSignature2019</tt> to denote this descriptor requires a Credential in AnonCreds format signed with a CL signature (Camenisch-Lysyanskaya signature). The rest of the expressions operate on the AnonCreds JSON structure.</t>
+<t>The <tt>constraints</tt> object requires the selected Credential to conform with the schema definition <tt>did:indy:idu:test:3QowxFtwciWceMFr7WbwnM:2:BasicScheme:0\\.1</tt>, which is denoted as a constraint over the AnonCred's <tt>schema_id</tt> parameter.</t>
+</section>
+
+<section anchor="request-example-with-selective-release-of-claims"><name>Request Example with Selective Release of Claims</name>
+<t>The next example leverages the AnonCreds' capabilities for selective disclosure by requesting a subset of the claims in the Credential to be disclosed to the Verifier.</t>
+<t>The presentation request looks the same as above. The difference is in the <tt>presentation_definition</tt> parameter as shown in the following:</t>
+
+<sourcecode type="json">{
+   &quot;id&quot;: &quot;example_vc_ac_sd&quot;,
+   &quot;input_descriptors&quot;: [
+      {
+         &quot;id&quot;: &quot;id_credential&quot;,
+         &quot;format&quot;: {
+            &quot;ac_vc&quot;: {
+               &quot;proof_type&quot;: [
+                  &quot;CLSignature2019&quot;
+               ]
+            }
+         },
+         &quot;constraints&quot;: {
+            &quot;limit_disclosure&quot;: &quot;required&quot;,
+            &quot;fields&quot;: [
+               {
+                  &quot;path&quot;: [
+                     &quot;$.schema_id&quot;
+                  ],
+                  &quot;filter&quot;: {
+                     &quot;type&quot;: &quot;string&quot;,
+                     &quot;const&quot;: &quot;did:indy:idu:test:3QowxFtwciWceMFr7WbwnM:2:BasicScheme:0\\.1&quot;
+                  }
+               },
+               {
+                  &quot;path&quot;: [
+                     &quot;$.values.first_name&quot;
+                  ]
+               },
+               {
+                  &quot;path&quot;: [
+                     &quot;$.values.last_name&quot;
+                  ]
+               }
+            ]
+         }
+      }
+   ]
+}
+</sourcecode>
+<t>This example is identic to the previous one with the following exceptions: It sets the element <tt>limit_disclosure</tt> of the constraint to <tt>require</tt> and adds two more constraints for the individual claims <tt>given_name</tt> and <tt>family_name</tt>. Since such claims are stored underneath a <tt>values</tt> container in an AnonCred, <tt>values</tt> is part of the path to identify the respective claims.</t>
+</section>
+</section>
+
+<section anchor="presentation-response-2"><name>Presentation Response</name>
+<t>The presentation response looks the same as for the other examples.</t>
+
+<sourcecode type="txt">HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    presentation_submission=...
+    &amp;vp_token=...
+</sourcecode>
+<t>It contains the <tt>presentation_submission</tt> and <tt>vp_token</tt> parameters.</t>
+<t>The <tt>presentation_submission</tt> content looks like this:</t>
+
+<sourcecode type="json">{
+    &quot;definition_id&quot;: &quot;example_vc_ac_sd&quot;,
+    &quot;id&quot;: &quot;example_vc_ac_sd_presentation_submission&quot;,
+    &quot;descriptor_map&quot;: [
+        {
+            &quot;id&quot;: &quot;id_credential&quot;,
+            &quot;path&quot;: &quot;$&quot;,
+            &quot;format&quot;: &quot;ac_vp&quot;,
+            &quot;path_nested&quot;: {
+                &quot;path&quot;: &quot;$.requested_proof.revealed_attr_groups.id_card_credential&quot;,
+                &quot;format&quot;: &quot;ac_vc&quot;
+            }
+        }
+    ]
+}
+</sourcecode>
+<t>The <tt>descriptor_map</tt> refers to the <tt>input_descriptor</tt> element with an identifier <tt>id_credential</tt> and tells the Verifier that there is a proof of AnonCred Credential (<tt>format</tt> is <tt>ac_vp</tt>) directly in the vp_token (path is the root designated by <tt>$</tt>). Furthermore it indicates using <tt>path_nested</tt> parameter that the user claims can be found embedded in the proof underneath <tt>requested_proof.revealed_attr_groups.id_card_credential</tt>.</t>
+<t>The following is a VP Token example.</t>
+
+<sourcecode type="json">{
+    &quot;proof&quot;: {...},
+    &quot;requested_proof&quot;: {
+        &quot;revealed_attrs&quot;: {},
+        &quot;revealed_attr_groups&quot;: {
+            &quot;id_card_credential&quot;: {
+                &quot;sub_proof_index&quot;: 0,
+                &quot;values&quot;: {
+                    &quot;last_name&quot;: {
+                        &quot;raw&quot;: &quot;Wonderland&quot;,
+                        &quot;encoded&quot;: &quot;167908493…94017654562035&quot;
+                    },
+                    &quot;first_name&quot;: {
+                        &quot;raw&quot;: &quot;Alice&quot;,
+                        &quot;encoded&quot;: &quot;270346400…99344178781507&quot;
+                    }
+                }
+            }
+        },
+       …
+    },
+    &quot;identifiers&quot;: [
+        {
+            &quot;schema_id&quot;: &quot;3QowxFtwciWceMFr7WbwnM:2:BasicScheme:0.1&quot;,
+            &quot;cred_def_id&quot;: &quot;CsiDLAiFkQb9N4NDJKUagd:3:CL:4687:awesome_cred&quot;,
+            &quot;rev_reg_id&quot;: null,
+            &quot;timestamp&quot;: null
+        }
+    ]
+}
+</sourcecode>
+</section>
+</section>
+
+<section anchor="iso-mobile-driving-licence-mdl"><name>ISO mobile Driving Licence (mDL)</name>
+<t>This section illustrates how a mobile driving licence (mDL) Credential expressed using a data model and data sets defined in <xref target="ISO.18013-5"></xref> encoded as CBOR can be presented from the End-User's device directly to the Verifier using this specification.</t>
+<t>The Credential format identifier is <tt>mso_mdoc</tt>.</t>
+
+<section anchor="presentation-request-3"><name>Presentation Request</name>
+<t>The presentation request looks the same as for the other examples since the difference is in the content of the <tt>presentation_definition</tt> parameter.</t>
+
+<sourcecode type="txt">  GET /authorize?
+    response_type=vp_token
+    &amp;client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;presentation_definition=...
+    &amp;nonce=n-0S6_WzA2Mj HTTP/1.1
+  Host: wallet.example.com
+</sourcecode>
+<t>The content of the <tt>presentation_definition</tt> parameter is as follows:</t>
+
+<sourcecode type="json">{
+    &quot;id&quot;: &quot;mDL-sample-req&quot;,
+    &quot;input_descriptors&quot;: [
+        {
+            &quot;id&quot;: &quot;mDL&quot;,
+            &quot;format&quot;: {
+                &quot;mso_mdoc&quot;: {
+                    &quot;alg&quot;: [
+                        &quot;EdDSA&quot;,
+                        &quot;ES256&quot;
+                    ]
+                },
+                &quot;constraints&quot;: {
+                    &quot;limit_disclosure&quot;: &quot;required&quot;,
+                    &quot;fields&quot;: [
+                        {
+                            &quot;path&quot;: [
+                                &quot;$.mdoc.doctype&quot;
+                            ],
+                            &quot;filter&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;const&quot;: &quot;org.iso.18013.5.1.mDL&quot;
+                            }
+                        },
+                        {
+                            &quot;path&quot;: [
+                                &quot;$.mdoc.namespace&quot;
+                            ],
+                            &quot;filter&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;const&quot;: &quot;org.iso.18013.5.1&quot;
+                            }
+                        },
+                        {
+                            &quot;path&quot;: [
+                                &quot;$.mdoc.family_name&quot;
+                            ],
+                            &quot;intent_to_retain&quot;: &quot;false&quot;
+                        },
+                        {
+                            &quot;path&quot;: [
+                                &quot;$.mdoc.portrait&quot;
+                            ],
+                            &quot;intent_to_retain&quot;: &quot;false&quot;
+                        },
+                        {
+                            &quot;path&quot;: [
+                                &quot;$.mdoc.driving_privileges&quot;
+                            ],
+                            &quot;intent_to_retain&quot;: &quot;false&quot;
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}
+</sourcecode>
+<t>To start with, the <tt>format</tt> parameter in the <tt>input_descriptor</tt> element is set to <tt>mso_mdoc</tt>, i.e. it requests presentation of an mDL in CBOR format.</t>
+<t>To request user claims in ISO/IEC 18013-5:2021 mDL, a <tt>doctype</tt> and <tt>namespace</tt> of the claim needs to be specified. Moreover, the Verifiers needs to indicate whether it intends to retain obtained user claims or not, using <tt>intent_to_retain</tt> property.</t>
+<t>Note: <tt>intent_to_retain</tt> is a property introduced in this example to meet requirements of <xref target="ISO.18013-5"></xref>.</t>
+<t>Setting <tt>limit_disclosure</tt> property defined in <xref target="DIF.PresentationExchange"></xref> to <tt>required</tt> enables selective release by instructing the Wallet to submit only the data parameters specified in the fields array. Selective release of claims is a requirement built into an ISO/IEC 18013-5:2021 mDL data model.</t>
+</section>
+
+<section anchor="presentation-response-3"><name>Presentation Response</name>
+<t>The presentation response looks the same as for the other examples.</t>
+
+<sourcecode type="txt">HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    presentation_submission=...
+    &amp;vp_token=...
+</sourcecode>
+<t>The following shows the <tt>presentation_submission</tt> content:</t>
+
+<sourcecode type="json">{
+    &quot;definition_id&quot;: &quot;mDL-sample-req&quot;,
+    &quot;id&quot;: &quot;mDL-sample-res&quot;,
+    &quot;descriptor_map&quot;: [
+        {
+            &quot;id&quot;: &quot;mDL&quot;,
+            &quot;format&quot;: &quot;mso_mdoc&quot;,
+            &quot;path&quot;: &quot;$&quot;
+        }
+    ]
+}
+</sourcecode>
+<t>The <tt>descriptor_map</tt> refers to the <tt>input_descriptor</tt> element with an identifier <tt>mDL</tt> and tells the Verifier that there is an ISO/IEC 18013-5:2021 mDL (<tt>format</tt> is <tt>mso_mdoc</tt>) in CBOR encoding directly in the <tt>vp_token</tt> (path is the root designated by <tt>$</tt>).</t>
+<t>When ISO/IEC 18013-5:2021 mDL is expressed in CBOR the <tt>path_nested</tt> parameter cannot be used to point to the location of the requested claims. The user claims will always be included in the <tt>issuerSigned</tt> item. <tt>path_nested</tt> parameter can be used, however, when a JSON-encoded ISO/IEC 18013-5:2021 mDL is returned.</t>
+<t>The following is a non-normative example of an ISO/IEC 18013-5:2021 mDL encoded as CBOR in diagnostic notation (line wraps within values are for display purposes only) as conveyed in the <tt>vp_token</tt> parameter.</t>
+
+<sourcecode type="json">{
+    &quot;status&quot;: 0,
+    &quot;version&quot;: &quot;1.0&quot;,
+    &quot;documents&quot;: [
+        {
+            &quot;docType&quot;: &quot;org.iso.18013.5.1.mDL&quot;,
+            &quot;deviceSigned&quot;: {
+                &quot;deviceAuth&quot;: {
+                    &quot;deviceMac&quot;: [
+                        &lt;&lt; {1: 5} &gt;&gt;,
+                        {},
+                        null, h'A574C64F18902BFE18B742F17C581218F88EA279AA96D0F5888123843461A3B6'
+                    ]
+                },
+                &quot;nameSpaces&quot;: 24(h'A0')
+            },
+            &quot;issuerSigned&quot;: {
+                &quot;issuerAuth&quot;: [
+                  &lt;&lt; {1: -7} &gt;&gt;,
+                    {
+                        33: h'30820215308201BCA003020102021404AD06A30C1A6DC6E93BE0E2E8F78DCAFA7907C2300A06082A8648CE3D040302305B310B3009060355040613025A45312E302C060355040A0C25465053204D6F62696C69747920616E64205472616E73706F7274206F66205A65746F706961311C301A06035504030C1349414341205A65746573436F6E666964656E73301E170D3231303932393033333034355A170D3232313130333033333034345A3050311A301806035504030C114453205A65746573436F6E666964656E7331253023060355040A0C1C5A65746F70696120436974792044657074206F662054726166666963310B3009060355040613025A453059301306072A8648CE3D020106082A8648CE3D030107034200047C5545E9A0B15F4FF3CE5015121E8AD3257C28D541C1CD0D604FC9D1E352CCC38ADEF5F7902D44B7A6FC1F99F06EEDF7B0018FD9DA716AEC2F1FFAC173356C7DA3693067301F0603551D23041830168014BBA2A53201700D3C97542EF42889556D15B7AC4630150603551D250101FF040B3009060728818C5D050102301D0603551D0E04160414CE5FD758A8E88563E625CF056BFE9F692F4296FD300E0603551D0F0101FF040403020780300A06082A8648CE3D0403020347003044022012B06A3813FFEC5679F3B8CDDB51EAA4B95B0CBB1786B09405E2000E9C46618C02202C1F778AD252285ED05D9B55469F1CB78D773671F30FE7AB815371942328317C'
+                    }, 
+                    &lt;&lt;
+                      24(&lt;&lt;
+                          {
+                            &quot;docType&quot;: &quot;org.iso.18013.5.1.mDL&quot;,
+                            &quot;version&quot;: &quot;1.0&quot;,
+                            &quot;validityInfo&quot;: {
+                                &quot;signed&quot;: 0(&quot;2022-04-15T06:23:56Z&quot;),
+                                &quot;validFrom&quot;: 0(&quot;2022-04-15T06:23:56Z&quot;),
+                                &quot;validUntil&quot;: 0(&quot;2027-01-02T00:00:00Z&quot;)
+                            },
+                            &quot;valueDigests&quot;: {
+                                &quot;org.iso.18013.5.1&quot;: {
+                                    1: h'0F1571A97FFB799CC8FCDF2BA4FC29099290AAD37AE37ACE3C3BAE85C6379AD5',
+                                    2: h'0CDFE077400432C055A2B69596C90AAA47277C9678BFFC32BBC7F0CF82713B8E',
+                                    3: h'E2382149255AE8E955AF9B8984395315F3A38427C267F910A637D3FC81F25BB4',
+                                    4: h'BBC77E6CCA981A3AD0C3E544EDF8B68F19F4DACF1AF2AA0E6436401B4539ABA2',
+                                    6: h'BB6E6C68D1B4B4EC5A2AE9206F5F976A32061FA878BD5B44476F96D35462F6B2',
+                                    8: h'F8A5966E6DAC9970E0334D8F75E24DC63832E73A56AEF21C0D4B91487FC6AB03',
+                                    9: h'EAD5E8B5E543BD31F3BE57DE4ED6CCF7BB635221725F80538165DA7DC0BF92BB',
+                                    11: h'38CE9A09DC0121E1A9C2EF3EE2456530C2183AA8326FBE13B7D19A17DF77E980',
+                                    12: h'DEFDF1AA746718016EF1B94BFE5FB7774B8665F57D48ADAB83ABE0B28C22DB59',
+                                    13: h'A8868DF71AA4FB7D0AD3459C2E75E63767FE477B5A8FDF45537E936AFAB59C44',
+                                    15: h'95B651F1BA60EF5867E63E8DB1B0328464E5B66775E213B743A1E31F8EFBD9CB',
+                                    16: h'364E3C65D46D06FEDEB0E7293A86BA45FDFA99AA1A6DA3C3289B6E073B589922',
+                                    17: h'B584E5D5EF4CFC93FDB1E4EE8F3996090EF0B1E8FD2AC594D7D8793093BB328F',
+                                    18: h'677468F3E28CAAB521337E0FEF7FFEB067D2A2704F88B5D50D84CAF17209BA25',
+                                    19: h'95501E3E769230DC945CFBDC707C45218459F1129EFD5088BDA672CEF5991598',
+                                    20: h'677FACBBCA2EB9306BD649227B9AD66DF4A9AF6A5AB7D073F1BAAC23254B6D78',
+                                    22: h'BCCFB15CB36125BF1ECBFDE32FF908BD3BAA2DC0BA949B673E96CBA26902059F',
+                                    23: h'F9EE4D36F67DBD75E23311AC1C294C563992463A30B47039D25E03B6C6EFFCA3',
+                                    25: h'AFC5A127BE44753172844B13491D880C3768691A4C9916E5257CEFA4BAA74654',
+                                    26: h'1E1DA854356D3CFB7D983B8105F8A081057D4D01E910F263143BDC9AF1EF363C'
+                                }
+                            },
+                            &quot;deviceKeyInfo&quot;: {
+                                &quot;deviceKey&quot;: {
+                                    1: 2,
+                                    -1: 1,
+                                    -2: h'B820963964E53AF064686DD9218303494A5B23A175C34CC54AD1D9244EFD0BA5',
+                                    -3: h'0A6DA0AF437E2943F1836F31C678D89298E93D7E95057FD4D04E8E3EC2BBA935'
+                                }
+                            },
+                            &quot;digestAlgorithm&quot;: &quot;SHA-256&quot;
+                          }
+                      &gt;&gt;)
+                    &gt;&gt;,
+                    h'1AD0D6A7313EFDC38FCD765852FA2BD43DEBF48BF5A516960A685162B2B8242935861329ECB54F68234FC88A0228EC5DF22CB9689EC5053C80EDC59CC99EE80D'
+                ],
+                &quot;nameSpaces&quot;: {
+                    &quot;org.iso.18013.5.1&quot;: [
+                        24(&lt;&lt;
+                            {
+                              &quot;digestID&quot;: 1,
+                              &quot;random&quot;: h'E0B70BCEFBD43686F345C9ED429343AA',
+                              &quot;elementIdentifier&quot;: &quot;expiry_date&quot;,
+                              &quot;elementValue&quot;: 1004(&quot;2030-02-22&quot;)
+                            }
+                        &gt;&gt;),
+                        24(&lt;&lt;
+                            {
+                              &quot;digestID&quot;: 6,
+                              &quot;random&quot;: h'AE84834F389EE69888665B90A3E4FCCE',
+                              &quot;elementIdentifier&quot;: &quot;given_name&quot;,
+                              &quot;elementValue&quot;: &quot;Doe&quot;
+                            }
+                        &gt;&gt;),
+                        24(&lt;&lt;
+                            {
+                              &quot;digestID&quot;: 11,
+                              &quot;random&quot;: h'960CB15A2EA9B68E5233CE902807AA95',
+                              &quot;elementIdentifier&quot;: &quot;issuing_country&quot;,
+                              &quot;elementValue&quot;: &quot;UT&quot;
+                            }
+                        &gt;&gt;),
+                        24(&lt;&lt;
+                            {
+                              &quot;digestID&quot;: 13,
+                              &quot;random&quot;: h'9D3774BD5994CCFED248674B32A4F76A',
+                              &quot;elementIdentifier&quot;: &quot;document_number&quot;,
+                              &quot;elementValue&quot;: &quot;ES24689&quot;
+                            }
+                        &gt;&gt;),
+                        24(&lt;&lt;
+                            {
+                              &quot;digestID&quot;: 15,
+                              &quot;random&quot;: h'EB12193DC66C6174530CDC29B274381F',
+                              &quot;elementIdentifier&quot;: &quot;portrait&quot;,
+                              &quot;elementValue&quot;: h'89504E470D0A1A0A0000000D49484452000001F3000001F20803000000C88DD7DC0000001974455874536F6674776172650041646F626520496D616765526561647971C9653C00000180504C5445336D82D0B293417E9A4848484684A24A8CAE306A7ED1C8D144809D357085407D993F7B96B3B3B0275D718687864765734886A54A8BAC3E7A954A8AAB38738ACFA8CE4686A53C7993FEE6CF4787A74785A44584A33D7A94A18B7655555543819E3A768F498AACE4D6E339748D4B8CADAC67AA71706F74878436718845565D4545454A5F68FEF0E3395965E2C5A545748A2E5A69FDDCBCB0AA9737515A515151F1CAA33B77904C4C4C3E7B96939B986D929EB79C824783A044494BD1BDA35B899BA0A5A2466D7D4C839AFDD2A84F879F424D524C8DAF515B5FFFFFFF467E9AA458A25357594888A840778F42809C4989A94582A04583A1417F9B40748B4482A043819D4483A14888A7407C973C78913A758D3E79934889AA3B7891427F9C42809D4889A9498AAA3A758E417E994988A843809D39748CBA82B9E9E6E98E7C6CF3F3F3E6BD9E50555773685D5E5E5FFDD5AE5C5651504D4BF9F4F9F3EAF3FEFCF9675F57FEF8F14170845C7A7E38748E6A4E69487F9B467B94925591816E80534A530E2CDF5E00001E3B4944415478DAECDDEB6313C77600F031A212B13D1675E340C15EA7BAB588A41819635FD72832288A6AC55CA879A55052726FD35BD960630C01737BDDF65FAF64F9A1C7AE761E6766CE91E77C49F20556FBCB397366667796FD33C2F89BC8F8C793F8DB88F887BF0B8D3FFDE9E79F7FFEE31FFFA533FED015FFF9877F6DC6DFF7C5E5767C751447FF7AAD372E5E3F8D8B47F1E8347E3A8AA7EDD83C89E6BFCF76C7B3A3F8F3A54B977EF9E56167BC3A89C7EDB8D015BF8E76C6F3EE18EB89C9C9C9E9664C4E324F7EDEC8319A7B72B3E4D3CC939F37727CE69EDC34393A734F6E9C1C9BB927374F8ECCDC935B20C765EEC96D90A332F7E456C831997B723BE45798273F6FE42F99273F6FE468CC3DB935722CE69EDC1E3912734F6E911C87B927B7498EA26FF7E456C931987B72BBE408CC3DB96572F7E69EDC36B973734F6E9DDCB5B927B74FEED8DC933B20776BEEC95D903B35F7E44EC85D9A7B7237E40ECD3DB923F217CC939F377267E69EDC19B92B734FEE8EDC91B9277748EEC6DC93BB247762EEC99D92BB30F7E46EC91D987B72C7E4F6CD3DB96B72EBE69EDC39F9BF334F7EDEC82D9B7B7204E476CD3D390672ABE69E1C05B94D734F8E83FCF7CC939F37727BE69E1C0BB935734F8E86DC96B927C7436EC9DC932322B763EEC931915B31F7E4A8C86D987B725CE416CC3D393272F3E69E1C1BB971734F8E8EDCB4B927C7476ED8DC932324FF9A79F2F3466ED4DC93A3243769EEC971921B34F7E448C9CD997B72ACE4C6CC3D395A7253E69E1C2FB921734F8E98DC8CB927C74C6EC4DC93A3263761EEC971931B30F7E4C8C9FF839D1FF2C362259DCE35A3963F895AEB3FD3E974B1788EC8C1CD31926F36B173E57C4CD49AF8C54BE7801CDA1C1DF961A523AD05A29C4B1F1C0E37F9BFB12126FFB1129FDD51F0C5E1258735C7447E98AEE5B5A2E93E9CE4A0E678C8B5C14FDD0F878F1CD21C0BF9771518F0E3D62E5D1C3272407324E43FA6CB79E0A8158AC3440E678E83FCC742DE48D45A457E48C8C1CC51909B126F8FED0743420E658E817CD3A4783BD97F1D067220730CE49572DE7C140EE993C39823203FACE5ED44AE489DFC776C38C8D3797BD154274D0E61EE9EDC5A929FAA5326FF2F3604E45646F21EF543BAE4FAE6EEC90B79175138A44AAE6DEE9C7CB3967713E50A51725D73D7E4C58A2BF256817F40925CD3DC297931EDD0BB1D698AE47AE60EC98B85721E419CA63A21722D7367E4DF556A792451AE9023D7317745FE5DBA9C4714056AE41AE6AEC82BA8C45BF5FD392D72757347E4C55A1E5DD41E902257367743FE5D3A8F31CA4F2891AB9ABB213FACE5F378D1A9907FC9089157F268A3894E865CCDDC09F977853CE2288F9121573277435ECBA38EDA181572157327E47F454EDE9CB25121573077427E58CEA38F34117279734F1E194F68904B9BFBB17CC0904E835CD6DC930FACEE24C825CDDDCCCB73792AF18402B99CB91BF23419F27C8E02B994B95F7D8B8DF931FCE432E66EC8FF5AA6645EE663E8C925CC1D6D9ED6F2A4E2361FC34E2E6EEE883C9D27169C8F2127173677447E488DBC99E8FC9F70938B9ABB7A102A47CEBC99E8FCF7A8C905CD9D3DFB468FBC95E827E838C9C5CC9D3DE15A23685EE627E848C985CC9D3DC79ECEE789267A0B1D2BB988B9BB5717CA24CD6BFC081D2DB980B9BB179468A6793EBF7084FE2556F2787377E444D3FCB8B873FE0D52F2587387AF2156F25483F7A2A3228F3377F9B2718DACF9420F3A2EF2187397E445B2E4C75DDC293A32F26F18DA23050A74CD4F8A3BE70C21F94073A7E49B65C2E6B74FD193F8C80799BB3D2BA64298FCACB837D1D1910F30777C3C508EB2F95971EF4547401E6DEEFA4428D2E4A79D7B2F3A06F24873E78780D136BFCD3BD1AFA0228F32777ED45F9AB6799977C5154CE411E6EE0FF4ACE587A7B89FA023210F37774FBE499CBCBBB8B7D1B190879A23388F5D6538DFDF456CCEAFA0210F33C7F0A10DC9E17C3F5B1AA956AB25B4037A335E60210F3147F10525A9D9F976A97A1C25B4037A33FE8284BCDF1CC777D2C4175EF76796AB67B18DB7B8B7D05190F799E320DF5413C7841E62CE7F8782BCD71CC90730455BB8ED1E7144E8651E868E81BCC71CCB676EC53658DE8D544302CB98CE07A03B25EF3647F331EBB4629263425F0845FFC63D7997399EEF978B3C2F51AA46C5C83ED601BD195F3827EF34C7432E3055DB1FA946C79B8F78CDF917AEC93BCC1191C79B0F24AF5697117472351E85EE98FCCC1C13F9E59A1E796B50DFC7D9C41DA3BB243F3547457E599BBC39A87FC4D9C4B5CBBB4BF22F1846F23873017204F53DDA9C275D921F9B2323BFACDAB1F7A4FA3B944D5C27BA0BF2B63936F2C1E6DB55D1709BEA83CC8FD19D901F99A3231F68BE5B950897A37A8DC7A1BB216F99E3231F64BEFFA62A15EE1AF8328F417744DE344748FE15C0607E56E067D04DD68ED1BF7643FE05C348FE1550653F5996DB4669CEF9D74EC807983B24FF0AACB23B555F1043B74D1E6DEE923CDA7CA6AA182ED4E3CD5BE8D6C923CD9D92479ABF5BAE56D5D5F7314DD64ED0ED934799BB25FF0AAC81EBE9E6DEA1333F42B74B1E61EE98FC72C42390EFAABA51CA6233E77FB14D1E6EEE9AFC72CE449A1F97F812C832CDFEEECCCC4CCC68511332E75F5A260F35774E1E61FEAE0A1323DB9A35FE63E96497A7F44EDFBC13DD067998B97BF208F352152C46D4B3FDDDCC1BC125FD329745B7421E628E803CDC7C7FB90A19CB2585747FB73D22F170359744B743DE6F8E81FC5A4E6F3F4D6270DF96C8F7DD52E8C6FDB6BE791BDD12799F390AF270F391AA9918296DC7BFD1BABB5D8A2C33DBFAE62D745BE4BDE638C8AF853DDFFEB16A32DE8C9466B2BB6149BF9B9D29C53C71F9517D21EEEC24396BE43DE648C843CD4B552BF166A415CD8958A9F54FB1E5FD1100F34E74B3E4DDE658C843CDDF54F1C60C80F919BA61F22E7334E461E61FAB98E31D80F909BA69F24E733CE461E625D4E62508F336BA71F20E7344E461E66FAAF4125DD6BC856E9EFCCC1C13F9B5A2B17557AB23BAB4394F5A203F3547451E62BE8DDCFC0D8C7913DD38F989392EF210F31272F3EA4718739E344E7E6C8E8C3CC47C19BB7909C8FC14DD1879DB1C1B79BFF92E76F2D0E2AE647E8C6E8EFCC81C1DF9B5436AC37978E7AE667E846E90BC658E8FFCDA3572C379E84E8BA27913DD2479D31C23F93562B3F388015DD59CF32F0D927FC150925F24363B8FD8685137EF4407276728C9AF936BE19A016A7E860E4FCE50925F2F03BDBEE2B689D3313F413740CE50925FCF916BE1AAD55D58F336BA09728692BCD77C8482F936B0790BDD08394349DE6B4E813C649B45D39C7F69869CA124EF31FF48C2BCA4F30C64C4A16246C8194AF2EB057A6D7BC8648D1B42D7246728C9AFA7A9ADBC1A320F45D7256728C97BCC494CD5FA27E8656E045D9B9CA124EF311FA1695EE326D0F5C9194AF28B456F7EF6901C34394349DE63BE4CC37C57E9CC01397408728692BCC7BC7ABECD3BD041C8194AF28B17BD79D7863A2839C3497E91DEF4BCDF7C8103A30391339CE48F6A04CDB7CD991FA14391339CE4773ACFFEA0623E03BF24D3890E46CE5092AFB61E24DDA5B50CD76D9E2D2D571761D1C1C81956F28E4D8B1972E6BBEDE7F7CCA32B913384E47797BB77AAC8999F3EE2F1D930BA1A39C347FE68BC677B929AF9D9533D37B951744572868FFC87DE56988A79A9FF41AE1B26D155C9193AF247F73AEED9F23B2A4FC39D6EA6765D2DEC88DE8DAE4CCED0913FBAD97B1F472899F74C32B831747572868EFC51DF420725F3DEC7B83E9B42D72067E8C8EF74DFB437B4CC7BAF75959B41D72167D8C8BB86F376A21332EF6B3717B911742D72868DBC63A67692E854CC97438E211EE126D0F5C81936F2476B7D5B1754CCAB61330C6E025D8F9C6123EF371F21631EF6FA2C3782CE74C81936F2EEA95ABB6652312FD932E79C6990336CE43F55872B3E5B478F2567D8C8BDB9267A3C39C346EECDF5D099AAB943F26133AF70ABE84CD5DC25F94F3787CB9C739BE84CD5DC29F94F6BDE5C199DA99ABB257FEACD95D199AAB963F2A7E34345BEC6EDA1335573D7E44FEF0D95F908B7862E2A9E64D8C89FAE0E95F9A269F3D3C57761F25E73F7E44FEF0C95F92AB7842E4EDE638E80FCE90F7E4946015D82BCDB1C03F9D3CDA19AA057B8157419F22E731CE49BC334595BE656222943DE698E847C73981AF7118E093DD96B8E857CF38E6FE1CCA0277BCDD1906F6EFA16CE087AB2D71C11F9300DE89CA3414FF69A63221FA2017D91A3414FF69AA3221FA201FD06C7829EEC35C745FEF4E9D0CCD02B1C097AB2D71C1BF9D06CADAD718E033DD96B8E8E7C76588AFB04C7819EEC35C7473E3B3B24C53DC951A0277BCD3192CF0E47E7BEC83906F464BF3942F2D9E1D85BFBCC31A027FBCD3192CFCE0E431777937304E8C9507384E4B377FDE41C063D196A8E917C7676CDA739047A32D41C27F9104CD726B87BF46484394A72FA89EE30CD4FD19311E648C9C98FE837B873F4A4883922F2D9678BFE01193DF4A488392AF2673F905E8CAB70E7E822E6B8C89F3DA3DCC6AD728E179DA1257F46B8BAAF718E189DE125FFF325AAD57DB9C231A333C4E4977E58A669FE9973CCE80C31F9A55FEE9044BFC1396A748699FC978714D1119187A333D4E40F1FDEA136A62FA3220F4567B8C91F3EFC9E56F73E52E11C3B3A434EDE8CBBE3640AFCE2678E2F42CCB1933F2453E12B1C67F49953207FF88A42815FE39C063A2341FE8AC23AEC2A2782CE4890BFFADEAFC4C0A13312E4AF5EE17F8462997322E88C06F92BFC27882D722AE88C06F92BFC8FCDDCE054D0190DF257AFD0CFD6929C0A3A2342FE18FB6C6D8D732AE88C08F963ECB3B5094E069D11217FFC187971AF7032E88C0A39F2E2BEC639197446851C79719FE09C8C3AA342FEF8C24D5FDA61D01919F20B8BBEB403BDED4086FCC25D5FDA61829121BF80B9B8274999D321BF8077CD7D91533327428EB8B8DFA0664E85FCC205AC1BAACB9C98391D72B4C57D91983921F20B17903E005BA16E8E98FC02CE23C4D6387173CCE448BBB81BC4CD5193FF3A8A718ABE9CA46D8E9C7C74D57770D0E6D8C94747977D07076B8E9F7C14DF89CF239CB23901F2D1BBBE838334A7403E3A8A6DBA76931336A7413E8AED719909C2E644C84747D7FC440DC89C0C39B2E9DA2A276B4E877CF4F94D3F518330A744FE1C53A22F72AAE6A4C89F634AF40A557362E488129D649AB7CCA9913FFF7ED9A7B99E3939F2E7CFEFF934D73227488E26D12BA4CD49916319D189A6F9B13931F2E7777C9AEB9A5323C7614E35CD8FCCC991E330AF1036A747FE7CCCAFB46B99532447604E7143EDC49C243902F3094EDC9C1AB97BF39B9CB83939F231E70F4E7C266E4E8FDCBD39A76D4E90DC9BEB995324F7E6FA6BAFD4C8BDB9B63939F2B17BDE5CCF9C1EB937D7342748EECDF5CC29927B732D7392E4DE1CD49C04F9D81D6F0E674E83DC9B039A13219FF4E660E654C8BD39983919726F0E654E877CDA9BC39813229FBEEBCD21CC29914F4F7B7300735AE493FED1287D7362E4AECD4786C09C1AB937D73627473EEDCD35CDE9917B734D7382E4DE5CCF9C22F9F4B237D73027493EBDE6CDD5CD69927B731D739AE4DE1CC49C14B93787302745FEFD1DC76741AEDD4DD237A7447E2755AF5F756B7EB55E4FDD256E4E88FCE06DBD8EC1BCBE555BA06C4E883C9DB8D732FFD6BD797DA27C9BAE391DF2835A22F11A8B7926912099EA8C14793A914864EB58CCEB6F13098AA9CE08913F692679A25DDA71984FB4AEA746D09C0C79BADCBAC589141EF3F1A30B2A53ABEF8C0AF9EF7389766CE1314F1D5FD26D8AE6F8C90F6AC7F73751C763BE75724DB45A3946833C7D7277136FDBE675B7E69FDA17717A55E57962E6E8C94FEBFA69DBEE7851E656BDC79C547D6704C80FCA897E73A7C5FDDBE38BC8765C189DFACEF093A7138910F3FA2D77E47BF510733AA9CEB0933FC925C2CD3FB94FF31E732A5375869CBC524E4498BB1BD16FD523CC894CD5196AF207854422D2FC3747D57DEFB748731AF59D61263F9B948799D73FEDB9ADEC61E6145A3986983C5D4E0C3477D3BB7790B73659FA027F7D6768C91FE41289187317E8573BFFFED02B445FDF1956F24A39116F6E1FBD8B3CC21C7BAA339CE411497EB6DEEE08BD9BBC1E7991B7919B23240F6BDEC2CDEDA2F79067A2AF12732BC7109287CCD03AE2752FFA9E93F6AD732F9558AA3384599E1B742B8F9F99A8DB9FB2EDF5920F36C78BCE10B66F92E69616676E7DEAFB8BEF0DBCD01A6A7364F3F2817732315EEF0F0BCBB0B77EAB0F9339B635F6C1E6F742CC8D0FEA7B57C3FED62C5973743B6983CD27C2EEBEE1FA1E52D7E3CD1378CD91EF97C72CCA74D4F73D5B53B4F8E939727364E44FD2EB4B31B73202A0FEE996D524AFD75FC75C68909B5F406C8E635E5E29DC0F8220CEFC7514BA91517DEF6AE45F978AB9D0A5E68FD9C92D203547405E49AF07EDD88FB995A94884FA6F57AD25F9E92B0D83CD8FD891A53B4340FEE0205D08CE6225213F593B4BF55B6697613A6355CC1C9D3B734CFEE02CBF45CD57EB0303AEC00F28EB226D7B62BFFB77A171670EC99BE97D3FE88F38F3EC608966818751BFFA5BCC5F14C899A381676EC80F2A85F520221271ED703D2E3E5D353B908BB5ED8995A85F989B770ACFAC930FE216323F7E4BD1A8FAAD6FE3FF8E94B2F971C2BB826716C95F16D331DC62E6A97ADDACBA8878DC6A7B9CF971C6BB28F5CC0E79B35513E10E04A6E7112BEE70EA62E2C7270E689A3B8167C6C98B95F0564DDD7CA25E37A77EF593E89F9E8DBD50895F7DD4DC2DD8343743FEB258114D6E29F3B775E190ECE1F7C4C56357DB25CD2D0EF2CC0CF95831ADC02DB40C3770F5556B95662F767626D5C22998DBA9F5CC00F958A510A8878079AA2E159F84925D7418175D79ED5E8853C87893E6C0E463E9402B5612504D5C47898F5B9C934B71B1164ECBBCC5BE60CC1C98BCB81E18379FA8CBC720F5BD6F15FEC0B7A6CD9B45DEDC7A3B24B966928B9907759588ACF0F2392EB20A07601EEC983207241F2B68930702F75264254EF8A18ABD4F4A7F98400B17BAE08EA0BE3350F2F5C08E79AAAE1657C59E6705598503313782CEB0910B99AFD6A1D0AFAAFE495981CB5C0950A2336CE44B22E6D93A10BA6A96C76FA442991B4067C8C8C5CC13CAE6DDC74DED29936712B6CCE11B3906D6B1C3900B9AA794CD3F0D7AE910744506CA1C1C9DE199A4092FC3A9ACCA8456F75BEA7FCA84D06502DD939C31732DF24A60D55C7940FF90C9BC398EE5EA2775F3B736CD837943E67AAB6F50BF4E6449467E40DFCA4C4D351A731B7DD1684C4D653EC8936F25AC9A070B46CCF5D6D8EFDB36171ED03F34B537E2A2319531309C039AEF9830D7DB492B04B6CDC74575E2C1DB3137B5053E9CEB2FBE1A19D21904F9011C7920763385B759DE6F88C7FB0F5BB0C339A039E490CE20F6CBEFDB3717DD66C948983736E63E800EE790E63BC0E69A4FC500567661F34406B6B49FB0BF871CCE21CD01AB3BD32787ACEC824B32C203FAD48664342087735073B8DE9D699303ADB9CA9A4F4057F6E398021CCE2136D60C5477A6FDB8633A70622E3243FF30276FBEB105379CC39A83B5714C97FC41E0C83C053E981F4FDADE830DE7C0E63BA0E61ACFB11760CDF785CDEFC10FE6A2D55D743887DA64016EE39826793170659E3552D95B113B25081C9903B5714CF36D15E034175D861379B3A1A1481E5BDD330957E63928731D72E83497314F19A9EC02D57DDC99394CA233BD77D2D61D9AAF9AA9ECF1D53DEBCE1C24D19916792570689E3553D9E35766C42F3111604C74A6F5E629789A0712F773E053EE990DAD98D27CB2DD98790EC65C9D1C3ECDA5CC072DBFCEE9990FDA6C5975690E91E84CE74881825BF309230D5C6CA2679D9A03243AD3202F066ECD03330D5C4C1BB795706A0E90E84CE3E0100369BE247343A3F753B5D37C401B37EED85C3FD1993AB989349733BF67A6816B474A77E1157C33F53860CDE58E072A3837CF9A98A7C5ADC605AECDE721CDE5C81F04CECD23965F41D23CAA8DCB245C9BEF009A4B1E02963661BE2F673E6E629E3638D1EF3937D74E74A67CEEDB7D04E6A1B3B5D4C686C144CFBA37DF81329725AF0408CCC3666BEFE7A0CC373EA81D2962DA5C77BAC6540FF42C60300F9BAD4D8191CFA534676AA6CC7320E6D2E445233F46668B2562B60696E68DD47BDD999A29F300C25CFED8DE020EF3ACA1346FA43E00CCD48C99CFEB9BCB93BFBC8FC3BC7F6F6D4A7B723EE885C5540285F98EB6B9C2E1DC663A3805F3B0D95A66AAA158E0E7E25E505D95BCBC7D43F76941D35CE53CF60216F3C8BDB54C2AFC8DF3E899594AE075A8B748CC737AE64A47F00758CCE3DE55DCCA6404ABBDC8EB895B0924E65A5D1C53FAD0461A8DB9C8AB0D1F84CA3AE4BB89E6CDE721CCA5BEADB26EEAA748930B1D0F38A5F79084F24CCDA0F90E80B9147931C0632EF2D1868CC6D6A9C6229C49739D2E8EA97C41A980C85CE845F406CC703E8EC87C5ED75CF2A359F731998BBC88BE05F3DEF90422F31D4D7349F2830093B9D051715320C3B9FCE52D05088B3B53F81A620195B9D861EE71E82223442A81C93CA7632E4BFE32C0652E74CA4806C05C6E116E65DF20B8567167F2DF3CAD203307396544A46D7F8B855BB38B63F29FB92D203317FADCDA94FE789EC1C3AD57DC9934B9C9D2AE669E02306F00CCD45696AC796B157726FD316B93A53D58DA5F3153DCA7F4975EB331E081ED98D73197FA7E79C1F86F596ACAAF74DAAF74FFA7CA9990B1AB325AFB2B2B818BC869984B913F70F2F396564C1F2195D12AED4ED077D4CDA5C8CD96762571A17D9686F67AFB84E52325CC157726496EA1B4CB8A0BEDB368EFABC5EFAFAC5029EE4C927CEC3E3A71A17D16ED057791FD15DB7DDC0E84793CB9E5D22EF8FE5A6C717FAFFDCC84D8FE8A65F5057DF378F2B1B4CD9FB402B6CF22B0830EB5BFB28FBEB83339F2B1755C455D749F45C03C03B6BF622FD97774CD45C88B18C105F65952BA0FCA486E9DAF602EEE4C8ADCD2702EBF1697D5DD3F8F6BDC516D9D6BCED69814B985D2BEB4AFB4E6BEA56DDE00DE3AB7C29ED33117237F80ACA40B17F786E6C3CEABAAD7657A6CD7301723375DDA95C563F759445E6B807C7FC55A1F3FAF6C2E486E7A116E49FDCEC66CA28B9867204EEFB65DE073AAE6A2E4A617E174CC0717F739BD27DC57352E0CDF6C8DC9901B9FA9254C1577CDE33EDFA2355799AD310972F38B702BA68ABBDE01DE3AA5DDF44C7D5EC55C9CDCFC9E9AA9E29ED17B4B7115ED70AE54DC9904B985C7250C1577B1530229967695D91A1327B7B108973053DCC5CC33044BBB4A7167E2E436F6D456CC1477B183855260AF26E25E8A63E2E49316F6D496CC147731F3298043FAED9BEFE898C7913FB1B169A053DC75CD1B40078A581DCE15666B4C987CD2CA9E9A4E714F697E84690EBEB4DBD8539D57368F259FB4F2F4A399E22E78661CC5D2AE30A03361F2693B8FC8E8D451DDAF3065289676F9019D09935B19CEF506F494CE325C54E38EBDB4CB0FE84C947CDAD213AFFB268ABBBD03DB1D3C2B233DA03351F2694B2F332C1928EE5B82E60D8AA55D7E4067A2E4D3B65E663050DC453FD03247B2B44B2FBF3251724BC3B9DE6C6D42F3DB5B244BBBF480CE04C927ADBDC062A0B80B9FE99EA158DAA5077426483E69EFDD44F8E22E6C9E2259DA65077426483E69EF0516F8E22E6C3E45B2B4CB0EE84C90DCDA706EA2B80B7FBAA141B2B4CB0EE84C8C7CDAE6FBA8E0C55DD87C8E6469971DD09918F9B4CDA306C0D7DCC53FD142B3B44B0EE84C8C7C7A3D2092E8AFD597E1FA1B7722A55D72406762E4764F0E827E5A46F903D8444ABBE480CE84C8A7ED1E2F015CDC3F889B4FC13DFC68F5C4897915F3C1E4D3568F97802EEE12DFC66E803DFC68B5B4CB0DE84C887CDAF26951B0C55DC27C0EECB9F67DAB376C47DE3C8E7CDA2E39707197F99CE67B32CFB5AB0FE84C88FCC0F22F802DEE32E61932CFB5AB0FE84C84DCF6700EFC12938CF91491579674067426427EC5FEE18F90C5BDA1684EA8B44B0DE84C84FCE5BA7573C8375465CC1B344BBBD480CE44C89F58FF05A0C55DC67C8EC241039A033A13207FE9E22C678D1B9E555E86EB6ADCDF524A7399019D0990BF4C07B4127D4BC33CA3773C989B0E4EC73C9CFC6521A095E8E392E7FB86367113A44ABBCC360B13207FE9E227E8747159D565B84E738DFFE9F65DDCAF0525F328F20327E660C55DCEBC0150DA9DDCAF7915F328F22B1527BF01ACB8A7A4CCE7F44B3BF62FF2B078F22BE9805AA2BF555D863B6BDC03521D9CD4AA0C8B27BFB21E904BF48CBA798666699768E2583CF91547BF41E775C55575F329DDD2BEE4E8762D489A0F223F70651EC014F78682F96B7A692EDEC4B1587257C3B9DE742DA36CDED07C106EDFD5DDCA49990F24BF52080826FAAAF421135D8DFB04BD34176FE2582CB9B3164E2BD103C5A5D776E3FE9ADA444D6A4067B1E457DCFD089DE95A4AD93CA355DA1DDEAD7961F338F20387BF42A3B84FA82DC3B59BB82CC53417378F2377D8C269257AA061BE456FA226D3C4B13872972D9C56A2A754CD1B1AA5DD659A0B37712C8EDCB1F99276719F92359FD328ED4B4E6F966013C7E2C85F0401D1447FAD68BE9122D9C1890FE82C8EFCC0B1B9FA02ECB8AAF9FF124D7309F381E42F2A01D5449F505A866BC6FF114D73D1268EC590BF480764137D4BCDFC7FA8A6B96813C762C85FAC0764137D5C65E97563E3BFA9A6B96813F7FF020C008EA9ADF1AC1529080000000049454E44AE426082'
+                            }
+                        &gt;&gt;)),
+                        24(&lt;&lt;
+                            {
+                              &quot;digestID&quot;: 19,
+                              &quot;random&quot;: h'DB143143538F3C8D41DC024F9CB25C9D',
+                              &quot;elementIdentifier&quot;: &quot;birth_date&quot;,
+                              &quot;elementValue&quot;: 1004(&quot;1980-02-05&quot;)
+                            }
+                        &gt;&gt;),
+                        24(&lt;&lt;
+                            {
+                              &quot;digestID&quot;: 20,
+                              &quot;random&quot;: h'6059FF1CE27B4997B4ADE1DE7B01DC60',
+                              &quot;elementIdentifier&quot;: &quot;family_name&quot;,
+                              &quot;elementValue&quot;: &quot;John&quot;
+                            }
+                        &gt;&gt;),
+                        24(&lt;&lt;
+                            {
+                              &quot;digestID&quot;: 22,
+                              &quot;random&quot;: h'1E69C89C81B21A1BA56ACA3E026A2A3F',
+                              &quot;elementIdentifier&quot;: &quot;issue_date&quot;,
+                              &quot;elementValue&quot;: 1004(&quot;2020-02-23&quot;)
+                            }
+                        &gt;&gt;),
+                        24(&lt;&lt;
+                            {
+                              &quot;digestID&quot;: 25,
+                              &quot;random&quot;: h'CAD1F6A38F603451F1FA653F81FF309D',
+                              &quot;elementIdentifier&quot;: &quot;driving_privileges&quot;,
+                              &quot;elementValue&quot;: [
+                                  {
+                                      &quot;issue_date&quot;: 1004(&quot;2018-08-09&quot;),
+                                      &quot;expiry_date&quot;: 1004(&quot;2024-10-20&quot;),
+                                      &quot;vehicle_category_code&quot;: &quot;A&quot;
+                                  },
+                                  {
+                                      &quot;issue_date&quot;: 1004(&quot;2017-02-20&quot;),
+                                      &quot;expiry_date&quot;: 1004(&quot;2024-10-20&quot;),
+                                      &quot;vehicle_category_code&quot;: &quot;B&quot;
+                                  }
+                              ]
+                            }
+                        &gt;&gt;),
+                        24(&lt;&lt;
+                            {
+                              &quot;digestID&quot;: 26,
+                              &quot;random&quot;: h'53C15C57B3B076E788795829190220B4',
+                              &quot;elementIdentifier&quot;: &quot;issuing_authority&quot;,
+                              &quot;elementValue&quot;: &quot;UTOPIA&quot;
+                            }
+                        &gt;&gt;)
+                    ]
+                }
+            }
+        }
+    ]
+}
+</sourcecode>
+<t>In the <tt>deviceSigned</tt> item, <tt>deviceAuth</tt> item includes a signature by the deviceKey that belongs to the End-User. It is used to prove legitimate possession of the credential, since the Issuer has signed over the deviceKey during the issuance of the credential. Note that deviceKey does not have to be HW-bound.</t>
+<t>In the <tt>issueSigned</tt> item, <tt>issuerAuth</tt> item includes Issuer's signature over the hashes of the user claims, and <tt>namespaces</tt> items include user claims within each namespace that the End-User agreed to reveal to the Verifier in that transaction.</t>
+<t>Note that user claims in the <tt>deviceSigned</tt> item correspond to self-attested claims inside a Self-Issued ID Token (none in the example below), and user claims in the <tt>issuerSigned</tt> item correspond to the user claims included in a VP Token signed by a trusted third party.</t>
+<t>Note that the reason why hashes of the user claims are included in the <tt>issuerAuth</tt> item lies in the selective release mechanism. Selective release of the user claims in an ISO/IEC 18013-5:2021 mDL is performed by the Issuer signing over the hashes of all the user claims during the issuance, and only the actual values of the claims that the End-User has agreed to reveal to the Verifier being included during the presentation.</t>
+<t>The example in this section is also applicable to the electronic identification Verifiable Credentials expressed using data models defined in ISO/IEC TR 23220-2.</t>
+</section>
+</section>
+
+<section anchor="combining-this-specification-with-siopv2"><name>Combining this specification with SIOPv2</name>
+<t>This section shows how SIOP and OpenID for Verifiable Presentations can be combined to present Verifiable Credentials and pseudonymously authenticate an end-user using subject controlled key material.</t>
+
+<section anchor="request"><name>Request</name>
+<t>This is an example request.</t>
+
+<artwork>  GET /authorize?
+    response_type=id_token
+    &amp;scope=openid
+    &amp;id_token_type=subject_signed
+    &amp;client_id=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &amp;presentation_definition=...
+    &amp;nonce=n-0S6_WzA2Mj HTTP/1.1
+  Host: wallet.example.com
+</artwork>
+<t>The differences to the example requests in the previous sections are:</t>
+
+<ul>
+<li><t><tt>response_type</tt> is set to <tt>id_token</tt>. If the request also includes a <tt>presentation_definition</tt> parameter, the Wallet is supposed to return the <tt>presentation_submission</tt> and <tt>vp_token</tt> parameters in the same response as the <tt>id_token</tt> parameter.</t>
+</li>
+<li><t>The request includes the <tt>scope</tt> parameter with value <tt>openid</tt> making this an OpenID Connect request. Additionally, the request also contains the parameter <tt>id_token_type</tt> with value <tt>subject_signed</tt> requesting a Self-Issuer ID Token, i.e. the request is a SIOP request.</t>
+</li>
+</ul>
+</section>
+
+<section anchor="response-1"><name>Response</name>
+<t>The example response looks like this.</t>
+
+<artwork>  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    id_token=
+    &amp;presentation_submission=...
+    &amp;vp_token=...
+</artwork>
+<t>In addition to the <tt>presentation_submission</tt> and <tt>vp_token</tt>, it also contains an <tt>id_token</tt>.</t>
+<t>The <tt>id_token</tt> content is shown in the following.</t>
+
+<sourcecode type="json">{
+  &quot;iss&quot;: &quot;did:example:NzbLsXh8uDCcd6MNwXF4W7noWXFZAfHkxZsRGC9Xs&quot;,
+  &quot;sub&quot;: &quot;did:example:NzbLsXh8uDCcd6MNwXF4W7noWXFZAfHkxZsRGC9Xs&quot;,
+  &quot;aud&quot;: &quot;https://client.example.org/cb&quot;,
+  &quot;nonce&quot;: &quot;n-0S6_WzA2Mj&quot;,
+  &quot;exp&quot;: 1311281970,
+  &quot;iat&quot;: 1311280970
+}
+</sourcecode>
+<t>Note: the <tt>nonce</tt> and <tt>aud</tt> are set to the <tt>nonce</tt> of the request and the Client ID of the Verifier, respectively, in the same way as for the Verifier, Verifiable Presentations to prevent replay.</t>
+</section>
+</section>
+</section>
+
+<section anchor="iana-considerations"><name>IANA Considerations</name>
+
+<ul>
+<li><t>Response Type Name: <tt>vp_token</tt></t>
+</li>
+<li><t>Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net</t>
+</li>
+<li><t>Specification Document(s): <eref target="https://openid.net/specs/openid-4-verifiable-presentations-1_0.html">https://openid.net/specs/openid-4-verifiable-presentations-1_0.html</eref></t>
+</li>
+<li><t>Response Type Name: <tt>vp_token id_token</tt></t>
+</li>
+<li><t>Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net</t>
+</li>
+<li><t>Specification Document(s): <eref target="https://openid.net/specs/openid-4-verifiable-presentations-1_0.html">https://openid.net/specs/openid-4-verifiable-presentations-1_0.html</eref></t>
+</li>
+</ul>
+<t>Note: Plan to register the following response types in the <eref target="https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#endpoint">OAuth Authorization Endpoint Response Types IANA Registry</eref>.</t>
+</section>
+
+<section anchor="Acknowledgements"><name>Acknowledgements</name>
+<t>We would like to thank John Bradley, Brian Campbell, David Chadwick, Giuseppe De Marco, Daniel Fett, George Fletcher, Fabian Hauck, Joseph Heenan, Alen Horvat, Andrew Hughes, Edmund Jay, Michael B. Jones, Gaurav Khot, Ronald Koenig, Kenichi Nakamura, Nat Sakimura, Arjen van Veen, and Jacob Ward for their valuable feedback and contributions that helped to evolve this specification.</t>
+</section>
+
+<section anchor="notices"><name>Notices</name>
+<t>Copyright (c) 2023 The OpenID Foundation.</t>
+<t>The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer, or other interested party a non-exclusive, royalty free, worldwide copyright license to reproduce, prepare derivative works from, distribute, perform and display, this Implementers Draft or Final Specification solely for the purposes of (i) developing specifications, and (ii) implementing Implementers Drafts and Final Specifications based on such documents, provided that attribution be made to the OIDF as the source of the material, but that such attribution does not indicate an endorsement by the OIDF.</t>
+<t>The technology described in this specification was made available from contributions from various sources, including members of the OpenID Foundation and others. Although the OpenID Foundation has taken steps to help ensure that the technology is available for distribution, it takes no position regarding the validity or scope of any intellectual property or other rights that might be claimed to pertain to the implementation or use of the technology described in this specification or the extent to which any license under such rights might or might not be available; neither does it represent that it has made any independent effort to identify any such rights. The OpenID Foundation and the contributors to this specification make no (and hereby expressly disclaim any) warranties (express, implied, or otherwise), including implied warranties of merchantability, non-infringement, fitness for a particular purpose, or title, related to this specification, and the entire risk as to implementing this specification is assumed by the implementer. The OpenID Intellectual Property Rights policy requires contributors to offer a patent promise not to assert certain patent claims against other contributors and against implementers. The OpenID Foundation invites any interested party to bring to its attention any copyrights, patents, patent applications, or other proprietary rights that may cover technology that may be required to practice this specification.</t>
+</section>
+
+<section anchor="document-history"><name>Document History</name>
+<t>[[ To be removed from the final specification ]]</t>
+<t>-16</t>
+
+<ul>
+<li><t>Added <tt>client_id_scheme</tt> parameter</t>
+</li>
+<li><t>Defined that single VP Tokens must not use the array syntax for single Verifiable Presentations</t>
+</li>
+</ul>
+<t>-15</t>
+
+<ul>
+<li><t>Added definition of VP Token</t>
+</li>
+<li><t>Editorial improvements for better readability (restructered request and response section, consistent terminology and casing)</t>
+</li>
+</ul>
+<t>-14</t>
+
+<ul>
+<li><t>added support for signed and encrypted authorization responses based on JARM</t>
+</li>
+<li><t>clarified response encoding for authorization responses</t>
+</li>
+<li><t>moved invocation/just-in-time client metadata exchange/AS Discovery sections from siopv2 to openid4vp</t>
+</li>
+</ul>
+<t>-13</t>
+
+<ul>
+<li><t>added scope support</t>
+</li>
+</ul>
+<t>-12</t>
+
+<ul>
+<li><t>add Cross-Device flow (using SIOP v2 text)</t>
+</li>
+<li><t>Added Client Metadata Section (based on SIOP v2 text)</t>
+</li>
+</ul>
+<t>-11</t>
+
+<ul>
+<li><t>changed base protocol to OAuth 2.0</t>
+</li>
+<li><t>consolidated the examples</t>
+</li>
+</ul>
+<t>-10</t>
+
+<ul>
+<li><t>Added AnonCreds example</t>
+</li>
+<li><t>Added ISO mobile Driving Licence (mDL) example</t>
+</li>
+</ul>
+<t>-09</t>
+
+<ul>
+<li><t>added support for passing presentation_definition by reference</t>
+</li>
+<li><t>added description how to requset credential issued by a member of a federation</t>
+</li>
+</ul>
+<t>-08</t>
+
+<ul>
+<li><t>reflected editorial comments received during pre-implementer's draft review period</t>
+</li>
+</ul>
+<t>-07</t>
+
+<ul>
+<li><t>added text on other credential formats</t>
+</li>
+<li><t>fixed inconsistency in security consideration regarding nonce</t>
+</li>
+</ul>
+<t>-06</t>
+
+<ul>
+<li><t>added additional security considerations</t>
+</li>
+<li><t>removed support for embedding Verifiable Presentations in ID Token or UserInfo response</t>
+</li>
+<li><t>migrated to Presentation Exchange 2.0</t>
+</li>
+</ul>
+<t>-05</t>
+
+<ul>
+<li><t>moved presentation submission parameters outside of Verifiable Presentations (ID Token or UserInfo)</t>
+</li>
+</ul>
+<t>-04</t>
+
+<ul>
+<li><t>added presentation submission support</t>
+</li>
+<li><t>cleaned up examples to use <tt>nonce</tt> &amp; <tt>client_id</tt> instead of <tt>vp_hash</tt> for replay detection</t>
+</li>
+<li><t>fixed further nits in examples</t>
+</li>
+<li><t>added and reworked references to other specifications</t>
+</li>
+</ul>
+<t>-03</t>
+
+<ul>
+<li><t>aligned with SIOP v2 spec</t>
+</li>
+</ul>
+<t>-02</t>
+
+<ul>
+<li><t>added <tt>presentation_definition</tt> as sub parameter of <tt>verifiable_presentation</tt> and VP Token</t>
+</li>
+</ul>
+<t>-01</t>
+
+<ul>
+<li><t>adopted DIF Presentation Exchange request syntax</t>
+</li>
+<li><t>added security considerations regarding replay detection for Verifiable Credentials</t>
+</li>
+</ul>
+<t>-00</t>
+
+<ul>
+<li><t>initial revision</t>
+</li>
+</ul>
+</section>
+
+</back>
+
+</rfc>

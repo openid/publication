@@ -1,0 +1,1344 @@
+
+
+
+
+connect                                                   T. Lodderstedt
+Internet-Draft                                                   D. Fett
+Intended status: Standards Track                                 yes.com
+Expires: September 14, 2019                               March 13, 2019
+
+
+                 OpenID Connect for Identity Assurance
+                 openid-connect-4-identity-assurance-00
+
+Abstract
+
+   This specification defines an extension of OpenID Connect for
+   providing Relying Parties with verified person data.  This extension
+   is intended to be used to verify the identity of a person in
+   compliance with a certain law.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on September 14, 2019.
+
+Copyright Notice
+
+   Copyright (c) 2019 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (https://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Simplified BSD License text as described in Section 4.e of
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019               [Page 1]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   3
+   2.  Scope and Requirements  . . . . . . . . . . . . . . . . . . .   4
+   3.  Claims  . . . . . . . . . . . . . . . . . . . . . . . . . . .   5
+     3.1.  User Claims . . . . . . . . . . . . . . . . . . . . . . .   5
+     3.2.  transaction_id  . . . . . . . . . . . . . . . . . . . . .   5
+   4.  Verified Data Representation  . . . . . . . . . . . . . . . .   6
+     4.1.  verification Element  . . . . . . . . . . . . . . . . . .   6
+       4.1.1.  Method-specific elements  . . . . . . . . . . . . . .   7
+     4.2.  claims Element  . . . . . . . . . . . . . . . . . . . . .   9
+   5.  Requesting Verified Person Data . . . . . . . . . . . . . . .   9
+     5.1.  Requesting User Claims  . . . . . . . . . . . . . . . . .  10
+     5.2.  Defining constraints on requested data  . . . . . . . . .  11
+   6.  Examples  . . . . . . . . . . . . . . . . . . . . . . . . . .  13
+     6.1.  identity_document . . . . . . . . . . . . . . . . . . . .  13
+     6.2.  eID . . . . . . . . . . . . . . . . . . . . . . . . . . .  14
+     6.3.  Verified Person Data in User Info Response  . . . . . . .  15
+       6.3.1.  Request . . . . . . . . . . . . . . . . . . . . . . .  15
+       6.3.2.  User Info Response  . . . . . . . . . . . . . . . . .  16
+     6.4.  Verified Person Data in ID Tokens . . . . . . . . . . . .  17
+       6.4.1.  Request . . . . . . . . . . . . . . . . . . . . . . .  17
+       6.4.2.  ID Token  . . . . . . . . . . . . . . . . . . . . . .  18
+     6.5.  Aggregated Claims . . . . . . . . . . . . . . . . . . . .  19
+     6.6.  Distributed Claims  . . . . . . . . . . . . . . . . . . .  20
+   7.  OP Metadata . . . . . . . . . . . . . . . . . . . . . . . . .  21
+   8.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .  22
+   9.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  22
+     9.1.  OAuth Extensions Error Registration . . . . . . . . . . .  22
+   10. Security Considerations . . . . . . . . . . . . . . . . . . .  22
+   11. References  . . . . . . . . . . . . . . . . . . . . . . . . .  22
+     11.1.  Normative References . . . . . . . . . . . . . . . . . .  22
+     11.2.  Informative References . . . . . . . . . . . . . . . . .  23
+     11.3.  URIs . . . . . . . . . . . . . . . . . . . . . . . . . .  23
+   Appendix A.  Document History . . . . . . . . . . . . . . . . . .  23
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  24
+
+1.  Introduction
+
+   This specification defines an extension to OpenID Connect [OpenID] to
+   address the use case of strong identity verification of a natural
+   person in accordance with certain laws.  Examples include Anti Money
+   Laundering Laws, Telecommunication Acts, Anti Terror Laws, and
+   regulations on trust services, such as eIDAS [eIDAS].
+
+   In such use cases, the Relying Parties (RPs) need to know the
+   assurance level of the user claims attested by the OpenID Connect
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019               [Page 2]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   Providers (OPs) along with evidences related to the identity
+   verification process (identity assurance).
+
+   Identity assurance signficantly differs from authentication
+   assurance, which requires a different, currently unsupported,
+   representation in the OpenID Connect protocol.
+
+   The assurance level for authentication is a property of a certain
+   OpenID Connect transaction, determined by the authentication means
+   employed and the underlying user account management processes.  The
+   "acr" claim as defined in Section 2 of the OpenID Connect
+   specification [OpenID] is sufficient to convey this information.
+
+   The identity assurance for user claims, i.e. the binding of a certain
+   claim value to the person controlling the respective user account,
+   typically varies among the different user claims.  For example, the
+   assurance an OP typically will be able to attest for an e-mail
+   address will be "self-asserted", "verified by opt-in", or "verified
+   by the respective e-mail provider via an attribute exchange
+   protocol".  The family name of a user, in contrast, might have been
+   verified in accordance with the respective Anti Money Laundering Law
+   by showing an ID Card to a trained employee of the OP operator.
+
+   Identity assurance therefore requires a way to convey assurance data
+   along with and coupled to the respective user claims.  This
+   specification proposes a suitable representation and mechanisms the
+   RP will utilize to request verified person data and accompanying
+   identity assurance data.
+
+1.1.  Terminology
+
+   This section defines some terms relevant to the topic covered in this
+   documents, heavily inspired by NIST SP 800-63A [NIST-SP-800-63a].
+
+   o  Identity Proofing - process in which a user provides evidence to
+      an OP reliably identifying themselves, thereby allowing the OP to
+      assert that identification at a useful identity assurance level.
+
+   o  Identify Verification - process conducted by the OP to verify the
+      user's identity
+
+   o  Identity Assurance - process in which the OP attests identity data
+      of a certain user with a certain assurance towards a RP, typically
+      expressed by way of an assurance level.  Depending on legal
+      requirements, the OP may also be required to provide evidences of
+      the identity proofing process to the RP.
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019               [Page 3]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+2.  Scope and Requirements
+
+   The extension specified in this document shall
+
+   o  allow an OpenID Connect RP to request identity data and to express
+      requirements regarding this data and the evidences and processes
+      employed,
+
+   o  allow an OP to attest identity data obtained and maintained in
+      accordance with a certain law, and
+
+   o  allow the RP to map the data obtained from the OP to other laws,
+      e.g. it shall be possible to use identity data maintained in
+      accordance with the Anti Money Laundering Law to fulfill
+      requirements defined by eIDAS.
+
+   The scope of the extension is to define mechanisms to assert verified
+   person data.
+
+   It SHALL be possible to use existing OpenID Connect claims and other
+   extensions defined beside this extension within the same OpenID
+   Connect transaction and especially to render the same ID token or
+   other representations utilized to convey user claims.  For example,
+   OpenID Connect already defines additional claims to inform the RP of
+   the verification status of the "phone_number" and "email" claims.
+
+   If necessary, this extension will introduce new user claims to cover
+   user attributes not currently covered by OpenID Connect, one example
+   is the "place_of_birth".
+
+   The extension MUST allow the OP to attest verified and unverified
+   claims in the same response.
+
+   The representation defined in this specification is intended to be
+   used to provide RPs with verified person data via any appropriate
+   channel.  In the context of OpenID Connnect, verified person data can
+   be attested in ID Tokens or as part of the User Info response.  It is
+   also possible to utilize the format described here in OAuth Token
+   Introspection responses (see [RFC7662] and
+   [I-D.ietf-oauth-jwt-introspection-response]) to provide resource
+   servers with verified person data.
+
+   This extension defines a way to assert verified claims only since
+   self-asserted claims, or better put claims without further
+   information about the assurance, are already covered by OpenID
+   Connect.
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019               [Page 4]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   Even for asserting verified claims, this extension shall attempt to
+   utilize existing OpenID Connect claims if possible and reasonable.
+   It MUST, however, ensure developers cannot interpret non-verified
+   claims as verified claims.
+
+   The representation defined in this extension SHALL allow RPs to
+   obtain assertions about verified claims from different OPs using
+   different trust frameworks.
+
+3.  Claims
+
+3.1.  User Claims
+
+   In order to fulfill the requirements of some jurisdictions on
+   identity assurance, this specification defines the following claims
+   for conveying user data:
+
+   o  "place_of_birth": a structured claim representing the end-user's
+      place of birth.  It consists of the following fields:
+
+      *  "country": ISO 3166-1 Alpha-2, e.g.  DE, or ISO 3166-3
+
+      *  "locality": city or other locality
+
+   o  "nationality": represents the user's nationality in format ISO
+      3166-1 Alpha-2, e.g.  DE
+
+   o  "birth_name": family name someone has when he or she is born, or
+      at least from the time he or she is a child.  This term can be
+      used by a man or a woman who changes a name later in life for any
+      reason.
+
+   o  "salutation": end-user's salutation, e.g.  "Mr."
+
+   o  "title": end-user's title, e.g.  "Dr."
+
+3.2.  transaction_id
+
+   Strong identity verification typically requires the participants to
+   keep an audit trail of the whole process.
+
+   This specification supports building an audit trail across the
+   boundaries between OP and RP by introducing the claim
+   "transaction_id".
+
+   The "transaction_id" claim is a string value which
+
+   o  MUST be unique within the context of the respective OP,
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019               [Page 5]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   o  MUST uniquely identify a certain transaction at the OP, and
+
+   o  MUST allow an RP to obtain further transaction details if needed.
+
+   The OP MUST maintain a corresponding audit trail for any transaction
+   which leads to the attestation of verified person data.  Those
+   details consist of
+
+   o  the transaction id,
+
+   o  the authentication methods employed, and
+
+   o  the transaction type (e.g. scope values).
+
+   The OP MUST store the transaction data as long as it is required to
+   store transaction data for auditing purposes by respective
+   regulations.
+
+   The RP requests this claim like any other claim via the claims
+   parameter or as part of a default claim set identified by a scope
+   value.
+
+4.  Verified Data Representation
+
+   This extension to OpenID Connect wants to ensure that RPs cannot
+   mixup verified and unverified claims and incidentally process
+   unverified claims as verified claims.
+
+   The representation proposed therefore provides the RP with the
+   verified claims within a structured claim "verified_person_data".
+   This structured claim is composed of the verification evidences
+   related to a certain verification process and the corresponding user
+   claims which were verified in this process.
+
+   The "verified_person_data" claim consists of the following sub-
+   elements:
+
+   o  "verification": This element contains all data about the
+      verification process.
+
+   o  "claims": This element is the container for the verified user
+      claims.
+
+4.1.  verification Element
+
+   This element contains the information about the process conducted to
+   verify a person's identity and bind the respective person data to a
+   user account.
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019               [Page 6]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   The "verification" element consists of the following elements:
+
+   "organization": REQUIRED.  String value identifying the organisation
+   that verified the person's identity.
+
+   "legal_context": REQUIRED.  JSON Object determing the legal context
+   governing the identification verification process conducted by the
+   "organisation".  This object consists of the following fields:
+
+   o  "country": OPTIONAL.  ISO 3166-1 Alpha-2, e.g.  "DE".
+
+   o  "regulation": Designation of the act or set of acts or directives,
+      e.g.  "Geldwaeschegesetz".
+
+   Standardized values are: * "DE", "Geldwaeschegesetz" * [TBD]
+
+   Note by the editor: It might be reasonable to rename the
+   "legal_context" element to "trust_framework" or something similar to
+   clearly indicate it can also be used to cover NIST SP 800-3A or eIDAS
+   Identity Proofing including the respective assurance levels.
+
+   "date": REQUIRED.  Time stamp in ISO 8601:2004 YYYY-MM-DD format
+   representing the date when identity verification took place.
+
+   "id": REQUIRED.  Unique reference to the identity verification
+   process as performed by the verifying "organization".  Used for
+   backtracing in case of disputes or audits.  Note: In contrast to this
+   field, the claim "transaction_id" refers to the transaction leading
+   the OP to attest the user's verified identity data towards a RP.
+
+   "method": REQUIRED.  Method utilized for identity verification -
+   Depending on the value of "method", there will be different
+   additional sub-elements with the name of the method in the
+   verification element - possible values are
+
+   o  "identity_document": verification of a physical document
+
+   o  "eID": verification using an electronic ID Card
+
+   o  [TBD]
+
+4.1.1.  Method-specific elements
+
+   The following elements are contained in an "identity_document" sub-
+   element.
+
+   "country": String denoting the country where the document was issued,
+   format: ISO 3166-1 Alpha-2, e.g.  "DE".
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019               [Page 7]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   "type": REQUIRED.  String denoting the type of the id document,
+   standardized values are:
+
+   o  "ID Card": national ID Card
+
+   o  "Passport": Passport It is also possible to set "type" to country-
+      specific types (free text).  In this case, RPs will either just
+      store this value for audit purposes or apply bespoke business
+      logic to it.
+
+   "issuer": REQUIRED.  String representing the issuer of the identity
+   document
+
+   "number": REQUIRED.  String representing the number of the identity
+   document
+
+   "date_of_issuance": CONDITIONALLY REQUIRED.  The date the document
+   was issued as ISO 8601:2004 YYYY-MM-DD format, if this attribute
+   exists for the particular type of document.
+
+   "date_of_expiry": CONDITIONALLY REQUIRED.  The date the document will
+   expire as ISO 8601:2004 YYYY-MM-DD format, if this attribute exists
+   for the particular type of document.
+
+   "method": The method used to verify the document, standardized values
+   are:
+
+   o  "Physical In-Person Proofing (bank)"
+
+   o  "Physical In-Person Proofing (shop)"
+
+   o  "Physical In-Person Proofing (courier)"
+
+   o  "Supervised remote In-Person Proofing"
+
+   "organization": CONDITIONALLY REQUIRED.  String denoting the
+   organization which performed the verification on behalf of the
+   organisation denoted in the enclosing "verification" element.  Can be
+   omitted if this is the same organisation as in the enclosing
+   "verification" element.
+
+   "agent": OPTIONAL.  Agent (person) who conducted the verification.
+   The agent may be identified by Name or an identifier which can be
+   resolved into the agent's name during an audit.
+
+   The following elements are contained in an "eID" sub-element:
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019               [Page 8]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   "country": REQUIRED.  Country where the eID was issued: ISO 3166-1
+   Alpha-2, e.g.  DE
+
+   "type": type of the eID, standardized value is:
+
+   o  "ID Card": national ID Card
+
+   o  It is also possible to set type to country-specific designations
+
+   "identifier": REQUIRED. person identifier obtained by the verifying
+   organization from the eID system
+
+4.2.  claims Element
+
+   The "claims" element contains the user claims which were verified by
+   the process and according to the policies determined by the
+   corresponding "verification" element.
+
+   The "claims" element MUST only contain one or more of the following
+   user claims as defined in Section 5.1 of the OpenID Connect
+   specification [OpenID]
+
+   o  "name"
+
+   o  "given_name"
+
+   o  "middle_name"
+
+   o  "family_name"
+
+   o  "birthdate"
+
+   o  "address"
+
+   or of the following claims as defined in Section User Claims [1]:
+
+   o  "place_of_birth"
+
+   o  "nationality"
+
+   o  "birth_name"
+
+5.  Requesting Verified Person Data
+
+
+
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019               [Page 9]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+5.1.  Requesting User Claims
+
+   Verified person data can be requested on the level of individual user
+   claims by utilzing the "claims" parameter as defined in Section 5.5.
+   of the OpenID Connect specification [OpenID].
+
+   Bassically, the claim "verified_person_data" is added to the section
+   "userinfo" or "id_token" of the "claims" parameter.
+
+   Since "verified_person_data" contains the effective user claims in a
+   nested "claims" element, the syntax is extended to include
+   expressions on nested elements as follows.  The
+   "verified_person_data" element includes a "claims" element, which in
+   turn includes the desired user claims as keys with a "null" value.
+   An example is shown in the following:
+
+   {
+      "userinfo":{
+         "verified_person_data":{
+            "claims":{
+               "given_name":null,
+               "family_name":null,
+               "birthdate":null,
+               "place_of_birth":null,
+               "nationality":null,
+               "address":null
+            }
+         }
+      }
+   }
+
+   Use of the "claims" parameter allows the RP to exactly select the
+   user claims needed for its use case.  This extension therefore allows
+   RPs to fulfill the requirement for data minimization.
+
+   Note: A "claims" sub-element with value "null" is interpreted as a
+   request for all possible claims.  An example is shown in the
+   following:
+
+   {
+      "userinfo":{
+         "verified_person_data":{
+            "claims":null
+         }
+      }
+   }
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 10]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   Note: The "claims" sub-element can be omitted, which is equivalent to
+   a claims element whose value is "null".
+
+   Note: If the "claims" sub-element is empty or contains a claim other
+   than the claims listed in the Section claims [2], the OP will abort
+   the transaction with an "invalid_request" error.
+
+5.2.  Defining constraints on requested data
+
+   The RP may also express a requirement regarding the age of the
+   verification data, i.e., the time elapsed since the verification
+   process asserted in the "verification" element has taken place.
+
+   This, again, requires an extension to the syntax as defined in
+   Section 5.5. of the OpenID Connect Core specification [OpenID] due to
+   the nested nature of the "verified_person_data" claim.
+
+   Section 5.5.1 of the OpenID Connect Core specification [OpenID]
+   defines a query syntax that allows for the member value of the claim
+   being requested to be a JSON object with additional information/
+   constraints on the claim.  For doing so it defines three members
+   ("essential", "value" and "values") with special query meanings and
+   allows for other special members to be defined (while stating that
+   any members that are not understood must be ignored).
+
+   This specification introduces a new such member "max_age".
+
+   "max_age": OPTIONAL.  Only applicable to claims that contain dates or
+   timestamps.  Defines the maximum time (in seconds) to be allowed to
+   elapse since the value of the date/timestamp up to the point in time
+   of the request.  The IDP should make the calculation of elapsed time
+   starting from the last valid second of the date value.  The following
+   is an example of a request for claims where the verification process
+   of the data is not allowed to be older than 63113852 seconds.
+
+   The following is an example:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 11]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   {
+      "userinfo":{
+         "verified_person_data":{
+            "verification":{
+               "date":{
+                  "max_age":"63113852"
+               }
+            },
+            "claims":null
+         }
+      }
+   }
+
+   The IDP SHOULD try to fulfill this requirement.  If the verification
+   data of the user is older than the requested "max_age", the IDP MAY
+   attempt to refresh the user's verification by sending her through a
+   online identity verification process, e.g. by utilizing an electronic
+   ID card or a video identification approach.
+
+   If the IDP is unable to fulfill the requirement, there are two
+   possible outcomes of the transaction:
+
+   o  If the RP did not request "date" as essential claim, the IDP will
+      provide the RP with the data available and the RP may decide how
+      to use the data.
+
+   o  If the RP requested "date" as essential claim, the IDP will abort
+      the transaction and respond with the error code
+      "unable_to_meet_requirement".
+
+   The following is an example of a claims parameter requesting "date"
+   as essential claim.
+
+   {
+      "userinfo":{
+         "verified_person_data":{
+            "verification":{
+               "date":{
+                  "max_age":"63113852",
+                  "essential":true
+               }
+            }
+         }
+      }
+   }
+
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 12]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+6.  Examples
+
+   The following sections show examples of "verified_person_data"
+   objects.  The first two sections show JSON snippets of the different
+   verification methods.  Subsequent sections contain examples of
+   different channels and combinations of verified and non-verified user
+   claims.
+
+6.1.  identity_document
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 13]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   {
+      "verified_person_data":{
+         "verification":{
+            "organization":"Bank Y",
+            "legal_context":{
+               "country":"DE",
+               "regulation":"Geldwaeschegesetz"
+            },
+            "date":"2013-02-21",
+            "id":"676q3636461467647q8498785747q487",
+            "method":"identity_document",
+            "identity_document":{
+               "country":"DE",
+               "type":"ID Card",
+               "issuer":"Stadt Augsburg",
+               "number":"53554554",
+               "date_of_issuance":"2012-04-23",
+               "date_of_expiry":"2022-04-22",
+               "method":"Physical In-Person Proofing (shop)",
+               "organization":"Deutsche Post AG",
+               "agent":"Steffen Schuster"
+            }
+         },
+         "claims":{
+            "given_name":"Max",
+            "family_name":"Meier",
+            "birthdate":"1956-01-28",
+            "place_of_birth":{
+               "country":"DE",
+               "locality":"Musterstadt"
+            },
+            "nationality":"DE",
+            "address":{
+               "locality":"Maxstadt",
+               "postal_code":"12344",
+               "country":"DE",
+               "street":"An der Sandduene 22"
+            }
+         }
+      }
+   }
+
+6.2.  eID
+
+
+
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 14]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   {
+      "verified_person_data":{
+         "verification":{
+            "organization":"Bank Y",
+            "legal_context":{
+               "country":"DE",
+               "regulation":"Geldwaeschegesetz"
+            },
+            "date":"2013-02-21",
+            "id":"676q3636461467647q8498785747q487",
+            "method":"eID",
+            "eID":{
+               "country":"DE",
+               "type":"ID Card",
+               "identifier":"1d464976-d1fc-4460-a2de-9796d2b120fc"
+            }
+         },
+         "claims":{
+            "given_name":"Max",
+            "family_name":"Meier",
+            "birthdate":"1956-01-28",
+            "place_of_birth":{
+               "country":"DE",
+               "locality":"Musterstadt"
+            },
+            "nationality":"DE",
+            "address":{
+               "locality":"Maxstadt",
+               "postal_code":"12344",
+               "country":"DE",
+               "street":"An der Sandduene 22"
+            }
+         }
+      }
+   }
+
+6.3.  Verified Person Data in User Info Response
+
+6.3.1.  Request
+
+   In this example we assume the RP uses the scope parameter to request
+   the email address and , additionally, the claims parameter, to
+   request verified person data.
+
+   The scope value is: "scope=openid email"
+
+   The value of the claims parameter is:
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 15]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   {
+      "userinfo":{
+          "verified_person_data":{
+            "claims":{
+               "given_name":null,
+               "family_name":null,
+               "birthdate":null
+            }
+         }
+      }
+   }
+
+6.3.2.  User Info Response
+
+   The respective user info response would be
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 16]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+
+   {
+      "sub":"248289761001",
+      "email":"janedoe@example.com",
+      "email_verified":true,
+      "verified_person_data":{
+         "verification":{
+            "organization":"Bank Y",
+            "legal_context":{
+               "country":"DE",
+               "regulation":"Geldwaeschegesetz"
+            },
+            "date":"2013-02-21",
+            "id":"676q3636461467647q8498785747q487",
+            "method":"identity_document",
+            "identity_document":{
+               "country":"DE",
+               "type":"ID Card",
+               "issuer":"Stadt Augsburg",
+               "number":"53554554",
+               "date_of_issuance":"2012-04-23",
+               "date_of_expiry":"2022-04-22",
+               "method":"Physical In-Person Proofing (shop)",
+               "organization":"Deutsche Post AG",
+               "agent":"Steffen Schuster"
+            }
+         },
+         "claims":{
+            "given_name":"Max",
+            "family_name":"Meier",
+            "birthdate":"1956-01-28"
+         }
+      }
+   }
+
+6.4.  Verified Person Data in ID Tokens
+
+6.4.1.  Request
+
+   In this case, the RP requests verfied person data along with other
+   user claims in the claims parameter and allocates the response to the
+   ID Token (delivered from the token endpoint in case of grant type
+   "code").
+
+   The "claims" parameter value is
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 17]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   {
+      "id_token":{
+         "email":null,
+         "preferred_username":null,
+         "picture":null,
+          "verified_person_data":{
+            "claims":{
+               "given_name":null,
+               "family_name":null,
+               "birthdate":null
+            }
+         }
+      }
+   }
+
+6.4.2.  ID Token
+
+   The respective ID Token could be
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 18]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   {
+      "iss":"https://server.example.com",
+      "sub":"24400320",
+      "aud":"s6BhdRkqt3",
+      "nonce":"n-0S6_WzA2Mj",
+      "exp":1311281970,
+      "iat":1311280970,
+      "auth_time":1311280969,
+      "acr":"urn:mace:incommon:iap:silver",
+      "email":"janedoe@example.com",
+      "preferred_username":"j.doe",
+      "picture":"http://example.com/janedoe/me.jpg",
+      "verified_person_data":{
+         "verification":{
+            "organization":"Bank Y",
+            "legal_context":{
+               "country":"DE",
+               "regulation":"Geldwaeschegesetz"
+            },
+            "date":"2013-02-21",
+            "id":"676q3636461467647q8498785747q487",
+            "method":"identity_document",
+            "identity_document":{
+               "country":"DE",
+               "type":"ID Card",
+               "issuer":"Stadt Augsburg",
+               "number":"53554554",
+               "date_of_issuance":"2012-04-23",
+               "date_of_expiry":"2022-04-22",
+               "method":"Physical In-Person Proofing (shop)",
+               "organization":"Deutsche Post AG",
+               "agent":"Steffen Schuster"
+            }
+         },
+         "claims":{
+            "given_name":"Max",
+            "family_name":"Meier",
+            "birthdate":"1956-01-28"
+         }
+      }
+   }
+
+6.5.  Aggregated Claims
+
+   Note: line breaks for display purposes only
+
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 19]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+   "sub":"248289761001",
+   "email":"janedoe@example.com",
+   "email_verified":true,
+   "_claim_names":{
+      "verified_person_data":"src1"
+   },
+   "_claim_sources":{
+      "src1":{
+         "JWT":"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2ZXJpZmllZF9wZXJzb25fZGF0YSI6e
+yJ2ZXJpZmljYXRpb24iOnsib3JnYW5pemF0aW9uIjoiQmFuayBZIiwibGVnYWxfY29udGV4dCI6eyJjb3VudHJ
+5IjoiREUiLCJyZWd1bGF0aW9uIjoiR2VsZHfDpHNjaGVnZXNldHoifSwiZGF0ZSI6IjIwMTMtMDItMjEiLCJpZ
+CI6IjY3NnEzNjM2NDYxNDY3NjQ3cTg0OTg3ODU3NDdxNDg3IiwibWV0aG9kIjoiaWRlbnRpdHlfZG9jdW1lbnQ
+iLCJpZGVudGl0eV9kb2N1bWVudCI6eyJjb3VudHJ5IjoiREUiLCJ0eXBlIjoiSUQgQ2FyZCIsImlzc3VlciI6I
+lN0YWR0IEF1Z3NidXJnIiwibnVtYmVyIjoiNTM1NTQ1NTQiLCJkYXRlX29mX2lzc3VhbmNlIjoiMjAxMi0wNC0
+yMyIsImRhdGVfb2ZfZXhwaXJ5IjoiMjAyMi0wNC0yMiIsIm1ldGhvZCI6IlBoeXNpY2FsIEluLVBlcnNvbiBQc
+m9vZmluZyAoc2hvcCkiLCJvcmdhbml6YXRpb24iOiJEZXV0c2NoZSBQb3N0IEFHIiwiYWdlbnQiOiJTdGVmZmV
+uIFNjaHVzdGVyIn19LCJjbGFpbXMiOnsiZ2l2ZW5fbmFtZSI6Ik1heCIsImZhbWlseV9uYW1lIjoiTWVpZXIiL
+CJiaXJ0aGRhdGUiOiIxOTU2LTAxLTI4In19fQ.qrc-5ij_1tH4e4CaRvtBxbksTxCGuUlQ0DBatve9TBLpb8lS
+N52UED2sKOvlIkKfepXt5e0i1O3kZbdUhDhMK-OI0jNnoIZByevCs_hpZp7oM0iBOjrzUsZbVTAo8eBMc6pmjP
+CoxGg4ca0D_97WEIAMJ_P2ohhl_AoxzBNAyNc"
+      }
+   }
+}
+
+6.6.  Distributed Claims
+
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+
+   {
+      "sub":"248289761001",
+      "email":"janedoe@example.com",
+      "email_verified":true,
+      "_claim_names":{
+         "verified_person_data":"src1"
+      },
+      "_claim_sources":{
+         "src1":{
+            "endpoint":"https://bank.example.com/claim_source",
+            "access_token":"ksj3n283dke"
+         }
+      }
+   }
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 20]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+7.  OP Metadata
+
+   The OP advertises its capabilities with respect to verified person
+   data in its openid-configuration (see [OpenID-Discovery]) using the
+   following new elements:
+
+   "verified_person_data_supported" This JSON array contains all claims
+   supported within "verified_person_data".
+
+   "verification_methods_supported" This element is a JSON array
+   containing at the top level the verification methods as defined in
+   Section verification [3]. "eID" is a simple JSON string whereas
+   "identity_document" is contained in a JSON object and is itself an
+   array containing all identity document proofing methods employed by
+   the respective organisation.
+
+   This is an example openid-configuration snippet:
+
+   {
+   ...
+      "verified_person_data_supported":[
+         "given_name",
+         "family_name",
+         "birthdate",
+         "place_of_birth",
+         "nationality",
+         "address"
+      ],
+      "verification_methods_supported":[
+         {
+            "identity_document":[
+               "Physical In-Person Proofing (bank)",
+               "Physical In-Person Proofing (shop)",
+               "Physical In-Person Proofing (courier)",
+               "Supervised remote In-Person Proofing"
+            ]
+         },
+         "eID"
+      ]
+   ...
+   }
+
+   The OP MUST support the claims parameter and needs to publish this in
+   its openid-configuration using the claim
+   "claims_parameter_supported".
+
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 21]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+8.  Acknowledgements
+
+   The following people at yes.com and partner companies contributed to
+   the concept described in this document: Sven Manz, Waldemar Zimpfer,
+   Willi Wiedergold, Fabian Hoffmann, Daniel Keijsers, Ralf Wagner,
+   Sebastian Ebling, Peter Eisenhofer.
+
+   I would like to thank Marcus Sanz, Tom Jones, and Jeff Lombardo for
+   their valuable feedback that helped to further shape this
+   specification.
+
+9.  IANA Considerations
+
+9.1.  OAuth Extensions Error Registration
+
+   This specification registers the following errors in the IANA OAuth
+   Extensions Error registry defined in [RFC6749].
+
+   o  Error name: unable_to_meet_requirement
+
+   o  Error usage location: Authorization Endpoint
+
+   o  Related protocol extension: OpenID Connect for Identity Assurance
+
+   o  Change controller: OpenID Foundation Artifact Binding Working
+      Group - openid-specs-ab@lists.openid.net
+
+   o  Specification document(s): Section Defining constraints on
+      requested data [4] of this document
+
+10.  Security Considerations
+
+   TBD
+
+11.  References
+
+11.1.  Normative References
+
+   [OpenID]   Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Core 1.0 incorporating
+              errata set 1", Nov 2014,
+              <http://openid.net/specs/openid-connect-core-1_0.html>.
+
+   [OpenID-Discovery]
+              Sakimura, N., Bradley, J., de Medeiros, B., and E. Jay,
+              "OpenID Connect Discovery 1.0 incorporating errata set 1",
+              Nov 2014, <https://openid.net/specs/
+              openid-connect-discovery-1_0.html>.
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 22]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <https://www.rfc-editor.org/info/rfc6749>.
+
+11.2.  Informative References
+
+   [eIDAS]    European Parliament, "REGULATION (EU) No 910/2014 OF THE
+              EUROPEAN PARLIAMENT AND OF THE COUNCIL on electronic
+              identification and trust services for electronic
+              transactions in the internal market and repealing
+              Directive 1999/93/EC", July 2014, <https://eur-
+              lex.europa.eu/legal-content/EN/TXT/
+              HTML/?uri=CELEX:32014R0910>.
+
+   [I-D.ietf-oauth-jwt-introspection-response]
+              Lodderstedt, T. and V. Dzhuvinov, "JWT Response for OAuth
+              Token Introspection", draft-ietf-oauth-jwt-introspection-
+              response-02 (work in progress), February 2019.
+
+   [NIST-SP-800-63a]
+              NIST, Fentony, James., Lefkovitz, Naomi., Danker, Jamie.,
+              Choong, Yee-Yin., Greene, Kristen., and Mary. Theofanos,
+              "NIST Special Publication 800-63A, Digital Identity
+              Guidelines, Enrollment and Identity Proofing
+              Requirements", June 2017,
+              <https://doi.org/10.6028/NIST.SP.800-63a>.
+
+   [RFC7662]  Richer, J., Ed., "OAuth 2.0 Token Introspection",
+              RFC 7662, DOI 10.17487/RFC7662, October 2015,
+              <https://www.rfc-editor.org/info/rfc7662>.
+
+11.3.  URIs
+
+   [1] #userclaims
+
+   [2] #claimselement
+
+   [3] #verification
+
+   [4] #constraintedclaims
+
+Appendix A.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -00 (WG document)
+
+   o  turned the proposal into a WG document
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 23]
+
+Internet-Draft     openid-connect-4-identity-assurance        March 2019
+
+
+   o  changed name
+
+   o  added terminology section and reworked introduction
+
+   o  added several examples (ID Token vs User Info, non-verified &
+      verified claims, aggregated & distributed claims)
+
+   o  incorporated text proposal of Marcos Sanz regarding max_age
+
+   o  added IANA registration for new error code
+      "unable_to_meet_requirement"
+
+Authors' Addresses
+
+   Torsten Lodderstedt
+   yes.com
+
+   Email: torsten@lodderstedt.net
+
+
+   Daniel Fett
+   yes.com
+
+   Email: mail@danielfett.de
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Lodderstedt & Fett     Expires September 14, 2019              [Page 24]

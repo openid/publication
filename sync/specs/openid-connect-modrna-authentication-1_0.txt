@@ -1,0 +1,672 @@
+
+
+
+
+                                                             J. Connotte
+                                                     Deutsche Telekom AG
+                                                              J. Bradley
+                                                           Ping Identity
+                                                          March 06, 2017
+
+
+            OpenID Connect MODRNA Authentication Profile 1.0
+                openid-connect-modrna-authentication-1_0
+
+Abstract
+
+   RPs are keen to use high quality authentication methods, which can be
+   provided by Mobile Network Operators (MNO).  However a RP must be
+   able to describe its demands for an authentication request and it
+   must be able to do this in an interoperable way.
+
+   The MODRNA Authentication Profile will specify how RP's request a
+   certain level of assurance for the authentication.
+
+   In addition, the profile will specify an encrypted login hint token
+   to allow for the transport of user identifiers to the OP in a privacy
+   preserving fashion.
+
+   Lastly, the profile will specify an additional messge parameter
+   intended to serve as an interlock between the user's consumpution
+   device and authentication device.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Requirements Notation and Conventions . . . . . . . . . .   2
+     1.2.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Overview  . . . . . . . . . . . . . . . . . . . . . . . . . .   3
+   3.  Authentication Request  . . . . . . . . . . . . . . . . . . .   3
+   4.  acr_values request values and level of assurance  . . . . . .   3
+   5.  Authentication Method Reference (amr) . . . . . . . . . . . .   5
+     5.1.  AMR Value Examples  . . . . . . . . . . . . . . . . . . .   6
+   6.  login_hint_token  . . . . . . . . . . . . . . . . . . . . . .   6
+     6.1.  login_hint_token encryption and signing . . . . . . . . .   7
+   7.  binding_message . . . . . . . . . . . . . . . . . . . . . . .   8
+   8.  mandatory to implement  . . . . . . . . . . . . . . . . . . .   8
+   9.  Security Considerations . . . . . . . . . . . . . . . . . . .   8
+   10. Privacy Considerations  . . . . . . . . . . . . . . . . . . .   9
+   11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .   9
+   12. References  . . . . . . . . . . . . . . . . . . . . . . . . .   9
+     12.1.  Normative References . . . . . . . . . . . . . . . . . .   9
+     12.2.  Informative References . . . . . . . . . . . . . . . . .  10
+
+
+
+Connotte & Bradley      Expires September 7, 2017               [Page 1]
+
+                 OIDC MODRNA Authentication Profile 1.0       March 2017
+
+
+   Appendix A.  Acknowledgements . . . . . . . . . . . . . . . . . .  10
+   Appendix B.  Notices  . . . . . . . . . . . . . . . . . . . . . .  11
+   Appendix C.  Document History . . . . . . . . . . . . . . . . . .  11
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  12
+
+1.  Introduction
+
+   OpenID Connect MODRNA Authentication Profile 1.0 is a profile of the
+   OpenID Connect Core 1.0 [OpenID.Core] specification that defines
+   common authentication contexts and further extensions to OpenID
+   Connect Core to be used when requesting authentication from MNO's.
+   Moreover it defines Mandatory to Implement features for MNOs to
+   assure interoperability of clients across MNO's.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119].
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+1.2.  Terminology
+
+   This specification uses the termn "OpenID Provider (OP)" and "Relying
+   Party (RP)" as defined by OpenID Connect Core [OpenID.Core].  This
+   specification also defines the following terms:
+
+   Mobile Network Operator (MNO)  A provider of wireless communication
+      services that owns or controls the wireless network elements
+      necessary to sell and deliver services to an end user.
+
+   Mobile Station International Subscriber Directory Number (MSISDN)  A
+      telephone number uniquely identifying a subscription in a mobile
+      network.
+
+   Consumption Device (CD)  A user agent, most probably a browser, on
+      which the user consumes the actual service provided by the Relying
+      Party.
+
+   Authentication Device (AD)  A mobile device on which the user will
+      authenticate the actual login.
+
+
+
+
+
+
+
+Connotte & Bradley      Expires September 7, 2017               [Page 2]
+
+                 OIDC MODRNA Authentication Profile 1.0       March 2017
+
+
+2.  Overview
+
+   This specification serves as a profile based on OpenID Connect Core
+   [OpenID.Core].  It defines additional request parameters in the
+   Authentication Request.  It also specifies authentication class
+   reference values based on the ISO/IEC DIS 29115 [ISO.29115] to be
+   used for the "acr_values" request parameter.
+
+3.  Authentication Request
+
+   MODRNA supports all request parameters as specified in OpenID Connect
+   Core 3.1.2.1 [OpenID.Core].
+
+   In addition the following parameters are defined or made REQUIRED for
+   clients to send.  All additional paramaters are REQUIRED for OP to
+   support.
+
+   acr_values  REQUIRED.  In [OpenID.Core] this parameter is specified
+      as OPTIONAL.  For MODRNA this parameter is REQUIRED in order to
+      enable the Relying Party to indicate a MODRNA conform
+      authentication request to the OP.  Allowed values are defined in
+      Section 4.
+
+   login_hint_token  OPTIONAL.  This is a new parameter.  The
+      login_hint_token is used to transport a user identifier from the
+      Discovery Service to the OpenID Provider without revealing this
+      identifier to the client.  Section 6 specifies the structure of
+      this parameter.  Protection of the login_hint_token's content is
+      specified in Section 6.1.
+
+   binding_message  OPTIONAL.  This is a new parameter.  An Interlock
+      message to tie the consumption device and the authentication
+      device together.  How to ensure that the message is actually shown
+      on all relevant devices is out of the scope of this document.
+      Possible values and constraints are specified in Section 7.  Ways
+      to protect the integrity of the binding_message are discussed in
+      Section 9.
+
+4.  acr_values request values and level of assurance
+
+   The service's terms of service will specify a trust framework for
+   Identity Providers to follow for general business processes and other
+   related account security issues.
+
+   This specification defines an initial set of "acr" values that
+   clients can use to request the IdP mitigate specific authentication
+   risks.
+
+
+
+
+Connotte & Bradley      Expires September 7, 2017               [Page 3]
+
+                 OIDC MODRNA Authentication Profile 1.0       March 2017
+
+
+   The initial set of "acr" values contain no requirements for the IdP
+   to make any guarantee of identity proofing the subject of the
+   authentication beyond what is required by business practices for
+   account recovery and customer service as defined in the trust
+   framework.  Prepaid anonymous users may be included in responses
+   conforming to these values.
+
+   The IANA Level of Assurance (LoA) Profiles [RFC6711] Registry will be
+   used to register the short names for these LoA, and any future
+   additional LoA.
+
+   http://schemas.openid.net/policies/modrna/phishing-resistant  Short-
+      Name: mod-pr
+      This mitigates phishing of credentials.
+      The user is authenticated via possession of a device (phone)
+      containing a secret key.  The user is required to provide no
+      additional authentication information to use the key.  The user is
+      interactively prompted to confirm the authentication.  The storage
+      mechanism for the secret key and other relevant authentication
+      information is returned via the "amr".  The user is not re-
+      prompted for credentials if the value of "prompt" is not login and
+      "max_age" is more than the elapsed time since the user last
+      authenticated at the requested acr.
+
+   http://schemas.openid.net/policies/modrna/multi-factor  Short-Name:
+      mod-mf
+      This mitigates phishing and proves the device is recently in the
+      possession of the authorised user via pin or device unlock.
+      The user is authenticated via possession of a device (phone)
+      containing a secret key.  The user is required to provide
+      additional authentication information via a biometric, pin code or
+      other appropriate factors such as bluetooth paring with a watch.
+      Given suitable Mobile device management unlocking the device is
+      also sufficient along with user confirmation of desire to
+      authenticate.  The storage mechanism for the secret key and other
+      relevant authentication information is returned via the "amr"
+      value.  The user is not re-prompted for credentials if the value
+      of "prompt" is not login and "max_age" is more than the elapsed
+      time since the user last authenticated at the requested acr.
+
+   Identity Providers MUST recognize and process short registered forms
+   of the authentication context strings.  They may recognize and
+   process long forms for custom authentication contexts.
+
+   Clients MUST send the short registered forms of the authentication
+   context strings, if the authentication context is registered.
+
+
+
+
+
+Connotte & Bradley      Expires September 7, 2017               [Page 4]
+
+                 OIDC MODRNA Authentication Profile 1.0       March 2017
+
+
+   The OP MUST support receiving "acr_values" as a space separated list
+   in order of preference per OpenID Connect Core 3.1.2.1 [OpenID.Core].
+
+   The OP MUST support receiving "acr" as a claim request in a signed
+   request per OpenID Connect Core 5.5.1 [OpenID.Core].  This method
+   prevents the request from being modified by the user, and allows the
+   requested "acr" valued to be considered essential claims causing the
+   IdP to respond with an authentication error if no requested "acr"
+   value can be fulfilled.
+
+   Depending on the authentication capabilities of the users device, the
+   OP must attempt to match the highest requested acr value that the AD
+   is capable of.  If the acr claim is not marked as essential in the
+   request object, the OP may return another acr value that the device
+   is capable of rather than an error if it cannot match any of the
+   requested acr_values.
+
+5.  Authentication Method Reference (amr)
+
+   The "amr" claim OpenID Connect Core Sec 2 [OpenID.Core] SHOULD be
+   returned in the id_token if a "acr" value is specified in the
+   request.
+   The "amr" claim is a JSON array containing one or more string values
+   indicating the authentication methods used in the authentication.
+
+   The values for the strings in the "amr" claim are registered in a
+   IANA registry defined in Authentication Method Reference Values
+   [I-D.ietf-oauth-amr-values].
+
+   This specification recommends the use of several of the values, to
+   provide a standard way for clients to understand the authentication
+
+   user  User presence test.
+
+   pin  A Personal Identification Number or pattern (Not restricted to
+      numbers only) that a user used to unlock a key on the device.
+      This mechanism SHOULD have a way to deter an attacker from
+      guessing the pin by making multiple guesses.
+
+   fpt  Fingerprint biometric
+
+   sms  Confirmation by responding to a SMS sent to a known device.
+
+   swk  Proof-of-possession (PoP) of a software-secured key.
+
+   hwk  Proof-of-possession (PoP) of a hardware-secured key.
+
+   geo  Geo-Location of the authentication device.
+
+
+
+Connotte & Bradley      Expires September 7, 2017               [Page 5]
+
+                 OIDC MODRNA Authentication Profile 1.0       March 2017
+
+
+5.1.  AMR Value Examples
+
+   If the authentication is performed by sending the users mobile device
+   a SMS with a URI and having the user click on the link to confirm, it
+   SHOULD have a "amr" value of ["sms","user"]
+
+   If the authentication is by sending a secure message to a hardware
+   element in mobile device's and the HW element signs a authentication
+   challenge only after the user has entered a local PIN then it SHOULD
+   have a "amr" value of ["hpop","pin"]
+
+   If the authentication is by sending a secure message to a software
+   application in the mobile device that signs a authentication
+   challenge only after the user has entered a local fingerprint
+   biometric then it SHOULD have a "amr" value of ["pop","fpt"]
+
+   If the authentication is by sending a secure message to a hardware
+   element in mobile device's and the HW element signs a authentication
+   challenge only after the user has entered a local fingerprint
+   biometric, and the IdP has preformed additional passive analytics
+   based on geo location, then it SHOULD have a "amr" value of
+   ["hpop","fpt","geo"]
+
+   Note that if two or more authentication factors are used the MNO may
+   include the "amr" value "mfa" and optionally not include the specific
+   factors.
+   Note: that the order of elements in the "amr" array is not
+   significant.
+
+6.  login_hint_token
+
+   The "login_hint_token" is used to pass a user hint into the
+   authentication process at the OP.  This hint is opaque to the client
+   by design.  There are several ways for a client to obtain a login
+   hint token.  To start with, the MODRNA discovery service
+   [MODRNA.Discovery] creates a hint if the user has entered their
+   MSISDN in the course of the MNO discovery process.
+
+   In the case of a "login_hint_token" produced by the MODRNA Discovery
+   Service it is an encrypted Json Web Token JWT [RFC7519] that contains
+   a user hint for the OP.  The "login_hint_token" SHALL be used by the
+   client as login hint with OP identified by the MODRNA discovery
+   service [MODRNA.Discovery].  In this case, the login hint token is
+   supposed to be a signed and encrypted JWT.
+
+   The Authorization server may produce "login_hint_token" tokens in
+   other formats for use in Account Chooser or other discovery profiles,
+   as long as they are confidentiality protected from the client.
+
+
+
+Connotte & Bradley      Expires September 7, 2017               [Page 6]
+
+                 OIDC MODRNA Authentication Profile 1.0       March 2017
+
+
+   The "login_hint_token" produced by the MODRNA discovery service
+   [MODRNA.Discovery] has the following elements:
+
+   iss  REQUIRED.  The party creating the token.  This value MUST be
+      used by the IdP receiving the token to obtain the JWK [RFC7517]
+      file required to validate the tokens's signature (see
+      Section 6.1).
+
+   aud  REQUIRED.  The party to receive the token, typically the users
+      OpenID Provider.  The value MUST be the issuer URI of the OP as
+      exposed in the IdP's openid-configuration meta-data.
+
+   iat  REQUIRED.  When the token was issued.
+
+   MSISDN  REQUIRED.  The Subscriber identifier formated according to
+      ITU-T recommendation [E.164]
+
+   The following is a non-normative example of JWT body (with line wraps
+   within values for display purposes only):
+
+     {
+      "iss": "https://discovery-provider.com",
+      "aud": "https://babytel.com",
+      "iat": 1311280970,
+      "MSISDN": "+1999550123"
+     }
+
+6.1.  login_hint_token encryption and signing
+
+   The login_hint token MUST be encrypted using the public key of the
+   OpenID Provider designated by the claim "aud" in the
+   login_hint_token.  The appropriate public key is obtained using the
+   rules defined in OpenID Connect Discovery.  [OpenID.Discovery]
+
+   In the first step, the openid-configuration for the IdP is retrieved
+   by performing discovery Per Section 4 of [OpenID.Discovery] using the
+   issuer string for the users IdP as the input.
+   In the next step, the value of the "jwks_uri" claim Per Section 3 of
+   [OpenID.Discovery] is used to retrieve the OP's JWK [RFC7517].  A
+   public key in the JWK with a use paramater of "enc" per Section 4.2
+   of JWK [RFC7517] is used as the encryption key.  The login_hint_token
+   is then encrypted as a JWE using that key.
+
+   The login_hint token MUST be signed using the private key of the
+   Discovery Service.
+
+
+
+
+
+
+Connotte & Bradley      Expires September 7, 2017               [Page 7]
+
+                 OIDC MODRNA Authentication Profile 1.0       March 2017
+
+
+   It is best practice to sign then encrypt tokens, as signatures over
+   encrypted information may leak information in the envelope, and may
+   not be considered legally valid.
+
+   For an example of a nested JWT that is signed and then encrypted see
+   Appendix 2 of JWT [RFC7519].
+
+   NOTE: The "login_hint_token" is opaque to the client by design.  The
+   Authorization server may produce "login_hint_token" tokens in other
+   formats for use in Account Chooser or other discovery profiles, as
+   long as they are confidentiality protected from the client.
+
+7.  binding_message
+
+   The "binding_message" parameter is a text provided by the RP intended
+   to be shown to the user on the consumption device as well as on the
+   authentication device as an interlock between RP and OP.
+
+   The "binding_message" MUST be plain text using the "application/x-
+   www-form-urlencoded" format as the authentication device in
+   particular may have limited abilities to show text or formats.
+
+   The "binding_message" SHOULD be displayable on all participating
+   devices.  The RP SHOULD consider that some authentication devices
+   e.g. as SIM-Applets are able to show only a very limited number of
+   characters.
+
+8.  mandatory to implement
+
+   acr_values  All MODRNA compliant OP's MUST accept the acr_values
+      specified in Section 4
+
+9.  Security Considerations
+
+   The login hint token SHOULD be digitally signed by the issuer.  This
+   ensures authenticity of the data and reduces the threat of an
+   injection attack.  The signature allows the OP to authenicate and
+   authorize the sender of the hint and prevent collecting of phone
+   numbers by rogue clients.
+
+   To prevent modification of the "binding_message" value, the RP SHOULD
+   send the parameter to the OP using a signed OpenID Connect Request
+   Object (section 6.3.2 of [OpenID.Core]).
+
+   The OP MUST sanitize the "binding_message" value in order to prevent
+   injection attacks.
+
+
+
+
+
+Connotte & Bradley      Expires September 7, 2017               [Page 8]
+
+                 OIDC MODRNA Authentication Profile 1.0       March 2017
+
+
+   The "binding_message" value being displayed on the consumption and
+   authentication device SHOULD contain a random value (e.g. an
+   authorization code) of reasonable entropy.  This is a countermeasure
+   against session fixation type attacks, where the attacker initiates
+   an authentication process on a consumption device under his control,
+   which will result in the same text being displayed on the
+   authentication device as for legitimate transactions.
+
+10.  Privacy Considerations
+
+   The login hint token is encrypted in order to protect the user's
+   MSISDN from being revealed to the client unintentionally.
+
+11.  IANA Considerations
+
+   TBD: Find out about how to correctly add entries to IANA for:
+   https://www.iana.org/assignment/loa-profiles/loa-profiles.xhtml
+
+12.  References
+
+12.1.  Normative References
+
+   [I-D.ietf-oauth-amr-values]
+              Jones, M., Hunt, P., and A. Nadalin, "Authentication
+              Method Reference Values", draft-ietf-oauth-amr-values-06
+              (work in progress), February 2017.
+
+   [OpenID.Core]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Core 1.0", November 2014,
+              <http://openid.net/specs/openid-connect-core-1_0.html>.
+
+   [OpenID.Discovery]
+              Sakimura, N., Bradley, J., Jones, M., and E. Jay, "OpenID
+              Connect Discovery 1.0", November 2014,
+              <http://openid.net/specs/
+              openid-connect-discovery-1_0.html>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <http://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC6711]  Johansson, L., "An IANA Registry for Level of Assurance
+              (LoA) Profiles", RFC 6711, DOI 10.17487/RFC6711, August
+              2012, <http://www.rfc-editor.org/info/rfc6711>.
+
+
+
+
+
+Connotte & Bradley      Expires September 7, 2017               [Page 9]
+
+                 OIDC MODRNA Authentication Profile 1.0       March 2017
+
+
+   [RFC7517]  Jones, M., "JSON Web Key (JWK)", RFC 7517,
+              DOI 10.17487/RFC7517, May 2015,
+              <http://www.rfc-editor.org/info/rfc7517>.
+
+   [RFC7519]  Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token
+              (JWT)", RFC 7519, DOI 10.17487/RFC7519, May 2015,
+              <http://www.rfc-editor.org/info/rfc7519>.
+
+12.2.  Informative References
+
+   [E.164]    N., , "Recommendation ITU-T E.164", November 2010.
+
+   [ISO.29115]
+              McAllister, E. and R. Brackney, "ISO/IEC DIS 29115", April
+              2013.
+
+   [MODRNA.Discovery]
+              Lodderstedt, T. and J. Bradley, "OpenID Connect Mobile
+              Discovery Profile 1.0", August 2015,
+              <https://bitbucket.org/openid/mobile/raw/default/draft-
+              mobile-discovery-01.txt>.
+
+   [RFC2246]  Dierks, T. and C. Allen, "The TLS Protocol Version 1.0",
+              RFC 2246, DOI 10.17487/RFC2246, January 1999,
+              <http://www.rfc-editor.org/info/rfc2246>.
+
+   [RFC5246]  Dierks, T. and E. Rescorla, "The Transport Layer Security
+              (TLS) Protocol Version 1.2", RFC 5246,
+              DOI 10.17487/RFC5246, August 2008,
+              <http://www.rfc-editor.org/info/rfc5246>.
+
+   [RFC6749]  Hardt, D., Ed., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, DOI 10.17487/RFC6749, October 2012,
+              <http://www.rfc-editor.org/info/rfc6749>.
+
+   [RFC6750]  Jones, M. and D. Hardt, "The OAuth 2.0 Authorization
+              Framework: Bearer Token Usage", RFC 6750,
+              DOI 10.17487/RFC6750, October 2012,
+              <http://www.rfc-editor.org/info/rfc6750>.
+
+Appendix A.  Acknowledgements
+
+   The following have contributed to the development of this
+   specification.
+
+      Matthieu Verdier (matthieu.verdier@orange.com), Orange
+
+
+
+
+
+Connotte & Bradley      Expires September 7, 2017              [Page 10]
+
+                 OIDC MODRNA Authentication Profile 1.0       March 2017
+
+
+      Gonzalo Fernandez Rodriguez
+      (gonzalo.fernandezrodriguez@telefonica.com), Telefonica
+
+Appendix B.  Notices
+
+   Copyright (c) 2017 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+Appendix C.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -06
+
+   o  update reference to amr spec
+
+
+
+
+Connotte & Bradley      Expires September 7, 2017              [Page 11]
+
+                 OIDC MODRNA Authentication Profile 1.0       March 2017
+
+
+   o  Make Date current for implementers draft
+
+   -01
+
+   o  Initial draft
+
+   o  Added OIDF Standard Notice
+
+   o  changed references to amr specification
+
+Authors' Addresses
+
+   Joerg Connotte
+   Deutsche Telekom AG
+
+   Email: j.connotte@telekom.de
+
+
+   John Bradley
+   Ping Identity
+
+   Email: jbradley@pingidentity.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Connotte & Bradley      Expires September 7, 2017              [Page 12]

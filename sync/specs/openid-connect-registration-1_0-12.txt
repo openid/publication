@@ -1,0 +1,1344 @@
+
+
+
+Draft                                                        N. Sakimura
+                                                                     NRI
+                                                              J. Bradley
+                                                           Ping Identity
+                                                                M. Jones
+                                                               Microsoft
+                                                        December 6, 2012
+
+
+       OpenID Connect Dynamic Client Registration 1.0 - draft 12
+
+Abstract
+
+   OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+   protocol.  It allows Clients to verify the identity of the End-User
+   based on the authentication performed by an Authorization Server, as
+   well as to obtain basic profile information about the End-User in an
+   interoperable and RESTful manner.
+
+   This specification describes how an OpenID Client can obtain the
+   necessary client credentials required by the OpenID Connect protocol
+   suite.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 1]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
+     1.1.  Requirements Notation and Conventions  . . . . . . . . . .  3
+     1.2.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  3
+   2.  Client Registration Endpoint . . . . . . . . . . . . . . . . .  4
+     2.1.  Client Registration and Client Update Request  . . . . . .  4
+       2.1.1.  sector_identifier_url Validation . . . . . . . . . . .  9
+     2.2.  Client Registration Response . . . . . . . . . . . . . . .  9
+       2.2.1.  Client Associate or Rotate Secret Response . . . . . .  9
+       2.2.2.  Client Update  . . . . . . . . . . . . . . . . . . . . 10
+     2.3.  Client Registration Error Response . . . . . . . . . . . . 10
+   3.  String Operations  . . . . . . . . . . . . . . . . . . . . . . 12
+   4.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 13
+   5.  Security Considerations  . . . . . . . . . . . . . . . . . . . 14
+   6.  Normative References . . . . . . . . . . . . . . . . . . . . . 15
+   Appendix A.  Acknowledgements  . . . . . . . . . . . . . . . . . . 17
+   Appendix B.  Notices . . . . . . . . . . . . . . . . . . . . . . . 18
+   Appendix C.  Document History  . . . . . . . . . . . . . . . . . . 19
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 24
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 2]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+1.  Introduction
+
+   In order for an OpenID Connect Client to utilize OpenID services for
+   a user, the Client needs to register with the OpenID Provider to
+   acquire a Client ID and shared secret.  This document describes how a
+   new Client can register with the provider, and how a Client already
+   in possession of a "client_id" can retrieve updated registration
+   information.
+
+   The Client Registration Endpoint may be co-resident with the token
+   endpoint as an optimization in some deployments.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+1.2.  Terminology
+
+   This specification uses the terms "Access Token", "Refresh Token",
+   "Authorization Code", "Authorization Grant", "Authorization Server",
+   "Authorization Endpoint", "Client", "Client Identifier", "Client
+   Secret", "Protected Resource", "Resource Owner", "Resource Server",
+   and "Token Endpoint" defined by OAuth 2.0 [RFC6749], and the terms
+   defined by OpenID Connect Messages 1.0 [OpenID.Messages].  It defines
+   no additional terms.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 3]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+2.  Client Registration Endpoint
+
+   The Client Registration Endpoint is an OAuth 2.0 Protected Resource
+   that returns registration information for the Client to configure
+   itself for the OpenID Provider.  The OpenID Provider may require an
+   Access Token that is provisioned out-of-band (in a manner that is out
+   of scope for this specification) in order to restrict registration
+   requests to only authorized Clients.
+
+   In order to support open registration, the Client Registration
+   Endpoint SHOULD accept requests without OAuth 2.0 Access Tokens.  If
+   an Access Token is required for Client registration, the Client
+   Registration Endpoint MUST be able to accept Access Tokens in the
+   manner described in the OAuth 2.0 Bearer Token Usage [RFC6750]
+   specification.
+
+2.1.  Client Registration and Client Update Request
+
+   Client Update Requests replace all previous parameters set for a
+   "client_id".
+
+   Clients MUST send requests encoded as a POST with the following
+   parameters added to the HTTP request entity-body using "application/
+   x-www-form-urlencoded" format:
+
+   type  REQUIRED.  Values are "client_associate" (for new
+      registrations), "rotate_secret" to request rotation of the
+      "client_secret", and "client_update" (for updating parameters of
+      an existing "client_id").  If "rotate_secret" is used no optional
+      parameters other than "access_token" may be included in the
+      request.
+
+   redirect_uris  REQUIRED A space-delimited list of redirect URIs.  One
+      of the URL MUST match the Scheme, Host, and Path segments of the
+      "redirect_uri" in the authorization request.
+
+   application_type  OPTIONAL.  The default if not specified is "web".
+      The defined values are "native" or "web".  Web clients MUST only
+      register https: Scheme "redirect_uris" that do not use localhost
+      as the hostname.  Native clients MUST only register
+      "redirect_uris" using custom URI schemes or http: scheme URI using
+      localhost as the hostname.  Authorization Servers may place
+      additional constraints on Native such as not supporting the token
+      response_type.  The Authorization server MUST verify that all the
+      registered "redirect_uris" conform to the constraints.  This
+      prevents sharing a client_id across different types of clients.
+
+
+
+
+
+Sakimura, et al.                                                [Page 4]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+   access_token  OPTIONAL.  If this is a "client_associate" request this
+      is an Access Token obtained out of band to authorize the
+      registrant.  If this is a "client_update" request this is the
+      "registration_access_token" returned in the "client_associate" or
+      "rotate_secret" response.  This parameter MUST NOT be sent if the
+      Access Token is sent in the HTTP Authorization header as described
+      in Section 7.1 of OAuth 2.0 [RFC6749].  Access Tokens sent in the
+      authorization header must be OAuth 2.0 Bearer Token Usage
+      [RFC6750].
+
+   contacts  OPTIONAL.  Space delimited list of email addresses for
+      people allowed to administer the information for this Client.
+      This is used by some providers to enable a web UI to modify the
+      Client information.
+
+   application_name  OPTIONAL.  Name of the Client to be presented to
+      the user.  If desired, representation of this claim in different
+      languages and scripts is obtained by applying the rules set in
+      2.1.1.1.3. "claims" member of OpenID Connect Messages.
+      [OpenID.Messages]
+
+   logo_url  OPTIONAL.  A URL that references a logo for the Client
+      application.
+
+   token_endpoint_auth_type  OPTIONAL.  The requested authentication
+      type for the Token Endpoint.  The options are
+      "client_secret_post", "client_secret_basic", "client_secret_jwt",
+      and "private_key_jwt", as described in Section 2.2.1 of OpenID
+      Connect Messages [OpenID.Messages].  Other Authentication methods
+      may be defined by extension.  If unspecified or omitted, the
+      default is "client_secret_basic" HTTP Basic Authentication Scheme
+      as specified in Section 2.3.1 of OAuth 2.0 [RFC6749].
+
+   policy_url  OPTIONAL.  A URL location that the Relying Party Client
+      provides to the End-User to read about the how the profile data
+      will be used.  The OpenID Provider SHOULD display this URL to the
+      End-User if it is given.
+
+   jwk_url  OPTIONAL.  URL for the Client's JSON Web Key [JWK] document
+      that is used for signing Token Endpoint Requests and OpenID
+      Request Objects.  If "jwk_encryption_url" is not provided it is
+      also used to encrypt the ID Token and User Info Endpoint Responses
+      to the Client.  If the Client registers both "x509_url" and
+      "jwk_url", the keys contained in both formats SHOULD be the same.
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 5]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+   jwk_encryption_url  OPTIONAL.  URL for the Client's JSON Web Key
+      [JWK] that is used to encrypt the ID Token and User Info Endpoint
+      Responses to the Client.  If the Client registers both
+      "jwk_encryption_url" and "x509_encryption_url", the keys contained
+      in both formats SHOULD be the same.
+
+   x509_url  OPTIONAL.  URL for the Client's PEM encoded X.509
+      Certificate or Certificate chain that is used for signing Token
+      Endpoint Requests and OpenID Request Objects.  If
+      "x509_encryption_url" is not provided, "x509_url" it is also used
+      to encrypt the ID Token and User Info Endpoint Responses to the
+      Client.  If the Client registers both "x509_url" and "jwk_url",
+      the keys contained in both formats SHOULD be the same.
+
+   x509_encryption_url  OPTIONAL.  URL for the Client's PEM encoded
+      X.509 Certificate or Certificate chain that is used to encrypt the
+      ID Token and User Info Endpoint Responses to the Client.  If the
+      Client registers both "jwk_encryption_url" and
+      "x509_encryption_url", the keys contained in both formats SHOULD
+      be the same.
+
+   sector_identifier_url  OPTIONAL.  A HTTPS scheme URL to be used in
+      calculating Pseudonymous Identifiers by the OP.  The URL contains
+      a file with a single JSON array of "redirect_uri" values.  Please
+      see Section 2.1.1.
+
+   user_id_type  OPTIONAL.  The "user_id_type" requested for responses
+      to this "client_id".  The "user_id_types_supported" element of
+      discovery contains a list of the supported "user_id_type" values
+      for this server.  Valid types include "pairwise" and "public".
+
+   request_object_signing_alg  OPTIONAL.  The JWS [JWS] "alg" algorithm
+      [JWA] that MUST be required by the Authorization Server.  The
+      valid values are listed in Section 3.1 of JWA [JWA].  All OpenID
+      Request Objects from this "client_id" MUST be rejected if not
+      signed by this algorithm.  Servers SHOULD support "RS256".
+
+   userinfo_signed_response_alg  OPTIONAL.  The JWS "alg" algorithm
+      [JWA] required for UserInfo responses.  The valid values are
+      listed in Section 3.1 of JWA [JWA].  If this is specified the
+      response will be JWT [JWT] serialized, and signed using JWS.
+
+   userinfo_encrypted_response_alg  OPTIONAL.  The JWE [JWE] "alg"
+      algorithm [JWA] required for encrypting UserInfo responses.  The
+      valid values are listed in Section 4.1 of JWA [JWA].  If this is
+      requested in combination with signing the response will be signed
+      then encrypted.  If this is specified the response will be JWT
+      [JWT] serialized, and encrypted using JWE.
+
+
+
+Sakimura, et al.                                                [Page 6]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+   userinfo_encrypted_response_enc  OPTIONAL.  The JWE "enc" algorithm
+      [JWA] required for symmetric encryption of UserInfo responses.
+      The valid values are listed in Section 4.2 JWA [JWA].  If
+      ""userinfo_encrypted_response_alg"" is specified the default for
+      this value is "A128CBC+HS256".  If this is requested in
+      combination with signing the response will be signed then
+      encrypted.  If this is specified the response will be JWT [JWT]
+      serialized, and encrypted using JWE.
+
+   id_token_signed_response_alg  OPTIONAL.  The JWS "alg" algorithm
+      [JWA] required for the ID Token issued to this "client_id".  The
+      valid values are listed in Section 3.1 of JWA [JWA].  The default
+      if not specified is "RS256".  The public key for validating the
+      signature is provided by retrieving the document from the
+      "jwk_url" element or the "x509_url" element from discovery.
+
+   id_token_encrypted_response_alg  OPTIONAL.  The JWE "alg" algorithm
+      [JWA] required for encrypting the ID Token issued to this
+      "client_id".  The valid values are listed in Section 4.1 of JWA
+      [JWA].  If this is requested the response will be signed then
+      encrypted.  The default if not specified is no encryption.
+
+   id_token_encrypted_response_enc  OPTIONAL.  The JWE "enc" algorithm
+      [JWA] required for symmetric encryption of the ID Token issued to
+      this "client_id".  The valid values are listed in Section 4.2 of
+      JWA [JWA].  If ""id_token_encrypted_response_alg"" is specified
+      the default for this value is "A128CBC+HS256".  If this is
+      requested in combination with signing the response will be signed
+      then encrypted.  If this is specified the response will be JWT
+      [JWT] serialized, and encrypted using JWE.
+
+   default_max_age  OPTIONAL. (default max authentication age): Type:
+      Integer - Specifies that the End-User must be actively
+      authenticated if any present authentication is older than the
+      specified number of seconds.  (The "max_age" request parameter
+      corresponds to the OpenID 2.0 PAPE "max_auth_age" request
+      parameter.)  The "max_age" claim in the request object overrides
+      this default value.
+
+   require_auth_time  OPTIONAL. (require auth_time claim): Type: Logical
+      - If the value is true, then the "auth_time" claim in the
+      "id_token" is REQUIRED.  The returned Claim Value is the number of
+      seconds from 1970-01-01T0:0:0Z as measured in UTC until the date/
+      time that the End-User authentication occurred.  (The auth_time
+      Claim semantically corresponds to the OpenID 2.0 PAPE auth_time
+      response parameter.)  The auth_time claim request in the request
+      object overrides this setting.
+
+
+
+
+Sakimura, et al.                                                [Page 7]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+   default_acr  OPTIONAL. (default authentication context class
+      reference): Type: String - Specifies the default value that the
+      Authorization server must use for processing requests from this
+      client.  The "acrs_supported" element of discovery contains a list
+      of the supported "acr" values for this server.  The "acr" claim in
+      the request object overrides this default value.
+
+   javascript_origin_uris  OPTIONAL.  A space-delimited list of
+      JavaScript origin URIs consisting of a Scheme, Host, and OPTIONAL
+      Port.  Client JavaScript from the registered URIs are authorized
+      to communicate with Authorization Server JavaScript in OpenID
+      Connect Session Management [OpenID.Session].
+
+   The Client Registration Endpoint is an OAuth 2.0 Protected Resource
+   that may require an Access Token for "client_associate" requests in
+   order to restrict registration requests to only authorized Clients.
+
+   For "client_update" requests the "registration_access_token" is used
+   as the Access Token to restrict update access to only the registered
+   client.
+
+   The Client Registration Endpoint MUST accept Access Tokens as OAuth
+   2.0 Bearer Token Usage [RFC6750].
+
+   Following is a non-normative example request (with line wraps for
+   display purposes only):
+   POST /connect/register HTTP/1.1
+   Accept: application/x-www-form-urlencoded
+   Host: server.example.com
+   Authorization: Bearer eyJhbGciOiJSUzI1NiJ9.eyJ ... fQ.8Gj_-sj ... _X
+
+   type=client_associate
+   &application_type=web
+   &redirect_uris=https://client.example.org/callback
+       %20https://client.example.org/callback2
+   &application_name=My%20Example%20
+   &application_name%23ja-Hani-JP=
+   &logo_url=https://client.example.org/logo.png
+   &user_id_type=pairwise
+   &sector_identifier_url=
+       https://othercompany.com/file_of_redirect_uris_for_our_sites.js
+   &token_endpoint_auth_type=client_secret_basic
+   &jwk_url=https://client.example.org/my_rsa_public_key.jwk
+   &userinfo_encrypted_response_alg=RSA1_5
+   &userinfo_encrypted_response_enc=A128CBC+HS256
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 8]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+2.1.1.  sector_identifier_url Validation
+
+   Providers who use pairwise "user_id" values SHOULD support this
+   element.
+
+   It provides a way for a group of websites under a single
+   administrative control to have consistent pairwise "user_id" values
+   independent of the individual domain names.  It also provides a way
+   for Clients to change "redirect_uri" domains without having to
+   reregister all of their users.
+
+   This is further described in Section 2.4.1 of OpenID Connect Messages
+   [OpenID.Messages].
+
+   The value of the "sector_identifier_url" must be a HTTPS scheme URL
+   that identifies a JSON file containing an array containing
+   "redirect_uri" values.  The Registration Server MUST perform a TLS/
+   SSL server certificate check, per RFC 6125 [RFC6125].
+
+   The values of the registered "redirect_uris" must be included in the
+   elements of the array, or registration MUST fail.
+
+   GET /connect/sector_identifier.js HTTP/1.1
+   Accept: application/json
+   Host: client.example.org
+
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+   Cache-Control: no-store
+   Pragma: no-cache
+
+   [ "https://client.example.org/callback",
+     "https://client.example.org/callback2",
+     "https://client.other_company.example.net/callback" ]
+
+2.2.  Client Registration Response
+
+   The response is returned as a JSON object with all the parameters as
+   top level elements.
+
+2.2.1.  Client Associate or Rotate Secret Response
+
+   If the value of type in the request was "client_associate" or
+   "rotate_secret" then return the following.
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 9]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+   client_id  REQUIRED.  The unique Client identifier.
+
+   client_secret  OPTIONAL.  The Client secret.  This MUST be unique for
+      each "client_id".  This value us used by confidential clients.  It
+      is not required for clients selecting a token_endpoint_auth_type
+      of "private_key_jwt"
+
+   registration_access_token  REQUIRED The Access token used by the
+      client to perform "client_update" requests.
+
+   expires_at  OPTIONAL.  The number of seconds from 1970-01-01T0:0:0Z
+      as measured in UTC that the "client_secret" will expire or "0" if
+      they do not expire.  See RFC 3339 [RFC3339] for details regarding
+      date/times in general and UTC in particular.
+
+   Following is a non-normative example response:
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+   Cache-Control: no-store
+
+   {
+    "client_id":"s6BhdRkqt3",
+    "client_secret":
+     "cf136dc3c1fd9153029bb9c6cc9ecead918bad9887fce6c93f31185e5885805d",
+     "registration_access_token": "this.is.a.access.token.value.ffx83",
+    "expires_at":2893276800
+   }
+
+2.2.2.  Client Update
+
+   If the value of type in the request was "client_update".
+
+   client_id  REQUIRED.  The unique Client identifier.
+
+   Following is a non-normative example response:
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+   Cache-Control: no-store
+
+   {
+    "client_id":"s6BhdRkqt3"
+   }
+
+2.3.  Client Registration Error Response
+
+   When an OAuth error condition occurs, the Client Registration
+   Endpoint returns an Error Response as defined in Section 3 of the
+   OAuth 2.0 Bearer Token Usage [RFC6750] specification.
+
+
+
+Sakimura, et al.                                               [Page 10]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+   When a registration error condition occurs, the Client Registration
+   Endpoint returns a HTTP 400 status code including a JSON object
+   describing the error in the response body.
+
+   The JSON object contains two members:
+
+   error_code  The Error code.
+
+   error_description  The additional text description of the error for
+      debugging.
+
+   This specification defines the following error codes:
+
+   invalid_type  The value of "type" is invalid or not supported.
+
+   invalid_client_id  The value of "client_id" is invalid.
+
+   invalid_client_secret  The "client_secret" provided for a
+      "client_update" or "rotate_secret" is not valid for the provided
+      "client_id".
+
+   invalid_redirect_uri  The value of one or more "redirect_uris" is
+      invalid.
+
+   invalid_configuration_parameter  The value of one of the
+      configuration parameters is invalid.
+
+   Following is a non-normative example of an error response:
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+Cache-Control: no-store
+
+{
+ "error_code":"invalid_type",
+ "error_description":"The value of the type parameter must be one of client_associate, rotate_secret or client_update."
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 11]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+3.  String Operations
+
+   Processing some OpenID Connect messages requires comparing values in
+   the messages to known values.  For example, the member names in the
+   Client registration response might be compared to specific member
+   names such as "client_id".  Comparing Unicode strings, however, has
+   significant security implications.
+
+   Therefore, comparisons between JSON strings and other Unicode strings
+   MUST be performed as specified below:
+
+   1.  Remove any JSON applied escaping to produce an array of Unicode
+       code points.
+
+   2.  Unicode Normalization [USA15] MUST NOT be applied at any point to
+       either the JSON string or to the string it is to be compared
+       against.
+
+   3.  Comparisons between the two strings MUST be performed as a
+       Unicode code point to code point equality comparison.
+
+   In several places, this specification uses space delimited lists of
+   strings.  In all such cases, only the ASCII space character (0x20)
+   MAY be used for this purpose.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 12]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+4.  IANA Considerations
+
+   This document makes no requests of IANA.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 13]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+5.  Security Considerations
+
+   Since requests to the Client Registration Endpoint result in the
+   transmission of clear-text credentials (in the HTTP request and
+   response), the server MUST require the use of a transport-layer
+   security mechanism when sending requests to the Registration
+   Endpoint.  The server MUST support TLS 1.2 RFC 5246 [RFC5246] and/or
+   TLS 1.0 [RFC2246] and MAY support additional transport-layer
+   mechanisms meeting its security requirements.  When using TLS, the
+   Client MUST perform a TLS/SSL server certificate check, per RFC 6125
+   [RFC6125].
+
+   Requests to the Registration Endpoint for "client_update" MUST have
+   some rate limiting on failures to prevent the Client secret from
+   being disclosed though repeated access attempts.
+
+   A rogue RP, might use the logo for the legitimate RP, which it is
+   trying to impersonate.  An OP needs to take steps to mitigate this
+   phishing risk, since the logo could confuse users into thinking
+   they're logging in to the legitimate RP.  An OP could also warn if
+   the domain/site of the logo doesn't match the domain/site of redirect
+   URIs.  An OP can also make warnings against untrusted RPs in all
+   cases, especially if they're dynamically registered, have not been
+   trusted by any users at the OP before, and want to use the logo
+   feature.
+
+   In a situation where the Authorization Server is supporting open
+   Client registration, it must be extremely careful with any URL
+   provided by the Client that will be displayed to the user (e.g.
+   "logo_url" and "policy_url").  A rogue Client could specify a
+   registration request with a reference to a drive-by download in the
+   "policy_url".  The Authorization Server should check to see if the
+   "logo_url" and "policy_url" have the same host as the hosts defined
+   in the array of "redirect_uris".
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 14]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+6.  Normative References
+
+   [JWA]      Jones, M., "JSON Web Algorithms", November 2012.
+
+   [JWE]      Jones, M., Rescorla, E., and J. Hildebrand, "JSON Web
+              Encryption (JWE)", November 2012.
+
+   [JWK]      Jones, M., "JSON Web Key (JWK)", November 2012.
+
+   [JWS]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web
+              Signature", November 2012.
+
+   [JWT]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token",
+              November 2012.
+
+   [OpenID.Messages]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B.,
+              Mortimore, C., and E. Jay, "OpenID Connect Messages 1.0",
+              December 2012.
+
+   [OpenID.Session]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              N. Agarwal, "OpenID Connect Session Management 1.0",
+              December 2012.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC2246]  Dierks, T. and C. Allen, "The TLS Protocol Version 1.0",
+              RFC 2246, January 1999.
+
+   [RFC3339]  Klyne, G., Ed. and C. Newman, "Date and Time on the
+              Internet: Timestamps", RFC 3339, July 2002.
+
+   [RFC5246]  Dierks, T. and E. Rescorla, "The Transport Layer Security
+              (TLS) Protocol Version 1.2", RFC 5246, August 2008.
+
+   [RFC6125]  Saint-Andre, P. and J. Hodges, "Representation and
+              Verification of Domain-Based Application Service Identity
+              within Internet Public Key Infrastructure Using X.509
+              (PKIX) Certificates in the Context of Transport Layer
+              Security (TLS)", RFC 6125, March 2011.
+
+   [RFC6749]  Hardt, D., "The OAuth 2.0 Authorization Framework",
+              RFC 6749, October 2012.
+
+   [RFC6750]  Jones, M. and D. Hardt, "The OAuth 2.0 Authorization
+              Framework: Bearer Token Usage", RFC 6750, October 2012.
+
+
+
+Sakimura, et al.                                               [Page 15]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+   [USA15]    Davis, M., Whistler, K., and M. Duerst, "Unicode
+              Normalization Forms", Unicode Standard Annex 15, 09 2009.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 16]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+Appendix A.  Acknowledgements
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 17]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+Appendix B.  Notices
+
+   Copyright (c) 2012 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 18]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+Appendix C.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -12
+
+   o  Made application_type REQUIRED and added an explanation about
+      redirect_uris registration
+
+   o  Section 2.1 clarification that updates replace all parameters
+      previously set.
+
+   o  Section 2.3 add rotate_secret to invalid client_id error
+
+   o  Added registration_access_token for updating and made client
+      secret optional
+
+   o  added registration_access_token to example response
+
+   o  removed client_id from request as the client_id is implicit in the
+      access token for updates
+
+   o  Changed redirect_uris from RECOMMENDED for code and REQUIRED for
+      implicit to REQUIRED
+
+   o  Changed 2.1 to only allow access_token as a parameter if type is
+      rotate_secret
+
+   o  Fixed reference in application_name and added example of
+      ja-Hani-JP encoded name.
+
+   o  Made application_type OPTIONAL with web as the default
+
+   o  Fixes #642 - Registration separates application errors from
+      bearer.
+
+   o  Updated references to OAuth and Bearer to reflect current drafts
+
+   o  Fix typo error_description
+
+   o  Re #642 change error to error_code in 2.3 example
+
+   o  Fixed #614 - Discovery - 3.2 Distinguishing between signature and
+      integrity parameters for HMAC algorithms.  This fix tracks the
+      parameter changes made to the JWE spec in
+      draft-ietf-jose-json-web-encryption-06.  It deletes the parameters
+      {userinfo,id_token}_encrypted_response_int.  It replaces the
+      parameters
+
+
+
+Sakimura, et al.                                               [Page 19]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+      {userinfo,id_token,request_object,token_endpoint}_algs_supported
+      with {userinfo,id_token,request_object,token_endpoint}_signing_alg
+      _values_supported and {userinfo,id_token,request_object,token_endp
+      oint}_encryption_{alg,enc}_values_supported.
+
+   o  Fixed #673 - Registration 2.1: Rename
+      require_signed_request_object to request_object_alg.  The actual
+      change was to rename require_signed_request_object to
+      request_object_signing_alg, following the naming convention used
+      in the resolution to issue #614.
+
+   o  Fixed #666 - JWS signature validation vs. verification.
+
+   o  Referenced OAuth 2.0 RFCs -- RFC 6749 and RFC 6750.
+
+   o  Fixed #674 - Description of require_auth_time.
+
+   -11
+
+   o  Made "rotate_secret" a separate registration request type and stop
+      client secret changing with every response, per issue #363
+
+   o  Changed default ID Token signing algorithm to RS256, per issue
+      #571
+
+   o  Changed client.example.com to client.example.org, per issue #251
+
+   o  Added text for authz to the registration endpoint, per issue #587
+
+   o  Use standards track version of JSON Web Token spec
+      (draft-ietf-oauth-json-web-token)
+
+   -10
+
+   o  Split encrypted response configurations into separate parameters
+      for alg, enc, int
+
+   o  Removed extra "s" from signed response parameter names
+
+   o  Add reference to JWA
+
+   o  Updated Notices
+
+   o  Updated References
+
+   -09
+
+
+
+
+
+Sakimura, et al.                                               [Page 20]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+   o  Removed erroneous spanx declarations from example
+
+   o  Fixed example in Sec 2.2 to show expires_at
+
+   o  Fixed Sec 2.1.1 to clarify it is the registration server doing the
+      certificate check
+
+   o  Fixed Sec 2.1.1 example to include http portion of response
+
+   o  Fixed #542 Sec 2.1 userinfo_signed_response_algs fixed to say
+      signature.  Clarify response is signed.
+
+   o  Fixed Sec 2.1 userinfo_encrypted_response_algs Clarify response is
+      JWE containing JWT
+
+   o  Fixes #529 Sec 2.3 Clarify error response is Bearer and fix
+      example
+
+   o  Add default_max_age registration parameter
+
+   o  Add default_acr registration parameter
+
+   o  Add require_auth_time registration parameter
+
+   -08
+
+   o  Replaced token_endpoint with a defined term Token Endpoint [OAuth
+      2.0]
+
+   o  Added policy_url parameter
+
+   o  Renamed expires_in but expires_at
+
+   o  Registration Endpoint can be OAuth Protected
+
+   o  Added parameters for requiring encryption and/or signing of OpenID
+      Request Object, UserInfo and ID Token
+
+   o  Added token_endpoint_auth_type and list of valid authentication
+      types
+
+   o  Added JWK and X509 URLs for signature and encryption
+
+   o  Added user_id_type
+
+   o  Changed sector_identifier to sector_identifier_url and added URL
+      verification
+
+
+
+
+Sakimura, et al.                                               [Page 21]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+   o  Use RFC 6125 to verify TLS endpoints
+
+   o  Changed 'contact' to 'contacts', 'redirect_uri' to 'redirect_uris'
+
+   o  Changed redirect_uris to RECOMMENDED for code flow and REQUIRED
+      for implicit flow Clients
+
+   o  Removed js_origin_uri
+
+   o  Added section about string comparison rules needed
+
+   o  Clarified redirect_uris matching
+
+   o  Update John Bradley email and affiliation for Implementer's Draft
+
+   -07
+
+   o  Changed request from posting a JSON object to being HTTP Form
+      encoded.
+
+   o  Added x509_url to support optional encryption.
+
+   -06
+
+   o  Changes associated with renaming "Lite" to "Basic Client" and
+      replacing "Core" and "Framework" with "Messages" and "Standard".
+
+   o  Numerous cleanups, including updating references.
+
+   -05
+
+   o  Changed "redirect_url" to "redirect_uri" and "js_origin_url" to
+      "js_origin_uri".
+
+   -04
+
+   o  Correct issues raised by Johnny Bufu and discussed on the 7-Jul-11
+      working group call.
+
+   -03
+
+   o  Incorporate working group decisions from 5-Jul-11 spec call.
+
+   o  Consistency and cleanup pass, including removing unused
+      references.
+
+   -02
+
+
+
+
+Sakimura, et al.                                               [Page 22]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+   o  Incorporate working group decisions from 23-Jun-11 spec call.
+
+   -01
+
+   o  Initial version.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 23]
+
+                     OpenID Connect Registration 1.0       December 2012
+
+
+Authors' Addresses
+
+   Nat Sakimura
+   Nomura Research Institute, Ltd.
+
+   Email: n-sakimura@nri.co.jp
+
+
+   John Bradley
+   Ping Identity
+
+   Email: ve7jtb@ve7jtb.com
+
+
+   Michael B. Jones
+   Microsoft
+
+   Email: mbj@microsoft.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 24]
+

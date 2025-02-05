@@ -1,0 +1,506 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml2rfc.tools.ietf.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN"
+"http://xml2rfc.tools.ietf.org/authoring/rfc2629.dtd">
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="openid-heart-fhir-uma" ipr="none">
+  <?rfc toc="yes" ?>
+
+  <?rfc tocdepth="5" ?>
+
+  <?rfc symrefs="yes" ?>
+
+  <?rfc sortrefs="yes"?>
+
+  <?rfc strict="yes" ?>
+
+  <?rfc iprnotified="no" ?>
+
+  <?rfc private="Final" ?>
+
+  <front>
+    <title abbrev="HEART FHIR UMA">Health Relationship Trust Profile for Fast
+    Healthcare Interoperability Resources (FHIR) UMA Resources</title>
+
+    <author fullname="Justin Richer" initials="J." role="editor"
+            surname="Richer">
+      <address>
+        <email>openid@justin.richer.org</email>
+
+        <uri/>
+      </address>
+    </author>
+
+    <date day="25" month="May" year="2017"/>
+
+    <workgroup>OpenID Heart Working Group</workgroup>
+
+    <abstract>
+      <t>FHIR is an HTTP-based, resource-oriented RESTful API based on a set
+      of clinical, administrative, financial, and infrastructure resource
+      definitions. The API supports create, read, update, delete, and search
+      operations, as well as a framework for ad-hoc operations.</t>
+
+      <t>The User-Managed Access (UMA) protocol framework defines a mechanism
+      to allow a resource owner to delegate access to a protected resource for
+      a client application used by a requesting party (identified by a set of
+      claims), optionally limited by a set of scopes.</t>
+
+      <t>This specification profiles the resource types and claim types to be
+      used with the FHIR protocol to increase baseline security, provide
+      greater interoperability, and structure deployments in a manner
+      specifically applicable to (but not limited to) the healthcare
+      domain.</t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+      <t>This document profiles the UMA authorization framework for use in the
+      context of securing Representational State Transfer (RESTful) interfaces
+      using the Fast Health Interoperable Resources (FHIR) protocol. The FHIR
+      OAuth 2.0 profile defined in this document serve to define a baseline
+      set of FHIR OAuth scopes suitable for a wide range of use cases, while
+      maintaining reasonable ease of implementation and functionality.</t>
+
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+        "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+        "OPTIONAL" in this document are to be interpreted as described in
+        <xref target="RFC2119">RFC 2119</xref>.</t>
+
+        <t>All uses of <xref target="RFC7517">JSON Web Signature (JWS)</xref>
+        and <xref target="RFC7518">JSON Web Encryption (JWE)</xref> data
+        structures in this specification utilize the JWS Compact Serialization
+        or the JWE Compact Serialization; the JWS JSON Serialization and the
+        JWE JSON Serialization are not used.</t>
+      </section>
+
+      <section anchor="Terminology" title="Terminology">
+        <t>This specification uses the terms "Access Token", "Authorization
+        Code", "Authorization Endpoint", "Authorization Grant", "Authorization
+        Server", "Client", "Client Authentication", "Client Identifier",
+        "Client Secret", "Grant Type", "Protected Resource", "Redirection
+        URI", "Refresh Token", "Resource Owner", "Resource Server", "Response
+        Type", and "Token Endpoint" defined by <xref target="RFC6749">OAuth
+        2.0</xref>, the terms "Claim Name", "Claim Value", and "JSON Web Token
+        (JWT)" defined by <xref target="RFC7519">JSON Web Token (JWT)</xref>,
+        and the terms defined by <xref target="OpenID.Core">OpenID Connect
+        Core 1.0</xref>.</t>
+      </section>
+    </section>
+
+    <section anchor="resource-reg" title="Resource Registration">
+      <t>Resource sets MUST be registered by the resource server at the
+      authorization server before they can be accessed by clients.</t>
+
+      <t>Resources MUST be structured in such a way that an unauthorized
+      request to the resource (with no access token) can be mapped to an
+      appropriate resource set, resource owner, and authorization server.</t>
+
+      <section title="Resource Types">
+        <t>Resource sets MUST include a <spanx style="verb">type</spanx>
+        identifier describing the kind of FHIR resources being protected,
+        based on the FHIR compartment or resource that fits the data being
+        protected.</t>
+
+        <t>For compartments, this value SHALL be a URL of the form <spanx
+        style="verb">http://www.hl7.org/fhir/compartmentdefinition-&lt;compartmentname&gt;.html</spanx>,
+        where <spanx style="verb">&lt;compartmentname&gt;</spanx> is the FHIR
+        compartment type designation as found on <spanx style="verb">http://www.hl7.org/fhir/compartmentdefinition.html</spanx>.</t>
+
+        <t>For resources, this value SHALL be a URL in the form <spanx
+        style="verb">http://www.hl7.org/fhir/&lt;resourcename&gt;.html</spanx>,
+        where <spanx style="verb">&lt;resourcename&gt;</spanx> is the FHIR
+        resource type designation as found on <spanx style="verb">http://www.hl7.org/fhir/resourcelist.html</spanx>.</t>
+      </section>
+
+      <section anchor="Access" title="Scopes">
+        <t>Resource sets MUST specify at least one resource access scope as
+        defined in section 2 of <xref target="HEART.OAuth2.FHIR"/>.</t>
+
+        <t>Additionally, the resource MAY use any of the scopes defined in
+        <xref target="HEART.OAuth2.FHIR"/> section 3 regarding confidentiality
+        and sensitivity, or in section 4 regarding emergency (break the
+        glass).</t>
+      </section>
+    </section>
+
+    <section title="Claims Presentation">
+      <t>For determining access to healthcare records, it's useful to define a
+      standard set of claims that can be used across domains to represent
+      common access conditions. The following claims are defined as additional
+      claims to be included in a user's OpenID Connect ID token or UserInfo
+      Endpoint response.</t>
+
+      <t>The claims used for processing MUST be considered in the context of
+      the issuer of these claims. The method by which an authorization server
+      determines which issuers are allowed to make which claims is out of
+      scope of this specification.</t>
+
+      <section title="Membership in an organization">
+        <t>To include all members of an organization, such as a hospital,
+        include the <spanx style="verb">org</spanx> claim.</t>
+
+        <t><list style="hanging">
+            <t hangText="org">Array of machine-readable URIs representing
+            organizations that the user is a part of.</t>
+          </list></t>
+
+        <t>If the value of <spanx style="verb">org</spanx> is the same as the
+        <spanx style="verb">iss</spanx> of the ID token, it SHOULD be taken as
+        authoritative.</t>
+      </section>
+
+      <section title="Professional credentialing status">
+        <t>To reference licenses, accreditations, or other professional
+        credentials held by the current user, include the <spanx style="verb">pro</spanx>
+        claim. These are generally for things such as specific medical
+        licenses or degrees.</t>
+
+        <t><list style="hanging">
+            <t hangText="pro">Array of machine-readable values representing
+            the professional credential held by the current user.</t>
+          </list></t>
+
+        <t>Each <spanx style="verb">pro</spanx> value consists of a JSON
+        object with the following members:</t>
+
+        <t><list style="hanging">
+            <t hangText="src">URI representing the authority conveying the
+            professional credential on the user, such as a state or regulatory
+            group</t>
+
+            <t hangText="val">String value representing the nature of the
+            processional credential held.</t>
+          </list></t>
+
+        <t>The value of the professional credential is dependent on and
+        potentially defined in the context of the authoritative source. An
+        example list of professional values can be found at <spanx
+        style="verb">http://www.hl7.org/fhir/v2/0360/2.7/index.html</spanx>.</t>
+
+        <t>The means by which a given organization is trusted to convey a
+        given professional status to an organization is outside the scope of
+        this document. Note that the <spanx style="verb">src</spanx> claim
+        here is likely to be different from the <spanx style="verb">iss</spanx>
+        of the ID token, and the means by which an issuer is trusted to assert
+        holding of accreditation from a particular source is outside the scope
+        of this specification.</t>
+      </section>
+
+      <section title="Specific identification of parties">
+        <t>To reference an individual, an authorization server MAY use the
+        email claim.</t>
+
+        <t>To determine which server is authoritative for a given email domain
+        at runtime, an authorization server MAY take the target email address
+        and perform a <xref target="RFC7033">webfinger</xref> lookup of the
+        OpenID Connect issuer. The discovered issuer SHOULD be considered
+        canonical for email addresses from that domain.</t>
+      </section>
+
+      <section anchor="emergency-access" title="Emergency access">
+        <t>Those with a need for emergency access can be flagged with the
+        <spanx style="verb">er</spanx> claim.</t>
+
+        <t><list style="hanging">
+            <t hangText="er">Boolean indicating, if present and true, that the
+            current user has emergency responder status and SHOULD be given
+            access to records for emergency use without requiring the input of
+            the resource owner by the way of a "break the glass" emergency
+            access policy (see <xref target="break-the-glass"/>)</t>
+          </list></t>
+      </section>
+    </section>
+
+    <section title="Policy Development">
+      <t>While a wide range of policies and policy engines are available to
+      implementors, there are some general recommendations regarding the use
+      of such policies with medical records.</t>
+
+      <t>An authorization server SHOULD provision a newly registered resource
+      set with a default-deny policy, such that sharing is allowed only when
+      the resource owner explicitly shares it.</t>
+
+      <t>Authorization servers MUST provide resource owners with the means to
+      set policies based on any of the claims in this document referencing any
+      of the scopes allowed in <xref target="Access"/>.</t>
+
+      <t>Authorization servers MUST provide a means for resource owners to
+      audit which policies are in effect at any protected resources controlled
+      by the resource owner.</t>
+
+      <section anchor="break-the-glass"
+               title="&quot;Break the glass&quot; emergency access policies">
+        <t>Authorization servers SHOULD provide a mechanism to specify a
+        policy to accept certain flags, including but not limited to the
+        <spanx style="verb">er</spanx> claim provided by trusted identity
+        providers, to gain access to the resource set without direct
+        involvement by the resource owner. This type of policy MUST include
+        access to the <spanx style="verb">btg</spanx> scope specified in the
+        <xref target="HEART.OAuth2.FHIR">HEART OAuth FHIR profile</xref>.</t>
+      </section>
+    </section>
+
+    <section title="Security considerations">
+      <t>All claims presented to an authorization server need to be taken in
+      the context of the presenter and issuer of the claim, and therefore
+      trusted only in so much as the issuer is trusted to assert such claims.
+      For example, an end user run identity provider should not be considered
+      the canonical source for medical license information, unless the
+      authorization server accepting the assertions has an external
+      relationship with that identity provider that provides such trust.</t>
+    </section>
+
+    <section title="Privacy considerations">
+      <t>Since the initial request for a resource is made in an unauthorized
+      and unauthenticated context, such requests are by definition open to all
+      users. The response of that request includes a pointer to the
+      authorization server to query for an access token and present claims. If
+      it is known out of band that authorization server is owned and
+      controlled by a single user, or visiting the authorization server
+      contains other identifying information, then an unauthenticated and
+      unauthorized client would be able to tell which resource owner is
+      associated with a given resource. In the FHIR API, this means that a
+      client would be able to discern which patient a given record is for
+      without being authorized for that information and without the resource
+      server giving that information explicitly. Other information about the
+      resource owner, such as organizational affiliation or group membership,
+      may be gained from this transaction as well.</t>
+    </section>
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.2119"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.2246"?>
+
+      <?rfc include='http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.3986'?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.5246"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.5322"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.5646"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.5785"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6125"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6749"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6750"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6819"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7033"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7517"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7518"?>
+
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7519"?>
+
+      <reference anchor="OpenID.Core">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute,
+            Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B."
+                  surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+          <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+            <organization abbrev="Salesforce">Salesforce</organization>
+          </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+
+        <format target="http://openid.net/specs/openid-connect-core-1_0.html"
+                type="HTML"/>
+      </reference>
+
+      <reference anchor="HEART.OAuth2"
+                 target="http://openid.net/specs/openid-heart-oauth2-1_0.html">
+        <front>
+          <title>Health Relationship Trust Profile for OAuth 2.0</title>
+
+          <author fullname="Justin Richer" initials="J." role="editor"
+                  surname="Richer">
+            <address>
+              <email>openid@justin.richer.org</email>
+
+              <uri>http://justin.richer.org/</uri>
+            </address>
+          </author>
+
+          <date day="15" month="February" year="2016"/>
+        </front>
+      </reference>
+
+      <reference anchor="HEART.OAuth2.FHIR"
+                 target="http://openid.net/specs/openid-heart-oauth2-fhir.html">
+        <front>
+          <title>Health Relationship Trust Profile for OAuth 2.0</title>
+
+          <author fullname="Justin Richer" initials="J." role="editor"
+                  surname="Richer">
+            <address>
+              <email>openid@justin.richer.org</email>
+
+              <uri>http://justin.richer.org/</uri>
+            </address>
+          </author>
+
+          <date day="24" month="February" year="2017"/>
+        </front>
+      </reference>
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>The OpenID Community would like to thank the following people for
+      their contributions to this specification:</t>
+
+      <t>Sarah Squire, Eve Maler, Luis Maas, Thomas Sullivan, Nancy Lush</t>
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2017 The OpenID Foundation.</t>
+
+      <t>The OpenID Foundation (OIDF) grants to any Contributor, developer,
+      implementer, or other interested party a non-exclusive, royalty free,
+      worldwide copyright license to reproduce, prepare derivative works from,
+      distribute, perform and display, this Implementers Draft or Final
+      Specification solely for the purposes of (i) developing specifications,
+      and (ii) implementing Implementers Drafts and Final Specifications based
+      on such documents, provided that attribution be made to the OIDF as the
+      source of the material, but that such attribution does not indicate an
+      endorsement by the OIDF.</t>
+
+      <t>The technology described in this specification was made available
+      from contributions from various sources, including members of the OpenID
+      Foundation and others. Although the OpenID Foundation has taken steps to
+      help ensure that the technology is available for distribution, it takes
+      no position regarding the validity or scope of any intellectual property
+      or other rights that might be claimed to pertain to the implementation
+      or use of the technology described in this specification or the extent
+      to which any license under such rights might or might not be available;
+      neither does it represent that it has made any independent effort to
+      identify any such rights. The OpenID Foundation and the contributors to
+      this specification make no (and hereby expressly disclaim any)
+      warranties (express, implied, or otherwise), including implied
+      warranties of merchantability, non-infringement, fitness for a
+      particular purpose, or title, related to this specification, and the
+      entire risk as to implementing this specification is assumed by the
+      implementer. The OpenID Intellectual Property Rights policy requires
+      contributors to offer a patent promise not to assert certain patent
+      claims against other contributors and against implementers. The OpenID
+      Foundation invites any interested party to bring to its attention any
+      copyrights, patents, patent applications, or other proprietary rights
+      that may cover technology that may be required to practice this
+      specification.</t>
+    </section>
+
+    <section title="Purpose of Use">
+      <t>The ability to specify information be made available for a specific
+      purpose of use is key to many different medical information use cases.
+      For example, a patient might determine that some things are available
+      for research, while others are only available for treatment. At this
+      time, these specifications do not define methods for indicating purpose
+      of use beyond the "emergency access" claim defined in <xref
+      target="emergency-access"/> and the "break the glass" mechanism defined
+      in <xref target="break-the-glass"/>. The working group anticipates that
+      expansion of this mechanism in implementations, which could lead to
+      expansions of this protocol going forward.</t>
+    </section>
+
+    <section title="Document History">
+      <t>-2017-05-25</t>
+
+      <t><list style="symbols">
+          <t>Changed purpose of use examples from roles to actions</t>
+        </list></t>
+
+      <t>-2017-05-15</t>
+
+      <t><list style="symbols">
+          <t>Added note on purpose of use</t>
+        </list></t>
+
+      <t>-2017-04-29</t>
+
+      <t><list style="symbols">
+          <t>Minor wording tweak.</t>
+        </list></t>
+
+      <t>-2017-04-18</t>
+
+      <t><list style="symbols">
+          <t>Changed resource types to point to compartments instead of
+          individual resource types</t>
+
+          <t>Changed scopes to point to HEART OAuth FHIR scopes in entirety
+          instead of being broken out</t>
+
+          <t>Removed purpose of use claim (pou)</t>
+
+          <t>Added a link to an example set of professional credential
+          claims</t>
+
+          <t>Added security considerations for claim provenance</t>
+        </list></t>
+
+      <t>-2017-03-20</t>
+
+      <t><list style="symbols">
+          <t>Clarified "er" scope</t>
+
+          <t>Added reference to confidentiality and sensitivity scopes in
+          HEART.OAuth.FHIR</t>
+
+          <t>Changed "licenses" to "professional credentials"</t>
+        </list></t>
+
+      <t>-2017-02-24</t>
+
+      <t><list style="symbols">
+          <t>Added section on claims</t>
+
+          <t>Added section on policy development</t>
+        </list></t>
+
+      <t>-2017-02-10</t>
+
+      <t><list style="symbols">
+          <t>Added scope and resource type requirements</t>
+
+          <t>Created first semantic UMA profile</t>
+        </list></t>
+    </section>
+  </back>
+</rfc>

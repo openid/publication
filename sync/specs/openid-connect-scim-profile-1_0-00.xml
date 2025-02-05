@@ -1,0 +1,523 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml2rfc.tools.ietf.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN"
+"http://xml2rfc.tools.ietf.org/authoring/rfc2629.dtd">
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="openid-connect-scim-profile-1_0" ipr="none">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="5" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="yes" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title abbrev="OpenID Connect SCIM Profile">OpenID Connect Profile for SCIM Services</title>
+
+    <author fullname="Phil Hunt" initials="P." surname="Hunt">
+      <organization abbrev="Oracle">Oracle Corporation</organization>
+      <address>
+        <email>phil.hunt@oracle.com</email>
+	<uri>http://twitter.com/independentid</uri>
+      </address>
+    </author>
+
+    <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+      <organization abbrev="Salesforce">Salesforce</organization>
+      <address>
+        <email>cmortimore@salesforce.com</email>
+	<uri>https://twitter.com/cmort</uri>
+      </address>
+    </author>
+
+    <date year="2016" />
+
+    <workgroup>OpenID Connect Working Group</workgroup>
+
+    <abstract>
+    
+      <t>SCIM (RFC7644) is an IETF protocol that enables HTTP clients to retrieve
+      and manage cross-domain identities. OpenID Connect 1.0 is a simple identity 
+      layer on top of the OAuth 2.0 protocol which offers access to profile 
+      information through a UserInfo endpoint. This specification defines 
+      how OpenID Connect relying parties may discover availability of and register for,
+      and access, SCIM services as part of an OpenID Provider (OP) services.</t>
+
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+
+      <t>SCIM <xref target="RFC7644"/> is an IETF protocol that enables HTTP clients to retrieve
+      and manage cross-domain identities. OpenID Connect 1.0  is a simple identity 
+      layer on top of the OAuth 2.0 <xref target="RFC6749"/> protocol which offers access to profile 
+      information through a UserInfo endpoint (see <xref target="OpenID.Core">Section 5.3</xref>). This specification defines 
+      how OpenID Connect relying parties may discover availability of and register for,
+      and access, SCIM services as part of an OpenID Provider services.</t>
+      <t>This specification defines the following metadata:<list style="symbols">
+        <t>Discovery metadata indicating the avilability of a SCIM protocol base endpoint.</t>
+        <t>Dynamic registration metadata that is used to indicate a clients intent to use the SCIM protocol and its associated endpoint.</t>
+        <t>An additional ID Token claim which specifies the SCIM resource endpoint and identifier associated with the authenticate subject.</t>
+      </list>
+      In addition to the above metadata attributes and claims, the specification will also show how a client MAY access the SCIM endpoint.
+      </t>
+
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+	<t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+	"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
+	document are to be interpreted as described in <xref
+	target="RFC2119">RFC 2119</xref>.</t>
+
+	<t>
+	  In the .txt version of this document,
+	  values are quoted to indicate that they are to be taken literally.
+	  When using these values in protocol messages,
+	  the quotes MUST NOT be used as part of the value.
+	  In the HTML version of this document,
+	  values to be taken literally are indicated by
+	  the use of <spanx style="verb">this fixed-width font</spanx>.
+	</t>
+	
+      </section>
+
+      <section anchor="Terminology" title="Terminology">
+  <t>
+    This specification uses the terms "Access Token", "Authorization Code",
+    "Authorization Endpoint", "Authorization Grant", "Authorization Server",
+    "Client", "Client Authentication", "Client Identifier", "Client Secret",
+    "Grant Type", "Protected Resource", "Redirection URI", "Refresh Token",
+    "Resource Owner", "Resource Server", "Response Type", and "Token Endpoint"
+    defined by <xref target="RFC6749">OAuth 2.0</xref>,
+    the terms "JSON Web Token (JWT)" and "Nested JWT"
+    defined by <xref target="RFC7519">JSON Web Token (JWT)</xref>,
+    <xref target="RFC7644">SCIM Protocol</xref>,
+    <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>. <xref target="OpenID.Discovery">OpenID Discovery 1.0</xref>,
+    and the terms defined by 
+    <xref target="OpenID.Registration">OpenID Connect Dynamic Client Registration 1.0</xref>.
+  </t>
+
+  <t>This specification uses the OpenID term "relying party" to refer to 
+  what is defined as a "client" in SCIM protocol (see <xref target="RFC7643">Section 1.2</xref>). 
+        </t>
+      </section>
+    </section>
+
+    <section anchor="metadata" title="Metadata and Claim Defintions">
+      <section anchor="discoveryMetadata" title="Discovery Metadata">
+        <t>This specification extends the OpenID Connect Discovery metadata 
+          <xref target="OpenID.Discovery">Section 3</xref> and defines the following:<list style="hanging">
+            <t hangText="scim_endpoint"><vspace/>RECOMMENDED. The base URI of the OP's 
+          designated SCIM service provider. The base URI is as defined in 
+          <xref target="RFC7644">Section 1.3</xref>. This URI when appended 
+          with a path of <spanx style="verb">/Me</spanx> points to the subject
+          authenticated by the OP. Further, SCIM clients MAY discover SCIM 
+          configuration metadata by using this URI to query endpoints such 
+          as <spanx style="verb">/ServiceProviderConfig</spanx> (see <xref target="RFC7644">Section 3.2</xref>).</t>
+        </list>
+	
+        </t>
+
+      </section>
+      
+      <section anchor="registrationMetadata" title="Dynamic Registration Metadata">
+        <t>This specification extends the OpenID Connect Dynamic Registration 
+        draft (see <xref target="OpenID.Registration">Section 2</xref>),
+        and defines the following metadata:<list style="hanging">
+          <t hangText="scim_profile"><vspace/>RECOMMENDED. Boolean value. When
+          the value is "true", it indicates that the client will use SCIM Protocol
+          <xref target="RFC7644"/> to accessuser information.
+          </t>
+        </list></t>
+      
+      </section>
+      
+      <section anchor="idTokenClaims" title="ID Token Claims">
+        <t>This specification extends the claims in OpenID Connect Core 
+        <xref target="OpenID.Core">Section 5</xref> and defines the following:<list style="hanging">
+          <t hangText="scim_id"><vspace/>An identifier whose value corresponds 
+          to the <spanx style="verb">id</spanx> attribute as defined in <xref target="RFC7643">Section 3.1</xref>
+          that is associated with the authenticated subject (<spanx style="verb">sub</spanx>).
+          </t>
+          
+          <t hangText="scim_location"><vspace/>An URI whose value corresponds 
+          to the <spanx style="verb">meta.location</spanx> attribute as defined in <xref target="RFC7643">Section 3.1</xref>
+          and that is associated with the authenticated subject (<spanx style="verb">sub</spanx>).
+          If this value differs from the discovered <spanx style="verb">scim_endpoint</spanx>,
+          the client MUST use the ID Token claim <spanx style="verb">scim_location</spanx> value.
+          </t>
+        
+        
+        </list></t>
+      
+      </section>
+    </section>
+    
+    <section title="Using SCIM">
+      
+        <t>When using SCIM, the relying party MAY use all the protocol features
+        of SCIM and act as a SCIM client. A relying party MAY
+        query SCIM configuration endpoints such as:<list>
+          <t><spanx>/ServiceProviderConfig</spanx></t>
+          <t><spanx>/ResourceTypes</spanx></t>
+          <t><spanx>/Schemas</spanx></t>
+        </list></t>
+      
+      <t>The OpenID Connect profile for SCIM provides two ways for a
+      relying party to construct a SCIM URI for the authenticated subject: 
+      <list style="symbols">
+        <t>The relying party MAY use the previously discovered 
+        <spanx style="verb">scim_endpoint</spanx> plus the path 
+        <spanx style="verb">/Me</spanx> as a URI alias (see Section 
+        3.11 of <xref target="RFC7644"/>). Or,</t>
+        
+        <t>The relying party MAY use the URI returned in the <spanx style="verb">scim_resource</spanx> 
+        ID_Token claim provided.</t>
+      </list></t>
+      
+      <t>
+      When accessing the SCIM endpoint, the relying party SHOULD use the 
+      access token issued in the response from the OP as its authorization
+      to access the SCIM endpoint as per section 2 of 
+      <xref target="RFC6750">OAuth 2.0 Bearer Token Usage</xref>.
+      </t>
+      
+      <t>OpenID Connect relying parties MAY use <spanx style="verb">scope</spanx>
+      values to request authorization as per Section 5.4 <xref target="OpenID.Core"/>.
+      The values used in OpenID Connect SHALL be ignored for the purpose
+      of authorizing access to SCIM. These include:<list style="symbols">
+        <t>openid</t>
+        <t>profile</t>
+        <t>email</t>
+        <t>address</t>
+        <t>phone</t>
+      </list>These scopes SHALL continue to be used as defined by OpenID 
+      Connect Core. For example, as a list of claims to be included in the ID_Token.
+      </t>
+      
+      <t>OpenID Connect Providers offering SCIM profile services MAY support 
+      SCIM specific scopes not defined in this specification. OpenID Connect
+      Providers MAY also use registration data to determine the appropriate
+      scope of authorization for the purpose of access to the SCIM endpoint.</t>
+        
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>
+	This specification references the security considerations defined in
+	Section 10 of <xref target="RFC6749">OAuth 2.0</xref>, and
+	Section 5 of <xref target="RFC6750">OAuth 2.0 Bearer Token Usage</xref>.
+	Furthermore, the <xref target="RFC6819">OAuth 2.0 Threat Model and Security
+	Considerations</xref> specification provides an extensive list of threats and controls 
+	that apply to this specification as well,
+	given that it is based upon OAuth 2.0.
+	<xref target="ISO29115">ISO/IEC 29115</xref> 
+	also provides threats and controls that 
+	implementers need to take into account. 
+	Implementers are highly advised to
+	read these references in detail and apply the countermeasures described therein.
+      </t>
+
+    </section>
+    
+    <section anchor="Privacy" title="Privacy Considerations">
+
+      <section anchor="PII" title="Personally Identifiable Information">
+
+	<t>The SCIM service providers typically contain Personally Identifiable
+	Information (PII). As such, End-User consent for the release of the information
+	for the specified purpose should be obtained at or prior to the
+	authorization time in accordance with relevant regulations. The purpose
+	of use is typically registered in association with the <spanx
+	style="verb">redirect_uris</spanx>.</t>
+
+	<t>Only necessary UserInfo data should be stored at the Client and the
+	Client SHOULD associate the received data with the purpose of use
+	statement.</t>
+      </section>
+
+      <section anchor="AccessMonitoring" title="Data Access Monitoring">
+	<t>
+	  The SCIM Resource Server SHOULD make End-Users' resource access logs
+	  available to them so that they can monitor who accessed their data.
+	</t>
+      </section>
+
+      <section anchor="Correlation" title="Correlation">
+	<t>To protect the End-User from a possible correlation among Clients, the
+	use of a Pairwise Pseudonymous Identifier (PPID) as the
+	<spanx style="verb">sub</spanx> (subject) SHOULD be considered.</t>
+      </section>
+
+      <section anchor="OfflineAccessPrivacy" title="Offline Access">
+
+	<t>
+	  Offline access enables access to Claims when the user is not present,
+	  posing greater privacy risk than the Claims transfer when the user is present.
+	  Therefore, it is prudent to obtain explicit consent for
+	  offline access to resources.
+	  This specification mandates the use of the <spanx style="verb">prompt</spanx>
+	  parameter to obtain consent unless it is already known that the
+	  request complies with the conditions for processing the request in each jurisdiction.
+	</t>
+	<t>
+	  When an Access Token is returned via the User Agent
+	  using the Implicit Flow or Hybrid Flow, there is
+	  a greater risk of it being exposed to an attacker, who could
+	  later use it to access the UserInfo endpoint.
+	  If the Access Token does not enable offline access and the server
+	  can differentiate whether the Client request has been made
+	  offline or online, the risk will be substantially reduced.
+	  Therefore, this specification mandates ignoring
+	  the offline access request when the Access Token is
+	  transmitted through the User Agent.
+	  Note that differentiating between online and offline access
+	  from the server can be difficult especially for native clients.
+	  The server may well have to rely on heuristics.
+	  Also, the risk of exposure for the Access Token delivered
+	  through the User Agent for the Response Types of
+	  <spanx style="verb">code&nbsp;token</spanx> and
+	  <spanx style="verb">token</spanx> is the same.
+	  Thus, the implementations should be prepared to detect
+	  whether the Access Token was issued through the User Agent
+	  or directly from the Token Endpoint and deny offline access
+	  if the token was issued through the User Agent.
+	</t>
+	<t>
+	  Note that although these provisions require an explicit
+	  consent dialogue through the <spanx style="verb">prompt</spanx> parameter,
+	  the mere fact that the user pressed an "accept" button etc.,
+	  might not constitute a valid consent.
+	  Developers should be aware that for the act of consent to
+	  be valid, typically, the impact of the terms have to be
+	  understood by the End-User, the consent must be freely given
+	  and not forced (i.e., other options have to be available),
+	  and the terms must fair and equitable.
+	  In general, it is advisable for the service to follow the
+	  required privacy principles in each jurisdiction and rely on
+	  other conditions for processing the request than simply explicit consent,
+	  as online self-service "explicit consent" often does not
+	  form a valid consent in some jurisdictions.
+	</t>
+      </section>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+          <section anchor="ClaimsRegistry" title="JSON Web Token Claims Registration">
+  <t>
+    This specification registers the Claims defined in
+    <xref target="idTokenClaims"/> in the IANA JSON Web Token Claims registry
+    defined in <xref target="RFC7519"/>.
+  </t>
+
+  <section anchor='ClaimsContents' title='Registry Contents'>
+    <t> <?rfc subcompact="yes"?>
+    <list style='symbols'>
+      <t>
+        Claim Name: <spanx style="verb">scim_id</spanx>
+      </t>
+      <t>
+        Claim Description: SCIM Identifier
+      </t>
+      <t>
+        Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+      </t>
+      <t>
+        Specification Document(s): <xref target="idTokenClaims"/> of this document
+      </t>
+    </list>
+    </t>
+    <t>
+      <list style='symbols'>
+        <t>
+    Claim Name: <spanx style="verb">scim_location</spanx>
+        </t>
+        <t>
+    Claim Description: SCIM Resource Location
+        </t>
+        <t>
+    Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+        </t>
+        <t>
+    Specification Document(s): <xref target="idTokenClaims"/> of this document
+        </t>
+      </list>
+    </t>
+    
+    </section>
+    </section>
+    </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+    
+          <reference anchor="OpenID.Core">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+    <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+      <organization abbrev="Salesforce">Salesforce</organization>
+    </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+
+  <format target="http://openid.net/specs/openid-connect-core-1_0.html"
+                type="HTML" />
+      </reference>
+
+     <reference anchor="ISO29115">
+  <front>
+    <title>ISO/IEC 29115:2013 --
+    Information technology - Security techniques - Entity authentication
+    assurance framework</title>
+
+    <author fullname="International Organization for Standardization">
+      <organization abbrev="ISO">International Organization for Standardization</organization>
+    </author>
+
+    <date month="March" year="2013" />
+  </front>
+
+  <seriesInfo name="ISO/IEC" value="29115" />
+  <format target="http://www.iso.org/iso/iso_catalogue/catalogue_tc/catalogue_detail.htm?csnumber=45138"
+    type="HTML" />
+      </reference>
+      
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.2119"?>
+      
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.2616"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.3986"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.5246"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6125"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6749"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6750"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6819"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7519"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7643"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7644"?>
+      
+      <reference anchor="OpenID.Discovery">
+	     <front>
+	       <title>OpenID Connect Discovery 1.0</title>
+	       <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	         <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+	       </author>
+	       <author fullname="John Bradley" initials="J." surname="Bradley">
+	         <organization abbrev="Ping Identity">Ping Identity</organization>
+	       </author>
+	       <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	         <organization abbrev="Microsoft">Microsoft</organization>
+	       </author>
+	       <author fullname="Edmund Jay" initials="E." surname="Jay">
+	         <organization abbrev="Illumila">Illumila</organization>
+	       </author>
+
+	       <date day="8" month="November" year="2014"/>
+	     </front>
+
+	     <format target="http://openid.net/specs/openid-connect-discovery-1_0.html" type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.Registration">
+      	<front>
+      	  <title>OpenID Connect Dynamic Client Registration 1.0</title>
+      
+      	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      	    <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+      	  </author>
+      
+      	  <author fullname="John Bradley" initials="J." surname="Bradley">
+      	    <organization abbrev="Ping Identity">Ping Identity</organization>
+      	  </author>
+      
+      	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      	    <organization abbrev="Microsoft">Microsoft</organization>
+      	  </author>
+      
+      	  <date day="8" month="November" year="2014"/>
+      	</front>
+      
+      	<format target="http://openid.net/specs/openid-connect-registration-1_0.html"
+      		type="HTML" />
+      </reference>
+
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2016 The OpenID Foundation.</t>
+      <t>
+	The OpenID Foundation (OIDF) grants to any Contributor, developer, 
+	implementer, or other interested party a non-exclusive, royalty free, 
+	worldwide copyright license to reproduce, prepare derivative works from, 
+	distribute, perform and display, this Implementers Draft or 
+	Final Specification solely for the purposes of (i) developing 
+	specifications, and (ii) implementing Implementers Drafts and 
+	Final Specifications based on such documents, provided that attribution 
+	be made to the OIDF as the source of the material, but that such attribution 
+	does not indicate an endorsement by the OIDF.
+      </t>
+      <t>
+	The technology described in this specification was 
+	made available from contributions from various sources, 
+	including members of the OpenID Foundation and others.  
+	Although the OpenID Foundation has taken steps to help ensure 
+	that the technology is available for distribution, it takes 
+	no position regarding the validity or scope of any intellectual 
+	property or other rights that might be claimed to pertain to 
+	the implementation or use of the technology described in 
+	this specification or the extent to which any license under 
+	such rights might or might not be available; neither does it 
+	represent that it has made any independent effort to identify 
+	any such rights.  The OpenID Foundation and the contributors 
+	to this specification make no (and hereby expressly disclaim any) 
+	warranties (express, implied, or otherwise), including implied 
+	warranties of merchantability, non-infringement, fitness for 
+	a particular purpose, or title, related to this specification, 
+	and the entire risk as to implementing this specification is 
+	assumed by the implementer.  The OpenID Intellectual 
+	Property Rights policy requires contributors to offer 
+	a patent promise not to assert certain patent claims against 
+	other contributors and against implementers.  The OpenID Foundation invites 
+	any interested party to bring to its attention any copyrights, 
+	patents, patent applications, or other proprietary rights 
+	that may cover technology that may be required to practice 
+	this specification.
+      </t>
+    </section>
+
+  </back>
+</rfc>

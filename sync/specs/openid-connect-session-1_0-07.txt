@@ -1,0 +1,1512 @@
+
+
+
+Draft                                                        N. Sakimura
+                                                                     NRI
+                                                              J. Bradley
+                                                           Ping Identity
+                                                                M. Jones
+                                                               Microsoft
+                                                          B. de Medeiros
+                                                                  Google
+                                                            C. Mortimore
+                                                              Salesforce
+                                                                  E. Jay
+                                                                Illumila
+                                                            May 25, 2012
+
+
+            OpenID Connect Session Management 1.0 - draft 07
+
+Abstract
+
+   NOTE: Significant revisions are planned to the functionality
+   described in this specification.  Until then, developers should
+   expect that any implementations based upon this specification will
+   need to be changed as a result of the upcoming revisions.
+
+   OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+   protocol.  It allows Clients to verify the identity of the End-User
+   based on the authentication performed by an Authorization Server, as
+   well as to obtain basic profile information about the End-User in an
+   interoperable and RESTful manner.
+
+   This document describes how to manage sessions for OpenID Connect.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 1]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
+     1.1.  Requirements Notation and Conventions  . . . . . . . . . .  3
+     1.2.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  3
+   2.  Session Management . . . . . . . . . . . . . . . . . . . . . .  5
+     2.1.  Creating Sessions  . . . . . . . . . . . . . . . . . . . .  5
+       2.1.1.  ID Token . . . . . . . . . . . . . . . . . . . . . . .  5
+       2.1.2.  Authorization Request  . . . . . . . . . . . . . . . .  6
+       2.1.3.  Token Endpoint . . . . . . . . . . . . . . . . . . . .  7
+         2.1.3.1.  Access Token Response  . . . . . . . . . . . . . .  7
+       2.1.4.  Implicit (User-Agent) Flow . . . . . . . . . . . . . .  7
+         2.1.4.1.  Implicit Flow Request  . . . . . . . . . . . . . .  9
+         2.1.4.2.  Implicit Flow Response . . . . . . . . . . . . . .  9
+       2.1.5.  Authorization Code (Web Server) Flow . . . . . . . . . 10
+         2.1.5.1.  Authorization Code Flow Request  . . . . . . . . . 11
+         2.1.5.2.  Authorization Code Flow Response . . . . . . . . . 12
+         2.1.5.3.  Token Access Request . . . . . . . . . . . . . . . 12
+         2.1.5.4.  Token Access Response  . . . . . . . . . . . . . . 12
+       2.1.6.  Fourth Party Native Applications . . . . . . . . . . . 13
+         2.1.6.1.  Browser Load . . . . . . . . . . . . . . . . . . . 14
+     2.2.  Session Management Endpoints . . . . . . . . . . . . . . . 15
+       2.2.1.  Refresh Session  . . . . . . . . . . . . . . . . . . . 16
+       2.2.2.  End Session  . . . . . . . . . . . . . . . . . . . . . 17
+     2.3.  Session Synchronization  . . . . . . . . . . . . . . . . . 18
+   3.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 20
+   4.  Security Considerations  . . . . . . . . . . . . . . . . . . . 21
+   5.  Normative References . . . . . . . . . . . . . . . . . . . . . 22
+   Appendix A.  Acknowledgements  . . . . . . . . . . . . . . . . . . 23
+   Appendix B.  Notices . . . . . . . . . . . . . . . . . . . . . . . 24
+   Appendix C.  Document History  . . . . . . . . . . . . . . . . . . 25
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 27
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 2]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+1.  Introduction
+
+   NOTE: Significant revisions are planned to the functionality
+   described in this specification.  Until then, developers should
+   expect that any implementations based upon this specification will
+   need to be changed as a result of the upcoming revisions.
+
+   Sessions are used to keep track of information and interactions for
+   users across multiple pages.  This creates a sense of continuity,
+   customization, and a more pleasant experience for the users.
+   Visitors to an OpenID Relying Party site accessing Protected
+   Resources will be asked for authentication and authorization.  Upon
+   user authorization, the user will be granted access to the requested
+   resources.  The site may perform other background tasks for the user
+   using the same authenticated session.  This allows the user to have a
+   simplified experience without being asked for authorization each time
+   and may even allow the user to go off-line while the tasks are being
+   performed.  This specification describes how OpenID Connect sessions
+   can be created, used, and terminated.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+   Throughout this document, values are quoted to indicate that they are
+   to be taken literally.  When using these values in protocol messages,
+   the quotes MUST NOT be used as part of the value.
+
+1.2.  Terminology
+
+   This specification uses the terms "Access Token", "Refresh Token",
+   "Authorization Code", "Authorization Grant", "Authorization Server",
+   "Authorization Endpoint", "Client", "Client Identifier", "Client
+   Secret", "Protected Resource", "Resource Owner", "Resource Server",
+   and "Token Endpoint" defined by OAuth 2.0 [OAuth2.0], and the terms
+   defined by OpenID Connect Messages 1.0 [OpenID.Messages].  This
+   specification also defines the following terms:
+
+   Client  An application obtaining authorization and making Protected
+      Resource requests.
+
+   Client Identifier  A unique identifier that the Client uses to
+      identify itself to the OP.
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 3]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+   Identifier  An Identifier is either an "http" or "https" URI
+      (commonly referred to as a "URL" within this document), or an
+      account URI.  This document defines various kinds of Identifiers,
+      designed for use in different contexts.
+
+   Base64url  Base 64 Encoding [RFC3548] with URL and Filename Safe
+      Alphabet without padding.
+
+   Client Servlet  A web application that is also an OAuth 2.0 Client.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 4]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+2.  Session Management
+
+   OpenID Connect supports life-cycle session management and
+   synchronization for third parties that support authentication with an
+   Authorization Server.  In addition, session management for fourth
+   parties such as desktop, native or mobile applications that utilize
+   Authorization Server credentials at fourth party web sites is also
+   supported.
+
+2.1.  Creating Sessions
+
+   To create a session, the Client sends an authorization request to the
+   Authorization Server with "id_token" as one of the "response_type"
+   values.
+
+   If the "response_type" includes the value "code", then an ID token
+   (Section 2.1.1) is returned in the response of the Token Endpoint
+   when the Access Token is retrieved.
+
+   If the "response_type" includes the value "token", then an ID Token
+   is returned as a fragment parameter in the "redirect_uri" specified
+   in the request.
+
+   In either case, an ID Token will also be returned along with the
+   Access Token when submitting a Refresh Token to the Token Endpoint if
+   the initial authorization request included "id_token" in the
+   "response_type" parameter.
+
+   The ID Token serves as a key to an authenticated user session and
+   contains Claims for the user.
+
+2.1.1.  ID Token
+
+   This specification defines an ID Token as a signed JWT [JWT] that
+   minimally contains the following Claims:
+
+   iss  REQUIRED.  The Issuer Identifier for the Issuer of the response.
+
+   aud  REQUIRED.  This member identifies the audience that this ID
+      Token is intended for.  It MUST be the OAuth 2.0 "client_id" of
+      the Client.
+
+   user_id  REQUIRED.  A locally unique and never reassigned identifier
+      within the Issuer for the End-User that is intended to be consumed
+      by the Client. e.g. "24400320" or
+      "AItOawmwtWwcT0k51BayewNvutrJUqsvl6qs7A4".  It MUST NOT exceed 255
+      ASCII characters in length.
+
+
+
+
+Sakimura, et al.                                                [Page 5]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+   aud  REQUIRED.  This member identifies the audience that this ID
+      Token is intended for.  It MUST be the OAuth 2.0 "client_id" of
+      the Client.
+
+   exp  REQUIRED.  Type Integer.  Identifies the expiration time on or
+      after which the ID Token MUST NOT be accepted for processing.  The
+      processing of this parameter requires that the current date/time
+      MUST be before the expiration date/time listed in the value.
+      Implementers MAY provide for some small leeway, usually no more
+      than a few minutes, to account for clock skew.  The value is
+      number of seconds from 1970-01-01T0:0:0Z as measured in UTC until
+      the desired date/time.  See RFC 3339 [RFC3339] for details
+      regarding date/times in general and UTC in particular.
+
+   acr  OPTIONAL.  (Authentication Context Class Reference): Specifies
+      an Authentication Context Class Reference of the ID Token.  The
+      values "1", "2", "3", and "4" map to the ITU-T X.1254 | ISO/IEC
+      29115 [ISO29115] entity authentication assurance level of the
+      authentication performed.  The value "0" indicates the End User
+      authentication did not meet the requirements of ISO/IEC 29115
+      level 1.  Authentication using a long-lived browser cookie, for
+      instance, is one example where the use of "level 0" is
+      appropriate.  Authentications with level 0 should never be used to
+      authorize access to any resource of any monetary value.  (This
+      corresponds to the OpenID 2.0 PAPE "nist_auth_level" 0.)  An
+      absolute URI or a registered short name [LoA.Registry] MAY be used
+      as an "acr" value.
+
+   nonce  REQUIRED.  Clients MUST verify that the "nonce" value is equal
+      to the value of the "nonce" parameter in the Authorization
+      Request.
+
+   The ID Token MAY contain other Claims.  The ID Token can be used to
+   access session information from an authenticated session or to pass a
+   session to other applications.
+
+2.1.2.  Authorization Request
+
+   Sections 4.1.1 and 4.2.1 of OAuth 2.0 [OAuth2.0] defines OAuth
+   Authorization Request parameters.  In this specification, the values
+   to the parameters are defined as follows.
+
+   response_type  A space delimited, case sensitive list of string
+      values (Pending OAuth 2.0 changes).  The value MUST include
+      "id_token" for requesting an ID Token from a session.
+
+   In addition, this specification defines the following extension
+   parameters.
+
+
+
+Sakimura, et al.                                                [Page 6]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+   nonce  OPTIONAL.  A random, unique string.  The "nonce" value is
+      returned in the ID Token.
+
+   id_token_audience  OPTIONAL.  The Identifier of the target audience
+      for an ID Token.
+
+   Following is a non-normative example when they are sent in the query
+   parameters serialization:
+   GET /authorize?scope=openid&response_type=token%20id_token
+   &client_id=s6BhdRkqt3
+   &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+   Host: server.example.com
+
+2.1.3.  Token Endpoint
+
+   The Token Endpoint MUST return an ID Token if "id_token" is included
+   in the "response_type" parameter of the authorization request.
+
+2.1.3.1.  Access Token Response
+
+   After receiving and verifying a valid and authorized Access Token
+   Request from the Client, the Authorization Server returns a
+   successful response that includes an Access Token.  The parameters in
+   the successful response are defined in Section 4.2.2 of OAuth 2.0
+   [OAuth2.0].
+
+   In addition, this specification defines the following additional
+   return parameters:
+
+   id_token  REQUIRED if it was requested in the authorization request.
+
+   Following is a non-normative example:
+   {
+       "access_token": "SlAV32hkKG",
+       "token_type": "JWT",
+       "refresh_token": "8xLOxBtZp8",
+       "expires_in": 3600,
+       "id_token":"jwt_header.jwt_part2.jwt_part3"
+   }
+
+   As in the OAuth 2.0 [OAuth2.0], Clients SHOULD ignore unrecognized
+   response parameters.
+
+2.1.4.  Implicit (User-Agent) Flow
+
+   User-Agents can use the OAuth 2.0 implicit grant flow by including
+   "token" and "id_token" in the "response_type" of the authorization
+   request to get an ID Token.
+
+
+
+Sakimura, et al.                                                [Page 7]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+   1.  The User-Agent makes an authorization request to the
+       Authorization Endpoint.
+
+   2.  The Authorization Server authenticates the user
+
+   3.  The Authorization Server returns an access and ID Token.
+
+   4.  The User-Agent and Client servlet can then use the session
+       management endpoints by presenting the ID Token to the endpoints.
+
+                                    +----------------------------------+
+   +----------+                     |                                  |
+   |          |                     |      +----------------------+    |
+   |          |                     |      |    Authorization     |    |
+   |          |                     |      |         server       |    |
+   |User-Agent|                     |      +----------------------+    |
+   |          |                     |      |   +---------------+  |    |
+   |          |>----(1)-------------|------|-->| Authorization |  |    |
+   |          |<----(3)-------------|------|--<| Endpoint  (2) |  |    |
+   +----------+                     |      |   +---------------+  |    |
+       ^                 +----------|------|-->| Check_Session |  |    |
+       |                 | +--------|------|--<| Endpoint      |  |    |
+       |                 | |        |      |   +---------------+  |    |
+       v                 | |        |      +----------------------+    |
+   +----------+       (4)| |        |                                  |
+   |          |          | |        |                                  |
+   |Client    |>---------+ |        |      +----------------------+    |
+   |Servlet   |<-----------+        |      |                      |    |
+   |          |                     |      | UserInfo Endpoint    |    |
+   |          |                     |      |                      |    |
+   |          |>--------------------|----->|                      |    |
+   |          |<--------------------|-----<|                      |    |
+   |          |                     |      |                      |    |
+   |          |                     |      |                      |    |
+   +----------+                     |      +----------------------+    |
+                                    |                                  |
+                                    |                                  |
+                                    +----------------------------------+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 8]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+                                +-----------------------------+
+                                |                             |
+                                |      Authorization          |
+                                |         Server              |
+   +-------------+              |                             |
+   |             |              |     +--------------------+  |
+   | User-Agent  |              |     |  Refresh Session   |  |
+   |             |    (4)       |     |    Endpoint        |  |
+   |             |>-------------|---->|                    |  |
+   |             |<-------------|----<|                    |  |
+   |             |              |     |                    |  |
+   |             |              |     +--------------------+  |
+   |             |    (4)       |     |  End Session       |  |
+   |             |>-------------|---->|    Endpoint        |  |
+   |             |<-------------|----<|                    |  |
+   |             |              |     |                    |  |
+   |             |              |     +--------------------+  |
+   +-------------+              +-----------------------------+
+
+2.1.4.1.  Implicit Flow Request
+
+   The authorization request parameter values are constrained as
+   follows.
+
+   response_type  A space delimited, case sensitive list of string
+      values (Pending OAuth 2.0 changes).  The value MUST include
+      "token" and "id_token" and to request an access and ID Token from
+      the session.
+
+   Following is a non-normative example of a request using query
+   parameters serialization:
+   GET /authorize?scope=openid&response_type=token%20id_token
+   &client_id=s6BhdRkqt3
+   &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+   Host: server.example.com
+
+2.1.4.2.  Implicit Flow Response
+
+   When the "response_type" in the request includes "token", the
+   Authorization Response MUST return the parameters defined in Section
+   4.2.2 of OAuth 2.0 [OAuth2.0] in the query fragment of the response.
+
+   In addition, when "response_type" includes "id_token", an ID Token
+   MUST be returned in the query fragment of the response.
+
+
+
+
+
+
+
+Sakimura, et al.                                                [Page 9]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+   Following is a non-normative example of a response:
+HTTP/1.1 302 Found
+Location: https://client.example.org/cb#access_token=i1WsRn1uB1&token_type=JWT&id_token=jwt_header.jwt_part2.jwt_part3
+
+2.1.5.  Authorization Code (Web Server) Flow
+
+   Web server Clients can use the OAuth 2.0 Authorization Code flow by
+   including "code" and "id_token" in the "response_type" parameter of
+   the authorization request to obtain an ID Token.  The ID Token is
+   returned along with the Access Token after the Client submits the
+   Authorization Code to the Access Token Endpoint.
+
+   1.  The User-Agent makes an authorization request to the
+       Authorization Endpoint.
+
+   2.  The Authorization Server authenticates the End-User.
+
+   3.  The Authorization Server returns an Authorization Code.
+
+   4.  The Client sends Authorization Code to the Token Endpoint.
+
+   5.  The Authorization Server verifies the authorization token and
+       returns an access and ID Token.
+
+   6.  The User-Agent and Client servlet can then use the session
+       management endpoints by presenting the ID Token to the endpoints.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 10]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+                                    +----------------------------------+
+   +----------+                     |                                  |
+   |          |                     |      +----------------------+    |
+   |          |                     |      |    Authorization     |    |
+   |          |                     |      |         server       |    |
+   |User-Agent|                     |      +----------------------+    |
+   |          |                     |      |   +---------------+  |    |
+   |          |>-----(1)------------|------|-->| Authorization |  |    |
+   |          |<-----(3)------------|------|--<| Endpoint (2)  |  |    |
+   +----------+                     |      |   +---------------+  |    |
+       ^                 +----------|------|-->| Access Token  |  |    |
+       |                 | +--------|------|--<| Endpoint      |  |    |
+       |                 | |        |      |   +---------------+  |    |
+       v                 | |        |      |   | Session       |  |    |
+   +----------+          | |        |      |   | Management    |  |    |
+   |          |          | |        |      |   | Endpoints     |  +    |
+   |Client    |>-----(4)-+ |        |      |   +---------------+  |    |
+   |Servlet   |<-----(5)---+        |      +----------------------+    |
+   |          |                     |                                  |
+   |          |                     |      +----------------------+    |
+   |          |                     |      |                      |    |
+   |          |                     |      | UserInfo Endpoint    |    |
+   |          |>--------------------|----->|                      |    |
+   |          |<--------------------|-----<|                      |    |
+   +----------+                     |      +----------------------+    |
+                                    |                                  |
+                                    |                                  |
+                                    +----------------------------------+
+
+2.1.5.1.  Authorization Code Flow Request
+
+   The authorization request parameter values are constrained as
+   follows.
+
+   response_type  A space delimited, case sensitive list of string
+      values (Pending OAuth 2.0 changes).  The value MUST include "code"
+      and "id_token" and to request an access and ID Token from the
+      session.
+
+   Following is a non-normative example of a request using query
+   parameters serialization:
+   GET /authorize?scope=openid&response_type=code%20id_token
+   &client_id=s6BhdRkqt3
+   &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+   Host: server.example.com
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 11]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+2.1.5.2.  Authorization Code Flow Response
+
+   When the "response_type" in the request includes "code", the
+   Authorization Response MUST return the parameters defined in Section
+   4.1.2 of OAuth 2.0 [OAuth2.0] in the query of the response.
+
+   In addition, when "response_type" includes "id_token", the ID Token
+   is retrieved from the Token Endpoint.
+
+   Following is a non-normative example of a response:
+   HTTP/1.1 302 Found
+   Location: https://client.example.org/cb?code=i1WsRn1uB1
+
+2.1.5.3.  Token Access Request
+
+   The Client uses the Authorization Code to make a request to the Token
+   Endpoint to retrieve an access and ID Token.
+
+   The request format is defined in Section 4.1.3 of the OAuth 2.0
+   [OAuth2.0] specification.
+
+   Following is a non-normative example of a token access endpoint
+   request:
+   POST /token HTTP/1.1
+   Host: server.example.com
+   Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
+   Content-Type: application/x-www-form-urlencoded
+
+   grant_type=authorization_code&client_id=s6BhdRkqt3&
+   code=i1WsRn1uB1&redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+
+2.1.5.4.  Token Access Response
+
+   The access and ID Token is returned in the response.
+
+   The response format is defined in Section 4.1.4 of the OAuth 2.0
+   [OAuth2.0] specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 12]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+   Following is a non-normative example of a token access endpoint
+   response:
+   HTTP/1.1 200 OK
+   Content-Type: application/json
+   Cache-Control: no-store
+   {
+     "access_token":"SlAV32hkKG",
+     "token_type":"JWT",
+     "expires_in":3600,
+     "refresh_token":"8xLOxBtZp8",
+     "id_token":"jwt_header.jwt_part2.jwt_part3"
+   }
+
+2.1.6.  Fourth Party Native Applications
+
+   Fourth party native applications involve four parties: 1) the user,
+   2) the native (desktop) application, 3) the authorization server, and
+   4) the Client servlet web application.  The native application uses
+   Protected Resources from a Client servlet but it integrates with
+   authentication services from the authorization server directly.  The
+   native application directs the user to perform authentication at the
+   Authorization Server to obtain access and ID tokens.  The tokens can
+   then be used to access Protected Resources at the web servlet Client.
+   The process of obtaining an ID Token for the native application is
+   very similar to that of using the "code" authorization (web server)
+   flow method.  However, the target audience of the ID Token is not the
+   native application, but that of the Client servlet.  The Client needs
+   to indicate the target audience for the ID Token by setting the
+   "id_token_audience" parameter in the authorization request to that of
+   the Identifier of the Client servlet.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 13]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+                                        +-----------------------------+
+   +----------------+                   |                             |
+   |                |                   |   Authorization             |
+   |   Native App   |                   |      Server                 |
+   |                |                   |                             |
+   |                |                   |      +--------------------+ |
+   |                |>------------------|----->| Authorization      | |
+   |                |<------------------|-----<|   Endpoint         | |
+   |                |                   |      |                    | |
+   |                |                   |      |                    | |
+   |                |                   |      +--------------------+ |
+   |                |                   |      | Access Token       | |
+   |                |>------------------|----->|   Endpoint         | |
+   |                |<------------------|-----<|                    | |
+   |                |                   |      |                    | |
+   |                |                   |      +--------------------+ |
+   |                |>------------------|----->| Session Management | |
+   |                |<------------------|-----<|   Endpoints        | |
+   |                |                   |      |                    | |
+   +----------------+                   |      |                    | |
+           ^                            |      |                    | |
+           |                            |      +--------------------+ |
+           v                            |                             |
+   +----------------+                   |                             |
+   | Client         |                   +-----------------------------+
+   | Servlet        |
+   |                |
+   +----------------+
+
+   When accessing Protected Resources at the Client servlet, the native
+   application sends the ID Token as an Authorization HTTP header in the
+   request.  The Client servlet can check the validity of the ID Token
+   by verifying the cryptographic information or by sending the ID Token
+   to the Check ID Endpoint OpenID Connect Messages 1.0
+   [OpenID.Messages].
+
+   GET /resource1
+   Auth: jwt_header.jwt_part2.jwt_part3
+   Host: servlet.example.com
+
+2.1.6.1.  Browser Load
+
+   Some native applications may wish to start an authenticated browser
+   session for the same user.  The native application starts a browser
+   with the location of the Client servlet and passing an ID Token as a
+   query parameter.  The Client servlet immediately initiates a request
+   to the Refresh Session Endpoint with the ID Token.  The user may need
+   to reauthenticate at the authorization server.  The Client servlet
+
+
+
+Sakimura, et al.                                               [Page 14]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+   then gets an ID Token that is session synchronized (Section 2.3) with
+   the Authorization Server.
+
+                                        +--------------------------+
++------------+      +-----------+       |                          |
+|            |      |           |       |   Authorization Server   |
+| Native App |>---->|User-Agent |       |                          |
+|            |      |           |       |    +------------------+  |
+|            |      |           |>------|--->| Session Refresh  |  |
+|            |      |           |<------|---<|    Endpoint      |  |
++------------+      +-----------+       |    |                  |  |
+      ^                   ^             |    +------------------+  |
+      |                   |             |                          |
+      v                   v             |                          |
++--------------------------------+      |                          |
+|                                |      |                          |
+|       Client Servlet           |      |                          |
+|                                |      |                          |
++--------------------------------+      +--------------------------+
+
+
+
+GET
+/refesh_token?state=bar&redirect_uri=https://foo.com/oauth2callback&id_token=$id_token // never uses immediate mode here, to allow login
+Host: www.example.com
+
+Response:
+
+HTTP/1.1 302 Found
+Location: https://foo.com/oauth2callback?state=bar&session=$new_id_token
+
+2.2.  Session Management Endpoints
+
+   To manage a session, the Client sends a request to the session
+   management endpoints at the Authorization Server.  The session
+   management endpoints at the Authorization Server are:
+
+   Refresh Session  Refreshes an expired ID Token
+
+   End Session  Ends a session
+
+   Authorization Servers MUST support the use of the HTTP "GET" method
+   as define in RFC 2616 [RFC2616] and MAY support the "POST" method for
+   all session management endpoints.
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 15]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+2.2.1.  Refresh Session
+
+   To refresh an ID Token that has expired, the Client sends a request
+   to the Refresh Session Endpoint with an ID Token.  A new ID Token is
+   returned.
+
+   Request Parameters:
+
+   id_token  REQUIRED.  A previously issued ID Token from an
+      authorization request.  The ID Token MAY be expired.
+
+   redirect_uri  REQUIRED.  An absolute URI to which the Authorization
+      Server will redirect the User-Agent to with the new ID Token.
+
+   state  REQUIRED.  An opaque value used by the Client to maintain
+      state between the request and callback.  If provided, the
+      Authorization Server MUST include this value when redirecting the
+      User-Agent back to the Client.  Clients are strongly advised to
+      use this variable to relate the request and response.
+
+   Response:
+
+   The Authorization Server returns the following parameters in the
+   query of the "redirect_uri" URI specified in the request:
+
+   id_token  REQUIRED.A new ID Token.
+
+   state  REQUIRED.  The value of the "state" parameter in the request.
+
+   In a typical HTTP binding, an HTTP 302 is returned to redirect the
+   User-Agent to the specified "redirect_uri" in the request with a new
+   ID Token in the query fragment.
+
+   The following is a non-normative session refresh request:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 16]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+Request:
+
+GET /op/refresh_session?id_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6
+ImNsaWVudC5leGFtcGxlLmNvbSJ9.eyJpc3N1ZXIiOiJodHRwOlwvXC9zZXJ2ZXIuZXhhbXBs
+ZS5jb20iLCJjbGllbnRfaWQiOiJjbGllbnQuZXhhbXBsZS5jb20iLCJhdWRpZW5jZSI6ImNsa
+WVudC5leGFtcGxlLmNvbSIsImlkIjoidXNlcl8yMzQyMzQiLCJleHAiOjEzMDM4NTI4ODB9.a
+JwagC6501Da-zK-X8Az9B-Y625aSEfxVuBpFEDjOxQ
+&state=bar&redirect_uri=https%3A%2F%2Fclient.example.org%2Fidtoken_cb
+Host: server.example.com
+
+Response:
+
+HTTP/1.1 302 OK
+Location: http://client.example.org/idtoken_cb#id_token=eyJ0eXAiOiJKV1QiLCJh
+bGciOiJIUzI1NiIsImtpZCI6ImNsaWVudC5leGFtcGxlLmNvbSJ9.eyJpc3N1ZXIiOiJodHRwO
+lwvXC9zZXJ2ZXIuZXhhbXBsZS5jb20iLCJjbGllbnRfaWQiOiJjbGllbnQuZXhhbXBsZS5jb20
+iLCJhdWRpZW5jZSI6ImNsaWVudC5leGFtcGxlLmNvbSIsImlkIjoidXNlcl8yMzQyMzQiLCJle
+HAiOjEzMDM4NTI4ODB9.aJwagC6501Da-zK-X8Az9B-Y625aSEfxVuBpFEDjOxQ&state=bar&
+expires_in=3600
+
+2.2.2.  End Session
+
+   To end the session, the Client sends an ID Token to the End Session
+   Endpoint.  Upon receiving the request, the authorization server
+   performs the logout flow for the user and then redirects the User-
+   Agent to the specified "redirect_uri".
+
+   Request Parameters:
+
+   id_token  REQUIRED.  A previously issued ID Token
+
+   state  REQUIRED.  An opaque value used by the Client to maintain
+      state between the request and callback.  If provided, the
+      Authorization Server MUST include this value when redirecting the
+      User-Agent back to the Client.  Clients are strongly advised to
+      use this variable to relate the request and response.
+
+   redirect_uri  REQUIRED.  An absolute URI to which the Authorization
+      Server will redirect the User-Agent.
+
+   Response:
+
+   The Authorization Server returns the following parameters in the
+   query of the "redirect_uri" URI specified in the request:
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 17]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+   state  REQUIRED.  The value of the "state" parameter in the request.
+
+   In HTTP binding, the response is a HTTP 302 redirect response to the
+   "redirect_uri" specified in the request.
+
+   The following is a non-normative session refresh request:
+
+Request:
+
+GET /op/end_session?id_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6
+ImNsaWVudC5leGFtcGxlLmNvbSJ9.eyJpc3N1ZXIiOiJodHRwOlwvXC9zZXJ2ZXIuZXhhbX
+BsZS5jb20iLCJjbGllbnRfaWQiOiJjbGllbnQuZXhhbXBsZS5jb20iLCJhdWRpZW5jZSI6I
+mNsaWVudC5leGFtcGxlLmNvbSIsImlkIjoidXNlcl8yMzQyMzQiLCJleHAiOjEzMDM4NTI4
+ODB9.aJwagC6501Da-zK-X8Az9B-Y625aSEfxVuBpFEDjOxQ
+&state=bar
+&redirect_uri=https%3A%2F%2Fclient.example.org%2Fendtoken_cb
+Host: server.example.com
+
+...
+   Authorization Server performs logout flow
+...
+
+Response:
+
+HTTP/1.1 302 OK
+Location: http://client.example.org/endtoken_cb?state=bar
+
+2.3.  Session Synchronization
+
+   An ID Token is usually bound to a user's sign in session at the
+   Authorization Server, but in some cases, such as offline access by a
+   web server or native application, it may not be.  ID Tokens obtained
+   in the following scenarios are bound to a user's signed-in state at
+   the Authorization Server:
+
+   o  Redeeming a "code" for an Access Token and ID Token by way of
+      indirect communication through the browser
+
+   o  Obtaining an Access Token and ID Token in the authorization
+      response through the browser
+
+   o  Obtaining an ID Token at the Refresh Session Endpoint by
+      submitting a previously issued ID Token
+
+   ID Tokens obtained in the above manner are session synchronized.
+
+   If an ID Token is obtained by submitting a Refresh Token at the
+   Access Token Endpoint, then the resulting ID Token is not bound to a
+
+
+
+Sakimura, et al.                                               [Page 18]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+   user's sign in state at the Authorization Server.  The Client may be
+   in offline mode or the user has logged out from the Authorization
+   Server.  If a session bound ID Token is desired, the Client should
+   obtain a new ID Token by sending a request to the Refresh Session
+   Endpoint.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 19]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+3.  IANA Considerations
+
+   This document makes no requests of IANA.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 20]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+4.  Security Considerations
+
+   TBD
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 21]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+5.  Normative References
+
+   [ISO29115]
+              International Telecommunication Union and International
+              Organization for Standardization, "ITU-T Recommendation
+              X.1254 | ISO/IEC DIS 29115 -- Information technology -
+              Security techniques - Entity authentication assurance
+              framework", ISO/IEC 29115, November 2011.
+
+   [JWT]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token",
+              May 2012.
+
+   [LoA.Registry]
+              Johansson, L., "An IANA registry for SAML 2.0 Level of
+              Assurance Context Classes", February 2012.
+
+   [OAuth2.0]
+              Hammer, E., Ed., Recordon, D., and D. Hardt, "OAuth 2.0
+              Authorization Protocol", May 2012.
+
+   [OpenID.Messages]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B.,
+              Mortimore, C., and E. Jay, "OpenID Connect Messages 1.0",
+              May 2012.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC2616]  Fielding, R., Gettys, J., Mogul, J., Frystyk, H.,
+              Masinter, L., Leach, P., and T. Berners-Lee, "Hypertext
+              Transfer Protocol -- HTTP/1.1", RFC 2616, June 1999.
+
+   [RFC3339]  Klyne, G., Ed. and C. Newman, "Date and Time on the
+              Internet: Timestamps", RFC 3339, July 2002.
+
+   [RFC3548]  Josefsson, S., "The Base16, Base32, and Base64 Data
+              Encodings", RFC 3548, July 2003.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 22]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+Appendix A.  Acknowledgements
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 23]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+Appendix B.  Notices
+
+   Copyright (c) 2012 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 24]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+Appendix C.  Document History
+
+   [[ To be removed from the final specification ]]
+
+   -07
+
+   o  Added warning about the significant revisions planned to session
+      management to the abstract and introduction.
+
+   o  Changed client.example.com to client.example.org, per issue #251
+
+   o  Listed author of ISO29115 as "International Telecommunication
+      Union and International Organization for Standardization", per
+      issue #589
+
+   o  Use standards track version of JSON Web Token spec
+      (draft-ietf-oauth-json-web-token)
+
+   -06
+
+   o  Updated Notices
+
+   o  Updated References
+
+   -05
+
+   o  Removed Check Session Endpoint
+
+   o  Updated ID Token claims to reflect changes in Messages
+
+   -04
+
+   o  Changes associated with renaming "Lite" to "Basic Client" and
+      replacing "Core" and "Framework" with "Messages" and "Standard".
+
+   o  Numerous cleanups, including updating references.
+
+   -03
+
+   o  Corrected examples.
+
+   -02
+
+   o  Correct issues raised by Johnny Bufu and discussed on the 7-Jul-11
+      working group call.
+
+   -01
+
+
+
+
+Sakimura, et al.                                               [Page 25]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+   o  Consistency and cleanup pass, including removing unused
+      references.
+
+   -00
+
+   o  Split from core when all optional features were removed.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 26]
+
+                  OpenID Connect Session Management 1.0         May 2012
+
+
+Authors' Addresses
+
+   Nat Sakimura
+   Nomura Research Institute, Ltd.
+
+   Email: n-sakimura@nri.co.jp
+
+
+   John Bradley
+   Ping Identity
+
+   Email: ve7jtb@ve7jtb.com
+
+
+   Michael B. Jones
+   Microsoft
+
+   Email: mbj@microsoft.com
+
+
+   Breno de Medeiros
+   Google
+
+   Email: breno@google.com
+
+
+   Chuck Mortimore
+   Salesforce
+
+   Email: cmortimore@salesforce.com
+
+
+   Edmund Jay
+   Illumila
+
+   Email: ejay@mgi1.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sakimura, et al.                                               [Page 27]
+

@@ -1,0 +1,824 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml2rfc.tools.ietf.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN"
+"http://xml2rfc.tools.ietf.org/authoring/rfc2629.dtd">
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="openid-connect-rpinitiated-1_0" ipr="none">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="5" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="yes" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title abbrev="OpenID Connect RP-Initiated Logout 1.0">OpenID Connect
+    RP-Initiated Logout 1.0 - draft 02</title>
+
+    <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      <organization abbrev="Microsoft">Microsoft</organization>
+      <address>
+        <email>mbj@microsoft.com</email>
+	<uri>https://self-issued.info/</uri>
+      </address>
+    </author>
+
+    <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+      <organization>Google</organization>
+      <address>
+        <email>breno@google.com</email>
+	<uri>https://stackoverflow.com/users/311376/breno</uri>
+      </address>
+    </author>
+
+    <author fullname="Naveen Agarwal" initials="N." surname="Agarwal">
+      <organization>Microsoft</organization>
+      <address>
+        <email>Naveen.Agarwal@microsoft.com</email>
+	<uri>https://www.linkedin.com/in/nvnagr</uri>
+      </address>
+    </author>
+
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization abbrev="NAT.Consulting">NAT.Consulting</organization>
+      <address>
+        <email>nat@nat.consulting</email>
+	<uri>https://nat.sakimura.org/</uri>
+      </address>
+    </author>
+
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization abbrev="Yubico">Yubico</organization>
+      <address>
+        <email>ve7jtb@ve7jtb.com</email>
+	<uri>http://www.thread-safe.com/</uri>
+      </address>
+    </author>
+
+    <date day="18" month="April" year="2022" />
+
+    <workgroup>OpenID Connect Working Group</workgroup>
+
+    <abstract>
+      <t>OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+      protocol. It enables Clients to verify the identity of the End-User based
+      on the authentication performed by an Authorization Server, as well as to
+      obtain basic profile information about the End-User in an interoperable and
+      REST-like manner.</t>
+
+      <t>
+	This specification defines a mechanism for a Relying Party
+	to request that an OpenID Provider log out the End-User.
+      </t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+
+      <t>
+	OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+	<xref target="RFC6749"/>
+	protocol. It enables Clients to verify the identity of the End-User based
+	on the authentication performed by an Authorization Server, as well as to
+	obtain basic profile information about the End-User in an interoperable and
+	REST-like manner.
+      </t>
+      <t>
+	This specification complements the
+	<xref target="OpenID.Core">OpenID Connect Core 1.0</xref> specification
+	by enabling the Relying Party to request that
+	an End-User be logged out by the OpenID Provider.
+      </t>
+      <t>
+	This specification can be used separately from or in combination with
+	<xref target="OpenID.Session">OpenID Connect Session Management 1.0</xref>,
+	<xref target="OpenID.FrontChannel">OpenID Connect Front-Channel Logout 1.0</xref>,
+	and/or
+	<xref target="OpenID.BackChannel">OpenID Connect Back-Channel Logout 1.0</xref>.
+      </t>
+
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+        "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
+        document are to be interpreted as described in <xref
+        target="RFC2119">RFC 2119</xref>.</t>
+
+	<t>
+	  In the .txt version of this document,
+	  values are quoted to indicate that they are to be taken literally.
+	  When using these values in protocol messages,
+	  the quotes MUST NOT be used as part of the value.
+	  In the HTML version of this document,
+	  values to be taken literally are indicated by
+	  the use of <spanx style="verb">this fixed-width font</spanx>.
+	</t>
+      </section>
+
+      <section anchor="Terminology" title="Terminology">
+        <t>
+	  This specification uses the terms
+	  "Authorization Endpoint", "Authorization Server",
+	  "Client", and "Client Identifier"
+	  defined by <xref target="RFC6749">OAuth 2.0</xref>,
+	  the term "User Agent" defined by <xref target="RFC7230">RFC 7230</xref>,
+	  and the terms defined by
+	  <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>.
+	</t>
+	<t>
+	  IMPORTANT NOTE TO READERS: The terminology definitions in
+	  this section are a normative portion of this specification,
+	  imposing requirements upon implementations.  All the
+	  capitalized words in the text of this specification, such as
+	  "Relying Party", reference these defined terms.
+	  Whenever the reader encounters them, their definitions
+	  found in this section must be followed.
+	</t>
+	<t>
+	  This specification also defines the following term:
+	  <list style="hanging">
+
+            <t hangText="Logout Endpoint">
+	      <vspace/>
+              The endpoint at the OpenID Provider that is the target of
+	      RP-Initiated Logout requests.
+            </t>
+
+	  </list>
+	</t>
+      </section>
+    </section>
+
+    <section anchor="RPLogout" title="RP-Initiated Logout">
+      <t>
+	An RP requests that the OP log out the End-User
+	by redirecting the End-User's User Agent to the OP's Logout Endpoint.
+	This URL is normally obtained via the
+	<spanx style="verb">end_session_endpoint</spanx> element of the OP's
+	Discovery response or may be learned via other mechanisms.
+      </t>
+      <t>
+	This specification defines the following parameters
+	that are used in the logout request at the Logout Endpoint:
+      </t>
+      <t>
+	<list style="hanging">
+
+	  <t hangText="id_token_hint">
+	    <vspace/>
+	    RECOMMENDED.
+	    ID Token previously issued by the OP to the RP passed to the Logout Endpoint
+	    as a hint about the End-User's current authenticated
+	    session with the Client.
+	    This is used as an indication of the identity of the
+	    End-User that the RP is requesting be logged out by the OP.
+	  </t>
+	  <t hangText="logout_hint">
+	    <vspace/>
+	    OPTIONAL.
+	    Hint to the Authorization Server about the End-User that is logging out.
+	    The value and meaning of this parameter is left up to the OP's discretion.
+	    For instance, the value might contain an email address, phone number, username,
+	    or session identifier pertaining to the RP's session with the OP for the End-User.
+	    (This parameter is intended to be analogous to the <spanx style="verb">login_hint</spanx>
+	    parameter defined in Section 3.1.2.1 of <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>
+	    that is used in Authentication Requests;
+	    whereas, <spanx style="verb">logout_hint</spanx> is used in RP-Initiated Logout Requests.)
+	  </t>
+	  <t hangText="client_id">
+	    <vspace/>
+	    OPTIONAL.
+	    OAuth 2.0 Client Identifier valid at the Authorization Server. When both
+	    <spanx style="verb">client_id</spanx> and <spanx style="verb">id_token_hint</spanx>
+	    are present,
+	    the OP MUST verify that the Client Identifier matches the one used when issuing the
+	    ID Token. The most common use case for this parameter is to specify the Client Identifier
+	    when <spanx style="verb">post_logout_redirect_uri</spanx> is used but
+	    <spanx style="verb">id_token_hint</spanx> is not. Another use is for
+	    symmetrically encrypted ID Tokens used as <spanx style="verb">id_token_hint</spanx> values
+	    that require the Client Identifier
+	    to be specified by other means, so that the ID Tokens can be decrypted by the OP.
+	  </t>
+	  <t hangText="post_logout_redirect_uri">
+	    <vspace/>
+	    OPTIONAL.
+	    URI to which the RP is requesting that
+	    the End-User's User Agent be redirected
+	    after a logout has been performed.
+	    This URI SHOULD use the <spanx style="verb">https</spanx> scheme
+	    and MAY contain port, path, and query parameter components;
+	    however, it MAY use the <spanx style="verb">http</spanx> scheme,
+	    provided that the Client Type is <spanx style="verb">confidential</spanx>,
+	    as defined in Section 2.1 of <xref target="RFC6749">OAuth 2.0</xref>, and
+	    provided the OP allows the use of <spanx style="verb">http</spanx> RP URIs.
+	    The URI MAY use an alternate scheme,
+	    such as one that is intended to identify a callback into a native application.
+	    The value MUST have been previously registered with the OP,
+	    either using the <spanx style="verb">post_logout_redirect_uris</spanx>
+	    Registration parameter or via another mechanism.
+	    An <spanx style="verb">id_token_hint</spanx> is also RECOMMENDED when this parameter is included.
+	  </t>
+	  <t hangText="state">
+	    <vspace/>
+	    OPTIONAL.
+	    Opaque value used by the RP to maintain state between
+	    the logout request and the callback to the endpoint specified by
+	    the <spanx style="verb">post_logout_redirect_uri</spanx> parameter.
+	    If included in the logout request, the OP passes this value back to the RP
+	    using the <spanx style="verb">state</spanx> parameter
+	    when redirecting the User Agent back to the RP.
+	  </t>
+	  <t hangText="ui_locales">
+	    <vspace/>
+	    OPTIONAL.
+	    End-User's preferred languages and scripts for the user interface,
+	    represented as a space-separated list of
+	    <xref target="RFC5646">BCP47</xref> language tag values,
+	    ordered by preference.
+	    For instance, the value "fr-CA fr en" represents a preference
+	    for French as spoken in Canada,
+	    then French (without a region designation),
+	    followed by English (without a region designation).
+	    An error SHOULD NOT result if some or all of the requested locales
+	    are not supported by the OpenID Provider.
+	  </t>
+	</list>
+      </t>
+
+      <t>
+	OpenID Providers MUST support the use of the HTTP <spanx style="verb">GET</spanx> and
+	<spanx style="verb">POST</spanx> methods defined in <xref target="RFC7231">RFC 7231</xref> at the
+	Logout Endpoint.
+	RPs MAY use the HTTP <spanx style="verb">GET</spanx> or
+	<spanx style="verb">POST</spanx> methods to send the
+	logout request to the OP. If using the HTTP
+	<spanx style="verb">GET</spanx> method, the request parameters are serialized using
+	URI Query String Serialization.
+	If using the HTTP <spanx style="verb">POST</spanx>
+	method, the request parameters are serialized using
+	Form Serialization.
+      </t>
+
+      <t>
+	When an <spanx style="verb">id_token_hint</spanx> parameter is present,
+	the OP MUST validate that it was the issuer of the ID Token.
+	The OP SHOULD accept ID Tokens when the RP identified by the ID Token's
+	<spanx style="verb">aud</spanx> claim and/or <spanx style="verb">sid</spanx> claim
+	has a current session or had a recent session at the OP,
+	even when the <spanx style="verb">exp</spanx> time has passed.
+	If the ID Token's <spanx style="verb">sid</spanx> claim does not correspond
+	to the RP's current session or a recent session at the OP,
+	the OP SHOULD treat the logout request as suspect,
+	and MAY decline to act upon it.
+      </t>
+      <t>
+	At the Logout Endpoint, the OP SHOULD ask the End-User whether
+	to log out of the OP as well.
+	Furthermore, the OP MUST ask the End-User this question
+	if an <spanx style="verb">id_token_hint</spanx> was not provided
+	or if the supplied ID Token does not belong to the current OP session with the RP
+	and/or currently logged in End-User.
+	If the End-User says "yes", then the OP MUST log out the End-User.
+      </t>
+      <t>
+	As part of the OP logging out the End-User,
+	the OP uses the logout mechanism(s) registered by the RPs
+	to notify any RPs logged in as that End-User
+	that they are to likewise log out the End-User.
+	RPs can use any of
+	<xref target="OpenID.Session">OpenID Connect Session Management 1.0</xref>,
+	<xref target="OpenID.FrontChannel">OpenID Connect Front-Channel Logout 1.0</xref>,
+	and/or
+	<xref target="OpenID.BackChannel">OpenID Connect Back-Channel Logout 1.0</xref>
+	to receive logout notifications from the OP,
+	depending upon which of these mechanisms the OP and RPs mutually support.
+	The RP initiating the logout is to be included in these notifications
+	before the post-logout redirection defined in
+	<xref target="RedirectionAfterLogout"/> is performed.
+      </t>
+      <t>
+	It is up to the RP whether to locally log out the End-User
+	before redirecting the User Agent to the OP's Logout Endpoint.
+	On one hand, if the End-User approves the logout at the OP,
+	the RP initiating the logout should receive a logout message from the OP
+	and can perform a local logout at that time.
+	On the other hand, some logout notification methods from the OP to the RP
+	are unreliable and therefore the notification might not be received.
+	Also, the End-User might not approve the OP logging out,
+	in which case the RP would not receive a logout notification.
+      </t>
+
+      <section anchor="OPMetadata" title="OpenID Provider Discovery Metadata">
+	<t>
+	  To support OpenID Connect RP-Initiated Logout, the RP needs to obtain
+	  the RP-Initiated Logout related OP metadata.
+	  This OP metadata is normally obtained via the OP's Discovery response,
+	  as described in <xref target="OpenID.Discovery">OpenID Connect Discovery 1.0</xref>,
+	  or MAY be learned via other mechanisms.
+	</t>
+	<t>
+	  This OpenID Provider Metadata parameter MUST be included in
+	  the Server's discovery responses
+	  when RP-Initiated Logout and Discovery are supported:
+	</t>
+	<t>
+	  <list style="hanging">
+	    <t hangText="end_session_endpoint">
+	      <vspace/>
+	      REQUIRED.
+	      URL at the OP to which an RP can perform a redirect to request that the
+	      End-User be logged out at the OP.
+	      This URL MUST use the <spanx style="verb">https</spanx> scheme
+	      and MAY contain port, path, and query parameter components.
+	    </t>
+	  </list>
+	</t>
+      </section>
+    </section>
+
+    <section anchor="RedirectionAfterLogout" title="Redirection to RP After Logout">
+      <t>
+	In some cases, the RP will request that the End-User's User Agent
+	to be redirected back to the RP
+	after a logout has been performed.
+	Post-logout redirection is only done when the logout is RP-initiated,
+	in which case the redirection target is
+	the <spanx style="verb">post_logout_redirect_uri</spanx> parameter
+	value sent by the initiating RP.
+	An <spanx style="verb">id_token_hint</spanx> carring an ID Token for the RP
+	is also RECOMMENDED when requesting post-logout redirection;
+	if it is not supplied with <spanx style="verb">post_logout_redirect_uri</spanx>,
+	the OP MUST NOT perform post-logout redirection
+	unless the OP has other means of confirming the legitimacy of the post-logout redirection target.
+	The OP also MUST NOT perform post-logout redirection if the
+	<spanx style="verb">post_logout_redirect_uri</spanx> value supplied does not exactly match
+	one of the previously registered <spanx style="verb">post_logout_redirect_uris</spanx> values.
+	The post-logout redirection is performed after the OP has finished notifying the RPs
+	that logged in with the OP for that End-User that they are to log out the End-User.
+      </t>
+      <t>
+	This specification defines this Dynamic Registration parameter
+	for this purpose, per Section 2.1 of
+	<xref target="OpenID.Registration">OpenID Connect Dynamic Client Registration 1.0</xref>.
+      </t>
+
+      <section anchor="ClientMetadata" title="Client Registration Metadata">
+
+	<t>
+	  This Client Metadata parameter MAY be included in
+	  the Client's Registration information
+	  when RP-Initiated Logout and Dynamic Registration are supported:
+	</t>
+	<t>
+	  <list style="hanging">
+	    <t hangText="post_logout_redirect_uris">
+	      <vspace/>
+	      OPTIONAL.
+	      Array of URLs supplied by the RP to which it MAY request that
+	      the End-User's User Agent be redirected using the
+	      <spanx style="verb">post_logout_redirect_uri</spanx> parameter
+	      after a logout has been performed.
+	      These URLs SHOULD use the <spanx style="verb">https</spanx> scheme
+	      and MAY contain port, path, and query parameter components;
+	      however, they MAY use the <spanx style="verb">http</spanx> scheme,
+	      provided that the Client Type is <spanx style="verb">confidential</spanx>,
+	      as defined in Section 2.1 of <xref target="RFC6749">OAuth 2.0</xref>, and
+	      provided the OP allows the use of <spanx style="verb">http</spanx> RP URIs.
+	    </t>
+	  </list>
+	</t>
+      </section>
+    </section>
+
+    <section anchor="ValidationAndErrorHandling" title="Validation and Error Handling">
+
+      <t>
+	If any of the validation procedures defined in this specification fail, any operations requiring
+	the information that failed to correctly validate MUST be aborted and
+	the information that failed to validate MUST NOT be used.
+      </t>
+      <t>
+	As described in <xref target="RedirectionAfterLogout"/>,
+	when the OP detects errors in the RP-Initiated Logout request,
+	the OP MUST not perform post-logout redirection to an RP.
+	Beyond that, the OP has discretion on what information to display to the End-User
+	in the resulting page at the OP
+	and what actions to enable the End-User to perform next.
+	It MAY display an error message.
+	It MAY ask the End-User whether to log out of the OP.
+      </t>
+      <t>
+	Note that giving the End-User the opportunity to log out may have security benefits,
+	especially in kiosk scenarios.
+	The End-User initiating a logout action at the RP may expect to be completely logged out,
+	including from the OP.
+	Not giving the End-User the opportunity to log out at the OP
+	and leaving the End-User logged in would likely violate the End-User's security expectations
+	about being completely logged out.
+      </t>
+
+    </section>
+
+    <section anchor="ImplementationConsiderations" title="Implementation Considerations">
+      <t>
+	This specification defines features used by both Relying Parties and
+	OpenID Providers that choose to implement RP-Initiated Logout.
+	All of these Relying Parties and OpenID Providers
+	MUST implement the features that are listed
+	in this specification as being "REQUIRED" or are described with a "MUST".
+	No other implementation considerations for implementations of
+	RP-Initiated Logout are defined by this specification.
+      </t>
+    </section>
+
+    <section anchor="Security" title="Security Considerations">
+      <t>
+	Logout requests without a valid <spanx style="verb">id_token_hint</spanx> value
+	are a potential means of denial of service; therefore,
+	OPs should obtain explicit confirmation from the End-User before acting upon them.
+      </t>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+
+      <section anchor="ASMetadataRegistry" title="OAuth Authorization Server Metadata Registry">
+	<t>
+	  This specification registers the following metadata name in the
+	  IANA "OAuth Authorization Server Metadata" registry <xref target="IANA.OAuth.Parameters"/>
+	  established by <xref target="RFC8414"/>.
+	</t>
+
+	<section anchor='MetadataContents' title='Registry Contents'>
+	  <t>
+	    <?rfc subcompact="yes"?>
+            <list style='symbols'>
+              <t>
+                Metadata Name: <spanx style="verb">end_session_endpoint</spanx>
+              </t>
+              <t>
+                Metadata Description:
+		URL at the OP to which an RP can perform a redirect to request that the
+	      End-User be logged out at the OP
+              </t>
+              <t>
+                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+              </t>
+              <t>
+                Specification Document(s): <xref target="OPMetadata"/> of this document
+              </t>
+	    </list>
+	  </t>
+	</section>
+	<?rfc subcompact="no"?>
+
+      </section>
+
+      <section anchor="DynRegRegistrations" title="OAuth Dynamic Client Registration Metadata Registration">
+	<t>
+	  This specification registers the following client metadata definition
+	  in the IANA "OAuth Dynamic Client Registration Metadata" registry
+	  <xref target="IANA.OAuth.Parameters"/>
+	  established by <xref target="RFC7591"/>:
+	</t>
+
+	<section anchor="DynRegContents" title="Registry Contents">
+	  <t> <?rfc subcompact="yes"?>
+	    <list style="symbols">
+	      <t>
+		Client Metadata Name: <spanx style="verb">post_logout_redirect_uris</spanx>
+	      </t>
+	      <t>
+		Client Metadata Description:
+		Array of URLs supplied by the RP to which it MAY request that
+		the End-User's User Agent be redirected using the
+		<spanx style="verb">post_logout_redirect_uri</spanx> parameter
+		after a logout has been performed
+	      </t>
+	      <t>
+		Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+	      </t>
+	      <t>
+		Specification Document(s): <xref target="ClientMetadata"/> of this document
+	      </t>
+	    </list>
+	  </t>
+	</section>
+	<?rfc subcompact="no"?>
+      </section>
+
+    </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.2119"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.5646"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6454"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.6749"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7159"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7230"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7231"?>
+
+      <reference anchor="OpenID.Core" target="https://openid.net/specs/openid-connect-core-1_0.html">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NAT.Consulting (was at NRI)">NAT.Consulting</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Yubico (was at Ping Identity)">Yubico</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+	  <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+	    <organization abbrev="Stripe (was at Salesforce)">Stripe</organization>
+	  </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+      <reference anchor="OpenID.Discovery" target="https://openid.net/specs/openid-connect-discovery-1_0.html">
+        <front>
+          <title>OpenID Connect Discovery 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NAT.Consulting (was at NRI)">NAT.Consulting</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Yubico (was at Ping Identity)">Yubico</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="Illumila">Illumila</organization>
+          </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+      <reference anchor="OpenID.Registration" target="https://openid.net/specs/openid-connect-registration-1_0.html">
+        <front>
+          <title>OpenID Connect Dynamic Client Registration 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NAT.Consulting (was at NRI)">NAT.Consulting</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Yubico (was at Ping Identity)">Yubico</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+      <reference anchor="OpenID.Session" target="https://openid.net/specs/openid-connect-session-1_0.html">
+	<front>
+	  <title>OpenID Connect Session Management 1.0</title>
+
+	  <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+	    <organization>Google</organization>
+	  </author>
+
+	  <author fullname="Naveen Agarwal" initials="N." surname="Agarwal">
+	    <organization>Microsoft</organization>
+	  </author>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NAT.Consulting">NAT.Consulting</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Yubico">Yubico</organization>
+	  </author>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+	  <date day="18" month="April" year="2022" />
+	</front>
+      </reference>
+
+      <reference anchor="OpenID.FrontChannel" target="https://openid.net/specs/openid-connect-frontchannel-1_0.html">
+	<front>
+	  <title>OpenID Connect Front-Channel Logout 1.0</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+	  <date day="18" month="April" year="2022" />
+	</front>
+      </reference>
+
+      <reference anchor="OpenID.BackChannel" target="https://openid.net/specs/openid-connect-backchannel-1_0.html">
+	<front>
+	  <title>OpenID Connect Back-Channel Logout 1.0</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Yubico">Yubico</organization>
+          </author>
+
+	  <date day="18" month="April" year="2022" />
+	</front>
+      </reference>
+
+      <reference anchor="IANA.OAuth.Parameters" target="https://www.iana.org/assignments/oauth-parameters">
+        <front>
+          <title>OAuth Parameters</title>
+          <author>
+            <organization>IANA</organization>
+          </author>
+	  <date/>
+        </front>
+      </reference>
+
+    </references>
+
+    <references title="Informative References">
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.7591"?>
+      <?rfc include="http://xml2rfc.tools.ietf.org/public/rfc/bibxml/reference.RFC.8414"?>
+
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>
+	The OpenID Community would like to thank the following people for
+	their contributions to this specification:
+      </t>
+      <t>
+        <list style="empty">
+	  <t>Naveen Agarwal (Naveen.Agarwal@microsoft.com), Microsoft</t>
+	  <t>Amanda Anganes (aanganes@mitre.org), MITRE</t>
+          <t>John Bradley (ve7jtb@ve7jtb.com), Yubico</t>
+          <t>Breno de Medeiros (breno@google.com), Google</t>
+	  <t>Vladimir Dzhuvinov (vladimir@connect2id.com), Connect2id</t>
+          <t>George Fletcher (gffletch@aol.com), Capital One (was at AOL)</t>
+	  <t>Roland Hedberg (roland@catalogix.se), Independent</t>
+          <t>Edmund Jay (ejay@mgi1.com), Illumila</t>
+          <t>Michael B. Jones (mbj@microsoft.com), Microsoft</t>
+	  <t>Todd Lainhart (lainhart@us.ibm.com), IBM</t>
+	  <t>Torsten Lodderstedt (torsten@lodderstedt.net), yes.com</t>
+          <t>Anthony Nadalin (nadalin@prodigy.net), Independent (was at Microsoft)</t>
+          <t>Axel Nennker (axel.nennker@telekom.de), Deutsche Telekom</t>
+	  <t>Justin Richer (justin@bspk.io), Bespoke Engineering</t>
+          <t>Nat Sakimura (nat@nat.consulting), NAT.Consulting</t>
+	  <t>Filip Skokan (panva.ip@gmail.com), Auth0</t>
+	  <t>Hans Zandbelt (hans.zandbelt@zmartzone.eu), ZmartZone</t>
+        </list>
+      </t>
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2022 The OpenID Foundation.</t>
+
+      <t>The OpenID Foundation (OIDF) grants to any Contributor, developer,
+      implementer, or other interested party a non-exclusive, royalty free,
+      worldwide copyright license to reproduce, prepare derivative works from,
+      distribute, perform and display, this Implementers Draft or Final
+      Specification solely for the purposes of (i) developing specifications,
+      and (ii) implementing Implementers Drafts and Final Specifications based
+      on such documents, provided that attribution be made to the OIDF as the
+      source of the material, but that such attribution does not indicate an
+      endorsement by the OIDF.</t>
+
+      <t>The technology described in this specification was made available
+      from contributions from various sources, including members of the OpenID
+      Foundation and others. Although the OpenID Foundation has taken steps to
+      help ensure that the technology is available for distribution, it takes
+      no position regarding the validity or scope of any intellectual property
+      or other rights that might be claimed to pertain to the implementation
+      or use of the technology described in this specification or the extent
+      to which any license under such rights might or might not be available;
+      neither does it represent that it has made any independent effort to
+      identify any such rights. The OpenID Foundation and the contributors to
+      this specification make no (and hereby expressly disclaim any)
+      warranties (express, implied, or otherwise), including implied
+      warranties of merchantability, non-infringement, fitness for a
+      particular purpose, or title, related to this specification, and the
+      entire risk as to implementing this specification is assumed by the
+      implementer. The OpenID Intellectual Property Rights policy requires
+      contributors to offer a patent promise not to assert certain patent
+      claims against other contributors and against implementers. The OpenID
+      Foundation invites any interested party to bring to its attention any
+      copyrights, patents, patent applications, or other proprietary rights
+      that may cover technology that may be required to practice this
+      specification.</t>
+    </section>
+
+    <section anchor="History" title="Document History">
+      <t>[[ To be removed from the final specification ]]</t>
+
+      <t>
+	-02
+        <list style="symbols">
+	  <t>
+	    Fixed #1182 - Added the <spanx style="verb">logout_hint</spanx> parameter at the Logout Endpoint.
+	  </t>
+	  <t>
+	    Fixed #1032 - Added the <spanx style="verb">client_id</spanx> parameter at the Logout Endpoint.
+	  </t>
+	  <t>
+	    Fixed #1338 - Allow <spanx style="verb">post_logout_redirect_uri</spanx> to use an alternate scheme.
+	  </t>
+	  <t>
+	    Fixed #1183, #1184, and #1216 - Described error handling.
+	  </t>
+	  <t>
+	    Updated contributor affiliations.
+	  </t>
+	  <t>
+	    Updated many spec URLs from http to https.
+	  </t>
+	</list>
+      </t>
+
+      <t>
+	-01
+	<list style="symbols">
+          <t>
+	    Fixed #1071 - Require <spanx style="verb">id_token_hint</spanx> in RP-initiated logout
+	    for redirect to <spanx style="verb">post_logout_redirect_uri</spanx>.
+	  </t>
+	  <t>
+	    Fixed #1134 - Clarify that OPs must send a logout notification to the RP that requested RP-Initiated Logout.
+	  </t>
+	  <t>
+	    Fixed #1030 - Specify the use of HTTPS URIs.
+	  </t>
+	  <t>
+	    Fixed #1087 - Insufficient description of <spanx style="verb">id_token_hint</spanx> processing and validation.
+	  </t>
+	  <t>
+	    Fixed #1056 - Support both GET and POST at the Logout Endpoint.
+	  </t>
+	  <t>
+	    Fixed #1017 - Added <spanx style="verb">ui_locales</spanx> parameter at Logout Endpoint.
+	  </t>
+	  <t>
+	    Defined the Logout Endpoint term.
+	  </t>
+        </list>
+      </t>
+
+      <t>
+	-00
+	<list style="symbols">
+          <t>
+	    Fixed #1085 - Split RP-Initiated Logout into its own specification.
+	  </t>
+	  <t>
+	    Registered the AS metadata value <spanx style="verb">end_session_endpoint</spanx>.
+	  </t>
+	  <t>
+	    Updated affiliations and acknowledgements.
+	  </t>
+	  <t>
+	    Moved metadata sections to more logical locations.
+	  </t>
+	  <t>
+	    Added paragraph describing the relationship between
+	    RP-Initiated Logout and the three OP-initiated logout mechanisms.
+	  </t>
+        </list>
+      </t>
+
+    </section>
+  </back>
+</rfc>

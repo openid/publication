@@ -1,0 +1,741 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml.resource.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN"
+"http://xml2rfc.ietf.org/authoring/rfc2629.dtd">
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="openid-connect-modrna-authentication-1_0" ipr="none">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="5" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="yes" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+  
+  <front>
+    <title abbrev="OIDC MODRNA Authentication Profile 1.0">
+            OpenID Connect MODRNA Authentication Profile 1.0</title>
+
+
+    <author fullname="Joerg Connotte" initials="J." surname="Connotte">
+      <organization abbrev="">Deutsche Telekom AG</organization>
+      <address>
+        <email>j.connotte@telekom.de</email>
+      </address>
+    </author>
+
+
+	<author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization abbrev="">Ping Identity</organization>
+      <address>
+        <email>jbradley@pingidentity.com</email>
+      </address>
+    </author>
+
+
+
+    <date day="06" month="Mar" year="2017" />
+    
+    <workgroup>OpenID Mobile Profile Working Group</workgroup>
+
+    <abstract>
+    
+<t>RPs are keen to use high quality authentication methods, which can be provided by 
+	Mobile Network Operators (MNO). 
+	However a RP must be able to describe its demands for an authentication request 
+	and it must be able to do this in an interoperable way.
+</t>
+<t>
+	The MODRNA Authentication Profile will specify how RP's request a certain level of 
+	assurance for the authentication.
+</t>
+<t>
+	In addition, the profile will specify an encrypted login hint token to 
+	allow for the transport of user identifiers to the OP in a privacy preserving 
+	fashion.
+</t>
+<t>
+	Lastly, the profile will specify an additional messge parameter intended
+	to serve as an interlock between the user's consumpution device and 
+	authentication device.
+</t>
+
+    </abstract>
+  </front>
+
+  <middle>
+
+    <section anchor="Introduction" title="Introduction">
+
+      <t>
+	    OpenID Connect MODRNA Authentication Profile 1.0 is a profile of the 
+      	<xref target="OpenID.Core">OpenID Connect Core 1.0</xref> specification
+      	that defines common authentication contexts and further extensions to OpenID
+      	Connect Core to be used when requesting authentication from MNO's. Moreover it 
+      	defines Mandatory to Implement features for MNOs to assure interoperability of clients across 
+      	MNO's.
+      </t>
+
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+        <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+        "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+        document are to be interpreted as described in <xref
+        target="RFC2119"/>.</t>
+
+        <t>Throughout this document, values are quoted to indicate that they are
+        to be taken literally. When using these values in protocol messages, the
+        quotes MUST NOT be used as part of the value.</t>
+      </section>
+
+      <section anchor="terminology" title="Terminology">
+        <t>
+          This specification uses the termn "OpenID Provider (OP)" and "Relying Party (RP)" as
+          defined by <xref target="OpenID.Core">OpenID Connect Core</xref>.
+          This specification also defines the following terms: 
+          <list style="hanging">
+             <t hangText="Mobile Network Operator (MNO)">
+               A provider of wireless communication services that owns or controls the wireless 
+               network elements necessary to sell and deliver services to an end user.
+            </t>
+             <t hangText="Mobile Station International Subscriber Directory Number (MSISDN)">
+              A telephone number uniquely identifying a subscription in a mobile network.  
+            </t>
+             <t hangText="Consumption Device (CD)">
+              A user agent, most probably a browser, on which the user consumes the actual service
+              provided by the Relying Party.  
+            </t>
+             <t hangText="Authentication Device (AD)">
+              A mobile device on which the user will authenticate the actual login.
+            </t>
+          </list>
+        </t>
+      </section>
+    </section>
+    
+    <section anchor="overview" title="Overview">
+    
+    <t>
+	    This specification serves as a profile based on OpenID Connect Core <xref target="OpenID.Core"/>.
+	    It defines additional request parameters in the Authentication Request.
+	    It also specifies authentication class reference values based on the
+	    ISO/IEC DIS 29115 <xref target="ISO.29115"/> to be used for the 
+	    "acr_values" request parameter.
+	</t>
+
+
+    </section>
+	<section anchor="auth_request" title="Authentication Request">
+		<t>
+			MODRNA supports all request parameters as specified in 
+			OpenID Connect Core 3.1.2.1 <xref target="OpenID.Core"/>.
+		</t>
+		<t>In addition the following parameters are defined or made REQUIRED for clients
+		to send. All additional paramaters are REQUIRED for OP to support.</t>
+		<t>
+			<list style="hanging">
+				<t hangText="acr_values">
+					REQUIRED. In <xref target="OpenID.Core"/> this parameter is specified as OPTIONAL.
+					For MODRNA this parameter is REQUIRED in order to enable the Relying Party to 
+					indicate a MODRNA conform authentication request to the OP. 
+					Allowed values are defined in <xref target="acr_values" />.
+				</t>
+				<t hangText="login_hint_token">
+					OPTIONAL. This is a new parameter. The login_hint_token is used to 
+    	        	transport a user identifier from the Discovery Service to the OpenID Provider without 
+        	    	revealing this identifier to the client.
+        	    	<xref target="login_hint_token_structure" /> specifies the structure of this parameter.
+        	    	Protection of the login_hint_token's content is specified in 
+        	    	<xref target="lht_encryption_signing" />.
+				</t>
+				<t hangText="binding_message">
+				    OPTIONAL. This is a new parameter. An Interlock message to tie the consumption 
+				    device and the authentication device together.
+				    How to ensure that the message is actually shown on all relevant 
+				    devices is out of the scope of this document.
+				    Possible values and constraints are specified in 
+				    <xref target="binding_message_details" />.
+				    Ways to protect the integrity of the binding_message are discussed 
+				    in <xref target="security_considerations" />.
+				</t>
+			</list>
+		</t>
+	</section>
+    <section anchor="acr_values" title="acr_values request values and level of assurance">
+        <t> The service's terms of service will specify a trust framework for Identity Providers 
+             to follow for general business processes and other related account security 
+             issues.
+        </t>
+        <t>
+	        This specification defines an initial set of <spanx style="verb">acr</spanx> values
+	        that clients can use to request the IdP mitigate specific authentication
+	        risks.
+	    </t>
+	    <t>The initial set of <spanx style="verb">acr</spanx> values 
+	       contain no requirements for the IdP to make any guarantee of identity proofing 
+	       the subject of the authentication beyond what is required by business practices
+	       for account recovery and customer service as defined in the trust framework.
+	       Prepaid anonymous users may be included in responses conforming to these  values.
+	       </t>
+	    <t>The IANA <xref target="RFC6711">Level of Assurance (LoA) Profiles</xref>
+	    Registry will be used to register the short names for these LoA, and any future
+	    additional LoA.
+	    </t>
+	    
+	    <t>
+		    <list style="hanging">
+			    <t hangText="http://schemas.openid.net/policies/modrna/phishing-resistant">
+			    Short-Name: mod-pr
+			    <vspace/>
+			    This mitigates phishing of credentials.
+			    <vspace/> 
+				    The user is authenticated via possession of a device (phone) 
+				    containing a secret key. 
+                  The user is required to provide no additional authentication information 
+                  to use the key. The user is interactively prompted to confirm the 
+                  authentication. The storage mechanism for the secret key and other 
+                  relevant authentication information is returned via the 
+                  <spanx style="verb">amr</spanx>. The user is not re-prompted for 
+                  credentials if the value of <spanx style="verb">prompt</spanx> 
+                  is not login and <spanx style="verb">max_age</spanx> is more than the 
+                  elapsed time since the user last authenticated at the requested acr.
+				    
+			    </t>
+			    <t hangText="http://schemas.openid.net/policies/modrna/multi-factor">
+			    Short-Name: mod-mf
+			    <vspace/>
+			    This mitigates phishing and proves the device is recently in the possession of
+			    the authorised user via pin or device unlock.
+			    <vspace/> 
+				The user is authenticated via possession of a device (phone) containing a 
+				secret key. The user is required to provide additional authentication 
+				information via a biometric, pin code or other appropriate factors such 
+				as bluetooth paring with a watch. Given suitable Mobile device management 
+				unlocking the device is also sufficient along with user confirmation of 
+				desire to authenticate. The storage mechanism for the secret key and 
+				other relevant authentication information is returned via the 
+				<spanx style="verb">amr</spanx> value. 
+				The user is not re-prompted for 
+                  credentials if the value of <spanx style="verb">prompt</spanx> 
+                  is not login and <spanx style="verb">max_age</spanx> is more than the 
+                  elapsed time since the user last authenticated at the requested acr.
+			    </t>
+<!--			    
+			    <t hangText="http://schemas.openid.net/policies/modrna/multi-factor-physical">
+			    Short-Name: mod-mfp
+			     <vspace/> 
+			    This mitigates phishing and proves the device is currently in the possession of
+			    the authorised user verified by a biometric.
+			    <vspace/>
+				    The user is authenticated via possession of a device (phone) containing a secret key.
+The user is required to provide additional authentication information via a local biometric, 
+or a remote paring with a biometric capable device.  If an external device like a EKG band
+is used for the biometric the user must still be prompted for consent on the AD.
+The Biometric may be captured as part of the consent flow.
+
+			    </t>
+-->			    
+			    
+			</list>
+	    </t>
+			<t>Identity Providers MUST recognize and process short 
+			registered forms of the authentication context strings. They may
+			recognize and process long forms for custom authentication contexts. </t>
+			
+			<t>Clients MUST send the short registered forms of the authentication context
+			 strings, if the authentication context is registered.
+			</t>
+			
+			<t>The OP MUST support receiving <spanx style="verb">acr_values</spanx> as a
+			space separated list in order of preference per 
+			 OpenID Connect Core 3.1.2.1 <xref target="OpenID.Core"/>.
+		    </t>
+		    
+		    <t>The OP MUST support receiving <spanx style="verb">acr</spanx> as a
+			claim request in a signed request per 
+			 OpenID Connect Core 5.5.1 <xref target="OpenID.Core"/>.  This method 
+			 prevents the request from being modified by the user, and allows the
+			 requested <spanx style="verb">acr</spanx> valued to be considered 
+			 essential claims causing the IdP to respond with an authentication 
+			 error if no requested <spanx style="verb">acr</spanx> value can be 
+			 fulfilled.
+		    </t>
+		    <t>Depending on the authentication capabilities of the users device,
+		    the OP must attempt to match the highest requested acr value that the 
+		    AD is capable of. 
+		    If the acr claim is not marked as essential in the request object, the OP 
+		    may return another acr value that the device is capable of rather than an error 
+		    if it cannot match any of the requested acr_values.
+		    </t>  
+    </section>
+    
+    <section anchor="amr_values" title="Authentication Method Reference (amr)">
+        <t> The <spanx style="verb">amr</spanx> claim 
+        <xref target="OpenID.Core">OpenID Connect Core Sec 2</xref>
+        SHOULD be returned in the 
+        id_token if a <spanx style="verb">acr</spanx> value is specified in the request.
+        <vspace/>
+        The <spanx style="verb">amr</spanx> claim is a JSON array containing one or more 
+        string values indicating the authentication methods used in the authentication.
+        </t>
+        <t>The values for the strings in the <spanx style="verb">amr</spanx> claim are
+         registered in a IANA registry defined in 
+         <xref target="I-D.ietf-oauth-amr-values">Authentication Method Reference Values</xref>.
+         </t>
+        <t>
+	        This specification recommends the use of several of the values, to provide
+	        a standard way for clients to understand the authentication 
+	    </t>
+	    
+	    <t>
+		    <list style="hanging">
+			    
+			    <t hangText="user">
+			    User presence test.
+			    </t>
+			    <t hangText="pin">
+			    A Personal Identification Number or pattern  (Not restricted to numbers only) 
+			    that a user used to unlock a key on the device.
+                This mechanism SHOULD have a way to deter an attacker from guessing the 
+                pin by making multiple guesses.
+			    </t>
+			    <t hangText="fpt">
+			    Fingerprint biometric
+			    </t> 
+			    <t hangText="sms">
+			    Confirmation by responding to a SMS sent to a known device.
+			    </t>
+			    <t hangText="swk">
+			    Proof-of-possession (PoP) of a software-secured key.
+			    </t>
+			    <t hangText="hwk">
+			    Proof-of-possession (PoP) of a hardware-secured key.
+			    </t>
+			    <t hangText="geo">
+			    Geo-Location of the authentication device.
+			    </t>
+			   
+			    
+			</list>
+	    </t>
+	    <section anchor="amr_examples" title="AMR Value Examples">
+			<t>If the authentication is performed by sending the users mobile device a 
+			SMS with a URI
+			and having the user click on the link to confirm, it SHOULD have a 
+			<spanx style="verb">amr</spanx> value of ["sms","user"]</t>
+			
+			<t>If the authentication is by sending a secure message to a hardware 
+			element in mobile device's and the HW element signs a authentication challenge
+			only after the user has entered a local PIN then it SHOULD have a 
+			<spanx style="verb">amr</spanx> value of ["hpop","pin"]</t>
+		    
+		    <t>If the authentication is by sending a secure message to a software 
+			application in the mobile device that signs a authentication challenge
+			only after the user has entered a local fingerprint biometric then it 
+			SHOULD have a 
+			<spanx style="verb">amr</spanx> value of ["pop","fpt"]</t>
+			
+			<t>If the authentication is by sending a secure message to a hardware 
+			element in mobile device's and the HW element signs a authentication challenge
+			only after the user has entered a local fingerprint biometric,
+			and the IdP has preformed additional passive analytics based on
+			geo location, then it 
+			SHOULD have a 
+			<spanx style="verb">amr</spanx> value of ["hpop","fpt","geo"]</t>
+			
+			<t>Note that if two or more authentication factors are used the MNO may 
+			include the <spanx style="verb">amr</spanx> value <spanx style="verb">mfa</spanx>
+			and optionally not include the specific factors.
+			<vspace/>
+			Note: that the order of elements in the <spanx style="verb">amr</spanx>
+			array is not significant.</t>
+		    
+		    </section>    
+		     
+    </section>
+    
+    <section anchor="login_hint_token_structure" title="login_hint_token">
+        <t>
+            The <spanx style="verb">login_hint_token</spanx> is used to pass a user hint
+            into the authentication process at the OP. This hint is opaque to the client 
+            by design.
+			There are several ways for a client to obtain a login hint token. 
+			To start with, the 
+			<xref target="MODRNA.Discovery">MODRNA discovery service</xref> creates a
+			hint if the user has entered their MSISDN in the course of the MNO discovery process. 
+			</t>
+
+		<t>
+			In the case of a <spanx style="verb">login_hint_token</spanx> produced by the 
+			MODRNA Discovery Service it
+        	is an encrypted Json Web Token <xref target="RFC7519">JWT</xref> that contains a user
+        	hint for the OP. 
+        	The <spanx style="verb">login_hint_token</spanx> SHALL be used by the client as 
+        	login hint with OP identified by the 
+        	<xref target="MODRNA.Discovery">MODRNA discovery service</xref>.
+        	In this case, the login hint token is supposed to be a
+            signed and encrypted JWT. 
+		</t>
+		<t>
+			The Authorization server may produce <spanx style="verb">login_hint_token</spanx>
+			tokens in other formats for use in Account Chooser
+			or other discovery profiles, as long as they are confidentiality protected from the client.
+		</t>
+		<t>
+        	 The <spanx style="verb">login_hint_token</spanx> produced by the
+        	 <xref target="MODRNA.Discovery">MODRNA discovery service</xref>
+        	 has the following elements:
+            <list style="hanging">
+                <t hangText="iss">
+			        REQUIRED. The party creating the token.
+			        This value MUST be used by the IdP receiving the token 
+			        to obtain the <xref target="RFC7517">JWK</xref>
+			         file required to validate
+			        the tokens's signature (see <xref target="lht_encryption_signing" />). 
+			    </t>
+			    <t hangText="aud">
+                    REQUIRED. The party to receive the token, typically the users OpenID Provider.
+                    The value MUST be the issuer URI of the OP as exposed 
+                    in the IdP's openid-configuration meta-data.
+   			    </t>
+	      		<t hangText="iat"> 
+                    REQUIRED. When the token was issued.
+			    </t>
+			    <t hangText="MSISDN"> REQUIRED. 
+			        The Subscriber identifier formated according to ITU-T recommendation <xref target="E.164" />
+                </t>	
+             </list>
+         </t>
+         <figure>
+	     	<preamble>The following is a non-normative example of JWT body 
+	        (with line wraps within values for display purposes only):</preamble>
+			<artwork><![CDATA[
+  {
+   "iss": "https://discovery-provider.com",
+   "aud": "https://babytel.com",
+   "iat": 1311280970,
+   "MSISDN": "+1999550123"
+  }
+                ]]></artwork>
+		</figure>
+
+    	<section anchor="lht_encryption_signing" title="login_hint_token encryption and signing">
+        	<t>
+	        	The login_hint token MUST be encrypted using the public key of the OpenID Provider
+	        	designated by the claim "aud" in the login_hint_token. 
+	        	The appropriate public key is obtained using the rules
+	        	defined in <xref target="OpenID.Discovery">OpenID Connect Discovery.</xref>
+	        </t>
+	        <t>
+
+		        In the first step, the openid-configuration for the IdP is retrieved by
+		        performing discovery Per Section 4 of <xref target="OpenID.Discovery"/> 
+		        using the issuer string for the users IdP as the input.
+		        <vspace/>
+		        
+		        In the next step,
+		        the value of the "jwks_uri" claim Per Section 3 of 
+		        <xref target="OpenID.Discovery"/> is used to retrieve the OP's 
+		        <xref target="RFC7517">JWK</xref>.
+		        A public key in the JWK with a use paramater of "enc" per
+		        Section 4.2 of <xref target="RFC7517">JWK</xref> 
+		        is used as the encryption key.
+		        The login_hint_token is then encrypted as a JWE using that key.
+		    </t>
+    	    <t>The login_hint token MUST be signed using the private key of the Discovery Service.</t>
+        	
+        	<t>It is best practice to sign then encrypt tokens, as signatures over encrypted 
+        	information may leak information in the envelope, and may not be considered 
+        	legally valid.</t>
+        	<t>For an example of a nested JWT that is signed and then encrypted see 
+        	Appendix 2 of <xref target="RFC7519">JWT</xref>.
+		    </t>
+		    <t>NOTE:  The <spanx style="verb">login_hint_token</spanx> is opaque to
+		     the client by design.  The Authorization server may produce 
+		     <spanx style="verb">login_hint_token</spanx> tokens in other formats 
+		     for use in Account Chooser or other discovery profiles, as long as they 
+		     are confidentiality protected from the client. </t>
+	    </section>
+    </section>
+
+    
+    <section anchor="binding_message_details" title="binding_message">
+        <t>
+	        The <spanx style="verb">binding_message</spanx> parameter is a text provided by the RP intended 
+	        to be shown to the user on the consumption device as well as on the authentication device as an 
+	        interlock between RP and OP.
+	     </t>
+	     <t>
+	        The <spanx style="verb">binding_message</spanx> MUST be plain text using the 
+	        "application/x-www-form-urlencoded" format as the authentication device in particular 
+	        may have limited abilities to show text or formats.
+	      </t>
+	      <t>
+	        The <spanx style="verb">binding_message</spanx> SHOULD be displayable on all participating 
+	        devices. The RP SHOULD consider that some authentication devices e.g. as SIM-Applets are able to 
+	        show only a very limited number of characters.    
+        </t>
+    </section>
+    
+    <section anchor="m_t_i" title="mandatory to implement">
+	    <t>
+            <list style="hanging">
+                <t hangText="acr_values">
+			       All MODRNA compliant OP's MUST accept the acr_values specified in <xref target="acr_values" /> 
+			    </t>
+             </list>
+		</t>
+    </section>
+    
+
+    <section anchor="security_considerations" title="Security Considerations">
+	<t>
+		The login hint token SHOULD be digitally signed by the issuer.
+		This ensures authenticity of the data and reduces the threat of an injection attack.
+		The signature allows the OP to authenicate and authorize the sender of the hint and
+        prevent collecting of phone numbers by rogue clients.
+	</t>
+	<t>
+		To prevent modification of the <spanx style="verb">binding_message</spanx> value, 
+		the RP SHOULD send the parameter to the OP using a signed OpenID Connect Request Object 
+		(section 6.3.2 of <xref target="OpenID.Core"/>). 
+	</t>
+	<t>
+		The OP MUST sanitize the <spanx style="verb">binding_message</spanx> value in order to 
+		prevent injection attacks.
+	</t>
+	<t>
+		The <spanx style="verb">binding_message</spanx> value being displayed on the consumption 
+		and authentication device SHOULD contain a random value (e.g. an authorization code) of 
+		reasonable entropy.
+		This is a countermeasure against session fixation type attacks, where the 
+		attacker initiates an authentication process on a consumption device under his 
+		control, which will result in the same text being displayed on the authentication
+		device as for legitimate transactions.
+	</t>
+    </section>
+
+    <section anchor="privacy_considerations" title="Privacy Considerations">
+	    <t>
+		    The login hint token is encrypted in order to protect the user's MSISDN from 
+		    being revealed to the client unintentionally.
+	    </t>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>TBD: Find out about how to correctly add entries to IANA
+	      for:
+	      
+	      https://www.iana.org/assignment/loa-profiles/loa-profiles.xhtml
+      </t>
+    </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="reference.RFC.2119"?>
+      <?rfc include="reference.RFC.7517"?>
+      <?rfc include="reference.RFC.7519"?>
+      <?rfc include="reference.RFC.6711"?>
+
+      <?rfc include="reference.I-D.draft-ietf-oauth-amr-values-06.xml"?>
+
+      <reference anchor="OpenID.Core" target="http://openid.net/specs/openid-connect-core-1_0.html">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+	  <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+	    <organization abbrev="Salesforce">Salesforce</organization>
+	  </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+      <reference anchor="OpenID.Discovery" target="http://openid.net/specs/openid-connect-discovery-1_0.html">
+        <front>
+          <title>OpenID Connect Discovery 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="Illumila">Illumila</organization>
+          </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+    </references>
+    
+    <references title="Informative References">
+
+      <?rfc include="reference.RFC.6749"?>
+      <?rfc include="reference.RFC.6750"?>
+      <?rfc include="reference.RFC.5246"?>
+      <?rfc include="reference.RFC.2246"?>
+
+
+
+      <reference anchor="ISO.29115">
+	<front>
+	  <title>ISO/IEC DIS 29115</title>
+
+          <author fullname="Erika McCallister" initials="E." surname="McAllister">
+           <organization abbrev="ISO">ISO</organization>
+          </author>
+
+          <author fullname="Richard Brackney" initials="R." surname="Brackney">
+            <organization abbrev="ITU-T">ITU-T</organization>
+          </author>
+
+	  <date day="01" month="April" year="2013"/>
+	</front>
+
+	<format target="http://www.iso.org/iso/catalogue_detail.htm?csnumber=45138"
+		type="HTML" />
+      </reference>
+
+      <reference anchor="E.164">
+	<front>
+	  <title>Recommendation ITU-T E.164</title>
+
+          <author fullname="N." initials="" surname="N.">
+            <organization abbrev="ITU-T">ITU-T</organization>
+          </author>
+
+	  <date day="01" month="November" year="2010"/>
+	</front>
+
+	<format target="https://www.itu.int/rec/T-REC-E.164-201011-I"
+		type="PDF" />
+      </reference>
+
+      <reference anchor="MODRNA.Discovery"
+                 target="https://bitbucket.org/openid/mobile/raw/default/draft-mobile-discovery-01.txt">
+        <front>
+          <title>OpenID Connect Mobile Discovery Profile 1.0</title>
+
+          <author fullname="Torsten Lodderstedt" initials="T." surname="Lodderstedt">
+            <organization abbrev="">Deutsche Telekom AG</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <date day="08" month="August" year="2015"/>
+        </front>
+      </reference>
+      
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>The following have contributed to the development of this specification.</t>
+      <t>
+        <list style="empty">
+          <t>Matthieu Verdier (matthieu.verdier@orange.com), Orange</t>
+          <t>Gonzalo Fernandez Rodriguez (gonzalo.fernandezrodriguez@telefonica.com), Telefonica</t>
+        </list>
+      </t>
+    </section>
+
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2017 The OpenID Foundation.</t>
+      <t>
+	The OpenID Foundation (OIDF) grants to any Contributor, developer, 
+	implementer, or other interested party a non-exclusive, royalty free, 
+	worldwide copyright license to reproduce, prepare derivative works from, 
+	distribute, perform and display, this Implementers Draft or 
+	Final Specification solely for the purposes of (i) developing 
+	specifications, and (ii) implementing Implementers Drafts and 
+	Final Specifications based on such documents, provided that attribution 
+	be made to the OIDF as the source of the material, but that such attribution 
+	does not indicate an endorsement by the OIDF.
+      </t>
+      <t>
+	The technology described in this specification was 
+	made available from contributions from various sources, 
+	including members of the OpenID Foundation and others.  
+	Although the OpenID Foundation has taken steps to help ensure 
+	that the technology is available for distribution, it takes 
+	no position regarding the validity or scope of any intellectual 
+	property or other rights that might be claimed to pertain to 
+	the implementation or use of the technology described in 
+	this specification or the extent to which any license under 
+	such rights might or might not be available; neither does it 
+	represent that it has made any independent effort to identify 
+	any such rights.  The OpenID Foundation and the contributors 
+	to this specification make no (and hereby expressly disclaim any) 
+	warranties (express, implied, or otherwise), including implied 
+	warranties of merchantability, non-infringement, fitness for 
+	a particular purpose, or title, related to this specification, 
+	and the entire risk as to implementing this specification is 
+	assumed by the implementer.  The OpenID Intellectual 
+	Property Rights policy requires contributors to offer 
+	a patent promise not to assert certain patent claims against 
+	other contributors and against implementers.  The OpenID Foundation invites 
+	any interested party to bring to its attention any copyrights, 
+	patents, patent applications, or other proprietary rights 
+	that may cover technology that may be required to practice 
+	this specification.
+      </t>
+    </section>
+
+
+    <section anchor="History" title="Document History">
+      <t>[[ To be removed from the final specification ]]</t>
+
+	  <t>-06 <list style="symbols">
+	  	<t>update reference to amr spec</t>
+	  	<t>Make Date current for implementers draft</t>
+	  	</list></t>
+
+      <t>-01 <list style="symbols">
+          <t>Initial draft</t>
+          <t>Added OIDF Standard Notice </t>
+          <t>changed references to amr specification</t>
+        </list></t>
+        
+          
+    
+    </section>
+  </back>
+</rfc>

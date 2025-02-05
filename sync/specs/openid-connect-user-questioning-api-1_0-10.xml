@@ -1,0 +1,1610 @@
+<?xml version='1.0' encoding='US-ASCII'?>
+<?xml-stylesheet type='text/xsl' href='http://xml.resource.org/authoring/rfc2629.xslt' ?>
+
+<!--
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN" 'http://xml2rfc.ietf.org/authoring/rfc2629.dtd'>
+-->
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="openid-connect-user-questioning-api-1_0" ipr='none'>
+<?rfc toc="yes" ?>
+<?rfc tocdepth="5" ?>
+<?rfc symrefs="yes" ?>
+<?rfc sortrefs="yes"?>
+<?rfc strict="yes" ?>
+<?rfc iprnotified="no" ?>
+<?rfc private="Draft" ?>
+
+<front>
+
+    <title abbrev='OIDC User Questioning API 1.0'>
+	OpenID Connect User Questioning API 1.0
+	</title>
+			
+	<author fullname='Nicolas Aillery' initials='N.' surname='Aillery'>
+	<organization abbrev='Orange'>Orange</organization>
+	<address>
+	<email>nicolas.aillery@orange.com</email>
+	</address>
+	</author>
+	
+	<author fullname='Charles Marais' initials='C.' surname='Marais'>
+	<organization abbrev='Orange'>Orange</organization>
+	<address>
+	<email>charles.marais@orange.com</email>
+	</address>
+	</author>
+	
+    <date day='6' month='March' year='2017'/>
+	
+    <workgroup>OpenID MODRNA Working Group</workgroup>
+	
+	<abstract>
+	<t>
+	This specification defines an API offered by an OpenID Provider (OP) that can be used by an application to send a question to a user of the OP. 
+	The user does not need to be interacting with the application when the question is asked. 
+	The user's answer is returned asynchronously, digitally-signed by the OP.</t>
+	</abstract>
+	
+</front>
+<middle>
+  
+	<section anchor='Introduction' title='Introduction'>
+	<t>This specification defines a specific API used by a Client (i.e. Service Provider)
+	in order to question an End-User and get his Statement (i.e. his answer). The question is a short interrogative sentence (e.g. "Which product do you want to order ?") and the statement (e.g. "the blue one") is selected amongst proposed statements (e.g. "none", "the blue one", "the red one") that are also short texts.</t>
+	<t>This API is specified as an OAuth 2.0-protected Resource Server accessible with an Access Token.</t>
+	<t>The Client can use the API defined in this specification whether the End-User is currently using the Client or not.</t>
+	<t>The User Questioning API is an asynchronous API. There are 2 main ways to get the End-User's Statement: the first one requires some polling of the API and the second requires the Client to expose a callback endpoint.</t>
+
+		<section anchor='rnc' title='Requirements Notation and Conventions'>
+		<t>
+		The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", 
+		"SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this 
+		document are to be interpreted as described in <xref target='RFC2119'/>.
+		</t>
+		<t>
+		Throughout this document, values are quoted to indicate that they are 
+		to be taken literally. When using these values in protocol messages, the 
+		quotes MUST NOT be used as part of the value.
+		</t>
+		<t>
+		All uses of <xref target="JWS">JSON Web Signature (JWS)</xref> 
+		and <xref target="JWE">JSON Web Encryption (JWE)</xref> 
+		data structures in this specification utilize 
+		the JWS Compact Serialization or the JWE Compact Serialization; 
+		the JWS JSON Serialization and the JWE JSON Serialization are not used.
+		</t>
+		</section>
+		
+		<section anchor='terminology' title='Terminology'>
+		<t>
+		This specification uses the terms "Access Token", "Resource Server", and "Client" defined by <xref target='RFC6749'>OAuth 2.0</xref>, 
+		the terms "JSON Web Token (JWT)",	"JWT Claims Set", and "Nested JWT" defined by <xref target="JWT">JSON Web Token (JWT)</xref>, 
+		and the terms "Header Parameter" and "JOSE Header" defined by <xref target="JWS">JSON Web Signature (JWS)</xref>. 
+		This specification also defines the following terms: 
+		<list style='hanging'>
+		<t hangText='Questioned User'>
+		<spanx style='strong'></spanx> End-User receiving the question and requested to make a statement. 
+		</t>
+		</list>
+		</t>
+		</section>
+
+	  
+		<section title='Overview'>
+		
+		<t>
+		The User Questioning API enables a Client to address a question to an end-user and to get his response, called User Statement Token, digitally-signed by the OP. 
+		The Client addresses the question thanks to a <spanx style="verb">User Questioning Request</spanx> sent on the <spanx style="verb">User Questioning Request Endpoint</spanx>. 
+		The <spanx style="verb">User Statement Token</spanx> is contained in a <spanx style="verb">User Questioning Response</spanx>. 
+		</t>
+		<t>
+		In order to retrieve the <spanx style="verb">User Questioning Response</spanx>, two flows are offered to the Client: a Pulled-By-Client flow and a Pushed-To-Client flow. 
+		In the Pulled-By-Client flow, the Client regularly calls the <spanx style="verb">User Questioning Polling Endpoint</spanx>. 
+		In the Pushed-To-Client flow, the Client is notified on the <spanx style="verb">Client Notification Endpoint</spanx>.
+		</t>
+		
+		
+		<t>The User Questioning protocol, in abstract, follows the following steps.</t>
+		<t>
+		<list style="numbers">
+		<t>The Client sends a User Questioning Request to the OpenID Provider (OP).</t>
+		<t>The OP interacts with the Questioned User and obtains his Statement.</t>
+		<t>The OP responds to the Client with a User Questioning Response.</t>
+		</list>
+		</t>
+<figure>
+<preamble>
+These steps are illustrated in the following diagram:
+</preamble>
+<artwork>
++--------+                                               +--------+
+|        |                                               |        |
+|        |----(1) User Questioning Request--------------&gt;|        |
+|        |                                               |        |
+|        |  +--------+                                   |        |
+|        |  |        |                                   |        |
+| Client |  |  End-  |&lt;--(2) User interactions to get---&gt;|   OP   |
+|        |  |  User  |  the Questioned User's Statement  |        |
+|        |  |        |                                   |        |
+|        |  +--------+                                   |        |
+|        |                                               |        |
+|        |&lt;----(3) User Questioning Response-------------|        |
+|        |                                               |        |
++--------+                                               +--------+
+</artwork>
+</figure>
+		<t>
+		About the "(2) User interactions to get the Questioned User's Statement" step, note that the way the OP obtains the Questioned User's Statement is out of the scope of this specification.
+		</t>
+		</section>
+	
+		<section title='User Questioning flows'>
+		
+			<t>This document specifies two User Questioning flows:
+			<list style='hanging' hangIndent='6'>
+			<t hangText='Pulled-By-Client flow:'>
+			In this flow, after the User Questioning Request, the Client must call the OP in order to get the User Questioning Response. Refer to <xref target='Pulled-By-Client-Flow'/> for more details.
+			</t>
+			<t hangText='Pushed-To-Client  flow:'>
+			In this flow, after the User Questioning Request, the OP calls the Client to deliver the User Questioning Response. Refer to <xref target='Pushed-To-Client-Flow'/> for more details.
+			</t>
+			</list>
+			</t>
+			<t>
+			At registration, a Client is configured with the flow it will use. Refer to <xref target='client_registration'/> for more details.
+			</t>
+			
+			<section anchor='Pulled-By-Client-Flow' title='Pulled-By-Client Flow'>
+			<t>
+			In this flow, the Client will poll the OP to get the User Questioning Response.
+			</t>
+		
+<figure>
+<artwork>
++--------+                                               +--------+
+|        |---(1a) User Questioning Request--------------&gt;|        |
+|        |                                               |        |
+|        |&lt;--(1b) Question Created-----------------------|        |
+|        |                                               |        |
+|        |  +--------+                                   |        |
+| Client |  |  End-  |&lt;--(2a) User interactions to get--&gt;|   OP   |
+|        |  |  User  |  the Questioned User's Statement  |        |
+|        |  +--------+                                   |        |
+|        |                                               |        |
+|        |--(3a) Get User Questioning Response----------&gt;|        |
+|        |                                               |        |
+|        |&lt;---(3b) User Questioning Response-------------|        |
++--------+                                               +--------+
+</artwork>
+</figure>
+			
+			</section>
+
+			
+			<section  anchor='Pushed-To-Client-Flow' title='Pushed-To-Client Flow'>
+			<t>
+			In this flow, the OP will send the User Questioning Response to the client_notification_endpoint registered by the Client.
+			</t> 
+
+<figure>
+<artwork>
++--------+                                               +--------+
+|        |---(1a) User Questioning Request--------------&gt;|        |
+|        |                                               |        |
+|        |&lt;--(1b) Question Created-----------------------|        |
+|        |                                               |        |
+|        |  +--------+                                   |        |
+| Client |  |  End-  |&lt;--(2a) User interactions to get--&gt;|   OP   |
+|        |  |  User  |  the Questioned User's Statement  |        |
+|        |  +--------+                                   |        |
+|        |                                               |        |
+|        |&lt;---(3a) User Questioning Response-------------|        |
+|        |                                               |        |
+|        |---(3b) Acknowledgement-----------------------&gt;|        |
++--------+                                               +--------+
+</artwork>
+</figure>
+
+			</section>
+		</section>
+
+
+		<section title='Example of use cases involving the User Questioning API'>
+		<t>The following use cases are non-normative examples to illustrate the usage of the User Questioning API by a Client.</t>
+		<t>
+		<list style="numbers">
+		<t>The Client can be a bank and the User Questioning API can be used to challenge the End-User when he wants to pay on Internet in order to secure the transaction. This is similar to 3D-Secure. The question could be: "Do you allow a payment of x euros to party y? (Yes) (No)".
+		</t>
+		<t>The Client can be a bank and the User Questioning API can be used to challenge the End-User when he wants to add a new payee for a bank transfer. The question could be: "Do you allow party y to be added to your payees? (I accept) (I refuse)".
+		</t>
+		<t>The Client can be a drive-in food market and the User Questioning API  can be used to ask the End-User if he accepts the exchange of one missing product by another. The question could be: "Do you agree to get product x instead of product y? (I agree) (I disagree)".
+		</t>
+		<t>The Client can be a ticketing platform and the User Questioning API can be used to prevent transactions by bots. The question could be: "Do you confirm that you are currently booking a ticket? (I confirm) (I deny)".
+		</t>
+		<t>The Client can be an airline company and the User Questioning API can be used to be sure that the End-User is notified of a delay. The question could be: "Your flight is postponed. Can you confirm that you are aware? (I read this)".
+		</t>
+		<t>The Client can be a survey company and the User Questioning API can be used to get the End-User's choice. The question could be: "Which is your favorite brand? (brand_A) (brand_B) (brand_C)".
+		</t>
+		</list>
+		</t>
+		</section>
+		
+		<section title='When to use the User Questioning API'>
+		<t>The User Questioning API should be used when the following constraints must be fulfilled:</t>
+		<t>
+		<list style="numbers">
+		<t>The Client needs to have a real-time interaction with an End-User that may not be currently using the Client.
+		</t>
+		<t>The Client needs to have the End-User's statement on a given question.
+		</t>
+		<t>The Client needs to be sure that the responding End-User has been authenticated before responding.
+		</t>
+		<t>The Client needs to have a non-repudiable proof of the End-User's statement.
+		</t>
+		<t>The Client needs the End-User's statement to enforce a policy (i.e. take a decision).
+		</t>
+		</list>
+		</t>
+		</section>
+	
+	</section>
+
+
+	<section anchor='user-statement-token' title='User Statement Token'>
+		
+	<t>
+	The User Statement Token is a security token that contains Claims about the statement made by the Questioned User.
+	The User Statement Token is represented as a <xref target="JWT">JSON Web Token (JWT)</xref>.
+	</t>
+	<t>
+	The following Claims are used within the User Statement Token in all Questioning API flows.
+	</t>	
+	<t>
+	<list style="hanging">
+	<!---->
+	<t hangText="question_id">
+	MANDATORY. 
+	The <spanx style="verb">question_id</spanx> is a unique identifier of the Question. This identifier is created by the OP.
+	The <spanx style="verb">question_id</spanx> value is a case sensitive string.
+	</t>
+	<!---->
+	<t hangText="iss">
+	MANDATORY. 
+	Issuer Identifier for the Issuer of the response. The issuer is the OP.
+	<spanx style="verb">iss</spanx> is defined in chapter 2 of <xref target='OpenID.Core'/>. 
+	The <spanx style="verb">iss</spanx> value is a case sensitive URL using the <spanx style="verb">https</spanx> scheme that contains scheme, host, and optionally, port number and path components and no query or fragment components. 
+	</t>
+	<!---->
+	<t hangText="sub">
+	MANDATORY. 
+	Subject Identifier. 
+	A locally unique and never reassigned identifier within the Issuer for the End-User, which is intended to be consumed by the Client.
+	<spanx style="verb">sub</spanx> is defined in chapter 2 of <xref target='OpenID.Core'/>. 
+	The <spanx style="verb">sub</spanx> value MUST NOT exceed 255 ASCII characters in length. The <spanx style="verb">sub</spanx> value is a case sensitive string. 
+	</t>
+	<!---->
+	<t hangText="aud">
+	MANDATORY. 
+	Audience(s) that this User Statement Token is intended for. 
+	<spanx style="verb">aud</spanx> is defined in chapter 2 of <xref target='OpenID.Core'/>.
+	The <spanx style="verb">aud</spanx> value is an array of case sensitive strings.
+	</t>
+	<!---->
+	<t hangText="user_id">
+	OPTIONAL. 
+	The <spanx style="verb">user_id</spanx> is a unique identifier provided in the User Questioning Request and allowing to identify the Questioned User (e.g. Mobile phone, sub, ...). 
+	The <spanx style="verb">user_id</spanx> is present in the User Statement Token only if the <spanx style="verb">user_id</spanx> and <spanx style="verb">user_id_type</spanx> were present in the User Questioning Request. 
+	When present, this is the identifier actually used to reach the Questioned User. 
+	The <spanx style="verb">user_id</spanx> value is a case sensitive string. 
+	</t>
+	<!---->
+	<t hangText="user_id_type">
+	OPTIONAL. The <spanx style="verb">user_id_type</spanx> is present in the User Statement Token only if the <spanx style="verb">user_id</spanx> and <spanx style="verb">user_id_type</spanx> were present in the User Questioning Request.
+	The <spanx style="verb">user_id_type</spanx> indicates the type of the End-User's identifier used for User Questioning.
+	The <spanx style="verb">user_id_type</spanx> value is a case sensitive string. 
+	</t>
+	<!---->
+	<t hangText="question_displayed">
+	MANDATORY. 
+	The <spanx style="verb">question_displayed</spanx> is the question displayed to the Questioned User.
+	If the <spanx style="verb">question_to_display</spanx> (described in <xref target='user_questioning_request'/>) has not been displayed as is, the <spanx style="verb">question_displayed</spanx> MUST be the exact message displayed to Questioned User.
+	The <spanx style="verb">question_displayed</spanx> value is a case sensitive string. 
+	</t>
+	<!---->
+	<t hangText="displayed_statements">
+	MANDATORY. List of possible statements displayed to the Questioned User. 
+	The <spanx style="verb">displayed_statements</spanx> MUST be the list of the exact statements displayed to the Questioned User.
+	The <spanx style="verb">displayed_statements</spanx> value is a JSON array of case sensitive strings.
+	</t>
+	<!---->
+	<t hangText="statement">
+	MANDATORY. Statement made by the User Questioning.
+	The <spanx style="verb">statement</spanx> MUST be the exact statement made by the Questioned User.
+	The <spanx style="verb">statement</spanx> value is a case sensitive string.
+	</t>
+	<!---->
+	<t hangText="statement_date">
+	MANDATORY. Date indicating when the End-User gave his Statement on the Question.
+	The <spanx style="verb">statement_date</spanx> value is a JSON number representing the number of seconds from 1970-01-01T0:0:0Z as measured in UTC.
+	</t>
+	<!---->
+	<t hangText="used_amr">
+	MANDATORY. Authentication Method References. 
+	These are the authentication methods used by the OP to authenticate the Questioned User before he made his statement. 
+	Authentication Method References are defined in chapter 2 of <xref target='OpenID.Core'/>, where they are named <spanx style="verb">amr</spanx>. 
+	The <spanx style="verb">used_amr</spanx> value is an array of case sensitive strings.
+	</t>
+	<!---->
+	<t hangText="used_acr">
+	MANDATORY. Authentication Context Class Reference. 
+	Authentication Context Class Reference value that identifies the Authentication Context Class used by the OP to authenticate the Questioned User before he made his statement. 
+	Authentication Context Class Reference is defined in chapter 2 of <xref target='OpenID.Core'/>, where it is named <spanx style="verb">acr</spanx>. 
+	The <spanx style="verb">used_acr</spanx> value is a case sensitive string.
+	</t>
+	<!---->
+	</list>
+	</t>
+	
+	<t>
+	User Statement Tokens MUST be signed by the OP using a digital signature as defined in <xref target="JWS">JWS</xref> providing authentication, integrity and non-repudiation. 
+	Message Authentication Codes (MACs) MUST NOT be used as they do not provide non-repudiation. 
+	User Statement Tokens CAN optionally be both signed and then encrypted using <xref target="JWS">JWS</xref> and <xref target="JWE">JWE</xref> respectively, thereby providing 
+	authentication, integrity, non-repudiation, and confidentiality, per <xref target="SigningOrder"/>. 
+	If the User Statement Token is encrypted, it MUST be signed then encrypted, with the result being a Nested JWT, as defined in <xref target="JWT"/>. 
+	User Statement Tokens MUST NOT use <spanx style="verb">none</spanx>, <spanx style="verb">HS256</spanx>, <spanx style="verb">HS384</spanx> and <spanx style="verb">HS512</spanx> as the <spanx style="verb">alg</spanx> value.
+	</t>
+	<t>
+	User Statement Tokens SHOULD NOT use the JWS or JWE 
+	<spanx style="verb">x5u</spanx>, 
+	<spanx style="verb">x5c</spanx>, 
+	<spanx style="verb">jku</spanx>, or 
+	<spanx style="verb">jwk</spanx> 
+	Header Parameter fields. 
+	Instead, references to keys used are communicated in advance using Discovery and Registration parameters, per <xref target="SigEnc"/>.
+	</t>
+	<t>
+	The signature MUST be verified by the Client.
+	</t>
+
+<figure>
+<preamble>
+The following is a non-normative example of the set of Claims (the JWT Claims Set) in a User Statement Token:
+</preamble>
+<artwork>
+{
+    "question_id":"984dcc7d3d4d4b0f9f8022e344f9",
+    "iss":"https://server.example.com",
+    "aud":["s8V3wm8IXMW6TboazXZX"],
+    "sub":"g117YBtCZO3mAKPQKP8o",
+    "user_id":"+33612345678",
+    "user_id_type":"msisdn",
+    "question_displayed":"Which is ...?",
+    "displayed_statements":["blue","red","yellow"],
+    "statement":"red",
+    "statement_date":1311282975,
+    "used_acr":"2",
+    "used_amr":["CLICK_OK"]
+}
+</artwork>
+</figure>	
+
+<figure>
+<preamble>
+Signing the User Statement Token with the <spanx style="verb">RS256</spanx> algorithm
+results in this Object value (with line wraps within values for display purposes only):
+</preamble>
+<artwork><![CDATA[
+eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsyYmRjIn0.eyJxdWVzdG
+lvbl9pZCI6Ijk4NGRjYzdkM2Q0ZDRiMGY5ZjgwMjJlMzQ0ZjkiLCJpc3MiOiJodHRw
+czovL3NlcnZlci5leGFtcGxlLmNvbSIsImF1ZCI6WyJzOFYzd204SVhNVzZUYm9hel
+haWCJdLCJzdWIiOiJnMTE3WUJ0Q1pPM21BS1BRS1A4byIsInVzZXJfaWQiOiIrMzM2
+MTIzNDU2NzgiLCJ1c2VyX2lkX3R5cGUiOiJtc2lzZG4iLCJxdWVzdGlvbl9kaXNwbG
+F5ZWQiOiJXaGljaCBpcyAuLi4_IiwiZGlzcGxheWVkX3N0YXRlbWVudHMiOlsiYmx1
+ZSIsInJlZCIsInllbGxvdyJdLCJzdGF0ZW1lbnQiOiJyZWQiLCJzdGF0ZW1lbnRfZG
+F0ZSI6MTMxMTI4Mjk3NSwidXNlZF9hY3IiOiIyIiwidXNlZF9hbXIiOlsiQ0xJQ0tf
+T0siXX0.bbDeU13rouABOOGrvIdQ4BN6GZtHvf1_oZEtGMrMoF9y2l66Dnyv_LL0ei
+p2eCT56N7nH8iACNoJawCG_O2nYfUfJTU8t-tu-MNLe9p69PtUQkxShFzvWXPQfri_
+OXQSs1zdtZ5NNVUX0ulPLm7QOniNFvY4sHwAkci4V1Czj72FGsxcUsUS6KUJRY7B2z
+nP5ykl7m75iCp0Ydx72NshWCWzQxDfXPdQpuJoB96OXDuuukYIrOY1yZOqkUGE6AqP
+cmMUJEWmT7OCHNi0Acsr0jU-fwxoAfYxQ641pW203PfVHXVRd06Ly0xHT3b50FM1jn
+JM4tq98j78zu1cxVc2ww
+]]></artwork>
+</figure>
+
+<figure>
+<preamble>
+The following RSA public key, represented in JWK format, can be used to
+validate the Object signature in this example
+(with line wraps within values for display purposes only):
+</preamble>
+<artwork><![CDATA[
+{
+"kty":"RSA",
+"kid":"k2bdc",
+"n":"y9Lqv4fCp6Ei-u2-ZCKq83YvbFEk6JMs_pSj76eMkddWRuWX2aBKGHAtKlE5P
+7_vn__PCKZWePt3vGkB6ePgzAFu08NmKemwE5bQI0e6kIChtt_6KzT5OaaXDF
+I6qCLJmk51Cc4VYFaxgqevMncYrzaW_50mZ1yGSFIQzLYP8bijAHGVjdEFgZa
+ZEN9lsn_GdWLaJpHrB3ROlS50E45wxrlg9xMncVb8qDPuXZarvghLL0HzOuYR
+adBJVoWZowDNTpKpk2RklZ7QaBO7XDv3uR7s_sf2g-bAjSYxYUGsqkNA9b3xV
+W53am_UZZ3tZbFTIh557JICWKHlWj5uzeJXaw",
+"e":"AQAB"
+}
+]]></artwork>
+</figure>
+
+	<!-- The private key is archived here, but is not included in the specification output.
+	<figure>
+	<preamble>
+	The following is the RSA private key, represented in JWK format,
+	that was used to sign the Request Object in this
+	and subsequent Request Object examples
+	(with line wraps within values for display purposes only):
+	</preamble>
+
+	<artwork><![CDATA[
+	{
+	"kty": "RSA",
+	"kid":"k2bdc",
+	"n": "y9Lqv4fCp6Ei-u2-ZCKq83YvbFEk6JMs_pSj76eMkddWRuWX2aBKGHAtKlE5P7_vn__PCKZWePt3vGkB6ePgzAFu08NmKemwE5bQI0e6kIChtt_6KzT5OaaXDFI6qCLJmk51Cc4VYFaxgqevMncYrzaW_50mZ1yGSFIQzLYP8bijAHGVjdEFgZaZEN9lsn_GdWLaJpHrB3ROlS50E45wxrlg9xMncVb8qDPuXZarvghLL0HzOuYRadBJVoWZowDNTpKpk2RklZ7QaBO7XDv3uR7s_sf2g-bAjSYxYUGsqkNA9b3xVW53am_UZZ3tZbFTIh557JICWKHlWj5uzeJXaw",
+	"e": "AQAB",
+	"d": "LNwG_pCKrwowALpCpRdcOKlSVqylSurZhE6CpkRiE9cpDgGKIkO9CxPlXOLzjqxXuQc8MdMqRQZTnAwgd7HH0B6gncrruV3NewI-XQV0ckldTjqNfOTz1VRs-jE-57KAXI3YBIhu-_0YpIDzdk_wBuAk661Svn0GsPQe7m9DoxdzenQu9O_soewUhlPzRrTH0EeIqYI715rwI3TYaSzoWBmEPD2fICyj18FF0MPy_SQzk3noVUUIzfzLnnJiWy_p63QBCMqjRoSHHdMnI4z9iVpIwJWQ3jO5n_2lC2-cSgwjmKsFzDBbQNJc7qMG1N6EssJUwgGJxz1eAUFf0w4YAQ",
+	"qi": "J-mG0swR4FTy3atrcQ7dd0hhYn1E9QndN-
+	-sDG4EQO0RnFj6wIefCvwIc47hCtVeFnCTPYJNc_JyV-mU-9vlzS5GSNuyR5qdpsMZXUMpEvQcwKt23ffPZYGaqfKyEesmf_Wi8fFcE68H9REQjnniKrXm7w2-IuG_IrVJA9Ox-uU",
+	"q": "4hlMYAGa0dvogdK1jnxQ7J_Lqpqi99e-AeoFvoYpMPhthChTzwFZO9lQmUoBpMqVQTws_s7vWGmt7ZAB3ywkurf0pV7BD0fweJiUzrWk4KJjxtmP_auuxrjvm3s2FUGn6f0wRY9Z8Hj9A7C72DnYCjuZiJQMYCWDsZ8-d-L1a-s",
+	"p": "5sd9Er3I2FFT9R-gy84_oakEyCmgw036B_nfYEEOCwpSvi2z7UcIVK3bSEL5WCW6BNgB3HDWhq8aYPirwQnqm0K9mX1E-4xM10WWZ-rP3XjYpQeS0Snru5LFVWsAzi-FX7BOqBibSAXLdEGXcXa44l08iec_bPD3xduq5V_1YoE",
+	"dq": "Nz2PF3XM6bEc4XsluKZO70ErdYdKgdtIJReUR7Rno_tOZpejwlPGBYVW19zpAeYtCT82jxroB2XqhLxGeMxEPQpsz2qTKLSe4BgHY2ml2uxSDGdjcsrbbNoKUKaN1CuyZszhWl1n0AT_bENl4bJgQj_Fh0UEsQj5YBBUJt5gr_k",
+	"dp": "Zc877jirkkLOtyTs2vxyNe9KnMNAmOidlUc2tE_-0gAL4Lpo1hSwKCtKweZJ-gkqt1hT-dwNx_0Xtg_-NXsadMRMwJnzBMYwYAfjApUkfqABc0yUCJJl3KozRCugf1WXkU9GZAH2_x8PUopdNUEa70ISowPRh04HANKX4fkjWAE"
+	}
+	]]></artwork>
+	</figure>
+	-->
+
+		<section anchor="UserStatementTokenValidation" title="User Statement Token Validation">
+		<t>
+		In order to validate the User Statement Token, the Client MUST verify the signature, using <xref target='SigEnc'/>.
+		</t>
+		<t>
+		Then, the Client MUST verify the <spanx style="verb">used_amr</spanx>, <spanx style="verb">used_acr</spanx> and <spanx style="verb">statement_date</spanx>. 
+		The Client is responsible to use the <spanx style="verb">statement_date</spanx> to prevent replay. 
+		The Client is responsible to check that the <spanx style="verb">used_amr</spanx> and <spanx style="verb">used_acr</spanx> fit with its security policy. 
+		</t>
+		<t>
+		Then, the Client MUST verify the <spanx style="verb">displayed_question</spanx> value and the <spanx style="verb">statement</spanx> value, 
+		regarding the <spanx style="verb">question_to_display</spanx> value and the <spanx style="verb">statements_to_display</spanx> value sent in the User Questioning Request. 
+		</t>
+		<t>
+		The Client is responsible of its decision to consider the Questioned User's <spanx style="verb">statement</spanx> regarding the <spanx style="verb">displayed_question</spanx>. 
+		The Client is also responsible of any decision it would take based on this <spanx style="verb">statement</spanx>.
+		</t>
+		</section>
+	
+    </section>
+		
+    <section title='OP Discovery and Client registration'>
+
+		<section anchor="discovery" title='OP Discovery'>
+
+			<t>	The OpenID Connect User Questioning API can be discovered within the OpenID Provider Metadata thanks to <xref target='OpenID.Discovery'/>. 
+
+			<list style="hanging">
+			<!---->
+			<t hangText="scopes_supported">
+			The scope <spanx style="verb">question</spanx> MUST be present in the <spanx style="verb">scopes_supported</spanx> array.
+			</t>
+			<!---->
+			<t hangText="user_questioning_request_endpoint">
+			The URL of User Questioning Request Endpoint MUST be configured as the value of <spanx style="verb">user_questioning_request_endpoint</spanx>.
+			</t>
+			<!---->
+			<t hangText="user_questioning_polling_endpoint">
+			The URL of User Questioning Polling Endpoint MUST be configured as the value of <spanx style="verb">user_questioning_polling_endpoint</spanx>.
+			</t>
+			<!---->
+			<t hangText="amr_list">
+			The array of supported authentication methods (i.e. <spanx style="verb">AMR</spanx>) MUST be configured as the value of <spanx style="verb">amr_list</spanx>.
+			</t>
+			<!---->
+			<t hangText="acr_list">
+			The array of supported levels of assurance (i.e. <spanx style="verb">ACR</spanx>) MUST be configured as the value of <spanx style="verb">acr_list</spanx>.
+			</t>
+			<!---->
+			</list>
+			</t>
+		
+		</section>
+	
+	    <section anchor="client_registration" title='Client registration'>
+
+			<t>
+			In order to use the User Questioning API, the Client MUST have the right to access the User Questioning API. 
+			The right for a Client to access the User Questioning API is the right to use the User Questioning API's scope. This scope value is <spanx style="verb">question</spanx>. 
+			</t>
+			<t>
+			If the Client wants to be notified of the User Questioning Response (cf. <xref target='Pushed-To-Client-Flow'/>), it MUST register its <spanx style="verb">client_notification_endpoint</spanx>. 
+			The <spanx style="verb">client_notification_endpoint</spanx> is a callback URL on the Client. 
+			If the client does not use the client notification, it MUST obtain the result by using the user questioning polling endpoint. 
+			Both mechanisms are mutual exclusive, i.e. a particular <spanx style="verb">client_id</spanx> can only be used with one of these mechanisms. 
+			</t>
+		
+		</section>
+		
+    </section>
+
+	
+    <section anchor="endpoints" title='Endpoints'>
+	
+	    <section title='User Questioning Request Endpoint'>
+			<t>
+			In order to send a question to a Questioned User, the Client MUST send a User Questioning Request to the User Questioning Request Endpoint. 
+			</t>
+			
+			<t>
+			Communication with the User Questioning Request Endpoint MUST utilize TLS. 
+			See Section 16.17 in <xref target='OpenID.Core'/> for more information on using TLS.
+			</t>
+		
+		    <section anchor="user_questioning_request" title='User Questioning Request'>
+			<t>
+			The Client sends the User Questioning Request using an HTTP POST Request.
+			</t>
+			<t>
+			The Client MUST have a valid OAuth 2.0 Access Token for the scope <spanx style="verb">question</spanx>. 
+			The Access Token MAY refer to the Questioned User, as explained in <xref target='processing_user_id'/>.
+			The way the Access Token has been obtained by the Client is out of scope of this specification.
+			</t>
+			
+			<t>
+			The HTTP POST request MUST contain the following header:
+			<list style="hanging">
+			<!---->
+			<t hangText="Authorization">
+			MANDATORY. 
+			The <spanx style="verb">Authorization</spanx> value contains an Access Token obtained from an OAuth 2.0 Authorization request and used as a <xref target='RFC6750'/> Bearer Token. 
+			The <spanx style="verb">Authorization</spanx> value is a case sensitive string. 
+			</t>
+			<!---->		
+			</list>
+			</t>
+			
+			<t>
+			The User Questioning Request MUST contain a JSON structure in the body of the HTTP POST, with the following attributes:
+			</t>
+			
+			<t>
+			<list style="hanging">
+			<!---->
+			<t hangText="client_notification_token">
+			MANDATORY if the Client uses the Pushed-To-Client Flow described in <xref target='Pushed-To-Client-Flow'></xref>. MUST NOT be used otherwise.
+			The <spanx style="verb">client_notification_token</spanx> is an opaque token issued by the Client. The Client SHOULD use a random value with a level of entropy high enough to cover its security requirements. 
+			The <spanx style="verb">client_notification_token</spanx> is a Bearer Token used by the Client to authorize the OP when the OP sends the User Questioning Response to the Client Notification Endpoint.
+			The <spanx style="verb">client_notification_token</spanx> value is a case sensitive string.
+			</t>
+			<!---->
+			<t hangText="user_id">
+			MUST NOT be used if the Access Token is tied with an End-User, MANDATORY if the Access Token is not tied with an End-User. 
+			The <spanx style="verb">user_id</spanx> is a unique identifier allowing to identify the Questioned User (e.g. Mobile phone, sub, ...).
+			The <spanx style="verb">user_id</spanx> value is a case sensitive string.
+			</t>
+			<!---->
+			<t hangText="user_id_type">
+			MUST NOT be used if the Access Token is tied with an End-User, MANDATORY if the Access Token is not tied with an End-User. 
+			The <spanx style="verb">user_id_type</spanx> indicates the type of the End-User's identifier used for User Questioning.
+			The <spanx style="verb">user_id_type</spanx> value is a case sensitive string amongst the values defined in <xref target='processing_user_id'></xref>.
+			</t>
+			<!---->
+			<t hangText="question_to_display">
+			MANDATORY. 
+			The <spanx style="verb">question_to_display</spanx> is the question to be displayed to the Questioned User. 
+			The <spanx style="verb">question_to_display</spanx> SHOULD NOT be modified when displayed to Questioned User, the only exception being restrictions imposed by the Questioning Method.  
+			The <spanx style="verb">question_to_display</spanx> value is a case sensitive string.
+			</t>
+			<!---->
+			<t hangText="statements_to_display">
+			MANDATORY. 
+			The <spanx style="verb">statements_to_display</spanx> is the list of possible statements to be displayed to the Questioned User. 
+			The <spanx style="verb">statements_to_display</spanx> SHOULD NOT be modified when displayed to Questioned User, the only exception being restrictions imposed by the Questioning Method.
+			The <spanx style="verb">statements_to_display</spanx> value is a JSON array of case sensitive strings.
+			</t>
+			<!---->
+			<t hangText="wished_amr">
+			OPTIONAL. Authentication Method Reference. 
+			The <spanx style="verb">wished_amr</spanx> is the authentication methods to be used by the OP to authenticate the Questioned User before he made his statement.  
+			Authentication Method References are defined in chapter 2 of <xref target='OpenID.Core'/>, where they are named <spanx style="verb">amr</spanx>. 
+			The <spanx style="verb">wished_amr</spanx> value is an array of case sensitive strings.
+			</t>
+			<!---->	
+			<t hangText="wished_acr">
+			MANDATORY. Authentication Context Class Reference. 
+			The <spanx style="verb">wished_acr</spanx> is Authentication Context Class Reference value that identifies the Authentication Context Class to be used by the OP to authenticate the Questioned User before he made his statement.
+			Authentication Context Class Reference is defined in chapter 2 of <xref target='OpenID.Core'/>, where it is named <spanx style="verb">acr</spanx>. 
+			The <spanx style="verb">wished_acr</spanx> value is a case sensitive string.
+			</t>
+			<!---->		
+			</list>
+			</t>
+
+			<t>
+			The parameters are included in the entity-body of the HTTP POST
+			using the "application/json" media type as defined by <xref target="RFC4627"/>. The
+			parameters are serialized into a JavaScript Object Notation (JSON)
+			structure by adding each parameter at the highest structure level.
+			Parameter names and string values are included as JSON strings.
+			Numerical values are included as JSON numbers. The order of
+			parameters does not matter and can vary.
+			</t>
+
+<figure>
+<preamble>
+The following is a non-normative example of the JSON structure.
+</preamble>
+<artwork>
+POST /questions HTTP/1.1
+Host: server.example.com
+Accept: application/json
+Authorization: Bearer SlAV32hkKG 
+Content-Type: application/json
+Content-Length: xxx
+
+{
+    "client_notification_token":"vO4n2DAeRrcWE0VAlo4I",
+    "user_id":"+33612345678",
+    "user_id_type":"msisdn",
+    "question_to_display":"Do you allow ...?",
+    "statements_to_display":["Yes","No"],
+    "wished_acr":"3",
+    "wished_amr":["PIN_OK"]
+}    
+</artwork>
+</figure>
+
+			</section>
+			
+			
+			<section title='Processing the User Questioning Request'>
+			
+				<section title='Processing the Authorization'>
+				
+					<t>
+					The <spanx style="verb">Authorization</spanx> value contains an Access Token. 
+					The <spanx style="verb">client_id</spanx> associated with the Access Token MUST be associated with the question. It will be used for the <spanx style="verb">aud</spanx> attribute of the User Statement Token. 
+					If the Access Token is associated with a End-User, the OP MUST use the Access Token to identify the End-User and determine a reachability mean for the End-User.
+					</t>
+				
+				</section>
+
+				<section anchor="processing_user_id" title='Processing user_id'>
+
+					<t>
+					The <spanx style="verb">user_id</spanx> is an identifier used to identify the Questioned User and to retrieve a reachability mean. 
+					</t>		
+					<t>
+					The <spanx style="verb">user_id</spanx> is determined from the User Questioning Request, either from the <spanx style="verb">user_id</spanx> attribute or from the Access Token. 
+					If the <spanx style="verb">user_id</spanx> is present in the User Questioning Request and the Access Token is associated to a End-User, an error is raised. 
+					If the <spanx style="verb">user_id</spanx> is absent of both the User Questioning Request and the Access Token, an error is also raised.
+					</t>
+					<t>
+					If the <spanx style="verb">user_id</spanx> is a reachability identifier (e.g. MSISDN, email address, ...), it SHOULD be used as reachability mean. 
+					Otherwise, the OP must use the <spanx style="verb">user_id</spanx> to determine a suitable reachability identifier, i.e. an identifier enabling a direct communication with the Questioned User.
+					</t>
+					
+					<t><spanx style="verb">user_id_type</spanx> member can take the following values:</t>
+					<t>
+					<list style="hanging">
+					<!---->
+					<t hangText="msisdn">	
+					If the <spanx style="verb">user_id_type</spanx> value is <spanx style="verb">msisdn</spanx>, 
+					the <spanx style="verb">user_id</spanx> value is the mobile phone number corresponding to the Questioned User. 
+					<xref target="E.164">E.164</xref> 
+					is RECOMMENDED as the format of this Claim, 
+					for example, <spanx style="verb">+1 (425) 555-1212</spanx> 
+					or <spanx style="verb">+5626872400</spanx>.
+					</t>
+					<!---->
+					<t hangText="email">
+					If the <spanx style="verb">user_id_type</spanx> value is <spanx style="verb">email</spanx>, 
+					the <spanx style="verb">user_id</spanx> value is the email address corresponding to the Questioned User. 
+					Its value MUST conform to the <xref target="RFC5322">RFC 5322</xref> addr-spec syntax.
+					</t>
+					<!---->
+					<t hangText="sub">
+					If the <spanx style="verb">user_id_type</spanx> value is <spanx style="verb">sub</spanx>, 
+					the <spanx style="verb">user_id</spanx> value is the <spanx style="verb">sub</spanx> corresponding to the Questioned User for the requesting <spanx style="verb">client_id</spanx> at the OP. 
+					</t>
+					<!---->
+					</list>
+					</t>
+					<t>
+					Other <spanx style="verb">user_id_type</spanx> can be specified for specific use cases.
+					</t>
+
+				</section>
+				
+				<section anchor="processing_wished_amr" title='Processing wished_amr'>
+				
+					<t>
+					In the User Questioning Request, the <spanx style="verb">wished_amr</spanx> value is a list of authentication methods. 
+					The OP SHOULD choose some of these authentication methods in order to achieve the <spanx style="verb">wished_acr</spanx>. 
+					The OP SHOULD consider the first authentication methods of the <spanx style="verb">wished_amr</spanx> list as the more prioritary. 
+					The OP CAN also decide to either use other authentication methods or achieve another Authentication Context Class Reference as the one specified in <spanx style="verb">wished_acr</spanx>.
+					The authentication methods used MUST be stated in <spanx style="verb">used_amr</spanx> and the achieved Authentication Context Class Reference MUST be stated in <spanx style="verb">used_acr</spanx> of the User Statement Token.
+					</t>
+				
+				</section>
+
+
+			</section>
+
+			<section title='Successful Response'>
+			<t>
+			A successful response to the User Questioning Request is a HTTP 200 OK response. 
+			The response body contains JSON structure, with the following attribute.</t>
+			<t>
+			<list style="hanging">
+			<!---->
+			<t hangText="question_id">
+			MANDATORY. 
+			The <spanx style="verb">question_id</spanx> attribute contains the <spanx style="verb">question_id</spanx> value.  
+			The <spanx style="verb">question_id</spanx> value is a case sensitive string.
+			</t>
+			<!---->		
+			</list>
+			</t>
+			<t>
+			The parameters are included in the entity-body of the HTTP 200 OK
+			using the "application/json" media type as defined by <xref target="RFC4627"/>. The
+			parameters are serialized into a JavaScript Object Notation (JSON)
+			structure by adding each parameter at the highest structure level.
+			Parameter names and string values are included as JSON strings.
+			Numerical values are included as JSON numbers. The order of
+			parameters does not matter and can vary.
+			</t>
+			
+<figure>
+<preamble>
+The following is a non-normative example of the JSON structure.
+</preamble>
+<artwork>
+HTTP/1.1 200 OK
+Content-Type: application/json
+Content-Length: xxx
+
+{
+    "question_id": "984dcc7d3d4d4b0f9f8022e344f9"
+}
+</artwork>
+</figure>
+			</section>
+			
+			
+			<section title='Error Response'>
+			<t>The Client receives the error in a HTTP 400 Bad Request.</t>
+			<t>The HTTP body contains the error object, a JSON structure defined in <xref target='errors'/>. 
+			The error object contains one of the following error codes, defined in <xref target='errors'/>:
+			<list style="symbols">
+			<t>invalid_request</t>
+			<t>no_suitable_method</t>
+			<t>unauthorized</t>
+			<t>unknown_user</t>
+			<t>unreachable_user</t>
+			</list>
+			</t>
+<figure>
+<preamble>
+The following is a non-normative example of error in a HTTP 400 Bad Request. This example can occur in the Pulled-By-Client flow (cf. <xref target='Pulled-By-Client-Flow'/>) and Pushed-To-Client flow (cf. <xref target='Pushed-To-Client-Flow'/>).
+</preamble>
+<artwork>
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+Content-Length: xxx
+
+{
+    "error":"invalid_request",
+    "error_description":"user_id MUST NOT be used 
+        if the Access Token is tied with an End-User",
+    "error_uri":"https://server.example.com/errors/invalid_request"
+}
+</artwork>
+</figure>
+			</section>
+
+		</section>
+
+		
+
+		
+		<section title='User Questioning Polling Endpoint'>
+			
+			<t>In order to detect that User Questioning Response is ready, the Client MUST request the User Questioning Polling Endpoint.
+			If User Questioning Response is ready, it will be returned in the response. 
+			Else, the OP responds with HTTP 304 Not Modified.
+			</t>
+			<t>Communication with the User Questioning Polling Endpoint MUST utilize TLS. 
+			See Section 16.17 in <xref target='OpenID.Core'/> for more information on using TLS.
+			</t>
+			<t>			
+			A Client configured with a <spanx style="verb">client_notification_endpoint</spanx> MUST NOT send a request to the User Questioning Polling Endpoint.
+			</t>
+			
+		    <section title='Polling Request'>
+			
+			<t>The Client gets the User Questioning Response using HTTP GET on the <spanx style="verb">polling_uri</spanx>.</t>
+			<t>The <spanx style="verb">polling_uri</spanx> is the combination of the <spanx style="verb">user_questioning_polling_endpoint</spanx> and the <spanx style="verb">question_id</spanx> as a query string parameter.</t>
+			<t>
+			The <spanx style="verb">polling_uri</spanx> MUST contain the following query string parameter:
+			<list style="hanging">
+			<!---->
+			<t hangText="question_id">
+			MANDATORY. 
+			The <spanx style="verb">question_id</spanx> value contains the <spanx style="verb">question_id</spanx> received from the User Questioning Request endpoint. 
+			The <spanx style="verb">question_id</spanx> value is a case sensitive string. 
+			</t>
+			<!---->		
+			</list>
+			</t>			
+			
+			<t>
+			The HTTP GET request MUST contain the following headers:
+			<list style="hanging">
+			<!---->
+			<t hangText="Authorization">
+			MANDATORY. 
+			The <spanx style="verb">Authorization</spanx> value contains an Access Token obtained from an OAuth 2.0 Authorization request and used as a <xref target='RFC6750'/> Bearer Token. 
+			The <spanx style="verb">Authorization</spanx> value is a case sensitive string. 
+			</t>
+			<!---->
+			<t hangText="Client_timeout">
+			OPTIONAL. 
+			The <spanx style="verb">Client_timeout</spanx> indicates how much time, in seconds, the Client will wait for a HTTP response. 
+			The <spanx style="verb">Client_timeout</spanx> value is a number.
+			</t>
+			<!---->		
+			</list>
+			</t>
+
+<figure>
+<preamble>
+The following is a non-normative example.
+</preamble>
+<artwork>
+GET /questions_polling?question_id=984dcc7d3d4d4b0f9f8022e344f9 HTTP/1.1
+Host: server.example.com
+Accept: application/json
+Authorization: Bearer SlAV32hkKG 
+Client_timeout: 10
+</artwork>
+</figure>
+			</section>
+			
+			<section title='Proccessing the Polling Resquest'>
+			
+				<section anchor="processing_authorization" title='Processing the Authorization'>
+				
+					<t>
+					The <spanx style="verb">Authorization</spanx> value contains an Access Token. 
+					The <spanx style="verb">client_id</spanx> associated with the Access Token MUST be equal to the <spanx style="verb">client_id</spanx> associated with the question. 
+					</t>
+				
+				</section>
+
+			</section>
+
+			
+			<section title='Pending Response'>
+			<t>
+			If the User Questioning Response is not ready, the Client will get a HTTP 304 Not Modified.
+			</t>
+<figure>
+<preamble>
+The following is a non-normative example.
+</preamble>
+<artwork>
+HTTP/1.1 304 Not Modified
+</artwork>
+</figure>			
+			</section>
+
+			
+			<section title='Successful Polling Response'>
+			<t>The Client receives the successful User Questioning Response in a HTTP 200 OK response.</t>
+			<t>The successful User Questioning Response is a JSON object, with the following attribute.</t>
+			<t>
+			<list style="hanging">
+			<!---->
+			<t hangText="user_statement_token">
+			MANDATORY.
+			The <spanx style="verb">user_statement_token</spanx> is a User Statement Token as defined in <xref target='user-statement-token'/>. 
+			The User Statement Token MUST be validated, as described in <xref target='UserStatementTokenValidation'/>.
+			</t>
+			<!---->	
+			</list>
+			</t>
+			<t>
+			The parameters are included in the entity-body of the HTTP 200 OK
+			using the "application/json" media type as defined by <xref target="RFC4627"/>. The
+			parameters are serialized into a JavaScript Object Notation (JSON)
+			structure by adding each parameter at the highest structure level.
+			Parameter names and string values are included as JSON strings.
+			Numerical values are included as JSON numbers. The order of
+			parameters does not matter and can vary.
+			</t>
+			<t>
+			The Client SHOULD check that the <spanx style="verb">question_id</spanx> in the User Questioning Response is the same as the <spanx style="verb">question_id</spanx> in the <spanx style="verb">user_statement_token</spanx>.
+			</t>
+<figure>
+<preamble>
+The following is a non-normative example.
+</preamble>
+<artwork>
+HTTP/1.1 200 OK
+Content-Type: application/json
+Content-Length: xxx
+
+{
+    "user_statement_token":"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtp
+    ZCI6ImsyYmRjIn0.eyJxdWVzdGlvbl9pZCI6Ijk4NGRjYzdkM2Q0ZDRiMGY5Zjgw
+    MjJlMzQ0ZjkiLCJpc3MiOiJodHRwczovL3NlcnZlci5leGFtcGxlLmNvbSIsImF1
+    ZCI6WyJzOFYzd204SVhNVzZUYm9helhaWCJdLCJzdWIiOiJnMTE3WUJ0Q1pPM21B
+    S1BRS1A4byIsInVzZXJfaWQiOiIrMzM2MTIzNDU2NzgiLCJ1c2VyX2lkX3R5cGUi
+    OiJtc2lzZG4iLCJxdWVzdGlvbl9kaXNwbGF5ZWQiOiJXaGljaCBpcyAuLi4_Iiwi
+    ZGlzcGxheWVkX3N0YXRlbWVudHMiOlsiYmx1ZSIsInJlZCIsInllbGxvdyJdLCJz
+    dGF0ZW1lbnQiOiJyZWQiLCJzdGF0ZW1lbnRfZGF0ZSI6MTMxMTI4Mjk3NSwidXNl
+    ZF9hY3IiOiIyIiwidXNlZF9hbXIiOlsiQ0xJQ0tfT0siXX0.bbDeU13rouABOOGr
+    vIdQ4BN6GZtHvf1_oZEtGMrMoF9y2l66Dnyv_LL0eip2eCT56N7nH8iACNoJawCG
+    _O2nYfUfJTU8t-tu-MNLe9p69PtUQkxShFzvWXPQfri_OXQSs1zdtZ5NNVUX0ulP
+    Lm7QOniNFvY4sHwAkci4V1Czj72FGsxcUsUS6KUJRY7B2znP5ykl7m75iCp0Ydx7
+    2NshWCWzQxDfXPdQpuJoB96OXDuuukYIrOY1yZOqkUGE6AqPcmMUJEWmT7OCHNi0
+    Acsr0jU-fwxoAfYxQ641pW203PfVHXVRd06Ly0xHT3b50FM1jnJM4tq98j78zu1c
+    xVc2ww"
+}
+</artwork>
+</figure>
+
+			</section>
+
+			
+			<section title='Error Response'>
+			<t>The Client receives the error in a HTTP 400 Bad Request.</t>
+			<t>The HTTP body contains the error object, a JSON structure defined in <xref target='errors'/>. 
+			The error object contains one of the following error codes, defined in <xref target='errors'/>:
+			<list style="symbols">
+			<t>duplicate_requests</t>
+			<t>forbidden</t>
+			<t>high_rate_client</t>
+			<t>high_rate_question</t>
+			<t>invalid_question_id</t>
+			<t>invalid_request</t>
+			<t>timeout</t>
+			<t>unauthorized</t>
+			<t>user_refused_to_answer</t>
+			</list>
+			</t>	
+<figure>
+<preamble>
+The following is a non-normative example of error in a HTTP 400 Bad Request.
+</preamble>
+<artwork>
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+Content-Length: xxx
+
+{
+    "error":"duplicate_requests",
+    "error_description":"A newer request was sent for this question_id",
+    "error_uri":"https://server.example.com/errors/invalid_request"
+}
+</artwork>
+</figure>
+			</section>
+
+	    </section>
+
+		
+
+	    <section title='Client Notification Endpoint'>
+		<t>
+		If the Client registered a client_notification_endpoint, the OP MUST send the User Questioning Response to the Client, using a HTTP POST on the Client Notification Endpoint.
+		The User Questioning Response is a JSON object.
+		The User Questioning Response contains a <spanx style="verb">status</spanx> attribute that indicates if the User Questioning Response is successful or not.
+		</t>
+		<t>Communication with the Client Notification Endpoint MUST utilize TLS. 
+		See Section 16.17 in <xref target='OpenID.Core'/> for more information on using TLS.
+		</t>
+		
+			<section title='Successful Response with User Questioning Response'>
+			<t>
+			The OP sends the User Questioning Response to the Client using HTTP POST.
+			</t>
+			
+			<t>
+			The HTTP POST request MUST contain the following header:
+			<list style="hanging">
+			<!---->
+			<t hangText="Authorization">
+			MANDATORY. 
+			The <spanx style="verb">Authorization</spanx> value contains the <spanx style="verb">client_notification_token</spanx> specified in the User Questioning Request and used as a <xref target='RFC6750'/> Bearer Token. 
+			The <spanx style="verb">Authorization</spanx> value is a case sensitive string. 
+			</t>
+			<!---->		
+			</list>
+			</t>
+			
+			<t>
+			A successful User Questioning Response is a JSON object, with the following attribute.
+			</t>
+			
+			<t>
+			<list style="hanging">
+			<!---->
+			<t hangText="user_statement_token">
+			MANDATORY.
+			The <spanx style="verb">user_statement_token</spanx> is a User Statement Token as defined in <xref target='user-statement-token'/>. 
+			The User Statement Token MUST be validated, as described in <xref target='UserStatementTokenValidation'/>.
+			</t>
+			<!---->	
+			</list>
+			</t>
+			<t>
+			The Client can retrieve the <spanx style="verb">question_id</spanx> in the <spanx style="verb">user_statement_token</spanx>.
+			</t>
+<figure>
+<preamble>
+The following is a non-normative example.
+</preamble>
+<artwork>
+POST /notification HTTP/1.1
+Host: client.example.com
+Content-Type: application/json
+Authorization: Bearer vO4n2DAeRrcWE0VAlo4I 
+Content-Length: xxx
+
+{
+    "user_statement_token":"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImt
+    pZCI6ImsyYmRjIn0.eyJxdWVzdGlvbl9pZCI6Ijk4NGRjYzdkM2Q0ZDRiMGY5Zj
+    gwMjJlMzQ0ZjkiLCJpc3MiOiJodHRwczovL3NlcnZlci5leGFtcGxlLmNvbSIsI
+    mF1ZCI6WyJzOFYzd204SVhNVzZUYm9helhaWCJdLCJzdWIiOiJnMTE3WUJ0Q1pP
+    M21BS1BRS1A4byIsInVzZXJfaWQiOiIrMzM2MTIzNDU2NzgiLCJ1c2VyX2lkX3R
+    5cGUiOiJtc2lzZG4iLCJxdWVzdGlvbl9kaXNwbGF5ZWQiOiJXaGljaCBpcyAuLi
+    4_IiwiZGlzcGxheWVkX3N0YXRlbWVudHMiOlsiYmx1ZSIsInJlZCIsInllbGxvd
+    yJdLCJzdGF0ZW1lbnQiOiJyZWQiLCJzdGF0ZW1lbnRfZGF0ZSI6MTMxMTI4Mjk3
+    NSwidXNlZF9hY3IiOiIyIiwidXNlZF9hbXIiOlsiQ0xJQ0tfT0siXX0.bbDeU13
+    rouABOOGrvIdQ4BN6GZtHvf1_oZEtGMrMoF9y2l66Dnyv_LL0eip2eCT56N7nH8
+    iACNoJawCG_O2nYfUfJTU8t-tu-MNLe9p69PtUQkxShFzvWXPQfri_OXQSs1zdt
+    Z5NNVUX0ulPLm7QOniNFvY4sHwAkci4V1Czj72FGsxcUsUS6KUJRY7B2znP5ykl
+    7m75iCp0Ydx72NshWCWzQxDfXPdQpuJoB96OXDuuukYIrOY1yZOqkUGE6AqPcmM
+    UJEWmT7OCHNi0Acsr0jU-fwxoAfYxQ641pW203PfVHXVRd06Ly0xHT3b50FM1jn
+    JM4tq98j78zu1cxVc2ww"
+}
+</artwork>
+</figure>
+
+			</section>
+
+			<section title='Error Response'>
+			<t>
+			The OP sends the erroneous User Questioning Response to the Client using HTTP POST.
+			</t>
+
+			
+			<t>
+			The HTTP POST request MUST contain the following header:
+			<list style="hanging">
+			<!---->
+			<t hangText="Authorization">
+			MANDATORY. 
+			The <spanx style="verb">Authorization</spanx> value is the <spanx style="verb">client_notification_token</spanx> specified in the User Questioning Request and used as a <xref target='RFC6750'/> Bearer Token. 
+			The <spanx style="verb">Authorization</spanx> value is a case sensitive string. 
+			</t>
+			<!---->		
+			</list>
+			</t>
+			
+			<t>The HTTP body contains the error object, a JSON structure defined in <xref target='errors'/>. 
+			The error object contains one of the following error codes, defined in <xref target='errors'/>:
+			<list style="symbols">
+			<t>timeout</t>
+			<t>user_refused_to_answer</t>
+			</list>
+			</t>
+			
+			<t>In addition, the error object contains the following attribute:
+			<list style="hanging">
+			<!---->
+			<t hangText="question_id">
+			MANDATORY.
+			The <spanx style="verb">question_id</spanx> is a unique identifier of the Question.
+			The <spanx style="verb">question_id</spanx> value is a case sensitive string.
+			</t>
+			<!---->	
+			</list>
+			</t>
+			
+<figure>
+<preamble>
+The following is a non-normative example.
+</preamble>
+<artwork>
+POST /notification HTTP/1.1
+Host: client.example.com
+Content-Type: application/json
+Authorization: Bearer vO4n2DAeRrcWE0VAlo4I 
+Content-Length: xxx
+
+{
+    "question_id":"984dcc7d3d4d4b0f9f8022e344f9",
+    "error":"unknown_user",
+    "error_description":"The user is unknown",
+    "error_uri":"https://server.example.com/errors/unknown_user"
+}
+</artwork>
+</figure>
+			</section>
+
+			<section title='Proccessing the Response'>
+			
+				<section title='Processing the Authorization'>
+				
+					<t>
+					The <spanx style="verb">Authorization</spanx> value contains a Client Notification Token. 
+					The <spanx style="verb">question_id</spanx> associated with the Client Notification Token MUST match with the <spanx style="verb">question_id</spanx> received from the User Questioning Request Endpoint.
+					</t>
+				
+				</section>
+				
+				<section title='Processing the User Statement Token'>
+				
+					<t>
+					The signature of the User Statement Token MUST be valid, as defined in <xref target='UserStatementTokenValidation'/>.
+					</t>
+				
+					<t>
+					The <spanx style="verb">aud</spanx> attributes contained in the User Statement Token MUST match with the <spanx style="verb">client_id</spanx> of the Client.
+					</t>
+				
+				</section>				
+				
+			</section>
+
+			<section title='Acknowledgement'>
+			<t>
+			The acknowledgement MUST be a HTTP 200 OK. This HTTP response SHOULD be ignored by the OP.
+			</t>	
+<figure>
+<preamble>
+The following is a non-normative example.
+</preamble>
+<artwork>
+HTTP/1.1 200 OK
+</artwork>
+</figure>
+			</section>
+
+	    </section>
+
+    </section>
+	
+	
+
+
+	<section anchor='errors' title='Error Object'>
+	
+	<t>As defined in section 5.2 of <xref target='RFC6749'>OAuth 2.0</xref>, an error object is a JSON structure which contains the following properties:</t>
+	<t>
+	<list style="hanging">
+	<!---->
+	<t hangText="error">
+	MANDATORY. 
+		A single ASCII error code from the following: 
+		<list style="hanging">
+		<!---->
+		<t hangText="duplicate_requests">
+		The Client sent simultaneous requests to the User Questioning Polling Endpoint for the same <spanx style="verb">question_id</spanx>. This error is responded to oldest requests. The last request is processed normally.
+		</t>
+		<!---->
+		<t hangText="forbidden">
+		The Client sent a request to the User Questioning Polling Endpoint whereas it is configured with a <spanx style="verb">client_notification_endpoint</spanx>.
+		</t>
+		<!---->
+		<t hangText="high_rate_client">
+		The Client sent requests at a too high rate, amongst all <spanx style="verb">question_id</spanx>. Information about the allowed and recommended rates can be included in the <spanx style="verb">error_description</spanx>.
+		</t>
+		<!---->
+		<t hangText="high_rate_question">
+		The Client sent requests at a too high rate for a given <spanx style="verb">question_id</spanx>. Information about the allowed and recommended rates can be included in the <spanx style="verb">error_description</spanx>.
+		</t>
+		<!---->
+		<t hangText="invalid_question_id">
+		The Client sent a request to the User Questioning Polling Endpoint for a <spanx style="verb">question_id</spanx> that does not exist or is not valid for the requesting Client.
+		</t>
+		<!---->
+		<t hangText="invalid_request">
+		The User Questioning Request is not valid. The request is missing a required parameter, 
+		includes an unsupported parameter value (other than grant type), 
+		repeats a parameter, includes multiple credentials, 
+		utilizes more than one mechanism for authenticating the client, 
+		or is otherwise malformed.
+		</t>
+		<!---->
+		<t hangText="no_suitable_method">
+		There is no Questioning Method suitable with the User Questioning Request. The OP can use this error code when it does not implement mechanisms suitable for the wished AMR or ACR.
+		</t>
+		<!---->
+		<t hangText="timeout">
+		The Questioned User did not answer in the allowed period of time.
+		</t>
+		<!---->
+		<t hangText="unauthorized">
+		The Client is not authorized to use the User Questioning API or did not send a valid Access Token.
+		</t>
+		<!---->	
+		<t hangText="unknown_user">
+		The Questioned User mentioned in the <spanx style="verb">user_id</spanx> attribute of the User Questioning Request is unknown.
+		</t>
+		<!---->
+		<t hangText="unreachable_user">
+		The Questioned User mentioned in the User Questioning Request (either in the Access Token or in the <spanx style="verb">user_id</spanx> attribute) is unreachable. 
+		The OP can use this error when it does not have a reachability identifier (e.g. MSISDN) for the Question User or when the reachability identifier is not operational (e.g. unsubscribed MSISDN).
+		</t>
+		<!---->
+		<t hangText="user_refused_to_answer">
+		The Questioned User refused to make a statement to the question.
+		</t>
+		<!---->	
+		</list>
+	</t>
+	<!---->
+	<t hangText="error_description">
+	OPTIONAL. 
+		Human-readable ASCII encoded text description of the error. Human-readable ASCII <xref target='RFC20'/> text providing additional information, used to assist the client developer in understanding the error that occurred. 
+        Values for the "error_description" parameter MUST NOT include characters outside the set %x20-21 / %x23-5B / %x5D-7E.
+	</t>
+	<!---->
+	<t hangText="error_uri">
+	OPTIONAL. 
+		A URI identifying a human-readable web page with information about the error, used to provide the client developer with additional information about the error. 
+		Values for the "error_uri" parameter MUST conform to the URI-reference syntax and thus MUST NOT include characters outside the set %x21 / %x23-5B / %x5D-7E.
+	</t>
+	<!---->			
+	</list>
+	</t>
+	<t>
+	The parameters are serialized into a JavaScript Object Notation (JSON)
+	structure by adding each parameter at the highest structure level.
+	Parameter names and string values are included as JSON strings.
+	Numerical values are included as JSON numbers. The order of
+	parameters does not matter and can vary.
+	</t>
+<figure>
+<preamble>
+The following is a non-normative example.
+</preamble>
+<artwork>
+{
+    "error":"unknown_user",
+    "error_description":"The user is unknown",
+    "error_uri":"https://server.example.com/errors/unknown_user"
+}
+</artwork>
+</figure>
+
+	<t>The error object SHOULD be conveyed as a HTTP body, either in a HTTP POST request or in a HTTP 400 response.</t>
+
+	</section>
+
+	
+    <section anchor='implementation_considerations' title='Implementation Considerations'>
+	
+		<section anchor="implementation_of_questioning_methods" title="Implementation of Questioning Methods">
+		<t>
+		In order to interact with the Questioned User, the OP has to implement at least one questioning method. 
+		A questioning method has three purposes: authenticating the Questioned User, displaying the question and collecting the Question User's statement.
+		</t>
+		<t>
+		The authentication method and the associated level of assurance are referred by the <spanx style="verb">AMR</spanx> and <spanx style="verb">ACR</spanx> attributes. 
+		</t>
+		<t>
+		There is no specific attribute to describe how the question was displayed and how the statement was saved. 
+		However, the OP is responsible to display the question as it is. If the question has been modified, the displayed question MUST be returned to the Client as it was displayed, in the <spanx style="verb">displayed_question</spanx> attribute of the User Statement Token. 
+		In the same logic, the Questioned User's statement MUST be returned to the Client as it was displayed, in the <spanx style="verb">statement</spanx> attribute of the User Statement Token. 
+		</t>
+		<t>
+		The fact that a User Questioning Request and an Authentication Request (as defined in <xref target='OpenID.Core'/>) are handled using the same <spanx style="verb">AMR</spanx> means that the user authentication is enforced using the same authentication method. 
+		However, as a Questioning Method uses an authentication method in combination with questioning mechanisms, having the same <spanx style="verb">AMR</spanx> does not mean that the OP has to use the same component to handle User Questioning Requests and Authentication Requests.
+		For instance, if the <spanx style="verb">AMR</spanx> value is <spanx style="verb">SMS_URL</spanx>, the user is authenticated thanks to his mobile phone (using a SMS) but the URL contained in the SMS can refer to two different components, one component for the Authentication Request and another for the User Questioning Request . 
+		</t>
+		<t>
+		If an OP cannot display a question or the statements, it MUST return an error. 
+		To prevent these errors, it can inform the Clients of its limitation and limit the possible questions or statements. 
+		For instance, if the mechanism used for User Questioning can only display a question of limited size with only two predefined statements, 
+		the Client SHOULD send a User Questioning Request with a <spanx style="verb">question_to_display</spanx> limited in size and the two predefined statements as <spanx style="verb">statements_to_display</spanx> values. 
+		</t>
+		</section>
+    </section>
+	
+
+	
+    <section anchor='security_considerations' title='Security Considerations'>
+		
+		<section anchor="NonRepudation" title="Non Repudiation">
+		<t>
+		Non-repudiation is an important feature of User Statement Token. To enable this feature, the asymmetric signatures are the only allowed signatures for User Statement Tokens. 
+		This way, the Client can store the User Statement Token and use it as a proof of the statement made by Questioned User. 
+		This proof engages the signer's responsibility, i.e. the OP's responsibility. 
+		</t>
+		</section>
+	
+	    <section anchor='SigEnc' title='Signatures and Encryption'>
+		<t>
+		Signatures and Encryption should respect the requirements defined in chapter 10 of <xref target='OpenID.Core'/> with one restriction: symmetric signatures MUST not be used.
+		</t>
+		</section>
+	
+		<section anchor="SigningOrder" title="Signing and Encryption Order">
+		<t>
+		Signing and Encryption Order should respect the requirements defined in chapter 16.14 of <xref target='OpenID.Core'/>. 
+		</t>
+		</section>
+		
+    </section>
+	
+    <section anchor='privacy_considerations' title='Privacy Considerations'>
+
+		<section anchor="personal_information" title="Personal Information">
+		<t>
+		The User Statement Token contains the Questioned User's statement on a question. This information is personal.
+		If the <spanx style="verb">user_id</spanx> is present in the User Questioning Request, it will also be present in the User Statement Token, therefore Questioned User is directly identifiable. 
+		In order to protect the Questioned User's privacy, Client SHOULD only store encrypted User Statement Tokens. 
+		The encryption can be computed either by the OP or by the Client, using <xref target='SigEnc'/>.
+		</t>
+		</section>
+	
+	
+    </section>
+		
+    <section anchor='IANA' title='IANA Considerations'>
+	<t>This document makes no requests of IANA.</t>
+    </section>
+	
+</middle>
+
+<back>
+ 
+	<references title='Normative References'>
+	<?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.2119"?>
+	<?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.4627"?>
+	<?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.5322"?>
+	<?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6749"?>
+	<?rfc include="http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6750"?>
+
+      <reference anchor="OpenID.Core" target="http://openid.net/specs/openid-connect-core-1_0.html">
+        <front>
+          <title>OpenID Connect Core 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+	  <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+	    <organization abbrev="Salesforce">Salesforce</organization>
+	  </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+      <reference anchor="OpenID.Discovery" target="http://openid.net/specs/openid-connect-discovery-1_0.html">
+        <front>
+          <title>OpenID Connect Discovery 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="Illumila">Illumila</organization>
+          </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+      <reference anchor="OpenID.Registration" target="http://openid.net/specs/openid-connect-registration-1_0.html">
+        <front>
+          <title>OpenID Connect Dynamic Client Registration 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <date day="8" month="November" year="2014"/>
+        </front>
+      </reference>
+
+      <reference anchor="JWT" target="http://tools.ietf.org/html/rfc7519">
+	<front>
+	  <title>JSON Web Token (JWT)</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Ping Identity">Ping Identity</organization>
+	  </author>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+	  </author>
+
+	  <date month="May" year="2015" />
+	</front>
+
+	<seriesInfo name="RFC" value="7519"/>
+	<seriesInfo name="DOI" value="10.17487/RFC7519"/>
+      </reference>
+
+      <reference anchor="JWS" target="http://tools.ietf.org/html/rfc7515">
+	<front>
+	  <title>JSON Web Signature (JWS)</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization abbrev="Microsoft">Microsoft</organization>
+	  </author>
+
+	  <author fullname="John Bradley" initials="J." surname="Bradley">
+	    <organization abbrev="Ping Identity">Ping Identity</organization>
+	  </author>
+
+	  <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+	    <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+	  </author>
+
+	  <date month="May" year="2015" />
+	</front>
+
+	<seriesInfo name="RFC" value="7515"/>
+	<seriesInfo name="DOI" value="10.17487/RFC7515"/>
+      </reference>
+
+      <reference anchor="JWE" target="http://tools.ietf.org/html/rfc7516">
+	<front>
+	  <title>JSON Web Encryption (JWE)</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization>Microsoft</organization>
+	  </author>
+
+	  <author fullname="Eric Rescorla" initials="E." surname="Rescorla">
+	    <organization>RTFM, Inc.</organization>
+	  </author>
+
+	  <author fullname="Joe Hildebrand" initials="J." surname="Hildebrand">
+	    <organization>Cisco Systems, Inc.</organization>
+	  </author>
+
+	  <date month="May" year="2015" />
+	</front>
+
+	<seriesInfo name="RFC" value="7516"/>
+	<seriesInfo name="DOI" value="10.17487/RFC7516"/>
+      </reference>
+	
+		<reference anchor="RFC20" target="http://www.rfc-editor.org/info/rfc20">
+		<front>
+		<title>ASCII format for Network Interchange</title>
+		<author fullname="Vint Cerf" surname="Cerf" initials="V.">
+		<organization>University California Los Angeles (UCLA)</organization>
+		</author>
+		<date month="October" year="1969"/>
+		</front>
+		<seriesInfo name="STD" value="80"/>
+		<seriesInfo name="RFC" value="20"/>
+		<seriesInfo name="DOI" value="10.17487/RFC0020"/>
+		</reference>
+		
+		<reference anchor="E.164" target="http://www.itu.int/rec/T-REC-E.164-201011-I/en">
+		<front>
+		<title>E.164: The international public telecommunication numbering plan</title>
+		<author fullname="International Telecommunication Union">
+		<organization abbrev="ITU">International Telecommunication Union</organization>
+		</author>
+		<date year="2010" />
+		</front>
+		</reference>
+		
+	</references>
+
+
+	<section anchor='Acknowledgements' title='Acknowledgements'>
+	<t>The following have contributed to the development of this specification.</t>
+	<t>
+	<list style='empty'>
+	<t/>
+	</list>
+	</t>
+	</section>
+
+
+	<section anchor='Notices' title='Notices'>
+	<t>Copyright (c) 2017 The OpenID Foundation.</t>
+	<t>
+	The OpenID Foundation (OIDF) grants to any Contributor, developer, 
+	implementer, or other interested party a non-exclusive, royalty free, 
+	worldwide copyright license to reproduce, prepare derivative works from, 
+	distribute, perform and display, this Implementers Draft or 
+	Final Specification solely for the purposes of (i) developing 
+	specifications, and (ii) implementing Implementers Drafts and 
+	Final Specifications based on such documents, provided that attribution 
+	be made to the OIDF as the source of the material, but that such attribution 
+	does not indicate an endorsement by the OIDF.
+	</t>
+	<t>
+	The technology described in this specification was 
+	made available from contributions from various sources, 
+	including members of the OpenID Foundation and others.  
+	Although the OpenID Foundation has taken steps to help ensure 
+	that the technology is available for distribution, it takes 
+	no position regarding the validity or scope of any intellectual 
+	property or other rights that might be claimed to pertain to 
+	the implementation or use of the technology described in 
+	this specification or the extent to which any license under 
+	such rights might or might not be available; neither does it 
+	represent that it has made any independent effort to identify 
+	any such rights.  The OpenID Foundation and the contributors 
+	to this specification make no (and hereby expressly disclaim any) 
+	warranties (express, implied, or otherwise), including implied 
+	warranties of merchantability, non-infringement, fitness for 
+	a particular purpose, or title, related to this specification, 
+	and the entire risk as to implementing this specification is 
+	assumed by the implementer.  The OpenID Intellectual 
+	Property Rights policy requires contributors to offer 
+	a patent promise not to assert certain patent claims against 
+	other contributors and against implementers.  The OpenID Foundation invites 
+	any interested party to bring to its attention any copyrights, 
+	patents, patent applications, or other proprietary rights 
+	that may cover technology that may be required to practice 
+	this specification.
+	</t>
+	</section>
+
+
+	
+
+</back>
+</rfc>

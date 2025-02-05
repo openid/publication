@@ -1,0 +1,2058 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
+<rfc version="3" ipr="none" docName="openid-connect-4-identity-assurance-1_0-16" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true" consensus="true">
+
+<front>
+<title abbrev="openid-connect-4-identity-assurance-1_0">OpenID Connect for Identity Assurance 1.0</title><seriesInfo value="openid-connect-4-identity-assurance-1_0-16" status="standard" name="Internet-Draft"></seriesInfo>
+<author initials="T." surname="Lodderstedt" fullname="Torsten Lodderstedt"><organization>sprind.org</organization><address><postal><street></street>
+</postal><email>torsten@lodderstedt.net</email>
+</address></author><author initials="D." surname="Fett" fullname="Daniel Fett"><organization>Authlete</organization><address><postal><street></street>
+</postal><email>mail@danielfett.de</email>
+</address></author><author initials="M." surname="Haine" fullname="Mark Haine"><organization>Considrd.Consulting Ltd</organization><address><postal><street></street>
+</postal><email>mark@considrd.consulting</email>
+</address></author><author initials="A." surname="Pulido" fullname="Alberto Pulido"><organization>Santander</organization><address><postal><street></street>
+</postal><email>alberto.pulido@santander.co.uk</email>
+</address></author><author initials="K." surname="Lehmann" fullname="Kai Lehmann"><organization>1&amp;1 Mail &amp; Media Development &amp; Technology GmbH</organization><address><postal><street></street>
+</postal><email>kai.lehmann@1und1.de</email>
+</address></author><author initials="K." surname="Koiwai" fullname="Kosuke Koiwai"><organization>KDDI Corporation</organization><address><postal><street></street>
+</postal><email>ko-koiwai@kddi.com</email>
+</address></author><date/>
+<area>Internet</area>
+<workgroup>eKYC-IDA</workgroup>
+<keyword>security</keyword>
+<keyword>openid</keyword>
+<keyword>identity assurance</keyword>
+<keyword>ekyc</keyword>
+
+<abstract>
+<t>This document defines an extension of OpenID Connect protocol for providing relying parties with claims about end-users that have a certain level of verification and/or additional metadata about the claim or the process of verification for access control, entitlement decisions or input to further verification processes.</t>
+</abstract>
+
+<note><name>Foreword</name>
+<t>The OpenID Foundation (OIDF) promotes, protects, and nurtures the OpenID community and technologies. As a non-profit international standardizing body, it is comprised by over 160 participating entities (workgroup participant). The work of preparing implementer drafts and final international standards is carried out through OIDF workgroups in accordance with the OpenID Process. Participants interested in a subject for which a workgroup has been established have the right to be represented in that workgroup. International organizations, governmental and non-governmental, in liaison with OIDF, also take part in the work. OIDF collaborates closely with other standardizing bodies in the related fields.</t>
+<t>Final drafts adopted by the Workgroup through consensus are circulated publicly for the public review for 60 days and for the OIDF members for voting. Publication as an OIDF Standard requires approval by at least 50% of the members casting a vote. There is a possibility that some of the elements of this document may be subject to patent rights. OIDF shall not be held responsible for identifying any or all such patent rights.</t>
+</note>
+
+<note><name>Introduction</name>
+<t>This extension to OpenID Connect standardizes how relying parties request and receive identity information with additional assurance metadata. This document is aimed at enabling use cases requiring strong assurance, for example, to comply with regulatory requirements such as anti-money laundering laws or access to health data, risk mitigation, or fraud prevention.</t>
+<t>In such use cases, the relying party (RP) needs to understand the trustworthiness or assurance level of the  claims about the end-user that the OpenID provider (OP) is willing to communicate, along with process-related information and evidence used to verify the end-user claims.</t>
+<t>The <tt>acr</tt> claim, as defined in section 2 of the OpenID Connect specification <xref target="OpenID"></xref>, is suited to assure information about the authentication performed in an OpenID Connect transaction. Identity assurance, however, requires a different representation. While authentication is an aspect of an OpenID Connect transaction, assurance and associated verification and validation details, are properties of a certain claim or a group of claims. Several of them will typically be conveyed to the RP as the result of an OpenID Connect transaction.</t>
+<t>For example, the assurance an OP typically will be able to give for an e-mail address will be “self-asserted” or &quot;verified&quot;. The family name of an end-user, in contrast, might have been verified in accordance with the respective anti-money laundering law by showing an ID card to a trained employee of the OP operator.</t>
+<t>Identity assurance requires a way to convey assurance data along with and coupled to the respective claims about the end-user. This document defines a suitable representation and mechanisms the RP will utilize to request verified claims about an end-user along with assurance data and for the OP to represent these verified claims and accompanying assurance data.</t>
+</note>
+
+<note><name>Warning</name>
+<t>This document is not an OIDF International Standard. It is distributed for
+review and comment. It is subject to change without notice and may not be
+referred to as an International Standard.</t>
+<t>Recipients of this draft are invited to submit, with their comments,
+notification of any relevant patent rights of which they are aware and to
+provide supporting documentation.</t>
+</note>
+
+<note><name>Notational conventions</name>
+<t>The keywords &quot;shall&quot;, &quot;shall not&quot;, &quot;should&quot;, &quot;should not&quot;, &quot;may&quot;, and &quot;can&quot; in
+this document are to be interpreted as described in ISO Directive Part 2
+<xref target="ISODIR2"></xref>. These keywords are not used as dictionary terms such that any
+occurrence of them shall be interpreted as keywords and are not to be
+interpreted with their natural language meanings.</t>
+</note>
+
+</front>
+
+<middle>
+
+<section anchor="scope"><name>Scope</name>
+<t>This document is a definition of the technical mechanism to allow a relying party to request one or more verified claim about the end-user and to enable an OpenID provider to provide a relying party with a verified claim (&quot;the tools&quot;).</t>
+<t>Additional facets needed to deploy a complete solution for identity assurance, such as legal aspects (including liability), trust frameworks, or commercial agreements are out of scope. It is up to the particular deployment to complement the technical solution based on this document with the respective definitions (&quot;the rules&quot;).</t>
+<t>Note: Although such aspects are out of scope, the aim of the specification is to enable implementations of the technical mechanism to be flexible enough to fulfill different legal and commercial requirements in jurisdictions around the world. Consequently, such requirements will be discussed in this document as examples.</t>
+</section>
+
+<section anchor="normative-references"><name>Normative references</name>
+<t>See section 13 for normative references.</t>
+</section>
+
+<section anchor="terms-and-definitions"><name>Terms and definitions</name>
+<t>For the purposes of this document, the following terms and definitions apply.</t>
+
+<section anchor="claim"><name>claim</name>
+<t>piece of information asserted about an entity</t>
+</section>
+
+<section anchor="identity-proofing"><name>identity proofing</name>
+<t>process in which an end-user provides evidence to an OpenID Connect provider (OP) or claim provider reliably identifying themselves, thereby allowing the OP or claim provider to assert that identification at a useful assurance level</t>
+</section>
+
+<section anchor="identity-verification"><name>identity verification</name>
+<t>process conducted by the OP or a claim provider to verify the end-user's identity</t>
+</section>
+
+<section anchor="identity-assurance"><name>identity assurance</name>
+<t>process in which the OP or a claim provider asserts identity data of a certain end-user with a certain assurance towards an RP, typically expressed by way of an assurance level. Depending on legal requirements, the OP can be required to provide evidence of the identity verification process to the RP</t>
+</section>
+
+<section anchor="verified-claim"><name>verified claim</name>
+<t>claim about an end-user, typically a natural person, whose binding to a particular end-user account was verified in the course of an identity verification process</t>
+</section>
+
+<section anchor="claim-provider"><name>claim provider</name>
+<t>server that can provide claim information about a entity; synonomous with &quot;claims provider&quot; in OpenID Connect core</t>
+</section>
+</section>
+
+<section anchor="requirements"><name>Requirements</name>
+<t>The RP will be able to request the minimal data set it needs (data minimization) and to express requirements regarding this data, the evidence and the identity verification processes employed by the OP.</t>
+<t>This extension will be usable by OPs operating under a certain regulation related to identity assurance, such as eIDAS, as well as other OPs operating without such a regulation.</t>
+<t>It is assumed that OPs operating under a suitable regulation can assure identity data without the need to provide further evidence since they are approved to operate according to well-defined rules with clearly defined liability. For example in the case of eIDAS, the peer review ensures eIDAS compliance and the respective member state assumes the liability for the identities asserted by its notified eID system.</t>
+<t>Every other OP not operating under such well-defined conditions could receive a request to provide the RP data about the identity verification process along with identity evidence to allow the RP to conduct their own risk assessment and to map the data obtained from the OP to other laws. For example, if an OP verifies and maintains identity data in accordance with an anti-money laundering law, an RP might choose to use the identity attributes in a different regulatory context, such as eHealth or the previously mentioned eIDAS.</t>
+<t>The concept of this document is that the OP can provide identity data along with metadata about the identity assurance process. It is the responsibility of the RP to assess this data and map it into its own legal context.</t>
+<t>From a technical perspective, this means this document allows the OP to provide verified claims along with information about the respective trust framework, but also supports the externalization of information about the identity verification process.</t>
+<t>The representation defined in this document can be used to provide RPs with verified claims about the end-user via any appropriate channel. In the context of OpenID Connect, verified claims can be provided in ID Tokens or as part of the UserInfo response. It is also possible to utilize the format described here in OAuth access tokens or token introspection responses to provide resource servers with verified claims.</t>
+<t>This extension is intended to be truly international and support identity assurance across different jurisdictions. The extension is therefore extensible to support various trust frameworks, identity evidence and assurance processes.</t>
+<t>In order to give implementers as much flexibility as possible, this extension can be used in conjunction with existing OpenID Connect claims and other extensions within the same OpenID Connect assertion (e.g., ID Token or UserInfo response) utilized to convey claims about end-users.</t>
+<t>For example, OpenID Connect <xref target="OpenID"></xref> defines claims for representing family name and given name of an end-user without a verification status. These claims can be used in the same OpenID Connect assertion beside verified claims represented according to this extension.</t>
+<t>In the same way, existing claims to inform the RP of the verification status of the <tt>phone_number</tt> and <tt>email</tt> claims can be used together with this extension.</t>
+<t>Even for representing verified claims, this extension utilizes existing OpenID Connect claims if possible and reasonable. The extension will, however, ensure RPs cannot (accidentally) interpret unverified claims as verified claims.</t>
+<t>In order to fulfill the requirements of some jurisdictions on identity assurance, the OpenID Connect for IDA claims <xref target="OpenID4IDAClaims"></xref> specification defines a number of claims for conveying end-user data in addition to the claims defined in the OpenID Connect specification <xref target="OpenID"></xref>.</t>
+</section>
+
+<section anchor="verified_claims"><name>Verified claims</name>
+
+<section anchor="verified-claims-schema"><name>Verified claims schema</name>
+<t>The basic idea is to use a container element, called <tt>verified_claims</tt>, to provide the RP with a set of claims along with the respective metadata and verification evidence related to the verification of these claims. This way, it is explicit which claims are verified, reducing the risk of RPs accidentally processing unverified claims as verified claims.</t>
+<t>This document uses the <xref target="IDA-verified-claims"></xref> document as the definition of the schema for representation of assured digital identity attributes and identity assurance metadata.</t>
+<t>The following example would assert to the RP that the OP has verified the claims provided (<tt>given_name</tt> and <tt>family_name</tt>) according to an example trust framework <tt>trust_framework_example</tt>:</t>
+
+<sourcecode type="json">{
+  &quot;verified_claims&quot;: {
+    &quot;verification&quot;: {
+      &quot;trust_framework&quot;: &quot;trust_framework_example&quot;
+    },
+    &quot;claims&quot;: {
+      &quot;given_name&quot;: &quot;Max&quot;,
+      &quot;family_name&quot;: &quot;Meier&quot;
+    }
+  }
+}
+</sourcecode>
+<t>This document requires that RPs use the schema defined in <xref target="IDA-verified-claims"></xref>. There are places in the JSON structure where that schema can be extended by implementers but deviation from the schema as defined would not be correct use of this document.</t>
+</section>
+
+<section anchor="verified_claims_delivery"><name>Verified claims delivery</name>
+<t>A <tt>verified_claims</tt> element can be added to an OpenID Connect UserInfo response and/or an ID Token.</t>
+<t>Here is an example of the payload of an ID token including verified claims:</t>
+
+<sourcecode type="json">{
+  &quot;iss&quot;: &quot;https://server.example.com&quot;,
+  &quot;sub&quot;: &quot;248289761&quot;,
+  &quot;aud&quot;: &quot;https://rs.example.com/&quot;,
+  &quot;exp&quot;: 1544645174,
+  &quot;client_id&quot;: &quot;s6BhdRkqt3_&quot;,
+  &quot;verified_claims&quot;: {
+    &quot;verification&quot;: {
+      &quot;trust_framework&quot;: &quot;example&quot;
+    },
+    &quot;claims&quot;: {
+      &quot;given_name&quot;: &quot;Max&quot;,
+      &quot;family_name&quot;: &quot;Mustermann&quot;
+    }
+  }
+}
+</sourcecode>
+<t>An OP or Authorization Server (AS) can also include aggregated or distributed <tt>verified_claims</tt> in the above assertions (see <xref target="aggregated_distributed_claims"></xref> for more details).</t>
+</section>
+
+<section anchor="req_claims"><name>Requesting end-user claims</name>
+<t>Verified claims can be requested on the level of individual claims about the end-user by utilizing the <tt>claims</tt> parameter as defined in section 5.5 of the OpenID Connect specification <xref target="OpenID"></xref>.</t>
+<t>Note: A machine-readable definition of the syntax to be used to request <tt>verified_claims</tt> is given as JSON schema in <xref target="verified_claims_request.json"></xref>, which can be used to automatically validate <tt>claims</tt> request parameters. The provided JSON schema files are a non-normative implementation of this document and any discrepancies that exist are either implementation bugs or interpretations.</t>
+<t>To request verified claims, the <tt>verified_claims</tt> element is added to the <tt>userinfo</tt> or the <tt>id_token</tt> element of the <tt>claims</tt> parameter.</t>
+<t>Since <tt>verified_claims</tt> contains the effective claims about the end-user in a nested <tt>claims</tt> element, the syntax is extended to include expressions on nested elements as follows. The <tt>verified_claims</tt> element includes a <tt>claims</tt> element, which in turn includes the desired claims as keys. For each claim, the value is either <tt>null</tt> (default), or an object. The object may contain restrictions using <tt>value</tt> or <tt>values</tt> as defined in <xref target="OpenID"></xref> and/or the <tt>essential</tt> key as described below. An example is shown in the following:</t>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: null
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null,
+        &quot;birthdate&quot;: null
+      }
+    }
+  }
+}
+</sourcecode>
+<t>Use of the <tt>claims</tt> parameter allows the RP to request specified claims about the end-user needed for its use case. This allows RPs to fulfill the requirements for data minimization by requesting only claims needed for its use case.</t>
+<t>Note: it is not possible to request sub-claims (for example the <tt>country</tt> subclaim of the <tt>address</tt> claim) using mechanisms from OpenID Connect Core or this document.</t>
+<t>RPs can use the <tt>essential</tt> field as defined in section 5.5.1 of the OpenID Connect specification <xref target="OpenID"></xref>. The following example shows this for the family and given names.</t>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: null
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: {
+          &quot;essential&quot;: true
+        },
+        &quot;family_name&quot;: {
+          &quot;essential&quot;: true
+        },
+        &quot;birthdate&quot;: null
+      }
+    }
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="req_verification"><name>Requesting verification data</name>
+<t>RPs request verification data in the same way they request claims about the end-user. When the claims request parameter is being used, the syntax is based on the rules given in <xref target="req_claims"></xref> and extends them for navigation into the structure of the <tt>verification</tt> element.</t>
+<t>Elements within <tt>verification</tt> are requested by adding the respective element as shown in the following example:</t>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: null,
+        &quot;time&quot;: null
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null,
+        &quot;birthdate&quot;: null
+      }
+    }
+  }
+}
+</sourcecode>
+<t>It requests the trust framework the OP complies with and the date of the verification of the end-user claims.</t>
+<t>The RP shall explicitly request any data it wants the OP to add to the <tt>verification</tt> element.</t>
+<t>Therefore, the RP shall set fields one step deeper into the structure if it wants to obtain evidence. One or more entries in the <tt>evidence</tt> array are used as filter criteria and templates for all entries in the result array. The following example shows a request asking for evidence of type <tt>document</tt> only.</t>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: null,
+        &quot;time&quot;: null,
+        &quot;evidence&quot;: [
+          {
+            &quot;type&quot;: {
+              &quot;value&quot;: &quot;document&quot;
+            },
+            &quot;method&quot;: null,
+            &quot;document_details&quot;: {
+              &quot;type&quot;: null
+            }
+          }
+        ]
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null,
+        &quot;birthdate&quot;: null
+      }
+    }
+  }
+}
+</sourcecode>
+<t>The example also requests the OP to add the respective <tt>method</tt> and the <tt>document</tt> elements (including data about the document type), for every evidence array member, to the resulting <tt>verified_claims</tt> claim.</t>
+<t>A single entry in the <tt>evidence</tt> array represents a filter over elements of a certain evidence type. The RP therefore shall specify this type by including the <tt>type</tt> field including a suitable <tt>value</tt> sub-element value. The <tt>values</tt> sub-element shall not be used for the <tt>evidence/type</tt> field.</t>
+<t>If multiple entries are present in <tt>evidence</tt>, these filters are linked by a logical OR.</t>
+<t><tt>check_details</tt> is an array of the processes that have been applied to the <tt>evidence</tt>. An RP can filter <tt>check_details</tt> by requesting a particular value for one or more of its sub-elements. If multiple entries for the same sub-element are present this acts as a logical OR between them.</t>
+<t><tt>assurance_details</tt> is an array representing how the <tt>evidence</tt> and <tt>check_details</tt> fulfill the requirements of the <tt>trust_framework</tt>. RP should only request this where they need to know this information. Where <tt>assurance_details</tt> has been requested by an RP the OP shall return the <tt>assurance_details</tt> element along with all sub-elements that it has. If an RP wants to filter what types of <tt>evidence</tt> and <tt>check_methods</tt> they shall use those methods to do so, e.g. requesting an <tt>assurance_type</tt> should have no filtering effect.</t>
+<t>The RP can also request certain data within the <tt>document</tt> element to be present. This again follows the syntax rules used above:</t>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: null,
+        &quot;time&quot;: null,
+        &quot;evidence&quot;: [
+          {
+            &quot;type&quot;: {
+              &quot;value&quot;: &quot;document&quot;
+            },
+            &quot;method&quot;: null,
+            &quot;document_details&quot;: {
+              &quot;type&quot;: null,
+              &quot;issuer&quot;: {
+                &quot;country&quot;: null,
+                &quot;name&quot;: null
+              },
+              &quot;document_number&quot;: null,
+              &quot;date_of_issuance&quot;: null
+            }
+          }
+        ]
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null,
+        &quot;birthdate&quot;: null
+      }
+    }
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="constraintedclaims"><name>Defining further constraints on verification data</name>
+
+<section anchor="value-values"><name>Value/values</name>
+<t>The RP can limit the possible values of the elements <tt>trust_framework</tt>, <tt>evidence/method</tt>, <tt>evidence/check_details</tt>, and <tt>evidence/document/type</tt> by utilizing the <tt>value</tt> or <tt>values</tt> fields and the element <tt>evidence/type</tt> by utilizing the <tt>value</tt> field.</t>
+<t>Note: Examples on the usage of a restriction on <tt>evidence/type</tt> were given in the previous section.</t>
+<t>The following example shows how an RP requests claims either complying with trust framework <tt>gold</tt> or <tt>silver</tt>.</t>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: {
+          &quot;values&quot;: [
+            &quot;gold&quot;,
+            &quot;silver&quot;
+          ]
+        }
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null
+      }
+    }
+  }
+}
+</sourcecode>
+<t>The following example shows that the RP wants to obtain an attestation based on the German anti-money laundering law (trust framework <tt>de_aml</tt>) and limited to end-users who were identified in a bank branch in person (physical in person proofing - method <tt>pipp</tt>) using either an <tt>idcard</tt> or a <tt>passport</tt>.</t>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: {
+          &quot;value&quot;: &quot;de_aml&quot;
+        },
+        &quot;evidence&quot;: [
+          {
+            &quot;type&quot;: {
+              &quot;value&quot;: &quot;document&quot;
+            },
+            &quot;method&quot;: {
+              &quot;value&quot;: &quot;pipp&quot;
+            },
+            &quot;document&quot;: {
+              &quot;type&quot;: {
+                &quot;values&quot;: [
+                  &quot;idcard&quot;,
+                  &quot;passport&quot;
+                ]
+              }
+            }
+          }
+        ]
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null,
+        &quot;birthdate&quot;: null
+      }
+    }
+  }
+}
+</sourcecode>
+<t>The OP shall not ignore some or all of the query restrictions on possible values and shall not deliver available verified/verification data that does not match these constraints.</t>
+</section>
+
+<section anchor="max-age"><name>Max_age</name>
+<t>The RP can also express a requirement regarding the age of certain data, like the time elapsed since the issuance/expiry of certain evidence types or since the verification process asserted in the <tt>verification</tt> element took place. Section 5.5.1 of the OpenID Connect specification <xref target="OpenID"></xref> defines a query syntax that allows for new special query members to be defined. This document introduces a new such member <tt>max_age</tt>, which is applicable to the possible values of any elements containing dates or timestamps (e.g., <tt>time</tt>, <tt>date_of_issuance</tt> and <tt>date_of_expiry</tt> elements of evidence of type <tt>document</tt>).</t>
+<t><tt>max_age</tt>: Optional. JSON number value only applicable to claims that contain dates or timestamps. It defines the maximum time (in seconds) to be allowed to elapse since the value of the date/timestamp up to the point in time of the request. The OP should make the calculation of elapsed time starting from the last valid second of the date value.</t>
+<t>The following is an example of a request for claims where the verification process of the data is not allowed to be older than 63113852 seconds:</t>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: {
+          &quot;value&quot;: &quot;jp_aml&quot;
+        },
+        &quot;time&quot;: {
+          &quot;max_age&quot;: 63113852
+        }
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null,
+        &quot;birthdate&quot;: null
+      }
+    }
+  }
+}
+</sourcecode>
+<t>The OP should try to fulfill this requirement. If the verification data of the end-user is older than the requested <tt>max_age</tt>, the OP can attempt to refresh the end-user’s verification by sending them through an online identity verification process, e.g., by utilizing an electronic ID card or a video identification approach.</t>
+</section>
+</section>
+
+<section anchor="requesting-claims-sets-with-different-verification-requirements"><name>Requesting claims sets with different verification requirements</name>
+<t>It is also possible to request different trust frameworks, assurance levels, and methods for different claim sets. This requires the RP to send an array of <tt>verified_claims</tt> objects instead of passing a single object.</t>
+<t>The following example illustrates this functionality.</t>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: [
+      {
+        &quot;verification&quot;: {
+          &quot;trust_framework&quot;: {
+            &quot;value&quot;: &quot;eidas&quot;
+          },
+          &quot;assurance_level&quot;: {
+            &quot;value&quot;: &quot;high&quot;
+          }
+        },
+        &quot;claims&quot;: {
+          &quot;given_name&quot;: null,
+          &quot;family_name&quot;: null
+        }
+      },
+      {
+        &quot;verification&quot;: {
+          &quot;trust_framework&quot;: {
+            &quot;value&quot;: &quot;eidas&quot;
+          },
+          &quot;assurance_level&quot;:{
+            &quot;values&quot;:[
+              &quot;high&quot;,
+              &quot;substantial&quot;
+            ]
+          }
+        },
+        &quot;claims&quot;: {
+          &quot;birthdate&quot;: null
+        }
+      }
+    ]
+  }
+}
+</sourcecode>
+<t>When the RP requests multiple verifications as described above, the OP will process each element in the array independently. The OP will provide <tt>verified_claims</tt> response elements for every <tt>verified_claims</tt> request element whose requirements it is able to fulfill. This also means if multiple <tt>verified_claims</tt> elements contain the same end-user claim(s), the OP delivers the claim in as many verified claims response objects it can fulfill. For example, if the trust framework the OP uses is compatible with multiple of the requested trust frameworks, it provides a <tt>verified_claims</tt> element for each of them.</t>
+<t>The RP can combine multiple <tt>verified_claims</tt> claims in the request with multiple <tt>trust_framework</tt> and/or <tt>assurance_level</tt> values using the <tt>values</tt> element. In that case, the rules given above for processing <tt>values</tt> are applied for the particular <tt>verified_claims</tt> request object.</t>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: [
+      {
+        &quot;verification&quot;: {
+          &quot;trust_framework&quot;: {
+            &quot;value&quot;: &quot;gold&quot;
+          },
+          &quot;evidence&quot;: [
+            {
+              &quot;type&quot;: {
+                &quot;value&quot;: &quot;document&quot;
+              }
+            }
+          ]
+        },
+        &quot;claims&quot;: {
+          &quot;given_name&quot;: null,
+          &quot;family_name&quot;: null
+        }
+      },
+      {
+        &quot;verification&quot;: {
+          &quot;trust_framework&quot;: {
+            &quot;values&quot;: [
+              &quot;silver&quot;,
+              &quot;bronze&quot;
+            ]
+          },
+          &quot;evidence&quot;: [
+            {
+              &quot;type&quot;: {
+                &quot;value&quot;: &quot;electronic_record&quot;
+              }
+            }
+          ]
+        },
+        &quot;claims&quot;: {
+          &quot;given_name&quot;: null,
+          &quot;family_name&quot;: null
+        }
+      }
+    ]
+  }
+}
+</sourcecode>
+<t>In the above example, the RP asks for family and given name either under trust framework <tt>gold</tt> with an evidence of type <tt>document</tt> or under trust framework <tt>silver</tt> or <tt>bronze</tt> but with an evidence <tt>electronic_record</tt>.</t>
+</section>
+
+<section anchor="returning-less-data-than-requested"><name>Returning less data than requested</name>
+
+<section anchor="general-requirements"><name>General requirements</name>
+<t>As stated in section 3.3.3.6 of <xref target="OpenID"></xref>, &quot;the OP may choose to return fewer claims about the end-user from the authorization endpoint&quot;.  This document makes no change to that provision.  The OP may also choose to return a subset of the <tt>verification</tt> element of any <tt>verified_claims</tt> providing it remains compliant with the <tt>verified_claims</tt> JSON schema defined in <xref target="OpenID4IDAClaims"></xref>.</t>
+<t>In some cases, OPs cannot deliver the requested data to an RP, for example, because the data is not available or does not match the RP's requirements. The rules for handling these cases are described in the following.</t>
+<t>Extensions of this document can define additional rules or override these rules, for example</t>
+
+<ul spacing="compact">
+<li>to allow or disallow the use of claims depending on scheme-specific checks,</li>
+<li>to enable a finer-grained control of the RP over the behavior of the OP when data is unavailable or does not match the criteria, or</li>
+<li>to abort transactions (return error codes) in cases where requests cannot be fulfilled.</li>
+</ul>
+<t>Important: The behavior described below is independent from the use of <tt>essential</tt> (as defined in section 5.5.1 of <xref target="OpenID"></xref>).</t>
+</section>
+
+<section anchor="unavailable-data"><name>Unavailable data</name>
+<t>If the OP does not have data about a certain claim, does not understand/support the respective claim, OPs shall omit the respective claim from any corresponding ID Token or UserInfo response.</t>
+</section>
+
+<section anchor="non-consented-data"><name>Non-consented data</name>
+<t>When relying on end-user consent to determine the specific data to be shared the end-user may make a choice to release only a subset of the data requested. In this case the OP shall omit from any corresponding ID Token or UserInfo response data that has not had end-user consent for sharing.</t>
+<t>Alternatively, when relying on end-user consent to determine the specific data to be shared the end-user may choose to release none of the data requested.  In this case standard OpenID Connect authentication error response logic applies, as defined in section 3.1.2.6 of <xref target="OpenID"></xref>.</t>
+</section>
+
+<section anchor="data-not-matching-requirements"><name>Data not matching requirements</name>
+<t>When the available data does not fulfill the requirements of the RP expressed through <tt>value</tt>, <tt>values</tt>, or <tt>max_age</tt>, the following logic applies:</t>
+
+<ul spacing="compact">
+<li>If the respective requirement was expressed for a claim within <tt>verified_claims/verification</tt>, the OP shall omit the whole <tt>verified_claims</tt> element.</li>
+<li>Otherwise, the OP shall omit the respective claim from the response.</li>
+</ul>
+<t>In both cases, the OP shall not return an error to the RP.</t>
+</section>
+
+<section anchor="omitting-elements"><name>Omitting elements</name>
+<t>If an element is to be omitted according to the rules above, but is a requirement for a valid response, the OP shall omit its parent element as well. This OP shall repeat this process until the response is valid.</t>
+</section>
+
+<section anchor="error-handling"><name>Error handling</name>
+<t>If the OP encounters an error, standard OpenID Connect authentication error response logic applies, as defined in section 3.1.2.6 of <xref target="OpenID"></xref>.</t>
+</section>
+</section>
+
+<section anchor="req_scope"><name>Requesting sets of claims by scope</name>
+<t>Verified claims about the end-user can be requested as part of a pre-defined set by utilizing the <tt>scope</tt> parameter as defined in section 5.4 of the OpenID Connect specification <xref target="OpenID"></xref>.</t>
+<t>When using this approach the claims associated with a <tt>scope</tt> value are administratively defined at the OP.  The OP configuration and RP request parameters will determine whether the claims are returned via the ID Token or UserInfo endpoint as defined in section 5.3.2 of the OpenID Connect specification <xref target="OpenID"></xref>.</t>
+</section>
+</section>
+
+<section anchor="aggregated_distributed_claims"><name>Aggregated and distributed claims</name>
+
+<section anchor="aggregated-and-distributed-claims-assertions"><name>Aggregated and distributed claims assertions</name>
+<t>When distributed claims are used the URL that is the value of the <tt>endpoint</tt> element in any distributed <tt>_claim_source</tt> sub-element shall use the https URI scheme and the JWT returned should not be accessible via any other URI scheme.</t>
+<t>For aggregated or distributed claims, every assertion provided by the external claims source shall contain:</t>
+
+<ul spacing="compact">
+<li>a <tt>typ</tt> header parameter with the value <tt>provided-claims+jwt</tt>,</li>
+<li>an <tt>iss</tt> claim identifying the claims source,</li>
+<li>a <tt>sub</tt> claim identifying the end-user in the context of the claim source, and</li>
+<li>a <tt>verified_claims</tt> element containing one or more <tt>verified_claims</tt> objects.</li>
+</ul>
+<t>To ensure that assertions cannot be confused with OpenID Connect ID Tokens, assertions shall not contain:</t>
+
+<ul spacing="compact">
+<li>an <tt>exp</tt> claim, or</li>
+<li>an <tt>aud</tt> claim.</li>
+</ul>
+<t>The <tt>verified_claims</tt> element in an aggregated or distributed claims object shall have one of the following forms:</t>
+
+<ul spacing="compact">
+<li>a JSON string referring to a certain claim source (as defined in <xref target="OpenID"></xref>)</li>
+<li>a JSON array of strings referring to the different claim sources</li>
+<li>a JSON object composed of sub-elements formatted with the syntax as defined for requesting <tt>verified_claims</tt> where the name of each object is a name for the respective claim source. Every such named object contains sub-objects called  <tt>claims</tt> and <tt>verification</tt> expressing data provided by the respective claims source. This allows the RP to look ahead before it actually requests distributed claims in order to prevent extra time, cost, data collisions, etc. caused by these requests.</li>
+</ul>
+<t>Note: The two later forms extend the syntax as defined in section 5.6.2 of the OpenID Connect specification <xref target="OpenID"></xref>) in order to accommodate the specific use cases for <tt>verified_claims</tt>.</t>
+<t>The following are examples of assertions including verified claims as aggregated claims</t>
+
+<sourcecode type="json">{
+  &quot;iss&quot;: &quot;https://server.example.com&quot;,
+  &quot;sub&quot;: &quot;248289761001&quot;,
+  &quot;email&quot;: &quot;janedoe@example.com&quot;,
+  &quot;email_verified&quot;: true,
+  &quot;_claim_names&quot;: {
+    &quot;verified_claims&quot;: &quot;src1&quot;
+  },
+  &quot;_claim_sources&quot;: {
+    &quot;src1&quot;: {
+      &quot;JWT&quot;: &quot;eyJhbGciOiJQUzI1NiIsImtpZCI6IjFlOWdkazciLCJ0eXAiOiJwcm92aWRlZC1jbGFpbXMrand0In0.eyJpc3MiOiJodHRwczovL3NlcnZlci5vdGhlcm9wLmNvbSIsInN1YiI6ImU4MTQ4NjAzLTg5MzQtNDI0NS04MjViLWMxMDhiOGI2Yjk0NSIsInZlcmlmaWVkX2NsYWltcyI6eyJ2ZXJpZmljYXRpb24iOnsidHJ1c3RfZnJhbWV3b3JrIjoiaWFsX2V4YW1wbGVfZ29sZCJ9LCJjbGFpbXMiOnsiZ2l2ZW5fbmFtZSI6Ik1heCIsImZhbWlseV9uYW1lIjoiTWVpZXIiLCJiaXJ0aGRhdGUiOiIxOTU2LTAxLTI4In19fQ.VAtHwi85ihW98uulbNOBCkyCyD4jeDrTeaMNdI3Wllks1z-LT8kyzN5Iz7Nu2HpMmmCKZpgY552O0fm_-Fr3Vls3BvmJsh1A524jh9VlsCL-1WezJ-DShjMUyP76_3Xbdl-iYHdWLjoQ5hFZQg6GLrLxOGlQXX9b-kxtQm3DV9nFJhOqMl_5_U8IU_A1LfypmRvXuD1Frw8ASS7OmyGOCkuFDOaV7Uu0BuZjYWiMC8Eem4M2A9RhuoLKDBYuVlwIFaHx-cuGcRJZWDg9K5DekIuLE73Iz1Cuh49HumkC9qGqkTV6EARSJeqFxPhjnZNkJY1e1P7Q7cgyT2HywjR6Tw&quot;
+    }
+  }
+}
+</sourcecode>
+<t>and distributed claims.</t>
+
+<sourcecode type="json">{
+  &quot;iss&quot;: &quot;https://server.example.com&quot;,
+  &quot;sub&quot;: &quot;248289761001&quot;,
+  &quot;email&quot;: &quot;janedoe@example.com&quot;,
+  &quot;email_verified&quot;: true,
+  &quot;_claim_names&quot;: {
+    &quot;verified_claims&quot;: &quot;src1&quot;
+  },
+  &quot;_claim_sources&quot;: {
+    &quot;src1&quot;: {
+      &quot;endpoint&quot;: &quot;https://server.yetanotherop.com/claim_source&quot;,
+      &quot;access_token&quot;: &quot;ksj3n283dkeafb76cdef&quot;
+    }
+  }
+}
+</sourcecode>
+<t>The following example shows an ID Token containing <tt>verified_claims</tt> from two different external claim sources, one as aggregated and the other as distributed claims.</t>
+
+<sourcecode type="json">{
+  &quot;iss&quot;: &quot;https://server.example.com&quot;,
+  &quot;sub&quot;: &quot;248289761001&quot;,
+  &quot;email&quot;: &quot;janedoe@example.com&quot;,
+  &quot;email_verified&quot;: true,
+  &quot;_claim_names&quot;: {
+    &quot;verified_claims&quot;: [
+      &quot;src1&quot;,
+      &quot;src2&quot;
+    ]
+  },
+  &quot;_claim_sources&quot;: {
+    &quot;src1&quot;: {
+      &quot;JWT&quot;: &quot;eyJhbGciOiJQUzI1NiIsImtpZCI6IjFlOWdkazciLCJ0eXAiOiJwcm92aWRlZC1jbGFpbXMrand0In0.eyJpc3MiOiJodHRwczovL3NlcnZlci5vdGhlcm9wLmNvbSIsInN1YiI6ImU4MTQ4NjAzLTg5MzQtNDI0NS04MjViLWMxMDhiOGI2Yjk0NSIsInZlcmlmaWVkX2NsYWltcyI6eyJ2ZXJpZmljYXRpb24iOnsidHJ1c3RfZnJhbWV3b3JrIjoiaWFsX2V4YW1wbGVfZ29sZCJ9LCJjbGFpbXMiOnsiZ2l2ZW5fbmFtZSI6Ik1heCIsImZhbWlseV9uYW1lIjoiTWVpZXIiLCJiaXJ0aGRhdGUiOiIxOTU2LTAxLTI4In19fQ.FPYS2Xjz9y9qEOJhBe5nMfL2mTagLDxwISxjM6gv3zRUvU2YBK-GHI_byvK8h46ly1C90ie-X9gOp-DLvpURvyAlZTsvxNL8s0Hi3-SRZCs5huhiCZr5s4FJBG-l0PNrYOIZAHfeQtobJ7muDld3BytS628140V0CHgh_EM8UUjzQmN8NpDaR9HdH0tIeUFqIZEwBluctgwek9eomg3k10dj6NzBUQSSnpgGf_o6f_sYoIAkBhpgRursD5pHbPSOKTGE9cJ882BbHeido746XLxjEfrU5yQwfA0ggVk5I_e-wv-xVXfVGda4WySZfbkwS5PMCMgMJM9ZT_L1pci0yQ&quot;
+    },
+    &quot;src2&quot;: {
+      &quot;endpoint&quot;: &quot;https://server.yetanotherop.com/claim_source&quot;,
+      &quot;access_token&quot;: &quot;ksj3n283dkeafb76cdef&quot;
+    }
+  }
+}
+</sourcecode>
+<t>The next example shows an ID Token containing <tt>verified_claims</tt> from two different external claim sources along with additional data about the content of the verified claims (look ahead).</t>
+
+<sourcecode type="json">{
+  &quot;iss&quot;: &quot;https://server.example.com&quot;,
+  &quot;sub&quot;: &quot;248289761001&quot;,
+  &quot;email&quot;: &quot;janedoe@example.com&quot;,
+  &quot;email_verified&quot;: true,
+  &quot;_claim_names&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;src1&quot;: {
+        &quot;verification&quot;: {
+          &quot;trust_framework&quot;: {
+            &quot;value&quot;: &quot;trust_framework_example&quot;
+          }
+        },
+        &quot;claims&quot;: {
+          &quot;given_name&quot;: null,
+          &quot;family_name&quot;: null
+        }
+      },
+      &quot;src2&quot;: {
+        &quot;verification&quot;: {
+          &quot;trust_framework&quot;: {
+            &quot;value&quot;: &quot;grids_kyb&quot;
+          },
+          &quot;evidence&quot;: [
+            {
+              &quot;type&quot;: {
+                &quot;value&quot;: &quot;document&quot;
+              },
+              &quot;registry&quot;: {
+                &quot;country&quot;: {
+                  &quot;essential&quot;: true,
+                  &quot;value&quot;: &quot;ES&quot;
+                }
+              },
+              &quot;document&quot;: {
+                &quot;SKU&quot;: {
+                  &quot;value&quot;: &quot;REX&quot;
+                }
+              }
+            }
+          ]
+        },
+        &quot;claims&quot;: {
+          &quot;given_name&quot;: null,
+          &quot;family_name&quot;: null,
+          &quot;email&quot;: null,
+          &quot;nationalities&quot;: null
+        }
+      }
+    }
+  },
+  &quot;_claim_sources&quot;: {
+    &quot;src1&quot;: {
+      &quot;JWT&quot;: &quot;eyJraWQiOiJmMDgxZDI5OC1jNTgzLTQ3NDAtYWQ1NC02ZDUzMTljZjhiNWQiLCJhbGciOiJSUzI1NiJ9.ew0KICAgImlzcyI6ICJodHRwczovL3NlcnZlci5leGFtcGxlLmNvbSIsDQogICAic3ViIjogIjE0ODI4OTc2MiIsDQogICAidmVyaWZpZWRfY2xhaW1zIjogew0KICAgICJ2ZXJpZmljYXRpb24iOiB7DQogICAgICAidHJ1c3RfZnJhbWV3b3JrIjogInRydXN0X2ZyYW1ld29ya19leGFtcGxlIg0KICAgIH0sDQogICAgImNsYWltcyI6IHsNCiAgICAgICJnaXZlbl9uYW1lIjogIk1heCIsDQogICAgICAiZmFtaWx5X25hbWUiOiAiTWVpZXIiDQogICAgfQ0KICB9DQp9.jg_qxYfV0M2IU8On1iK9RBY0Cx9u3jRJ0Qzxe19Ol5VLoUTM7Uxbr3E0ZFCASHWpmz9d2g67XKGHQMppnJKX4SnEdphm6MqjnmZ9E0cirALrC016DX5geFy_0QFC8PAnCttcDgyVCyzCcDxUCaHBSRsrDwGjYe5AjgaDL8S-R72lFQHqch6uj9nhiFBtG24_0EsF6msssQ61WyqS6aju0F0PJms8danIfwc5lHyv-zKuDlY-0kw-fVn4274jY-VofElm4mhsrpo-YJhCKlz0O3CV0g9AW_60TQHCmhn6yoosaTbjlQqh5lREpqULz-MQKnD0wRmYLgBZXtzIhxb7ZA&quot;
+    },
+    &quot;src2&quot;: {
+      &quot;endpoint&quot;: &quot;https://server.yetanotherop.com/claim_source&quot;,
+      &quot;access_token&quot;: &quot;ksj3n283dkeafb76cdef&quot;
+    }
+  }
+}
+</sourcecode>
+<t>Claim sources should sign the assertions containing <tt>verified_claims</tt> in order to demonstrate authenticity and provide for non-repudiation.
+RP should determine the key material used for validation of the signed assertions is via the claim source's public keys. These keys should be available in the JSON web key set available in the <tt>jwks_uri</tt> metadata value in the <tt>openid-configuration</tt> metadata document. This document can be discovered using the <tt>iss</tt> claim of the particular JWT.</t>
+<t>The OP can combine aggregated and distributed claims with <tt>verified_claims</tt> provided by itself (see <xref target="op_attested_and_external_claims"></xref>).</t>
+<t>If <tt>verified_claims</tt> elements are contained in multiple places of a response, e.g., in the ID Token and an embedded aggregated claim, the RP shall preserve the claims source as context of the particular <tt>verified_claims</tt> element.</t>
+<t>Note: Any assertion provided by an OP or AS including aggregated or distributed claims can contain multiple instances of the same end-user claim. It is up to the RP to decide how to process these different instances.</t>
+</section>
+
+<section anchor="aggregated-and-distributed-claims-validation"><name>Aggregated and distributed claims validation</name>
+<t>Clients shall validate any aggregated and distributed <tt>verified_claims</tt> they wish to rely on in the following manner:</t>
+
+<ol spacing="compact">
+<li>Ensure that both the <tt>_claim_names</tt> and <tt>_claim_sources</tt> are present in the response.</li>
+<li>Ensure that there is a <tt>verified_claims</tt> element present in the <tt>_claim_names</tt> member of the response.</li>
+<li>Ensure that the <tt>verified_claims</tt> element contains a value that is one of the following:
+a. a string that exists as a key name in the <tt>_claim_sources</tt> element of the response.
+b. a JSON array containing members that all exist as key names in the <tt>_claim_sources</tt> element of the response.
+c. a JSON object containing elements that all exist as key names in the <tt>_claim_sources</tt> element of the response and each element is formatted with the syntax as defined for requesting <tt>verified_claims</tt>.</li>
+<li>Ensure that the <tt>_claim_sources</tt> element is a JSON structured object that has one or more sub-elements.</li>
+<li>Ensure that the sub-elements of the <tt>_claim_sources</tt> element have matching values in the <tt>_claim_names</tt> element of the response.</li>
+</ol>
+<t>When <tt>verified_claims</tt> are delivered as distributed claims, i.e., when a sub-element of the <tt>_claim_sources</tt> contains the <tt>endpoint</tt> claim, clients shall also:</t>
+
+<ol spacing="compact">
+<li>Ensure that the <tt>endpoint</tt> element defined in any distributed <tt>_claim_sources</tt> uses the https URI scheme.</li>
+<li>Retrieve the distributed claims object from the <tt>endpoint</tt> element defined in any distributed <tt>_claim_sources</tt>.</li>
+<li>Ensure that the object returned from the <tt>endpoint</tt> is a JWT as per <xref target="RFC7519"></xref>.</li>
+</ol>
+<t>When <tt>verified_claims</tt> are delivered as aggregated claims, i.e., when a sub-element of the <tt>_claim_sources</tt> contains the <tt>JWT</tt> claim, clients shall also:</t>
+
+<ol spacing="compact">
+<li>Ensure that the value in the <tt>JWT</tt> claim is a valid JWT as per <xref target="RFC7519"></xref>.</li>
+</ol>
+<t>Once the JWT has been delivered either via distributed or aggregated mechanism the client shall:</t>
+
+<ol spacing="compact">
+<li>Verify the signature of the returned JWT.</li>
+<li>Ensure that the JWT includes the <tt>typ</tt>, <tt>iss</tt>, <tt>sub</tt>, and <tt>verified_claims</tt> elements; and that their values are not null or empty.</li>
+<li>Ensure that the JWT does not contain either an <tt>exp</tt> claim or an <tt>aud</tt> claim.</li>
+<li>Ensure that the value of the <tt>typ</tt> header parameter in the JWT is <tt>provided-claims+jwt</tt>.</li>
+</ol>
+</section>
+</section>
+
+<section anchor="requesting-verified-claims"><name>Requesting verified claims</name>
+<t>Making a request for verified claims and related verification data can be explicitly requested on the level of individual data elements by utilizing the <tt>claims</tt> parameter as defined in section 5.5 of the OpenID Connect specification <xref target="OpenID"></xref>.</t>
+<t>It is also possible to use the <tt>scope</tt> parameter to request one or more specific pre-defined claim sets as defined in section 5.4 of the OpenID Connect specification <xref target="OpenID"></xref>.</t>
+<t>Note: The OP shall not provide the RP with any data it did not request. However, the OP may at its discretion omit claims from the response.</t>
+<t>The example authorize call in this section will use the following unencoded example claims request parameter:</t>
+
+<sourcecode type="json">{
+    &quot;id_token&quot;: {
+      &quot;given_name&quot;: null,
+      &quot;verified_claims&quot;: {
+        &quot;verification&quot;: {
+          &quot;trust_framework&quot;: null
+        },
+        &quot;claims&quot;: {
+          &quot;family_name&quot;: null
+        }
+      }
+    }
+  }
+</sourcecode>
+<t>The following is the non-normative example request that would be sent by the user agent to the authorization server in response to the HTTP 302 redirect from the client initiating the authorization code flow (with line wraps within values for display purposes only):</t>
+
+<artwork>  GET /authorize?
+     response_type=code
+     &amp;scope=openid%20email
+     &amp;client_id=s6BhdRkqt3
+     &amp;state=af0ifjsldkj
+     &amp;redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+     &amp;claims=%7B%22id_token%22%3A%20%7B%22
+     given_name%22%3A%20null%2C%22
+     verified_claims%22%3A%20%7B%22
+     verification%22%3A%20%7B%22
+     trust_framework%22%3A%20null%7D%2C%22
+     claims%22%3A%20%7B%22
+     family_name%22%3A%20null%7D%7D%7D%7D HTTP/1.1
+  Host: server.example.com
+</artwork>
+</section>
+
+<section anchor="opmetadata"><name>OP metadata</name>
+<t>The OP advertises its capabilities with respect to verified claims in its openid-configuration (see <xref target="OpenID-Discovery"></xref>) using the following new elements:</t>
+<t><tt>trust_frameworks_supported</tt>: Required. JSON array containing all supported trust frameworks. This array shall have at least one member.</t>
+<t><tt>claims_in_verified_claims_supported</tt>: Required. JSON array containing all claims supported within <tt>verified_claims</tt>. claims that are not present in this array shall not be returned within the <tt>verified_claims</tt> object. This array shall have at least one member.</t>
+<t><tt>evidence_supported</tt>: Required when one or more type of evidence is supported. JSON array containing all types of identity evidence the OP uses. This array shall have at least one member. Members of this array should only be the types of evidence supported by the OP in the <tt>evidence</tt> element (see section 5.4.4 of <xref target="IDA-verified-claims"></xref>).</t>
+<t><tt>documents_supported</tt>: Required when <tt>evidence_supported</tt> contains &quot;document&quot;. JSON array containing all identity document types utilized by the OP for identity verification. This array shall have at least one member.</t>
+<t><tt>documents_methods_supported</tt>: Optional. JSON array containing the verification methods the OP supports for evidences of type &quot;document&quot; (see <xref target="predefined_values_page"></xref>). When present this array shall have at least one member.</t>
+<t><tt>documents_check_methods_supported</tt>: Optional. JSON array containing the check methods the OP supports for evidences of type &quot;document&quot; (see <xref target="predefined_values_page"></xref>). When present this array shall have at least one member.</t>
+<t><tt>electronic_records_supported</tt>: Required when <tt>evidence_supported</tt> contains &quot;electronic_record&quot;. JSON array containing all electronic record types the OP supports (see <xref target="predefined_values_page"></xref>). When present this array shall have at least one member.</t>
+<t>This is an example openid-configuration snippet:</t>
+
+<sourcecode type="json">{
+...
+   &quot;trust_frameworks_supported&quot;:[
+     &quot;nist_800_63A&quot;
+   ],
+   &quot;evidence_supported&quot;: [
+      &quot;document&quot;,
+      &quot;electronic_record&quot;,
+      &quot;vouch&quot;,
+      &quot;electronic_signature&quot;
+   ],
+   &quot;documents_supported&quot;: [
+       &quot;idcard&quot;,
+       &quot;passport&quot;,
+       &quot;driving_permit&quot;
+   ],
+   &quot;documents_methods_supported&quot;: [
+       &quot;pipp&quot;,
+       &quot;sripp&quot;,
+       &quot;eid&quot;
+   ],
+   &quot;electronic_records_supported&quot;: [
+       &quot;secure_mail&quot;
+   ],
+   &quot;claims_in_verified_claims_supported&quot;: [
+      &quot;given_name&quot;,
+      &quot;family_name&quot;,
+      &quot;birthdate&quot;,
+      &quot;place_of_birth&quot;,
+      &quot;nationalities&quot;,
+      &quot;address&quot;
+   ],
+...
+}
+</sourcecode>
+<t>If the OP supports the <tt>claims</tt> parameter as defined in section 5.5 of the OpenID Connect specification <xref target="OpenID"></xref>, the OP shall advertise this in its OP metadata using the <tt>claims_parameter_supported</tt> element.</t>
+<t>If the OP supports distributed and/or aggregated claim types, as defined in section 5.6.2 of the OpenID Connect specification <xref target="OpenID"></xref>, in <tt>verified_claims</tt>, the OP shall advertise this in its metadata using the <tt>claim_types_supported</tt> element.</t>
+</section>
+
+<section anchor="Privacy"><name>Privacy consideration</name>
+<t>The use of scopes is a potential shortcut to request a pre-defined set of claims, however, the use of scopes might result in more data being returned to the RP than is strictly necessary and not achieving the goal of data minimization. The RP should only request end-user claims and metadata it requires.</t>
+<t>Timestamps with a time zone component can potentially reveal the person’s location. To preserve the person’s privacy, timestamps within the verification element and verified claims that represent times should be represented in Coordinated Universal Time (UTC), unless there is a specific reason to include the time zone, such as the time zone being an essential part of a consented time related claim in verified data.</t>
+</section>
+
+<section anchor="Security"><name>Security considerations</name>
+
+<section anchor="security-profile"><name>Security profile</name>
+<t>This document focuses on mechanisms to carry end-user claims and accompanying metadata in JSON objects and JSON Web Tokens, typically as part of an OpenID Connect protocol exchange. Since such an exchange is supposed to take place in security sensitive use cases, implementers shall:</t>
+
+<ul spacing="compact">
+<li>combine this document with an appropriate security profile for OpenID Connect, and</li>
+<li>ensure end-users are authenticated using appropriately strong authentication methods.</li>
+</ul>
+<t>This document does not define or require a particular security profile since there are several security
+profiles and new security profiles under development.  Implementers have the flexibility to select the security profile that best suits
+their needs. Implementers might consider <xref target="FAPI-1-SP"></xref> or <xref target="FAPI-2-SP"></xref>.</t>
+<t>Implementers should select a security profile that has a certification program or other resources that allow both OpenID providers and relying parties to ensure they have complied with the profile’s security and interoperability requirements, such as the OpenID Foundation Certification Program, <eref target="https://openid.net/certification/">https://openid.net/certification/</eref>.</t>
+<t>Receiving parties shall ensure the integrity and authenticity of the issued assertions in order to prevent identity spoofing.</t>
+<t>Receiving parties shall ensure the confidentiality of all end-user data exchanged between the protocol parties using suitable methods at transport or application layer.</t>
+</section>
+
+<section anchor="end-user-authentication"><name>End-user authentication</name>
+<t>Secure identification of end-users not only depends on the identity verification at the OP but also on the strength of the user authentication at the OP. Combining a strong identification with weak authentication creates a false impression of security while being open to attacks. For example if an OP uses a simple PIN login, an attacker could guess the PIN of another user and identify himself as the other user at an RP with a high identity assurance level. To prevent this kind of attack, RPs should request the OP to authenticate the user at a reasonable level, typically using multi-factor authentication, when requesting verified end-user claims. OpenID Connect supports this by way of the <tt>acr_values</tt> request parameter.</t>
+</section>
+</section>
+
+<section anchor="Interoperability"><name>Implementation and interoperability</name>
+<t>To achieve the full security and interoperability benefits, it is important the implementation of this document, and the underlying OpenID Connect and OAuth specifications, and selected security profile, are complete and correct. The OpenID Foundation provides tools that should be used to confirm that deployments behave as described in the specifications, with information available at: <eref target="https://openid.net/certification/">https://openid.net/certification/</eref>.</t>
+</section>
+
+<section anchor="predefined_values"><name>Predefined values</name>
+<t>This document focuses on the technical mechanisms to convey verified claims and thus does not define any identifiers for trust frameworks, documents, methods, check methods. This is left to adopters of the technical specification, e.g., implementers, identity schemes, or jurisdictions.</t>
+<t>Each party defining such identifiers shall ensure the collision resistance of these identifiers. This is achieved by including a domain name under the control of this party into the identifier name, e.g., <tt>https://mycompany.com/identifiers/cool_check_method</tt>.</t>
+<t>The eKYC and Identity Assurance Working Group maintains a wiki page <xref target="predefined_values_page"></xref> that can be utilized to share predefined values with other parties.</t>
+</section>
+
+</middle>
+
+<back>
+<references><name>Normative References</name>
+<reference anchor="IDA-verified-claims" target="https://openid.net/specs/openid-ida-verified-claims-1_0.html">
+  <front>
+    <title>OpenID Identity Assurance Schema Definition</title>
+    <author fullname="Torsten Lodderstedt" initials="T." surname="Lodderstedt">
+      <organization>sprind.org</organization>
+    </author>
+    <author fullname="Daniel Fett" initials="D." surname="Fett">
+      <organization>Authlete</organization>
+    </author>
+    <author fullname="Mark Haine" initials="M." surname="Haine">
+      <organization>Considrd.Consulting Ltd</organization>
+    </author>
+    <author fullname="Alberto Pulido" initials="A." surname="Pulido">
+      <organization>Santander</organization>
+    </author>
+    <author fullname="Kai Lehmann" initials="K." surname="Lehmann">
+      <organization>1&amp;1 Mail &amp; Media Development &amp; Technology GmbH</organization>
+    </author>
+    <author fullname="Kosuke Koiwai" initials="K." surname="Koiwai">
+      <organization>KDDI Corporation</organization>
+    </author>
+    <date year="2023" month="Aug" day="9"></date>
+  </front>
+</reference>
+<reference anchor="ISODIR2" target="https://www.iso.org/sites/directives/current/part2/index.xhtml">
+  <front>
+    <title>ISO/IEC Directives, Part 2 - Principles and rules for the structure and drafting of ISO and IEC documents</title>
+    <author fullname="ISO/IEC">
+      <organization>ISO/IEC</organization>
+    </author>
+  </front>
+</reference>
+<reference anchor="OpenID" target="https://openid.net/specs/openid-connect-core-1_0.html">
+  <front>
+    <title>OpenID Connect Core 1.0 incorporating errata set 2</title>
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization>NRI</organization>
+    </author>
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization>Ping Identity</organization>
+    </author>
+    <author fullname="Mike Jones" initials="M." surname="Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+      <organization>Google</organization>
+    </author>
+    <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+      <organization>Salesforce</organization>
+    </author>
+    <date year="2014" month="Nov" day="8"></date>
+  </front>
+</reference>
+<reference anchor="OpenID-Discovery" target="https://openid.net/specs/openid-connect-discovery-1_0.html">
+  <front>
+    <title>OpenID Connect Discovery 1.0 incorporating errata set 2</title>
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization>NRI</organization>
+    </author>
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization>Ping Identity</organization>
+    </author>
+    <author fullname="Mike Jones" initials="M." surname="Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Edmund Jay" initials="E." surname="Jay">
+      <organization>Illumila</organization>
+    </author>
+    <date year="2014" month="Nov" day="8"></date>
+  </front>
+</reference>
+<reference anchor="OpenID4IDAClaims" target="https://openid.net/specs/openid-connect-4-ida-claims-1_0.html">
+  <front>
+    <title>OpenID Connect for Identity Assurance Claims Registration 1.0</title>
+    <author fullname="Torsten Lodderstedt" initials="T." surname="Lodderstedt">
+      <organization>sprind.org</organization>
+    </author>
+    <author fullname="Daniel Fett" initials="D." surname="Fett">
+      <organization>Authlete</organization>
+    </author>
+    <author fullname="Mark Haine" initials="M." surname="Haine">
+      <organization>Considrd.Consulting Ltd</organization>
+    </author>
+    <author fullname="Alberto Pulido" initials="A." surname="Pulido">
+      <organization>Santander</organization>
+    </author>
+    <author fullname="Kai Lehmann" initials="K." surname="Lehmann">
+      <organization>1&amp;1 Mail &amp; Media Development &amp; Technology GmbH</organization>
+    </author>
+    <author fullname="Kosuke Koiwai" initials="K." surname="Koiwai">
+      <organization>KDDI Corporation</organization>
+    </author>
+    <date year="2023" month="Jun" day="16"></date>
+  </front>
+</reference>
+<reference anchor="predefined_values_page" target="https://openid.net/wg/ekyc-ida/identifiers/">
+  <front>
+    <title>Overview page for predefined values</title>
+    <author>
+      <organization>OpenID Foundation</organization>
+    </author>
+    <date year="2021"></date>
+  </front>
+</reference>
+</references>
+<references><name>Informative References</name>
+<reference anchor="FAPI-1-SP" target="https://openid.net/specs/openid-financial-api-part-2-1_0.html">
+  <front>
+    <title>Financial-grade API (FAPI) Security Profile 1.0 - Part 2: Advanced</title>
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization>Nat.Consulting</organization>
+    </author>
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization>Yubico</organization>
+    </author>
+    <author fullname="Edmund Jay" initials="E." surname="Jay">
+      <organization>Illumila</organization>
+    </author>
+    <date year="2021" month="Mar" day="12"></date>
+  </front>
+</reference>
+<reference anchor="FAPI-2-SP" target="https://openid.bitbucket.io/fapi/fapi-2_0-security-profile.html">
+  <front>
+    <title>FAPI 2.0 Security Profile - draft</title>
+    <author fullname="Daniel Fett" initials="D." surname="Fett">
+      <organization>Authlete</organization>
+    </author>
+    <author fullname="Dave Tonge" initials="D." surname="Tonge">
+      <organization>Moneyhub Financial Technology</organization>
+    </author>
+    <author fullname="Joseph Heenan" initials="J." surname="Heenan">
+      <organization>Authlete</organization>
+    </author>
+    <date year="2024" month="Apr" day="3"></date>
+  </front>
+</reference>
+<reference anchor="IANA.MediaTypes" target="https://www.iana.org/assignments/media-types">
+  <front>
+    <title>Media Types</title>
+    <author>
+      <organization>IANA</organization>
+    </author>
+  </front>
+</reference>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.2046.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6838.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.7519.xml"/>
+<reference anchor="verified_claims_request.json" target="https://openid.net/wg/ekyc-ida/references/">
+  <front>
+    <title>JSON Schema for requesting verified_claims</title>
+    <author>
+      <organization>OpenID Foundation</organization>
+    </author>
+    <date year="2020"></date>
+  </front>
+</reference>
+</references>
+
+<section anchor="iana-considerations"><name>IANA considerations</name>
+
+<section anchor="media-type-registration"><name>Media type registration</name>
+<t>This section registers the <tt>application/provided-claims+jwt</tt> media type <xref target="RFC2046"></xref>
+in the IANA &quot;Media Types&quot; registry <xref target="IANA.MediaTypes"></xref> in the manner described in <xref target="RFC6838"></xref>,
+which is used to indicate that the content is a JWT describing aggregated claims.</t>
+
+<ul spacing="compact">
+<li>Type name: application</li>
+<li>Subtype name: provided-claims+jwt</li>
+<li>Required parameters: n/a</li>
+<li>Optional parameters: n/a</li>
+<li>Encoding considerations: binary; An external claims JWT is a JWT; JWT values are encoded as a series of base64url-encoded values (some of which may be the empty string) separated by period ('.') characters.</li>
+<li>Security considerations: See <eref target="https://openid.net/specs/openid-connect-4-identity-assurance-1_0.html#name-representing-verified-claim">https://openid.net/specs/openid-connect-4-identity-assurance-1_0.html#name-representing-verified-claim</eref></li>
+<li>Interoperability considerations: n/a</li>
+<li>Published specification: <xref target="verified_claims_delivery"></xref> of [[ this specification ]]</li>
+<li>Applications that use this media type: When using [[ this specification ]], this media type is used in the <tt>typ</tt> header of assertions provided as aggregated or distributed claims (see section 5.6.2 of the OpenID Connect specification <xref target="OpenID"></xref>).</li>
+<li>Fragment identifier considerations: n/a</li>
+<li><t>Additional information:</t>
+
+<ul spacing="compact">
+<li>File extension(s): n/a</li>
+<li>Macintosh file type code(s): n/a</li>
+</ul></li>
+<li>Person &amp; email address to contact for further information: Daniel Fett, mail@danielfett.de</li>
+<li>Intended usage: COMMON</li>
+<li>Restrictions on usage: none</li>
+<li>Author: Daniel Fett, mail@danielfett.de</li>
+<li>Change controller: IETF</li>
+<li>Provisional registration? No</li>
+</ul>
+</section>
+</section>
+
+<section anchor="example-requests"><name>Example requests</name>
+<t>This section shows examples of requests for <tt>verified_claims</tt>.</t>
+
+<section anchor="verification-of-claims-by-a-document"><name>Verification of claims by a document</name>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: null,
+        &quot;time&quot;: null,
+        &quot;evidence&quot;: [
+          {
+            &quot;type&quot;: {
+              &quot;value&quot;: &quot;document&quot;
+            },
+            &quot;method&quot;: null,
+            &quot;document_details&quot;: {
+              &quot;type&quot;: null
+            }
+          }
+        ]
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null,
+        &quot;birthdate&quot;: null
+      }
+    }
+  }
+}
+</sourcecode>
+<t>Note that, as shown in the above example, this document requires that implementations receiving requests are able to distinguish between JSON objects where a key is not present versus where a key is present with a null value.</t>
+<t>Support for these null value requests is mandatory for identity providers, so implementers are encouraged to test this behaviour early in their development process. In some programming languages many JSON libraries or HTTP frameworks will, at least by default, ignore null values and omit the relevant key when parsing the JSON.</t>
+</section>
+
+<section anchor="verification-of-claims-by-trust-framework-and-evidence-types"><name>Verification of claims by trust framework and evidence types</name>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: [
+      {
+        &quot;verification&quot;: {
+          &quot;trust_framework&quot;: {
+            &quot;value&quot;: &quot;gold&quot;
+          },
+          &quot;evidence&quot;: [
+            {
+              &quot;type&quot;: {
+                &quot;value&quot;: &quot;document&quot;
+              }
+            }
+          ]
+        },
+        &quot;claims&quot;: {
+          &quot;given_name&quot;: null,
+          &quot;family_name&quot;: null
+        }
+      },
+      {
+        &quot;verification&quot;: {
+          &quot;trust_framework&quot;: {
+            &quot;values&quot;: [
+              &quot;silver&quot;,
+              &quot;bronze&quot;
+            ]
+          },
+          &quot;evidence&quot;: [
+            {
+              &quot;type&quot;: {
+                &quot;value&quot;: &quot;vouch&quot;
+              }
+            }
+          ]
+        },
+        &quot;claims&quot;: {
+          &quot;given_name&quot;: null,
+          &quot;family_name&quot;: null
+        }
+      }
+    ]
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="verification-of-claims-by-trust-framework-and-check-method"><name>Verification of claims by trust framework and check method</name>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: {
+          &quot;value&quot;: &quot;it_spid&quot;
+        },
+        &quot;time&quot;: null,
+        &quot;evidence&quot;: [
+          {
+            &quot;type&quot;: {
+              &quot;value&quot;: &quot;document&quot;
+            },
+            &quot;check_details&quot;: [
+              {
+                &quot;check_method&quot;: {
+                  &quot;value&quot;: &quot;bvr&quot;
+                }
+              }
+            ],
+            &quot;document_details&quot;: {
+              &quot;type&quot;: null,
+              &quot;issuer&quot;: {
+                &quot;country&quot;: null,
+                &quot;name&quot;: null
+              },
+              &quot;document_number&quot;: null,
+              &quot;date_of_issuance&quot;: null
+            }
+          }
+        ]
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null,
+        &quot;birthdate&quot;: null
+      }
+    }
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="verification-of-claims-by-electronic-signature"><name>Verification of claims by electronic signature</name>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: null,
+        &quot;time&quot;: null,
+        &quot;evidence&quot;: [
+          {
+            &quot;type&quot;: {
+              &quot;value&quot;: &quot;electronic_signature&quot;
+            },
+            &quot;issuer&quot;: null,
+            &quot;serial_number&quot;: null,
+            &quot;created_at&quot;: null
+          }
+        ]
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null,
+        &quot;birthdate&quot;: null
+      }
+    }
+  }
+}
+</sourcecode>
+</section>
+</section>
+
+<section anchor="example-responses"><name>Example responses</name>
+<t>This section shows examples of responses containing <tt>verified_claims</tt>.</t>
+<t>The first and second subsections show JSON snippets of the general identity assurance case, where the RP is provided with verification evidence for different methods along with the actual claims about the end-user.</t>
+<t>The third subsection illustrates the possible contents of this object in case of a notified eID system under eIDAS, where the OP does not need to provide evidence of the identity verification process to the RP.</t>
+<t>Subsequent subsections contain examples for using the <tt>verified_claims</tt> claim on different channels and in combination with other (unverified) claims.</t>
+
+<section anchor="document"><name>Document</name>
+
+<sourcecode type="json">{
+  &quot;verified_claims&quot;: {
+    &quot;verification&quot;: {
+      &quot;trust_framework&quot;: &quot;nist_800_63A&quot;,
+      &quot;assurance_level&quot;: &quot;ial2&quot;,
+      &quot;assurance_process&quot;: {
+        &quot;assurance_details&quot;: [
+          {
+            &quot;assurance_type&quot;: &quot;evidence_validation&quot;,
+            &quot;assurance_classification&quot;: &quot;strong&quot;,
+            &quot;evidence_ref&quot;: [
+              {
+                &quot;check_id&quot;: &quot;DL1-93h506th2f45hf&quot;
+              }
+            ]
+          },
+          {
+            &quot;assurance_type&quot;: &quot;verification&quot;,
+            &quot;assurance_classification&quot;: &quot;strong&quot;,
+            &quot;evidence_ref&quot;: [
+              {
+                &quot;check_id&quot;: &quot;v-93jfk284ugjfj2093&quot;
+              }
+            ]
+          }
+        ]
+      },
+      &quot;time&quot;: &quot;2021-06-06T05:32Z&quot;,
+      &quot;verification_process&quot;: &quot;7675D80F-57E0-AB14-9543-26B41FC22&quot;,
+      &quot;evidence&quot;: [
+        {
+          &quot;type&quot;: &quot;document&quot;,
+          &quot;check_details&quot;: [
+            {
+              &quot;check_method&quot;: &quot;vpiruv&quot;,
+              &quot;organization&quot;: &quot;doc_checker&quot;,
+              &quot;check_id&quot;: &quot;DL1-93h506th2f45hf&quot;
+            },
+            {
+              &quot;check_method&quot;: &quot;pvp&quot;,
+              &quot;organization&quot;: &quot;face_checker&quot;,
+              &quot;check_id&quot;: &quot;v-93jfk284ugjfj2093&quot;
+            }
+          ],         
+          &quot;time&quot;: &quot;2021-06-06T05:33Z&quot;,
+          &quot;document_details&quot;: {
+            &quot;type&quot;: &quot;driving_permit&quot;,
+            &quot;document_number&quot;: &quot;I1234568&quot;,
+            &quot;date_of_issuance&quot;: &quot;2019-09-05&quot;,
+            &quot;date_of_expiry&quot;: &quot;2024-08-01&quot;,
+            &quot;issuer&quot;: {
+                &quot;name&quot;: &quot;CA DMV&quot;,
+                &quot;country&quot;: &quot;US&quot;,
+                &quot;country_code&quot;: &quot;USA&quot;,
+                &quot;jurisdiction&quot;: &quot;CA&quot;
+            }
+          }
+        }
+      ]
+    },
+    &quot;claims&quot;: {
+      &quot;given_name&quot;: &quot;Inga&quot;,
+      &quot;family_name&quot;: &quot;Silverstone&quot;,
+      &quot;birthdate&quot;: &quot;1991-11-06&quot;,
+      &quot;place_of_birth&quot;: {
+        &quot;country&quot;: &quot;USA&quot;
+      },
+      &quot;address&quot;: {
+        &quot;locality&quot;: &quot;Shoshone&quot;,
+        &quot;postal_code&quot;: &quot;CA 92384&quot;,
+        &quot;country&quot;: &quot;USA&quot;,
+        &quot;street_address&quot;: &quot;114 Old State Hwy 127&quot;
+      }
+    }
+  }
+}
+</sourcecode>
+<t>Same document under a different <tt>trust_framework</tt></t>
+
+<sourcecode type="json">{
+  &quot;verified_claims&quot;: {
+    &quot;verification&quot;: {
+      &quot;trust_framework&quot;: &quot;uk_diatf&quot;,
+      &quot;assurance_level&quot;: &quot;medium&quot;,
+      &quot;assurance_process&quot;: {
+        &quot;policy&quot;: &quot;gpg45&quot;,
+        &quot;procedure&quot;: &quot;m1c&quot;,
+        &quot;assurance_details&quot;: [
+          {
+            &quot;assurance_type&quot;: &quot;evidence_validation&quot;,
+            &quot;assurance_classification&quot;: &quot;score_3&quot;,
+            &quot;evidence_ref&quot;: [
+              {
+                &quot;check_id&quot;: &quot;DL1-93h506th2f45hf&quot;,
+                &quot;evidence_metadata&quot;: {
+                  &quot;evidence_classification&quot;: &quot;score_3_strength&quot;
+                }
+              }
+            ]
+          },
+          {
+            &quot;assurance_type&quot;: &quot;verification&quot;,
+            &quot;assurance_classification&quot;: &quot;score_3&quot;,
+            &quot;evidence_ref&quot;: [
+              {
+                &quot;check_id&quot;: &quot;v-93jfk284ugjfj2093&quot;
+              }
+            ]
+          }
+        ]
+      },
+      &quot;time&quot;: &quot;2021-06-06T05:32Z&quot;,
+      &quot;verification_process&quot;: &quot;7675D80F-57E0-AB14-9543-26B41FC22&quot;,
+      &quot;evidence&quot;: [
+        {
+          &quot;type&quot;: &quot;document&quot;,
+          &quot;check_details&quot;: [
+            {
+              &quot;check_method&quot;: &quot;vpiruv&quot;,
+              &quot;organization&quot;: &quot;doc_checker&quot;,
+              &quot;check_id&quot;: &quot;DL1-93h506th2f45hf&quot;,
+              &quot;time&quot;: &quot;2021-06-08T11:41Z&quot;
+            },
+            {
+              &quot;check_method&quot;: &quot;pvp&quot;,
+              &quot;organization&quot;: &quot;face_checker&quot;,
+              &quot;check_id&quot;: &quot;v-93jfk284ugjfj2093&quot;,
+              &quot;time&quot;: &quot;2021-06-08T11:42Z&quot;
+            }
+          ],
+          &quot;time&quot;: &quot;2021-06-06T05:33Z&quot;,
+          &quot;document_details&quot;: {
+            &quot;type&quot;: &quot;driving_permit&quot;,
+            &quot;document_number&quot;: &quot;I1234568&quot;,
+            &quot;date_of_issuance&quot;: &quot;2019-09-05&quot;,
+            &quot;date_of_expiry&quot;: &quot;2024-08-01&quot;,
+            &quot;issuer&quot;: {
+                &quot;name&quot;: &quot;CA DMV&quot;,
+                &quot;country&quot;: &quot;US&quot;,
+                &quot;country_code&quot;: &quot;USA&quot;,
+                &quot;jurisdiction&quot;: &quot;CA&quot;
+            }
+          }
+        }
+      ]
+    },
+    &quot;claims&quot;: {
+      &quot;given_name&quot;: &quot;Inga&quot;,
+      &quot;family_name&quot;: &quot;Silverstone&quot;,
+      &quot;birthdate&quot;: &quot;1991-11-06&quot;,
+      &quot;place_of_birth&quot;: {
+        &quot;country&quot;: &quot;USA&quot;
+      },
+      &quot;address&quot;: {
+        &quot;locality&quot;: &quot;Shoshone&quot;,
+        &quot;postal_code&quot;: &quot;CA 92384&quot;,
+        &quot;country&quot;: &quot;USA&quot;,
+        &quot;street_address&quot;: &quot;114 Old State Hwy 127&quot;
+      }
+    }
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="document-and-verifier-details"><name>Document and verifier details</name>
+
+<sourcecode type="json">{
+  &quot;verified_claims&quot;: {
+    &quot;verification&quot;: {
+      &quot;trust_framework&quot;: &quot;de_aml&quot;,
+      &quot;time&quot;: &quot;2012-04-23T18:25Z&quot;,
+      &quot;verification_process&quot;: &quot;f24c6f-6d3f-4ec5-973e-b0d8506f3bc7&quot;,
+      &quot;evidence&quot;: [
+        {
+          &quot;type&quot;: &quot;document&quot;,
+          &quot;method&quot;: &quot;pipp&quot;,
+          &quot;organization&quot;: &quot;Deutsche Post&quot;,
+          &quot;check_id&quot;: &quot;1aa05779-0775-470f-a5c4-9f1f5e56cf06&quot;,
+          &quot;time&quot;: &quot;2012-04-22T11:30Z&quot;,
+          &quot;document_details&quot;: {
+            &quot;type&quot;: &quot;idcard&quot;,
+            &quot;issuer&quot;: {
+              &quot;name&quot;: &quot;Stadt Augsburg&quot;,
+              &quot;country&quot;: &quot;DE&quot;
+            },
+            &quot;document_number&quot;: &quot;53554554&quot;,
+            &quot;date_of_issuance&quot;: &quot;2010-03-23&quot;,
+            &quot;date_of_expiry&quot;: &quot;2020-03-22&quot;
+          }
+        }
+      ]
+    },
+    &quot;claims&quot;: {
+      &quot;given_name&quot;: &quot;Max&quot;,
+      &quot;family_name&quot;: &quot;Meier&quot;,
+      &quot;birthdate&quot;: &quot;1956-01-28&quot;,
+      &quot;place_of_birth&quot;: {
+        &quot;country&quot;: &quot;DE&quot;,
+        &quot;locality&quot;: &quot;Musterstadt&quot;
+      },
+      &quot;nationalities&quot;: [
+        &quot;DE&quot;
+      ],
+      &quot;address&quot;: {
+        &quot;locality&quot;: &quot;Maxstadt&quot;,
+        &quot;postal_code&quot;: &quot;12344&quot;,
+        &quot;country&quot;: &quot;DE&quot;,
+        &quot;street_address&quot;: &quot;An der Weide 22&quot;
+      }
+    }
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="evidence-with-all-assurance-details"><name>Evidence with all assurance details</name>
+
+<sourcecode type="json">{
+  &quot;verified_claims&quot;: {
+    &quot;verification&quot;: {
+      &quot;trust_framework&quot;: &quot;uk_diatf&quot;,
+      &quot;assurance_level&quot;: &quot;medium&quot;,
+      &quot;assurance_process&quot;: {
+        &quot;policy&quot;: &quot;gpg45&quot;,
+        &quot;procedure&quot;: &quot;m1b&quot;,
+        &quot;assurance_details&quot;: [
+          {
+            &quot;assurance_type&quot;: &quot;evidence_validation&quot;,
+            &quot;assurance_classification&quot;: &quot;score_2&quot;,
+            &quot;evidence_ref&quot;: [
+              {
+                &quot;check_id&quot;: &quot;DL1-85762937582385820&quot;,
+                &quot;evidence_metadata&quot;: {
+                  &quot;evidence_classification&quot;: &quot;score_3_strength&quot;
+                }
+              }
+            ]
+          },
+          {
+            &quot;assurance_type&quot;: &quot;verification&quot;,
+            &quot;assurance_classification&quot;: &quot;score_2&quot;,
+            &quot;evidence_ref&quot;: [
+              {
+                &quot;check_id&quot;: &quot;kbv1-hf934hn09234ng03jj3&quot;,
+                &quot;evidence_metadata&quot;: {
+                  &quot;evidence_classification&quot;: &quot;high_kbv&quot;
+                }
+              },
+              {
+                &quot;check_id&quot;: &quot;kbv2-nm0f23u9459fj38u5j6&quot;,
+                &quot;evidence_metadata&quot;: {
+                  &quot;evidence_classification&quot;: &quot;medium_kbv&quot;
+                }
+              },
+              {
+                &quot;check_id&quot;: &quot;kbv3-jf9028h023hj0f9jh23&quot;,
+                &quot;evidence_metadata&quot;: {
+                  &quot;evidence_classification&quot;: &quot;medium_kbv&quot;
+                }
+              }
+            ]
+          },
+          {
+            &quot;assurance_type&quot;: &quot;counter_fraud&quot;,
+            &quot;assurance_classification&quot;: &quot;score_2&quot;,
+            &quot;evidence_ref&quot;: [
+              {
+                &quot;check_id&quot;: &quot;GRO-9824hngvp9278hf5tmp924y5h&quot;,
+                &quot;evidence_metadata&quot;: {
+                  &quot;evidence_classification&quot;: &quot;mortality_check&quot;
+                }
+              },
+              {
+                &quot;check_id&quot;: &quot;fi-2nbf02hfn384ufn&quot;,
+                &quot;evidence_metadata&quot;: {
+                  &quot;evidence_classification&quot;: &quot;id_fraud&quot;
+                }
+              }
+            ]
+          }
+        ]
+      },
+      &quot;time&quot;: &quot;2021-05-11T14:29Z&quot;,
+      &quot;verification_process&quot;: &quot;7675D80F-57E0-AB14-9543-26B41FC22&quot;,
+      &quot;evidence&quot;: [
+        {
+          &quot;type&quot;: &quot;document&quot;,
+          &quot;check_details&quot;: [
+            {
+              &quot;check_method&quot;: &quot;data&quot;,
+              &quot;organization&quot;: &quot;DVLA&quot;,
+              &quot;time&quot;: &quot;2021-04-09T14:15Z&quot;,
+              &quot;check_id&quot;: &quot;DL1-85762937582385820&quot;
+            }
+          ],
+          &quot;time&quot;: &quot;2021-04-09T14:12Z&quot;,
+          &quot;document_details&quot;: {
+            &quot;type&quot;: &quot;driving_permit&quot;,
+            &quot;personal_number&quot;: &quot;MORGA753116SM9IJ&quot;,
+            &quot;document_number&quot;: &quot;MORGA753116SM9IJ35&quot;,
+            &quot;serial_number&quot;: &quot;ZG21000001&quot;,
+            &quot;date_of_issuance&quot;: &quot;2021-01-01&quot;,
+            &quot;date_of_expiry&quot;: &quot;2030-12-31&quot;,
+            &quot;issuer&quot;: {
+              &quot;name&quot;: &quot;DVLA&quot;,
+              &quot;country&quot;: &quot;UK&quot;,
+              &quot;country_code&quot;: &quot;GBR&quot;,
+              &quot;jurisdiction&quot;: &quot;GB-GBN&quot;
+            }
+          }
+        },
+        {
+          &quot;type&quot;: &quot;electronic_record&quot;,
+          &quot;check_details&quot;: [
+            {
+              &quot;check_method&quot;: &quot;kbv&quot;,
+              &quot;organization&quot;: &quot;TheCreditBureau&quot;,
+              &quot;check_id&quot;: &quot;kbv1-hf934hn09234ng03jj3&quot;
+            }
+          ],
+          &quot;time&quot;: &quot;2021-04-09T14:12Z&quot;,
+          &quot;record&quot;: {
+            &quot;type&quot;: &quot;mortgage_account&quot;,
+            &quot;source&quot;: {
+              &quot;name&quot;: &quot;TheCreditBureau&quot;
+            }
+          }
+        },
+        {
+          &quot;type&quot;: &quot;electronic_record&quot;,
+          &quot;check_details&quot;: [
+            {
+              &quot;check_method&quot;: &quot;kbv&quot;,
+              &quot;organization&quot;: &quot;OpenBankingTPP&quot;,
+              &quot;check_id&quot;: &quot;kbv2-nm0f23u9459fj38u5j6&quot;
+            }
+          ],
+          &quot;time&quot;: &quot;2021-04-09T14:12Z&quot;,
+          &quot;record&quot;: {
+            &quot;type&quot;: &quot;bank_account&quot;,
+            &quot;source&quot;: {
+              &quot;name&quot;: &quot;TheBank&quot;
+            }
+          }
+        },
+        {
+          &quot;type&quot;: &quot;electronic_record&quot;,
+          &quot;check_details&quot;: [
+            {
+              &quot;check_method&quot;: &quot;kbv&quot;,
+              &quot;organization&quot;: &quot;GSMA&quot;,
+              &quot;check_id&quot;: &quot;kbv3-jf9028h023hj0f9jh23&quot;
+            }
+          ],
+          &quot;time&quot;: &quot;2021-04-09T15:42Z&quot;,
+          &quot;record&quot;: {
+            &quot;type&quot;: &quot;mno&quot;,
+            &quot;source&quot;: {
+              &quot;name&quot;: &quot;Vodafone&quot;
+            }
+          }
+        },
+        {
+          &quot;type&quot;: &quot;electronic_record&quot;,
+          &quot;check_details&quot;: [
+            {
+              &quot;check_method&quot;: &quot;data&quot;,
+              &quot;organization&quot;: &quot;GRO&quot;,
+              &quot;check_id&quot;: &quot;GRO-9824hngvp9278hf5tmp924y5h&quot;
+            }
+          ],
+          &quot;time&quot;: &quot;2021-04-09T16:12Z&quot;,
+          &quot;record&quot;: {
+            &quot;type&quot;: &quot;death_register&quot;,
+            &quot;source&quot;: {
+              &quot;name&quot;: &quot;General Register Office&quot;,
+              &quot;street_address&quot;: &quot;PO BOX 2&quot;,
+              &quot;locality&quot;: &quot;Southport&quot;,
+              &quot;postal_code&quot;: &quot;PR8 2JD&quot;,
+              &quot;country&quot;: &quot;UK&quot;,
+              &quot;country_code&quot;: &quot;GBR&quot;,
+              &quot;jurisdiction&quot;: &quot;GB-EAW&quot;
+            }
+          }
+        },
+        {
+          &quot;type&quot;: &quot;electronic_record&quot;,
+          &quot;check_details&quot;: [
+            {
+              &quot;check_method&quot;: &quot;data&quot;,
+              &quot;organization&quot;: &quot;NextLex&quot;,
+              &quot;check_id&quot;: &quot;fi-2nbf02hfn384ufn&quot;
+            }
+          ],
+          &quot;time&quot;: &quot;2021-04-09T16:51Z&quot;,
+          &quot;record&quot;: {
+            &quot;type&quot;: &quot;fraud_register&quot;,
+            &quot;source&quot;: {
+              &quot;name&quot;: &quot;National Fraud Database&quot;,
+              &quot;jurisdiction&quot;: &quot;UK&quot;
+            }
+          }
+        }
+      ]
+    },
+    &quot;claims&quot;: {
+      &quot;given_name&quot;: &quot;Sarah&quot;,
+      &quot;family_name&quot;: &quot;Meredyth&quot;,
+      &quot;birthdate&quot;: &quot;1976-03-11&quot;,
+      &quot;place_of_birth&quot;: {
+        &quot;country&quot;: &quot;UK&quot;
+      },
+      &quot;address&quot;: {
+        &quot;locality&quot;: &quot;Edinburgh&quot;,
+        &quot;postal_code&quot;: &quot;EH1 9GP&quot;,
+        &quot;country&quot;: &quot;UK&quot;,
+        &quot;street_address&quot;: &quot;122 Burns Crescent&quot;
+      }
+    }
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="notified-eid-system-eidas"><name>Notified eID system (eIDAS)</name>
+
+<sourcecode type="json">{
+  &quot;verified_claims&quot;: {
+    &quot;verification&quot;: {
+      &quot;trust_framework&quot;: &quot;eidas&quot;,
+      &quot;assurance_level&quot;: &quot;substantial&quot;
+    },
+    &quot;claims&quot;: {
+      &quot;given_name&quot;: &quot;Max&quot;,
+      &quot;family_name&quot;: &quot;Meier&quot;,
+      &quot;birthdate&quot;: &quot;1956-01-28&quot;,
+      &quot;place_of_birth&quot;: {
+        &quot;country&quot;: &quot;DE&quot;,
+        &quot;locality&quot;: &quot;Musterstadt&quot;
+      },
+      &quot;nationalities&quot;: [
+        &quot;DE&quot;
+      ]
+    }
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="electronic-record"><name>Electronic_record</name>
+
+<sourcecode type="json">{
+  &quot;verified_claims&quot;: {
+    &quot;verification&quot;: {
+      &quot;trust_framework&quot;: &quot;se_bankid&quot;,
+      &quot;assurance_level&quot;: &quot;al_2&quot;,
+      &quot;time&quot;: &quot;2021-03-03T09:42Z&quot;,
+      &quot;verification_process&quot;: &quot;4346D80F-57E0-4E26-9543-26B41FC22&quot;,
+      &quot;evidence&quot;: [
+        {
+          &quot;type&quot;: &quot;electronic_record&quot;,
+          &quot;check_details&quot;: [
+            {
+              &quot;check_method&quot;: &quot;data&quot;
+            },
+            {
+              &quot;check_method&quot;: &quot;token&quot;
+            }
+          ],         
+          &quot;time&quot;: &quot;2021-02-15T16:51Z&quot;,
+          &quot;record&quot;: {
+            &quot;type&quot;: &quot;population_register&quot;,
+            &quot;source&quot;: {
+                &quot;name&quot;: &quot;Skatteverket&quot;,
+                &quot;country&quot;: &quot;Sverige&quot;,
+                &quot;country_code&quot;: &quot;SWE&quot;
+            },
+            &quot;personal_number&quot;: &quot;4901224131&quot;,
+            &quot;created_at&quot;: &quot;1979-01-22&quot;
+          }
+        }
+      ]
+    },
+    &quot;claims&quot;: {
+      &quot;given_name&quot;: &quot;Fredrik&quot;,
+      &quot;family_name&quot;: &quot;Strömberg&quot;,
+      &quot;birthdate&quot;: &quot;1979-01-22&quot;,
+      &quot;place_of_birth&quot;: {
+        &quot;country&quot;: &quot;SWE&quot;,
+        &quot;locality&quot;: &quot;Örnsköldsvik&quot;
+      },
+      &quot;nationalities&quot;: [
+        &quot;SE&quot;
+      ],
+      &quot;address&quot;: {
+        &quot;locality&quot;: &quot;Karlstad&quot;,
+        &quot;postal_code&quot;: &quot;65344&quot;,
+        &quot;country&quot;: &quot;SWE&quot;,
+        &quot;street_address&quot;: &quot;Gatunamn 221b&quot;
+      }
+    }
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="vouch"><name>Vouch</name>
+
+<sourcecode type="json">{
+  &quot;verified_claims&quot;: {
+    &quot;verification&quot;: {
+      &quot;trust_framework&quot;: &quot;uk_diatf&quot;,
+      &quot;assurance_level&quot;: &quot;very_high&quot;,
+      &quot;time&quot;: &quot;2020-03-19T13:05Z&quot;,
+      &quot;verification_process&quot;: &quot;76755DA2-81E1-5N14-9543-26B415B77&quot;,
+      &quot;evidence&quot;: [
+        {
+          &quot;type&quot;: &quot;vouch&quot;,
+          &quot;check_details&quot;: [
+            {
+              &quot;check_method&quot;: &quot;vcrypt&quot;
+            },
+            {
+              &quot;check_method&quot;: &quot;bvr&quot;
+            }
+          ],
+          &quot;time&quot;: &quot;2020-03-19T12:42Z&quot;,
+          &quot;attestation&quot;: {
+            &quot;type&quot;: &quot;digital_attestation&quot;,
+            &quot;reference_number&quot;: &quot;6485-1619-3976-6671&quot;,
+            &quot;date_of_issuance&quot;: &quot;2021-06-04&quot;,
+            &quot;voucher&quot;: {
+                &quot;organization&quot;: &quot;HMP Dartmoor&quot;
+            }
+          }
+        }
+      ]
+    },
+    &quot;claims&quot;: {
+      &quot;given_name&quot;: &quot;Sam&quot;,
+      &quot;family_name&quot;: &quot;Lawler&quot;,
+      &quot;birthdate&quot;: &quot;1981-04-13&quot;,
+      &quot;place_of_birth&quot;: {
+        &quot;country&quot;: &quot;GBR&quot;
+      },
+      &quot;address&quot;: {
+        &quot;postal_code&quot;: &quot;98015&quot;,
+        &quot;country&quot;: &quot;Monaco&quot;
+      }
+    }
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="multiple-verified-claims"><name>Multiple verified claims</name>
+
+<sourcecode type="json">{
+  &quot;verified_claims&quot;: [
+    {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: &quot;eidas&quot;,
+        &quot;assurance_level&quot;: &quot;substantial&quot;
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: &quot;Max&quot;,
+        &quot;family_name&quot;: &quot;Meier&quot;,
+        &quot;birthdate&quot;: &quot;1956-01-28&quot;,
+        &quot;place_of_birth&quot;: {
+          &quot;country&quot;: &quot;DE&quot;,
+          &quot;locality&quot;: &quot;Musterstadt&quot;
+        },
+        &quot;nationalities&quot;: [
+          &quot;DE&quot;
+        ]
+      }
+    },
+    {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: &quot;de_aml&quot;,
+        &quot;time&quot;: &quot;2012-04-23T18:25Z&quot;,
+        &quot;verification_process&quot;: &quot;f24c6f-6d3f-4ec5-973e-b0d8506f3bc7&quot;,
+        &quot;evidence&quot;: [
+          {
+            &quot;type&quot;: &quot;document&quot;,
+            &quot;method&quot;: &quot;pipp&quot;,
+            &quot;time&quot;: &quot;2012-04-22T11:30Z&quot;,
+            &quot;document&quot;: {
+              &quot;type&quot;: &quot;idcard&quot;
+            }
+          }
+        ]
+      },
+      &quot;claims&quot;: {
+        &quot;address&quot;: {
+          &quot;locality&quot;: &quot;Maxstadt&quot;,
+          &quot;postal_code&quot;: &quot;12344&quot;,
+          &quot;country&quot;: &quot;DE&quot;,
+          &quot;street_address&quot;: &quot;An der Weide 22&quot;
+        }
+      }
+    }
+  ]
+}
+</sourcecode>
+</section>
+
+<section anchor="op_attested_and_external_claims"><name>Claims provided by the OP and external sources</name>
+<t>This example shows how an OP can mix own claims and claims provided by
+external sources in a single ID Token.</t>
+
+<sourcecode type="json">{
+  &quot;iss&quot;: &quot;https://server.example.com&quot;,
+  &quot;sub&quot;: &quot;248289761001&quot;,
+  &quot;email&quot;: &quot;janedoe@example.com&quot;,
+  &quot;email_verified&quot;: true,
+  &quot;verified_claims&quot;: {
+    &quot;verification&quot;: {
+      &quot;trust_framework&quot;: &quot;trust_framework_example&quot;
+    },
+    &quot;claims&quot;: {
+      &quot;given_name&quot;: &quot;Max&quot;,
+      &quot;family_name&quot;: &quot;Meier&quot;
+    }
+  },
+  &quot;_claim_names&quot;: {
+    &quot;verified_claims&quot;: [
+      &quot;src1&quot;,
+      &quot;src2&quot;
+    ]
+  },
+  &quot;_claim_sources&quot;: {
+    &quot;src1&quot;: {
+      &quot;JWT&quot;: &quot;eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3NlcnZlci5vdGhlcm9wLmNvbSIsInN1YiI6ImU4MTQ4NjAzLTg5MzQtNDI0NS04MjViLWMxMDhiOGI2Yjk0NSIsInZlcmlmaWVkX2NsYWltcyI6eyJ2ZXJpZmljYXRpb24iOnsidHJ1c3RfZnJhbWV3b3JrIjoiaWFsX2V4YW1wbGVfZ29sZCJ9LCJjbGFpbXMiOnsiZ2l2ZW5fbmFtZSI6Ik1heCIsImZhbWlseV9uYW1lIjoiTWVpZXIiLCJiaXJ0aGRhdGUiOiIxOTU2LTAxLTI4In19fQ.FArlPUtUVn95HCExePlWJQ6ctVfVpQyeSbe3xkH9MH1QJjnk5GVbBW0qe1b7R3lE-8iVv__0mhRTUI5lcFhLjoGjDS8zgWSarVsEEjwBK7WD3r9cEw6ZAhfEkhHL9eqAaED2rhhDbHD5dZWXkJCuXIcn65g6rryiBanxlXK0ZmcK4fD9HV9MFduk0LRG_p4yocMaFvVkqawat5NV9QQ3ij7UBr3G7A4FojcKEkoJKScdGoozir8m5XD83Sn45_79nCcgWSnCX2QTukL8NywIItu_K48cjHiAGXXSzydDm_ccGCe0sY-Ai2-iFFuQo2PtfuK2SqPPmAZJxEFrFoLY4g&quot;
+    },
+    &quot;src2&quot;: {
+      &quot;endpoint&quot;: &quot;https://server.yetanotherop.com/claim_source&quot;,
+      &quot;access_token&quot;: &quot;ksj3n283dkeafb76cdef&quot;
+    }
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="self-issued-openid-provider-and-external-claims"><name>Self-Issued OpenID provider and external claims</name>
+<t>This example shows how a Self-Issued OpenID provider (SIOP)
+may include verified claims obtained from different external claim
+sources into an ID Token.</t>
+
+<sourcecode type="json">{
+  &quot;iss&quot;: &quot;https://self-issued.me&quot;,
+  &quot;sub&quot;: &quot;248289761001&quot;,
+  &quot;preferred_username&quot;: &quot;superman445&quot;,
+  &quot;_claim_names&quot;: {
+    &quot;verified_claims&quot;: [
+      &quot;src1&quot;,
+      &quot;src2&quot;
+    ]
+  },
+  &quot;_claim_sources&quot;: {
+    &quot;src1&quot;: {
+      &quot;JWT&quot;: &quot;eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3NlcnZlci5vdGhlcm9wLmNvbSIsInN1YiI6ImU4MTQ4NjAzLTg5MzQtNDI0NS04MjViLWMxMDhiOGI2Yjk0NSIsInZlcmlmaWVkX2NsYWltcyI6eyJ2ZXJpZmljYXRpb24iOnsidHJ1c3RfZnJhbWV3b3JrIjoiaWFsX2V4YW1wbGVfZ29sZCJ9LCJjbGFpbXMiOnsiZ2l2ZW5fbmFtZSI6Ik1heCIsImZhbWlseV9uYW1lIjoiTWVpZXIiLCJiaXJ0aGRhdGUiOiIxOTU2LTAxLTI4In19fQ.FArlPUtUVn95HCExePlWJQ6ctVfVpQyeSbe3xkH9MH1QJjnk5GVbBW0qe1b7R3lE-8iVv__0mhRTUI5lcFhLjoGjDS8zgWSarVsEEjwBK7WD3r9cEw6ZAhfEkhHL9eqAaED2rhhDbHD5dZWXkJCuXIcn65g6rryiBanxlXK0ZmcK4fD9HV9MFduk0LRG_p4yocMaFvVkqawat5NV9QQ3ij7UBr3G7A4FojcKEkoJKScdGoozir8m5XD83Sn45_79nCcgWSnCX2QTukL8NywIItu_K48cjHiAGXXSzydDm_ccGCe0sY-Ai2-iFFuQo2PtfuK2SqPPmAZJxEFrFoLY4g&quot;
+    },
+    &quot;src2&quot;: {
+      &quot;endpoint&quot;: &quot;https://op.mymno.com/claim_source&quot;,
+      &quot;access_token&quot;: &quot;ksj3n283dkeafb76cdef&quot;
+    }
+  }
+}
+</sourcecode>
+</section>
+</section>
+
+<section anchor="example-requests-and-responses"><name>Example requests and responses</name>
+<t>This section shows examples of pairs of requests and responses containing <tt>verified_claims</tt>.</t>
+
+<section anchor="verified-claims-in-userinfo-response"><name>verified claims in UserInfo response</name>
+
+<section anchor="request"><name>Request</name>
+<t>In this example we assume the RP uses the <tt>scope</tt> parameter to request the email address and, additionally, the <tt>claims</tt> parameter, to request verified claims.</t>
+<t>The scope value is: <tt>scope=openid email</tt></t>
+<t>The value of the <tt>claims</tt> parameter is:</t>
+
+<sourcecode type="json">{
+  &quot;userinfo&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: null
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null,
+        &quot;birthdate&quot;: null
+      }
+    }
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="response"><name>Response</name>
+<t>The respective UserInfo response would be</t>
+
+<sourcecode type="json">{
+  &quot;sub&quot;: &quot;248289761001&quot;,
+  &quot;email&quot;: &quot;janedoe@example.com&quot;,
+  &quot;email_verified&quot;: true,
+  &quot;verified_claims&quot;: {
+    &quot;verification&quot;: {
+      &quot;trust_framework&quot;: &quot;de_aml&quot;
+    },
+    &quot;claims&quot;: {
+      &quot;given_name&quot;: &quot;Max&quot;,
+      &quot;family_name&quot;: &quot;Meier&quot;,
+      &quot;birthdate&quot;: &quot;1956-01-28&quot;
+    }
+  }
+}
+</sourcecode>
+</section>
+</section>
+
+<section anchor="verified-claims-in-id-tokens"><name>verified claims in ID Tokens</name>
+
+<section anchor="request-1"><name>Request</name>
+<t>In this case, the RP requests verified claims along with other claims about the end-user in the <tt>claims</tt> parameter and allocates the response to the ID Token (delivered from the token endpoint in case of grant type <tt>authorization_code</tt>).</t>
+<t>The <tt>claims</tt> parameter value is</t>
+
+<sourcecode type="json">{
+  &quot;id_token&quot;: {
+    &quot;email&quot;: null,
+    &quot;preferred_username&quot;: null,
+    &quot;picture&quot;: null,
+    &quot;verified_claims&quot;: {
+      &quot;verification&quot;: {
+        &quot;trust_framework&quot;: null,
+        &quot;time&quot;: null,
+        &quot;verification_process&quot;: null,
+        &quot;evidence&quot;: [
+          {
+            &quot;type&quot;: {
+              &quot;value&quot;: &quot;document&quot;
+            },
+            &quot;method&quot;: null,
+            &quot;time&quot;: null,
+            &quot;document_details&quot;: {
+              &quot;type&quot;: null,
+              &quot;issuer&quot;: {
+                &quot;name&quot;: null,
+                &quot;country&quot;: null
+              },
+              &quot;document_number&quot;: null,
+              &quot;date_of_issuance&quot;: null,
+              &quot;date_of_expiry&quot;: null
+            }
+          }
+        ]
+      },
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null,
+        &quot;birthdate&quot;: null
+      }
+    }
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="response-1"><name>Response</name>
+<t>The decoded body of the respective ID Token could be</t>
+
+<sourcecode type="json">{
+  &quot;iss&quot;: &quot;https://server.example.com&quot;,
+  &quot;sub&quot;: &quot;24400320&quot;,
+  &quot;aud&quot;: &quot;s6BhdRkqt3&quot;,
+  &quot;nonce&quot;: &quot;n-0S6_WzA2Mj&quot;,
+  &quot;exp&quot;: 1311281970,
+  &quot;iat&quot;: 1311280970,
+  &quot;auth_time&quot;: 1311280969,
+  &quot;acr&quot;: &quot;urn:mace:incommon:iap:silver&quot;,
+  &quot;email&quot;: &quot;janedoe@example.com&quot;,
+  &quot;preferred_username&quot;: &quot;j.doe&quot;,
+  &quot;picture&quot;: &quot;http://example.com/janedoe/me.jpg&quot;,
+  &quot;verified_claims&quot;: {
+    &quot;verification&quot;: {
+      &quot;trust_framework&quot;: &quot;de_aml&quot;,
+      &quot;time&quot;: &quot;2012-04-23T18:25Z&quot;,
+      &quot;verification_process&quot;: &quot;f24c6f-6d3f-4ec5-973e-b0d8506f3bc7&quot;,
+      &quot;evidence&quot;: [
+        {
+          &quot;type&quot;: &quot;document&quot;,
+          &quot;method&quot;: &quot;pipp&quot;,
+          &quot;time&quot;: &quot;2012-04-22T11:30Z&quot;,
+          &quot;document_details&quot;: {
+            &quot;type&quot;: &quot;idcard&quot;,
+            &quot;issuer&quot;: {
+              &quot;name&quot;: &quot;Stadt Augsburg&quot;,
+              &quot;country&quot;: &quot;DE&quot;
+            },
+            &quot;document_number&quot;: &quot;53554554&quot;,
+            &quot;date_of_issuance&quot;: &quot;2010-03-23&quot;,
+            &quot;date_of_expiry&quot;: &quot;2020-03-22&quot;
+          }
+        }
+      ]
+    },
+    &quot;claims&quot;: {
+      &quot;given_name&quot;: &quot;Jane&quot;,
+      &quot;family_name&quot;: &quot;Doe&quot;,
+      &quot;birthdate&quot;: &quot;1956-01-28&quot;
+    }
+  }
+}
+</sourcecode>
+</section>
+</section>
+</section>
+
+<section anchor="Acknowledgements"><name>Acknowledgements</name>
+<t>The following people at yes.com and partner companies contributed to the concept described in the initial contribution to this document: Karsten Buch, Lukas Stiebig, Sven Manz, Waldemar Zimpfer, Willi Wiedergold, Fabian Hoffmann, Daniel Keijsers, Ralf Wagner, Sebastian Ebling, Peter Eisenhofer.</t>
+<t>We would like to thank Julian White, Bjorn Hjelm, Stephane Mouy, Alberto Pulido, Joseph Heenan, Vladimir Dzhuvinov, Azusa Kikuchi, Naohiro Fujie, Takahiko Kawasaki, Sebastian Ebling, Marcos Sanz, Tom Jones, Mike Pegman, Michael B. Jones, Jeff Lombardo, Taylor Ongaro, Peter Bainbridge-Clayton, Adrian Field, George Fletcher, Tim Cappalli, Michael Palage, Sascha Preibisch, Giuseppe De Marco, Nick Mothershaw, Hodari McClain, Dima Postnikov and Nat Sakimura for their valuable feedback and contributions that helped to evolve this document.</t>
+</section>
+
+<section anchor="notices"><name>Notices</name>
+<t>Copyright (c) 2024 The OpenID Foundation.</t>
+<t>The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer, or other interested party a non-exclusive, royalty free, worldwide copyright license to reproduce, prepare derivative works from, distribute, perform and display, this Implementers Draft or Final Specification solely for the purposes of (i) developing specifications, and (ii) implementing Implementers Drafts and Final Specifications based on such documents, provided that attribution be made to the OIDF as the source of the material, but that such attribution does not indicate an endorsement by the OIDF.</t>
+<t>The technology described in this document was made available from contributions from various sources, including members of the OpenID Foundation and others. Although the OpenID Foundation has taken steps to help ensure that the technology is available for distribution, it takes no position regarding the validity or scope of any intellectual property or other rights that might be claimed to pertain to the implementation or use of the technology described in this document or the extent to which any license under such rights might or might not be available; neither does it represent that it has made any independent effort to identify any such rights. The OpenID Foundation and the contributors to this document make no (and hereby expressly disclaim any) warranties (express, implied, or otherwise), including implied warranties of merchantability, non-infringement, fitness for a particular purpose, or title, related to this document to offer a patent promise not to assert certain patent claims against other contributors and against implementers. The OpenID Foundation invites any interested party to bring to its attention any copyrights, patents, patent applications, or other proprietary rights that may cover technology that may be required to practice this document.</t>
+</section>
+
+</back>
+
+</rfc>

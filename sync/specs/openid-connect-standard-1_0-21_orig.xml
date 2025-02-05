@@ -1,0 +1,2730 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml.resource.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc PUBLIC "-//IETF//DTD RFC 2629//EN"
+"http://xml.resource.org/authoring/rfc2629.dtd">
+<rfc category="exp" docName="openid-connect-standard-1_0" ipr="trust200902">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="5" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="no" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+
+  <front>
+    <title abbrev="OpenID Connect Standard 1.0">OpenID Connect Standard 1.0 - draft 21</title>
+
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+      <address>
+        <email>n-sakimura@nri.co.jp</email>
+      </address>
+    </author>
+
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization abbrev="Ping Identity">Ping Identity</organization>
+      <address>
+        <email>ve7jtb@ve7jtb.com</email>
+      </address>
+    </author>
+
+    <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+      <organization abbrev="Microsoft">Microsoft</organization>
+
+      <address>
+        <email>mbj@microsoft.com</email>
+      </address>
+    </author>
+
+    <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+      <organization abbrev="Google">Google</organization>
+      <address>
+        <email>breno@google.com</email>
+      </address>
+    </author>
+
+    <author fullname="Edmund Jay" initials="E." surname="Jay">
+      <organization abbrev="Illumila">Illumila</organization>
+      <address>
+        <email>ejay@mgi1.com</email>
+      </address>
+    </author>
+
+    <date day="7" month="June" year="2013" />
+
+    <workgroup>OpenID Connect Working Group</workgroup>
+
+    <abstract>
+      <t>OpenID Connect 1.0 is a simple identity layer on top of the OAuth 2.0
+      protocol. It allows Clients to verify the identity of the End-User based
+      on the authentication performed by an Authorization Server, as well as to
+      obtain basic profile information about the End-User in an interoperable and
+      REST-like manner.</t>
+
+      <t>OpenID Connect Standard 1.0 is an HTTP protocol binding for
+      the OpenID Connect Messages 1.0 request and response messages.</t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor='Introduction' title='Introduction'>
+      <t>
+	The <xref target="RFC6749">OAuth 2.0 Authorization Framework</xref>
+	and <xref target="RFC6750">OAuth 2.0 Bearer Token Usage</xref>
+	specifications provide a general framework for third-party applications
+	to obtain and use limited access to HTTP resources.  They define
+	mechanisms to obtain and use Access Tokens to access resources but
+	do not define standard methods to provide identity information.
+	Notably, without profiling OAuth 2.0, it is incapable of
+	providing information about the authentication of an End-User.
+      </t>
+      <t>
+	This specification is a binding of the messages defined in the
+	<xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>
+	specification to RFC6749 and RFC6750, including messages
+	that provide identity and authentication information,
+	allowing services to securely exchange identity information.
+	This binding builds an identity layer on top of OAuth 2.0.
+	Using this specification, deployments are able to share
+	authentication and attributes on OAuth 2.0 based systems.
+      </t>
+
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+	<t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+	"SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+	document are to be interpreted as described in <xref
+	target="RFC2119"></xref> .</t>
+
+	<t>Throughout this document, values are quoted to indicate that they are
+	to be taken literally. When using these values in protocol messages, the
+	quotes MUST NOT be used as part of the value.</t>
+
+	<t>
+	  All uses of <xref target="JWS">JSON Web Signature (JWS)</xref>
+	  and <xref target="JWE">JSON Web Encryption (JWE)</xref>
+	  data structures in this specification utilize
+	  the JWS Compact Serialization or the JWE Compact Serialization;
+	  the JWS JSON Serialization and the JWE JSON Serialization are not used.
+	</t>
+      </section>
+
+      <section anchor="terminology" title="Terminology">
+	<t>This specification uses the terms "Access Token", "Refresh Token",
+	"Authorization Code", "Authorization Grant", "Authorization Server",
+	"Authorization Endpoint", "Client", "Client Identifier", "Client Secret",
+	"Protected Resource", "Resource Owner", "Resource Server", and
+	"Token Endpoint" defined by
+	<xref target="RFC6749">OAuth 2.0</xref>,
+	and the terms defined by
+	<xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>.
+	</t>
+	<t>
+	  This specification also defines the following terms:
+	  <list style="hanging">
+	    <t hangText="Request File">Document whose content
+	    is a Request Object representing a set of Authorization Request
+	    parameters.</t>
+
+	    <t hangText="Request File URI">URL that references a Request File.
+	    The Request File contents MUST be retrievable by the
+	    Authorization Server.</t>
+	  </list></t>
+      </section>
+    </section>
+
+    <section anchor="AuthorizationEndpoint" title="Authorization Endpoint">
+      <t>The Authorization Endpoint performs authentication of the
+      End-User and requests authorization from the End-User to release
+      information to an OpenID Connect Relying Party (Client). When an End-User 
+      accesses a Relying Party application that requires
+      the End-User's identity and other information, it sends the End-User to
+      the Authorization Server's Authorization Endpoint for authentication and
+      authorization. The Authorization Server then issues an ID Token that
+      asserts the End-User's identity and an Access Token that allows the
+      Client to access the End-User's information at Protected Resource
+      endpoints. Protected Resource endpoints MAY perform different actions or
+      return different information based on the scopes associated with the 
+      presented Access Token.
+      Clients MUST specify 
+      how the Access Token and ID Token are to be returned by using the
+      <spanx style="verb">response_type</spanx>
+      parameter in the Authorization Request.
+      </t>
+
+      <section anchor="protocol_flows" title="Protocol Flows">
+
+        <t>Authorization Requests follow two main paths to obtain Access Tokens
+        and ID Tokens, the Implicit Flow and the Authorization Code Flow. The 
+        flows determine how the Access Token and ID Token are returned to the 
+        Client. Access Tokens are credentials used to access Protected 
+        Resources, as defined in Section 1.4 of 
+        <xref target="RFC6749">OAuth 2.0</xref>. Access Tokens represent 
+        a Resource Owner's authorization and MUST NOT be exposed to 
+        unauthorized parties.</t>
+
+        <t>The Implicit Flow is mainly used by Clients implemented in a browser
+        using a scripting language. The Access Token and ID Token are returned
+        directly to the Client, which MAY expose them to the Resource Owner and
+        other applications that have access to the Resource Owner's User-Agent.
+        The Authorization Server does not perform Client Authentication before
+        issuing the Access Token.</t>
+
+        <t>The Authorization Code Flow returns an Authorization Code to the
+        Client, which can then exchange it for an Access Token directly. This
+        provides the added benefit of not exposing the Access Token to the 
+        Resource Owner and possibly other malicious applications with access
+        to the Resource Owner's User-Agent. The Authorization Server can also
+        authenticate the Client before exchanging the Authorization Code for an
+        Access Token. The Authorization Code flow is suitable for Clients that 
+        can securely maintain a Client Secret between themselves and the
+        Authorization Server whereas the Implicit flow is suitable for Clients
+        that cannot.</t>
+
+        <section anchor="retrieving_code_token" 
+                 title="Obtaining the Authorization Code, ID Token, and Access Token">
+          <t>In this specification, the Client sends the Authorization Request 
+          to the Authorization Endpoint through the User-Agent to obtain the 
+          ID Token and Access Token.
+	  It can obtain them from the Token Endpoint utilizing the Authorization Code
+          that it obtained from the Authorization Endpoint using the Authorization Code Flow
+	  or from the Authorization Endpoint using the Implicit Flow.
+          </t>
+          
+        </section>
+
+        <section anchor="code_flow" title="Authorization Code Flow">
+          <t>The Authorization Code Flow goes through the following
+          steps.</t>          
+          <t><list style="numbers">
+              <t>Client prepares an Authorization Request containing the desired
+              request parameters.</t>
+
+              <t>Client sends a request to the Authorization Server.</t>
+
+              <t>Authorization Server Authenticates the End-User.</t>
+
+              <t>Authorization Server Obtains the End-User
+              Consent/Authorization.</t>
+
+              <t>Authorization Server Sends the End-User back to the Client with
+              an Authorization Code.</t>
+
+              <t>Client requests a response using the Authorization Code at the
+              Token Endpoint, per <xref target="token_ep"/>.</t>
+
+              <t>Client receives a response that contains an Access Token and ID
+              Token in the response body.</t>
+
+              <t>Client validates the ID Token and retrieves the End-User's
+              subject identifier.</t>
+
+              <t>(OPTIONAL) Client accesses the UserInfo Endpoint with the Access Token,
+	      per <xref target="userinfo"/>.</t>
+
+              <t>(OPTIONAL) Client receives UserInfo Response.</t>
+             </list>Note that in each step, the party that receives a message
+          MUST validate it according to the validation rules in <xref
+          target="OpenID.Messages">OpenID Connect Messages 1.0</xref>.</t>
+        </section>
+
+        <section anchor="implicit_flow" title="Implicit Flow">
+          <t>The Implicit Flow follows the following steps:</t>
+
+          <t><list style="numbers">
+              <t>Client prepares an Authorization Request containing the desired
+              request parameters.</t>
+
+              <t>Client sends a request to the Authorization Server.</t>
+
+              <t>Authorization Server Authenticates the End-User.</t>
+
+              <t>Authorization Server Obtains the End-User
+              Consent/Authorization.</t>
+
+              <t>Authorization Server Sends the End-User back to the Client with
+              an Access Token and an ID Token if requested.</t>
+
+              <t>Client validates the ID Token and retrieves the End-User's
+              subject identifier.</t>
+
+              <t>(OPTIONAL) Client accesses the UserInfo Endpoint with the Access Token,
+	      per <xref target="userinfo"/>.</t>
+
+              <t>(OPTIONAL) Client receives UserInfo Response.</t>
+             </list>Note that in each step, the party that receives a message
+          MUST validate it according to the validation rules in <xref
+          target="OpenID.Messages">OpenID Connect Messages 1.0</xref>.</t>
+        </section>
+
+      </section>
+
+      <section anchor="auth_request" title="Authorization Request">
+        <t>When the Client wishes to access a Protected Resource and the
+        End-User Authorization has not yet been obtained, the Client
+        prepares an Authorization Request to the Authorization Endpoint.</t>
+
+	<t>
+	  Communication with the Authorization Endpoint MUST utilize TLS.
+	  See <xref target="TLS_requirements"/> for more information on using TLS.
+	</t>
+
+        <t>Authorization Servers MUST support the use of the HTTP <spanx style="verb">GET</spanx> and 
+        <spanx style="verb">POST</spanx> methods defined in <xref target="RFC2616">RFC 2616</xref> at the
+        Authorization Endpoint. </t>
+
+        <t>Clients MAY use the HTTP <spanx style="verb">GET</spanx> or
+	<spanx style="verb">POST</spanx> methods to send the
+        Authorization Request to the Authorization Server. If using the HTTP
+        <spanx style="verb">GET</spanx> method, the request parameters are serialized using
+	URI Query String Serialization, per <xref target="qss"/>.
+	If using the HTTP <spanx style="verb">POST</spanx>
+        method, the request parameters are serialized using 
+        Form Serialization, per <xref target="form_serialization"/>.</t>
+
+        <section anchor="AuthorizationRequest"
+                 title="Client Prepares Authorization Request">
+          <t>The Client prepares an Authorization Request to the Authorization Endpoint
+	  with the request parameters using the HTTP <spanx style="verb">GET</spanx>
+	  or <spanx style="verb">POST</spanx>
+          method. The scheme used in the Authorization URL MUST be <spanx style="verb">https</spanx>.
+	  </t>
+
+          <section anchor="RequestParameters" title="Request Parameters">
+
+            <t>
+              OpenID Connect uses the following OAuth 2.0 request parameters:
+	    </t>
+	    <t>
+	      <list style="hanging">
+		<t hangText="response_type">
+		  REQUIRED.
+		  OAuth 2.0 registered
+		  response type value that determines how the Authorization Response
+		  is returned to the Client.  As described in
+		  <xref target="OAuth.Responses">OAuth 2.0 Multiple Response Type Encoding Practices</xref>,
+		  the following registered values are supported by OpenID Connect:
+		  <list style="symbols">
+		    <t><spanx style="verb">code</spanx></t>
+
+		    <t><spanx style="verb">code&nbsp;id_token</spanx></t>
+		    
+		    <t><spanx style="verb">id_token</spanx></t>
+
+		    <t><spanx style="verb">id_token&nbsp;token</spanx></t>
+
+		    <t><spanx style="verb">code&nbsp;token</spanx></t>
+
+		    <t><spanx style="verb">code&nbsp;id_token&nbsp;token</spanx></t>
+		  </list>
+		</t>
+
+                <t hangText="client_id">
+                  REQUIRED.
+                  OAuth 2.0 Client Identifier.
+                </t>
+
+		<t hangText="scope">
+                  REQUIRED.
+		  Space delimited, case sensitive list of ASCII OAuth 2.0 scope values.
+		  OpenID Connect requests MUST contain the <spanx style="verb">openid</spanx> scope value.
+		  OPTIONAL scope values of
+		  <spanx style="verb">profile</spanx>,
+		  <spanx style="verb">email</spanx>,
+		  <spanx style="verb">address</spanx>,
+		  <spanx style="verb">phone</spanx>,
+		  and <spanx style="verb">offline_access</spanx>
+		  are also defined.
+		  Section 2.4 of <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>
+		  defines the OpenID Connect scope values.
+		</t>
+
+		<t hangText="redirect_uri">
+                  REQUIRED.
+		  Redirection URI to which the response will be sent.
+		  This MUST be pre-registered with the OpenID Provider.
+		  This URI MUST exactly match one of the
+		  <spanx style="verb">redirect_uris</spanx> registered for the Client,
+		  with the matching performed as described in
+		  Section 6.2.1 of <xref target="RFC3986"/> (Simple String Comparison).
+		</t>
+
+		<t hangText="state">
+		  RECOMMENDED.
+		  Opaque value used
+		  to maintain state between the request and the callback.
+		  Typically, Cross-Site Request Forgery (CSRF, XSRF)
+		  mitigation is done by cryptographically binding the value of
+		  this parameter with the browser cookie.
+		</t>
+
+              </list>
+            </t>
+
+            <t>
+	      This specification also uses the following request parameters.
+	      Refer to <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>
+	      for more information about these parameters.
+	    </t>
+
+            <t>
+              <list style="hanging">
+
+		<t hangText="nonce">
+		  REQUIRED or OPTIONAL.
+		  String value used to associate a Client session 
+		  with an ID Token, and to mitigate replay attacks. 
+		  The value is passed through unmodified from the Authorization Request to the ID Token.
+		  Use of the nonce is REQUIRED when using the implicit flow
+		  and OPTIONAL when using the code flow.
+		</t>
+
+		<t hangText="display">
+		  OPTIONAL.
+		  ASCII string value that specifies
+                  how the Authorization Server displays the authentication and
+                  consent user interface pages to the End-User.
+		  The defined values are:
+		  <spanx style="verb">page</spanx>,
+		  <spanx style="verb">popup</spanx>,
+		  <spanx style="verb">touch</spanx>, and
+		  <spanx style="verb">wap</spanx>.
+		</t>
+
+		<t hangText="prompt">
+		  OPTIONAL.
+		  Space delimited, case sensitive list of ASCII string values
+		  that specifies whether the Authorization Server prompts
+		  the End-User for reauthentication and consent.
+		  The defined values are:
+		  <spanx style="verb">none</spanx>,
+		  <spanx style="verb">login</spanx>,
+		  <spanx style="verb">consent</spanx>, and
+		  <spanx style="verb">select_account</spanx>.
+		</t>
+
+                <t hangText="max_age">
+                  OPTIONAL.
+                  Maximum Authentication Age.
+		  Specifies the allowable elapsed time in seconds
+		  since the last time the End-User was actively
+		  authenticated. If the elapsed time is greater than
+		  this value, the OP MUST attempt to actively
+		  re-authenticate the End-User.
+                </t>
+
+                <t hangText="ui_locales">
+                  OPTIONAL.
+                  End-User's preferred languages and scripts for the user interface,
+                  represented as a space-separated list of
+                  <xref target="RFC5646">BCP47</xref> language tag values,
+                  ordered by preference.
+                </t>
+
+                <t hangText="claims_locales">
+                  OPTIONAL.
+                  End-User's preferred languages and scripts for Claims being returned, 
+                  represented as a space-separated list of
+                  <xref target="RFC5646">BCP47</xref> language tag values,
+                  ordered by preference.
+                </t>
+
+		<t hangText="id_token_hint">
+		  OPTIONAL.
+		  Previously issued ID Token
+		  passed to the Authorization Server as a hint about the End-User's current or past
+		  authenticated session with the Client.
+		</t>
+
+                <t hangText="login_hint">
+                  OPTIONAL.
+                  Hint to the Authorization Server
+                  about the login identifier the End-User might use to log in (if necessary).
+                </t>
+
+                <t hangText="acr_values">
+                  OPTIONAL.
+                  Requested Authentication Context Class Reference values. 
+		  Space-separated string that specifies the <spanx style="verb">acr</spanx>
+		  values that the Authorization Server MUST use 
+		  for processing requests from this Client.
+                </t>
+
+                <t hangText="claims">
+                  OPTIONAL.
+                  This parameter is used to request that specific Claims be returned.
+                  The value is a JSON object listing the requested Claims.
+                </t>
+
+                <t hangText="registration">
+                  OPTIONAL.
+		  This parameter is used by the Client to provide information about itself
+		  to a Self-Issued OP that would normally be provided to an OP during
+		  Dynamic Client Registration.
+                </t>
+
+		<t hangText="request">
+		  OPTIONAL.
+		  Request Object value.
+		</t>
+
+		<t hangText="request_uri">
+		  OPTIONAL.
+		  URL that references a resource containing a Request Object value.
+		</t>
+
+	      </list>
+	    </t>
+	  </section>
+	</section>
+
+	<section anchor="RequestMethods" title="Request Methods">
+
+          <t>There are three methods to construct and send the request to the 
+          Authorization Endpoint: 
+          <list style="numbers">
+	    <t>Simple Request Method</t>
+
+	    <t>Request Parameter Method</t>
+
+	    <t>Request File Method</t>
+          </list></t>
+
+          <t>
+	    The Simple Request Method can be used in cases where signed or
+	    encrypted requests are not needed and where the size of the
+	    request does not exceed limits imposed by User-Agents.
+	  </t>
+          <t>
+	    The Request Parameter Method is used when the Client wants or needs to
+	    send an OpenID Connect request as a single, self-contained
+	    Request Object value.
+	    This method enables requests to be signed and optionally encrypted.
+	    Like the Simple Request Method, some requests using this method
+	    can exceed limits imposed by User-Agents.
+	  </t>
+          <t>
+	    The Request File Method works similarly to the Request Parameter
+	    Method but differs in that it sends a URL as a reference to the
+	    Request Object. It enables large requests to be sent
+	    securely and compactly even on User-Agents with limited capabilities.
+	    Clients MAY use the Request File Method to minimize the request
+	    size.
+	  </t>
+
+          <section anchor="SimpleRequestMethod" title="Simple Request Method">
+            <t>The Client prepares an Authorization Request to the
+            Authorization Endpoint using the appropriate parameters. If using 
+            the HTTP <spanx style="verb">GET</spanx> method, the request parameters are serialized using
+            URI Query String Serialization, per <xref target="qss"/>.
+	    If using
+            the HTTP <spanx style="verb">POST</spanx> method, the request parameters are serialized using 
+            Form Serialization, per <xref target="form_serialization"/>.</t>
+
+            <t><figure>
+	      <preamble>The following is a non-normative example of an
+	      Authorization Request URL
+	      (with line wraps within values for display purposes only):</preamble>
+
+	      <artwork><![CDATA[
+  https://server.example.com/op/authorize?
+    response_type=code%20id_token
+    &client_id=s6BhdRkqt3
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &scope=openid%20profile%20email
+    &nonce=n-0S6_WzA2Mj
+    &state=af0ifjsldkj
+]]></artwork>
+	    </figure></t>
+
+            <section anchor="norm_req"
+                     title='Client Sends Simple Request'>
+              <t>Having constructed the Authorization Request, the Client sends it
+              to the Authorization Endpoint using HTTPS.</t>
+
+              <figure>
+		<preamble>Following is a non-normative example using HTTP redirect
+		(with line wraps within values for display purposes only):</preamble>
+
+                <artwork><![CDATA[
+  HTTP/1.1 302 Found
+  Location: https://server.example.com/authorize?
+    response_type=code%20id_token
+    &client_id=s6BhdRkqt3
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &scope=openid%20profile%20email
+    &nonce=n-0S6_WzA2Mj
+    &state=af0ifjsldkj
+]]></artwork>
+              </figure>
+            </section>
+          </section>
+
+          <section title="Request Parameter Method" anchor="req_param_method">
+            <t>The Client prepares an Authorization Request to the
+            Authorization Endpoint using the appropriate HTTP parameter
+            serialization. The Client SHOULD construct the request using the
+            HTTP <spanx style="verb">POST</spanx> method,
+	    but MAY use the HTTP <spanx style="verb">GET</spanx> method.</t>
+
+            <t>The Authorization Request MUST include the 
+            <spanx style="verb">request</spanx> parameter defined in <xref
+            target="RequestParameters" />.
+	    The Authorization Request MUST NOT include the 
+            <spanx style="verb">request_uri</spanx> parameter.</t>
+
+            <t>
+	      The <spanx style="verb">request</spanx> parameter is
+	      a Request Object represented as a
+	      <xref target="JWT">JWT</xref> containing
+	      a set of OpenID Connect request parameters.
+	      The Request Object MAY be a Plaintext JWT,
+	      signed, or signed and encrypted using
+              <xref target="JWS">JWS</xref> and/or <xref target="JWE">JWE</xref>,
+              thereby enabling authentication, integrity,
+              non-repudiation, and/or confidentiality to be achieved.
+	    </t>
+
+            <t>
+	      <figure>
+                <preamble>
+		  The following is a non-normative example of the Claims in
+		  a Request Object before base64url encoding and signing:
+		</preamble>
+
+                <artwork><![CDATA[
+  {
+   "response_type": "code id_token",
+   "client_id": "s6BhdRkqt3",
+   "redirect_uri": "https://client.example.org/cb",
+   "scope": "openid",
+   "state": "af0ifjsldkj",
+   "nonce": "n-0S6_WzA2Mj",
+   "max_age": 86400,
+   "claims": 
+    {
+     "userinfo": 
+      {
+       "given_name": {"essential": true},
+       "nickname": null,
+       "email": {"essential": true},
+       "email_verified": {"essential": true},
+       "picture": null
+      },
+     "id_token": 
+      {
+       "gender": null,
+       "birthdate": {"essential": true},
+       "acr": {"values": ["urn:mace:incommon:iap:silver"]}
+      }
+    }
+  }
+]]></artwork>
+              </figure>
+	      <figure>
+                <preamble>
+		  Signing it with the <spanx style="verb">RS256</spanx> algorithm
+		  results in this Request Object value
+		  (with line wraps within values for display purposes only):
+		</preamble>
+
+                <artwork><![CDATA[
+  eyJhbGciOiJSUzI1NiJ9.ew0KICJyZXNwb25zZV90eXBlIjogImNvZGUgaWRfdG9rZW
+  4iLA0KICJjbGllbnRfaWQiOiAiczZCaGRSa3F0MyIsDQogInJlZGlyZWN0X3VyaSI6I
+  CJodHRwczovL2NsaWVudC5leGFtcGxlLm9yZy9jYiIsDQogInNjb3BlIjogIm9wZW5p
+  ZCIsDQogInN0YXRlIjogImFmMGlmanNsZGtqIiwNCiAibm9uY2UiOiAibi0wUzZfV3p
+  BMk1qIiwNCiAibWF4X2FnZSI6IDg2NDAwLA0KICJjbGFpbXMiOiANCiAgew0KICAgIn
+  VzZXJpbmZvIjogDQogICAgew0KICAgICAiZ2l2ZW5fbmFtZSI6IHsiZXNzZW50aWFsI
+  jogdHJ1ZX0sDQogICAgICJuaWNrbmFtZSI6IG51bGwsDQogICAgICJlbWFpbCI6IHsi
+  ZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJlbWFpbF92ZXJpZmllZCI6IHsiZXNzZW5
+  0aWFsIjogdHJ1ZX0sDQogICAgICJwaWN0dXJlIjogbnVsbA0KICAgIH0sDQogICAiaW
+  RfdG9rZW4iOiANCiAgICB7DQogICAgICJnZW5kZXIiOiBudWxsLA0KICAgICAiYmlyd
+  GhkYXRlIjogeyJlc3NlbnRpYWwiOiB0cnVlfSwNCiAgICAgImFjciI6IHsidmFsdWVz
+  IjogWyIyIl19DQogICAgfQ0KICB9DQp9.bOD4rUiQfzh4QPIs_f_R2GVBhNHcc1p2cQ
+  TgixB1tsYRs52xW4TO74USgb-nii3RPsLdfoPlsEbJLmtbxG8-TQBHqGAyZxMDPWy3p
+  hjeRt9ApDRnLQrjYuvsCj6byu9TVaKX9r1KDFGT-HLqUNlUTpYtCyM2B2rLkWM08ufB
+  q9JBCEzzaLRzjevYEPMaoLAOjb8LPuYOYTBqshRMUxy4Z380-FJ2Lc7VSfSu6HcB2nL
+  SjiKrrfI35xkRJsaSSmjasMYeDZarYCl7r4o17rFclk5KacYMYgAs-JYFkwab6Dd56Z
+  rAzakHt9cExMpg04lQIux56C-Qk6dAsB6W6W91AQ    
+]]></artwork>
+              </figure>
+	      <figure>
+                <preamble>
+		  The following is the RSA public key in JWK format that can be used to
+		  validate the Request Object signature in this
+		  and subsequent Request Object examples
+		  (with line wraps within values for display purposes only):
+		</preamble>
+
+                <artwork><![CDATA[
+  {
+   "kty":"RSA",
+   "n":"y9Lqv4fCp6Ei-u2-ZCKq83YvbFEk6JMs_pSj76eMkddWRuWX2aBKG
+  HAtKlE5P7_vn__PCKZWePt3vGkB6ePgzAFu08NmKemwE5bQI0e6kIChtt_6KzT5OaaXDF
+  I6qCLJmk51Cc4VYFaxgqevMncYrzaW_50mZ1yGSFIQzLYP8bijAHGVjdEFgZaZEN9lsn_
+  GdWLaJpHrB3ROlS50E45wxrlg9xMncVb8qDPuXZarvghLL0HzOuYRadBJVoWZowDNTpKp
+  k2RklZ7QaBO7XDv3uR7s_sf2g-bAjSYxYUGsqkNA9b3xVW53am_UZZ3tZbFTIh557JICW
+  KHlWj5uzeJXaw",
+   "e":"AQAB"
+  }
+]]></artwork>
+              </figure>
+	    </t>
+
+            <t>
+	      <figure>
+                <preamble>The following is a non-normative example of an
+                Authorization Request using the <spanx style='verb'>request</spanx>
+		parameter
+                (with line wraps within values for display purposes only):
+                </preamble>
+
+                <artwork><![CDATA[
+  https://server.example.com/authorize?
+    response_type=code%20id_token
+    &client_id=s6BhdRkqt3
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &scope=openid
+    &state=af0ifjsldkj
+    &nonce=n-0S6_WzA2Mj
+    &request=eyJhbGciOiJSUzI1NiJ9.ew0KICJyZXNwb25zZV90eXBlIjogImNvZG
+    UgaWRfdG9rZW4iLA0KICJjbGllbnRfaWQiOiAiczZCaGRSa3F0MyIsDQogInJlZG
+    lyZWN0X3VyaSI6ICJodHRwczovL2NsaWVudC5leGFtcGxlLm9yZy9jYiIsDQogIn
+    Njb3BlIjogIm9wZW5pZCIsDQogInN0YXRlIjogImFmMGlmanNsZGtqIiwNCiAibm
+    9uY2UiOiAibi0wUzZfV3pBMk1qIiwNCiAibWF4X2FnZSI6IDg2NDAwLA0KICJjbG
+    FpbXMiOiANCiAgew0KICAgInVzZXJpbmZvIjogDQogICAgew0KICAgICAiZ2l2ZW
+    5fbmFtZSI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJuaWNrbmFtZSI6IG
+    51bGwsDQogICAgICJlbWFpbCI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgIC
+    JlbWFpbF92ZXJpZmllZCI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJwaW
+    N0dXJlIjogbnVsbA0KICAgIH0sDQogICAiaWRfdG9rZW4iOiANCiAgICB7DQogIC
+    AgICJnZW5kZXIiOiBudWxsLA0KICAgICAiYmlydGhkYXRlIjogeyJlc3NlbnRpYW
+    wiOiB0cnVlfSwNCiAgICAgImFjciI6IHsidmFsdWVzIjogWyIyIl19DQogICAgfQ
+    0KICB9DQp9.bOD4rUiQfzh4QPIs_f_R2GVBhNHcc1p2cQTgixB1tsYRs52xW4TO7
+    4USgb-nii3RPsLdfoPlsEbJLmtbxG8-TQBHqGAyZxMDPWy3phjeRt9ApDRnLQrjY
+    uvsCj6byu9TVaKX9r1KDFGT-HLqUNlUTpYtCyM2B2rLkWM08ufBq9JBCEzzaLRzj
+    evYEPMaoLAOjb8LPuYOYTBqshRMUxy4Z380-FJ2Lc7VSfSu6HcB2nLSjiKrrfI35
+    xkRJsaSSmjasMYeDZarYCl7r4o17rFclk5KacYMYgAs-JYFkwab6Dd56ZrAzakHt
+    9cExMpg04lQIux56C-Qk6dAsB6W6W91AQ
+]]></artwork>
+              </figure></t>
+
+            <section anchor="request_req"
+                     title='Client Sends Request using "request" Parameter'>
+              <t>Having constructed the Authorization Request, the Client sends
+              it to the Authorization Endpoint using HTTPS.</t>
+
+              <figure>
+		<preamble>Following is a non-normative example using HTTP redirect
+		(with line wraps within values for display purposes only):</preamble>
+
+                <artwork><![CDATA[
+  HTTP/1.1 302 Found
+  Location: https://server.example.com/authorize?
+    response_type=code%20id_token
+    &client_id=s6BhdRkqt3
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &scope=openid
+    &state=af0ifjsldkj
+    &nonce=n-0S6_WzA2Mj
+    &request=eyJhbGciOiJSUzI1NiJ9.ew0KICJyZXNwb25zZV90eXBlIjogImNvZG
+    UgaWRfdG9rZW4iLA0KICJjbGllbnRfaWQiOiAiczZCaGRSa3F0MyIsDQogInJlZG
+    lyZWN0X3VyaSI6ICJodHRwczovL2NsaWVudC5leGFtcGxlLm9yZy9jYiIsDQogIn
+    Njb3BlIjogIm9wZW5pZCIsDQogInN0YXRlIjogImFmMGlmanNsZGtqIiwNCiAibm
+    9uY2UiOiAibi0wUzZfV3pBMk1qIiwNCiAibWF4X2FnZSI6IDg2NDAwLA0KICJjbG
+    FpbXMiOiANCiAgew0KICAgInVzZXJpbmZvIjogDQogICAgew0KICAgICAiZ2l2ZW
+    5fbmFtZSI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJuaWNrbmFtZSI6IG
+    51bGwsDQogICAgICJlbWFpbCI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgIC
+    JlbWFpbF92ZXJpZmllZCI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJwaW
+    N0dXJlIjogbnVsbA0KICAgIH0sDQogICAiaWRfdG9rZW4iOiANCiAgICB7DQogIC
+    AgICJnZW5kZXIiOiBudWxsLA0KICAgICAiYmlydGhkYXRlIjogeyJlc3NlbnRpYW
+    wiOiB0cnVlfSwNCiAgICAgImFjciI6IHsidmFsdWVzIjogWyIyIl19DQogICAgfQ
+    0KICB9DQp9.bOD4rUiQfzh4QPIs_f_R2GVBhNHcc1p2cQTgixB1tsYRs52xW4TO7
+    4USgb-nii3RPsLdfoPlsEbJLmtbxG8-TQBHqGAyZxMDPWy3phjeRt9ApDRnLQrjY
+    uvsCj6byu9TVaKX9r1KDFGT-HLqUNlUTpYtCyM2B2rLkWM08ufBq9JBCEzzaLRzj
+    evYEPMaoLAOjb8LPuYOYTBqshRMUxy4Z380-FJ2Lc7VSfSu6HcB2nLSjiKrrfI35
+    xkRJsaSSmjasMYeDZarYCl7r4o17rFclk5KacYMYgAs-JYFkwab6Dd56ZrAzakHt
+    9cExMpg04lQIux56C-Qk6dAsB6W6W91AQ
+]]></artwork>
+              </figure>
+            </section>
+          </section>
+
+          <section title="Request File Method" anchor="Request_File_Method">
+            <t>The Request File Method differs from the other methods in that
+            it uses a Request File that contains a Request Object.
+	    It then sends the Request File URL as
+            part of the Authorization Request.</t>
+
+            <t>The Client prepares an Authorization Request using the desired 
+            HTTP <spanx style="verb">GET</spanx> or <spanx style="verb">POST</spanx> method.
+	    The Client SHOULD use the HTTP <spanx style="verb">GET</spanx>
+            method, but MAY use the HTTP <spanx style="verb">POST</spanx> method.
+	    The scheme used in the Authorization URL MUST be <spanx style="verb">https</spanx>.
+	    </t>
+
+            <t> The Authorization Request MUST NOT include the 
+            <spanx style="verb">request</spanx> parameter. The Authorization Request
+	    MUST include the <spanx style="verb">request_uri</spanx> parameter.
+	    The contents of the resource referenced by the URL MUST be a Request Object.
+	    The scheme used in the 
+            <spanx style="verb">request_uri</spanx> value MUST be <spanx style="verb">https</spanx>, 
+            unless the target Request Object is signed in a way that is verifiable by the 
+            Authorization Server.
+            The <spanx style="verb">request_uri</spanx> value MUST be reachable by the
+            Authorization Server, and SHOULD be reachable by the Client.
+            </t>
+
+            <t><figure>
+                <preamble>Following is a non-normative example of
+		the contents of a Request File
+		(with line wraps within values for display purposes only):</preamble>
+
+                <artwork><![CDATA[
+  eyJhbGciOiJSUzI1NiJ9.ew0KICJyZXNwb25zZV90eXBlIjogImNvZGUgaWRfdG9rZ
+  W4iLA0KICJjbGllbnRfaWQiOiAiczZCaGRSa3F0MyIsDQogInJlZGlyZWN0X3VyaSI
+  6ICJodHRwczovL2NsaWVudC5leGFtcGxlLm9yZy9jYiIsDQogInNjb3BlIjogIm9wZ
+  W5pZCIsDQogInN0YXRlIjogImFmMGlmanNsZGtqIiwNCiAibm9uY2UiOiAibi0wUzZ
+  fV3pBMk1qIiwNCiAibWF4X2FnZSI6IDg2NDAwLA0KICJjbGFpbXMiOiANCiAgew0KI
+  CAgInVzZXJpbmZvIjogDQogICAgew0KICAgICAiZ2l2ZW5fbmFtZSI6IHsiZXNzZW5
+  0aWFsIjogdHJ1ZX0sDQogICAgICJuaWNrbmFtZSI6IG51bGwsDQogICAgICJlbWFpb
+  CI6IHsiZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJlbWFpbF92ZXJpZmllZCI6IHs
+  iZXNzZW50aWFsIjogdHJ1ZX0sDQogICAgICJwaWN0dXJlIjogbnVsbA0KICAgIH0sD
+  QogICAiaWRfdG9rZW4iOiANCiAgICB7DQogICAgICJnZW5kZXIiOiBudWxsLA0KICA
+  gICAiYmlydGhkYXRlIjogeyJlc3NlbnRpYWwiOiB0cnVlfSwNCiAgICAgImFjciI6I
+  HsidmFsdWVzIjogWyIyIl19DQogICAgfQ0KICB9DQp9.bOD4rUiQfzh4QPIs_f_R2G
+  VBhNHcc1p2cQTgixB1tsYRs52xW4TO74USgb-nii3RPsLdfoPlsEbJLmtbxG8-TQBH
+  qGAyZxMDPWy3phjeRt9ApDRnLQrjYuvsCj6byu9TVaKX9r1KDFGT-HLqUNlUTpYtCy
+  M2B2rLkWM08ufBq9JBCEzzaLRzjevYEPMaoLAOjb8LPuYOYTBqshRMUxy4Z380-FJ2
+  Lc7VSfSu6HcB2nLSjiKrrfI35xkRJsaSSmjasMYeDZarYCl7r4o17rFclk5KacYMYg
+  As-JYFkwab6Dd56ZrAzakHt9cExMpg04lQIux56C-Qk6dAsB6W6W91AQ
+]]></artwork>
+              </figure></t>
+
+            <section anchor="rurl_create"
+                     title="Client Generates the URL of the Request File">
+              <t>
+		The Client stores the Request File either locally or remotely
+		at a URL the Server can access.
+		This is the Request URI, <spanx style="verb">request_uri</spanx>.
+		Servers MAY cache the contents of the files referenced by request URIs.
+		If the contents of the Request File could ever change,
+		the URI SHOULD include the base64url encoded SHA-256 hash of the
+		referenced file contents as the fragment component of the URI.
+		If the fragment value used for a URI changes, that signals the server
+		that any cached value for that URI with the old fragment value
+		is no longer valid.
+	      </t>
+	      <t>
+		Note that Clients MAY pre-register
+		<spanx style="verb">request_uri</spanx> values using the
+		<spanx style="verb">request_uris</spanx> parameter defined in
+		Section 2 of the <xref target="OpenID.Registration">OpenID Connect
+		Dynamic Client Registration 1.0</xref> specification.
+		OPs can require that <spanx style="verb">request_uri</spanx> values used
+		be pre-registered with the <spanx style="verb">require_request_uri_registration</spanx>
+		discovery parameter.
+	      </t>
+
+              <t>If the Request File includes attribute 
+              values, it MUST NOT be revealed to anybody but the Authorization Server. 
+              As such, the <spanx style="verb">request_uri</spanx> MUST have
+              appropriate entropy for its lifetime.
+              It is RECOMMENDED that it be removed
+	      if it is known that it will not be used again
+	      or after a reasonable timeout
+	      unless access control measures are taken.
+              </t>
+              <t>The Client then records the Request File either locally or
+              remotely and obtains the Request File URI, <spanx style="verb">request_uri</spanx>.
+              </t>
+              <figure>
+                <preamble>Following is a non-normative example
+		(with line wraps within values for display purposes only):</preamble>
+
+                <artwork><![CDATA[
+  https://client.example.org/rf.txt
+    #GkurKxf5T0Y-mnPFCHqWOMiZi4VS138cQO_V7PZHAdM
+]]></artwork>
+              </figure>
+
+
+            </section>
+
+            <section anchor="art_req"
+                     title='Client Sends Request using "request_uri" Parameter'>
+              <t>The Client sends the Authorization Request to the
+	      Authorization Endpoint.</t>
+
+              <t>The entire request URL MUST NOT exceed 512 ASCII characters.</t>
+
+              <figure>
+                <preamble>Following is a non-normative example
+		(with line wraps within values for display purposes only):</preamble>
+
+                <artwork><![CDATA[
+  HTTP/1.1 302 Found
+  Location: https://server.example.com/authorize
+    ?response_type=code%20id_token
+    &client_id=s6BhdRkqt3
+    &request_uri=https%3A%2F%2Fclient.example.org%2Frf.txt
+    %23GkurKxf5T0Y-mnPFCHqWOMiZi4VS138cQO_V7PZHAdM
+    &state=af0ifjsldkj&nonce=n-0S6_WzA2Mj
+    &scope=openid
+]]></artwork>
+              </figure>
+            </section>
+
+            <section anchor="FetchesRequestFile" title="Authorization Server Fetches Request File">
+              <t>Upon receipt of the Request, the Authorization Server MUST
+              send a <spanx style="verb">GET</spanx> request to the <spanx style="verb">request_uri</spanx>
+              to retrieve the content unless it is already cached and parse it
+              to recreate the Authorization Request parameters.</t>
+
+              <t>Note that the RP SHOULD use a unique URI for each
+              request utilizing distinct parameters, or otherwise
+              prevent the Authorization Server from caching the <spanx style="verb">request_uri</spanx>.
+              </t>
+
+              <figure>
+                <preamble>Following is a non-normative example of this fetch
+                process:</preamble>
+
+                <artwork><![CDATA[
+  GET /rf.txt HTTP/1.1
+  Host: client.example.org
+]]></artwork>
+              </figure>
+            </section>
+          </section>
+        </section>
+
+	<section anchor="ValidatesRequestObject" title="Authorization Server Validates Request Object">
+
+          <t>The Authorization Server validates the request according to 
+	  Section 5.1 of <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>.</t>
+	</section>
+
+        <section anchor="Authenticates" title="Authorization Server Authenticates End-User">
+
+          <t>
+	    The Authorization Server validates the request to ensure all
+	    REQUIRED parameters are present and all parameters are valid.
+	    If the request is valid, the Authorization Server attempts
+	    to log in the End-User or determines whether he is logged in,
+	    depending upon the request parameter values used.
+	    The methods used by the Authorization Server to log in the End-User
+	    (e.g. username and password, session cookies, etc.)
+	    are beyond the scope of this specification.
+	    An authentication user interface MAY be displayed by
+	    the Authorization Server, depending upon the request parameter values used
+	    and the authentication methods used.
+	  </t>
+
+          <t>The Authorization Server MUST attempt to log in the 
+          End-User in the following cases:
+	    <list style="symbols">
+	      <t>The End-User is not already logged in.</t>
+
+	      <t>The Authorization Request contains the <spanx 
+	      style="verb">prompt</spanx> parameter with the value
+	      <spanx style="verb">login</spanx>.  In this case, the
+	      Authorization Server MUST reauthenticate the End-User
+	      even if the End-User is already authenticated.</t>
+	    </list>
+	  </t>
+          <t>The Authorization Server MUST NOT interact with the End-User
+          in the following case:
+            <list style="symbols">
+	      <t>The Authorization Request contains the <spanx 
+	      style="verb">prompt</spanx> parameter with the value
+	      <spanx style="verb">none</spanx>.  In this case,
+	      the Authorization Server MUST return an error if the End-User
+	      is not already logged in or could not be silently logged in.</t>
+	    </list>
+	  </t>
+
+	  <t>
+	    The Authorization Server MUST employ appropriate measures against
+	    Cross-Site Request Forgery and Clickjacking as, described in
+	    Sections 10.12 and 10.13 of <xref target="RFC6749">OAuth 2.0</xref>. 
+	  </t>
+        </section>
+
+        <section anchor="Consent" title="Authorization Server Obtains End-User Consent/Authorization">
+
+          <t>Once the End-User is authenticated, the Authorization Server MUST
+          obtain an authorization decision. This MAY be done by presenting the
+          End-User with a dialogue that allows the End-User to recognize what he is
+          consenting to and obtain his consent or by establishing consent via
+	  conditions for processing or
+          other means (for example, via previous administrative consent).</t>
+
+          <t>The Authorization Server MUST attempt to request authorization
+          from the End-User in the following cases:
+          <list style="symbols">
+                <t>The End-User has not pre-authorized the Client for the
+                Authorization Request.</t>
+
+                <t>The Authorization Request contains the <spanx 
+                style="verb">prompt</spanx> parameter with the value
+		<spanx style="verb">consent</spanx>. The
+                Authorization Server SHOULD request End-User authorization even if the
+                End-User has previously authorized the Client.</t>
+          </list></t>
+          <t>The Authorization Server MUST NOT request End-User authorization in the
+          following cases:
+          <list style="symbols">
+                <t>The Authorization Request contains the <spanx 
+                style="verb">prompt</spanx> parameter with the value
+		<spanx style="verb">none</spanx>.
+                The Authorization Server MUST return an error if the End-User has
+                not pre-authorized the Client.</t>
+          </list></t>
+	  
+	  <t>
+	    As in the previous section, the Authorization Server MUST employ countermeasures against
+	    Cross-Site Request Forgery and Clickjacking when interacting with the End-User.
+	  </t>
+        </section>
+
+        <section title="Authorization Server Sends End-User Back to Client"
+		 anchor="art_res">
+
+          <t>Once the authorization is determined, the Authorization Server
+          returns a successful or error response.</t>
+
+          <section anchor="art_res_ok" title="End-User Grants Authorization">
+            <t>If the End-User grants the access request, the
+            Authorization Server issues an Authorization Response 
+            as described in
+	    Section 2.1.2 of <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref> 
+            to the Client by adding the response parameters to <spanx
+            style="verb">redirect_uri</spanx> specified in the Authorization Request
+	    using the "application/x-www-form-urlencoded" format.</t>
+
+            <t>
+              Note that if the <spanx style="verb">response_type</spanx> parameter in the 
+              Authorization Request includes the string value 
+              <spanx style="verb">token</spanx> or <spanx style="verb">id_token</spanx>, 
+              all response parameters are added to the fragment component
+	      of the redirection URI, as specified in
+	      <xref target="OAuth.Responses">OAuth 2.0 Multiple Response Type Encoding Practices</xref>.
+	      Otherwise, the response parameters 
+              are added to the query component of the redirection URI.
+            </t>
+
+	    <t>
+	      The Client MUST validate the response as follows:
+	    </t>
+	    <t>
+	      Case 1: response_type=code
+	      <list style="numbers">
+		<t>
+		  Validate the response according to RFC 6749,
+		  especially Sections 4.1.2 and 10.12.
+		</t>
+	      </list>
+	    </t>
+	    <t>
+	      Case 2: response_type=id_token&nbsp;token
+	      <list style="numbers">
+		<t>
+		  Verify that the response conforms to Section 5 of
+		  <xref target="OAuth.Responses"/>.
+		</t>
+		<t>
+		  Follow the validation rules in RFC 6749,
+		  especially those in Sections 4.2.2 and 10.12.
+		</t>
+		<t>
+		  Follow the validation rules in Sections 4.2 and 4.4 of
+		  <xref target="OpenID.Messages"/>.
+		</t>
+	      </list>
+	    </t>
+	    <t>
+	      Case 3: response_type=code&nbsp;id_token
+	      <list style="numbers">
+		<t>
+		  Verify that the response conforms to Section 5 of
+		  <xref target="OAuth.Responses"/>.
+		</t>
+		<t>
+		  Follow the validation rules in RFC 6749,
+		  especially those in Sections 4.2.2 and 10.12.
+		</t>
+		<t>
+		  Follow the validation rules in Sections 4.2 and 4.5 of
+		  <xref target="OpenID.Messages"/>.
+		</t>
+	      </list>
+	    </t>
+	    <t>
+	      Case 4: response_type=code&nbsp;token
+	      <list style="numbers">
+		<t>
+		  Verify that the response conforms to Section 5 of
+		  <xref target="OAuth.Responses"/>.
+		</t>
+		<t>
+		  Follow the validation rules in RFC 6749,
+		  especially those in Sections 4.2.2 and 10.12.
+		</t>
+	      </list>
+	    </t>
+	    <t>
+	      Case 5: response_type=code&nbsp;id_token&nbsp;token
+	      <list style="numbers">
+		<t>
+		  Verify that the response conforms to Section 5 of
+		  <xref target="OAuth.Responses"/>.
+		</t>
+		<t>
+		  Follow the validation rules in RFC 6749,
+		  especially those in Sections 4.2.2 and 10.12.
+		</t>
+		<t>
+		  Follow the validation rules in Sections 4.2, 4.4, and 4.5 of
+		  <xref target="OpenID.Messages"/>.
+		</t>
+	      </list>
+	    </t>
+	    <t>
+	      Case 6: response_type=id_token
+	      <list style="numbers">
+		<t>
+		  Verify that the response conforms to Section 5 of
+		  <xref target="OAuth.Responses"/>.
+		</t>
+		<t>
+		  Follow the validation rules in RFC 6749,
+		  especially those in Sections 4.2.2 and 10.12.
+		</t>
+		<t>
+		  Follow the validation rules in Section 4.2 of
+		  <xref target="OpenID.Messages"/>.
+		</t>
+	      </list>
+	    </t>
+
+            <t>
+              The following are non-normative examples of requests with 
+              differing <spanx style="verb">response_type</spanx> values and their responses 
+              (with line wraps within values for display purposes only):
+            </t>
+
+            <figure>
+              <preamble>Case 1: response_type=code</preamble>
+             
+              <artwork><![CDATA[
+  https://server.example.com/op/authorize?
+    response_type=code
+    &client_id=s6BhdRkqt3
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &scope=openid%20profile%20email
+    &nonce=n-0S6_WzA2Mj
+    &state=af0ifjsldkj
+              
+  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb?
+    code=Qcb0Orv1zh30vL1MPRsbm-diHiMwcLyZvn1arpZv-Jxf_11jnpEX3Tgfvk
+    &state=af0ifjsldkj
+]]></artwork>
+            </figure>
+
+            <figure>
+              <preamble>Case 2: response_type=id_token&nbsp;token</preamble>
+              <artwork><![CDATA[
+  https://server.example.com/op/authorize?
+    response_type=id_token%20token
+    &client_id=s6BhdRkqt3
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &scope=openid%20profile%20email
+    &nonce=n-0S6_WzA2Mj
+    &state=af0ifjsldkj
+              
+  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    access_token=jHkWEdUXMU1BwAsC4vtUsZwnNvTIxEl0z9K3vx5KF0Y
+    &token_type=Bearer
+    &id_token=eyJhbGciOiJSUzI1NiJ9.ew0KICJpc3MiOiAiaHR0cDovL3NlcnZlc
+    i5leGFtcGxlLmNvbSIsDQogInN1YiI6ICIyNDgyODk3NjEwMDEiLA0KICJhdWQiO
+    iAiczZCaGRSa3F0MyIsDQogIm5vbmNlIjogIm4tMFM2X1d6QTJNaiIsDQogImV4c
+    CI6IDEzMTEyODE5NzAsDQogImlhdCI6IDEzMTEyODA5NzAsDQogImF0X2hhc2giO
+    iAiNzdRbVVQdGpQZnpXdEYyQW5wSzlSUSINCn0.g7UR4IDBNIjoPFV8exQCosUNV
+    eh8bNUTeL4wdQp-2WXIWnly0_4ZK0sh4A4uddfenzo4Cjh4wuPPrSw6lMeujYbGy
+    zKspJrRYL3iiYWc2VQcl8RKdHPz_G-7yf5enut1YE8v7PhKucPJCRRoobMjqD73f
+    1nJNwQ9KBrfh21Ggbx1p8hNqQeeLLXb9b63JD84hVOXwyHmmcVgvZskge-wExwnh
+    Ivv_cxTzxIXsSxcYlh3d9hnu0wdxPZOGjT0_nNZJxvdIwDD4cAT_LE5Ae447qB90
+    ZF89Nmb0Oj2b1GdGVQEIr8-FXrHlyD827f0N_hLYPdZ73YK6p10qY9oRtMimg
+    &state=af0ifjsldkj
+]]></artwork>
+            </figure>
+
+            <figure>
+              <preamble>
+		Verifying and decoding the ID Token will yield the following Claims:
+	      </preamble>
+              <artwork><![CDATA[
+  {
+   "iss": "http://server.example.com",
+   "sub": "248289761001",
+   "aud": "s6BhdRkqt3",
+   "nonce": "n-0S6_WzA2Mj",
+   "exp": 1311281970,
+   "iat": 1311280970,
+   "at_hash": "77QmUPtjPfzWtF2AnpK9RQ"
+  }
+]]></artwork>
+            </figure>
+
+            <figure>
+              <preamble>Case 3: response_type=code&nbsp;id_token</preamble>
+              <artwork><![CDATA[
+  https://server.example.com/op/authorize?
+    response_type=code%20id_token
+    &client_id=s6BhdRkqt3
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &scope=openid%20profile%20email
+    &nonce=n-0S6_WzA2Mj
+    &state=af0ifjsldkj
+              
+  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    code=Qcb0Orv1zh30vL1MPRsbm-diHiMwcLyZvn1arpZv-Jxf_11jnpEX3Tgfvk
+    &id_token=eyJhbGciOiJSUzI1NiJ9.ew0KICJpc3MiOiAiaHR0cDovL3NlcnZlc
+    i5leGFtcGxlLmNvbSIsDQogInN1YiI6ICIyNDgyODk3NjEwMDEiLA0KICJhdWQiO
+    iAiczZCaGRSa3F0MyIsDQogIm5vbmNlIjogIm4tMFM2X1d6QTJNaiIsDQogImV4c
+    CI6IDEzMTEyODE5NzAsDQogImlhdCI6IDEzMTEyODA5NzAsDQogImNfaGFzaCI6I
+    CJMRGt0S2RvUWFrM1BrMGNuWHhDbHRBIg0KfQ.dAVXerlNOJ_tqMUysD_k1Q_bRX
+    RJbLkTOsCPVxpKUis5V6xMRvtjfRg8gUfPuAMYrKQMEqZZmL87Hxkv6cFKavb4ft
+    BUrY2qUnrvqe_bNjVEz89QSdxGmdFwSTgFVGWkDf5dV5eIiRxXfIkmlgCltPNocR
+    AyvdNrsWC661rHz5F9MzBho2vgi5epUa_KAl6tK4ksgl68pjZqlBqsWfTbGEsWQX
+    Efu664dJkdXMLEnsPUeQQLjMhLH7qpZk2ry0nRx0sS1mRwOM_Q0Xmps0vOkNn284
+    pMUpmWEAjqklWITgtVYXOzF4ilbmZK6ONpFyKCpnSkAYtTEuqz-m7MoLCD_A
+    &state=af0ifjsldkj
+]]></artwork>
+            </figure>
+
+            <figure>
+              <preamble>
+		Verifying and decoding the ID Token will yield the following Claims:
+	      </preamble>
+              <artwork><![CDATA[
+  {
+   "iss": "http://server.example.com",
+   "sub": "248289761001",
+   "aud": "s6BhdRkqt3",
+   "nonce": "n-0S6_WzA2Mj",
+   "exp": 1311281970,
+   "iat": 1311280970,
+   "c_hash": "LDktKdoQak3Pk0cnXxCltA"
+  }
+]]></artwork>
+            </figure>
+
+            <figure>
+              <preamble>Case 4: response_type=code&nbsp;token</preamble>
+              <artwork><![CDATA[
+  https://server.example.com/op/authorize?
+    response_type=code%20token
+    &client_id=s6BhdRkqt3
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &scope=openid%20profile%20email
+    &nonce=n-0S6_WzA2Mj
+    &state=af0ifjsldkj
+
+  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    code=Qcb0Orv1zh30vL1MPRsbm-diHiMwcLyZvn1arpZv-Jxf_11jnpEX3Tgfvk
+    &access_token=jHkWEdUXMU1BwAsC4vtUsZwnNvTIxEl0z9K3vx5KF0Y
+    &token_type=Bearer
+    &state=af0ifjsldkj
+]]></artwork>
+            </figure>
+
+            <figure>
+              <preamble>Case 5: response_type=code&nbsp;id_token&nbsp;token</preamble>
+              <artwork><![CDATA[
+  https://server.example.com/op/authorize?
+    response_type=code%20id_token%20token
+    &client_id=s6BhdRkqt3
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &scope=openid%20profile%20email
+    &nonce=n-0S6_WzA2Mj
+    &state=af0ifjsldkj
+
+  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    code=Qcb0Orv1zh30vL1MPRsbm-diHiMwcLyZvn1arpZv-Jxf_11jnpEX3Tgfvk
+    &access_token=jHkWEdUXMU1BwAsC4vtUsZwnNvTIxEl0z9K3vx5KF0Y
+    &token_type=Bearer
+    &id_token=eyJhbGciOiJSUzI1NiJ9.ew0KICJpc3MiOiAiaHR0cDovL3NlcnZlc
+    i5leGFtcGxlLmNvbSIsDQogInN1YiI6ICIyNDgyODk3NjEwMDEiLA0KICJhdWQiO
+    iAiczZCaGRSa3F0MyIsDQogIm5vbmNlIjogIm4tMFM2X1d6QTJNaiIsDQogImV4c
+    CI6IDEzMTEyODE5NzAsDQogImlhdCI6IDEzMTEyODA5NzAsDQogImF0X2hhc2giO
+    iAiNzdRbVVQdGpQZnpXdEYyQW5wSzlSUSIsDQogImNfaGFzaCI6ICJMRGt0S2RvU
+    WFrM1BrMGNuWHhDbHRBIg0KfQ.JQthrBsOirujair9aD5gj1Yd5qEv0j4fhLgl8h
+    3RaH3soYhwPOiN2Iy_yb7wMCO6I3bPoGJc3zCkpjgUtdB4O2eEhFqXHdwnE4c0oV
+    TaTHJi_PdV2ox9g-1ikDB0ckWk0f0SzBd7yM2RoYYxJCiGBQlsSSRQz6ehykonI3
+    hLAhXFdpfbK-3_a3HBNKOv_9Mr_JJrz2pqSygk5IBNvwzf1ouVeM91KKvr7EdriK
+    N8ysk68fctbFAga1p8rE3cfBOX7Acn4p9QSNpUx0i_x4WHktyKDvH_hLdUw91Fql
+    _UOgMP_9h8TYdkAjcq8n1tFzaO7kVaazlZ5SM32J7OSDgNSA
+    &state=af0ifjsldkj
+]]></artwork>
+            </figure>
+
+            <figure>
+              <preamble>
+		Verifying and decoding the ID Token will yield the following Claims:
+	      </preamble>
+              <artwork><![CDATA[
+  {
+   "iss": "http://server.example.com",
+   "sub": "248289761001",
+   "aud": "s6BhdRkqt3",
+   "nonce": "n-0S6_WzA2Mj",
+   "exp": 1311281970,
+   "iat": 1311280970,
+   "at_hash": "77QmUPtjPfzWtF2AnpK9RQ",
+   "c_hash": "LDktKdoQak3Pk0cnXxCltA"
+  }
+]]></artwork>
+            </figure>
+            
+            <t>
+	      This following example makes a request using a
+	      <spanx style='verb'>request</spanx> parameter value
+	      requesting that specific Claims be returned in the ID Token.
+	      The sample Request Object used is described in
+	      <xref target="req_param_method"/>.
+            </t>
+
+            <figure>
+              <preamble>Case 6: response_type=id_token</preamble>
+              <artwork><![CDATA[
+  https://server.example.com/op/authorize?
+    response_type=id_token
+    &client_id=s6BhdRkqt3
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+    &scope=openid%20profile%20email
+    &nonce=n-0S6_WzA2Mj
+    &state=af0ifjsldkj
+
+  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb#
+    code=Qcb0Orv1zh30vL1MPRsbm-diHiMwcLyZvn1arpZv-Jxf_11jnpEX3Tgfvk
+    &token_type=Bearer
+    &id_token=eyJhbGciOiJSUzI1NiJ9.ew0KICJpc3MiOiAiaHR0cDovL3Nlc
+    nZlci5leGFtcGxlLmNvbSIsDQogInN1YiI6ICIyNDgyODk3NjEwMDEiLA0KI
+    CJhdWQiOiAiczZCaGRSa3F0MyIsDQogIm5vbmNlIjogIm4tMFM2X1d6QTJNa
+    iIsDQogImV4cCI6IDEzMTEyODE5NzAsDQogImlhdCI6IDEzMTEyODA5NzAsD
+    QogIm5hbWUiOiAiSmFuZSBEb2UiLA0KICJnaXZlbl9uYW1lIjogIkphbmUiL
+    A0KICJmYW1pbHlfbmFtZSI6ICJEb2UiLA0KICJnZW5kZXIiOiAiZmVtYWxlI
+    iwNCiAiYmlydGhkYXRlIjogIjAwMDAtMTAtMzEiLA0KICJlbWFpbCI6ICJqY
+    W5lZG9lQGV4YW1wbGUuY29tIiwNCiAicGljdHVyZSI6ICJodHRwOi8vZXhhb
+    XBsZS5jb20vamFuZWRvZS9tZS5qcGciDQp9.Bgdr1pzosIrnnnpIekmJ7ooe
+    DbXuA2AkwfMf90Po2TrMcl3NQzUE_9dcr9r8VOuk4jZxNpV5kCu0RwqqF11-
+    6pQ2KQx_ys2i0arLikdResxvJlZzSm_UG6-21s97IaXC97vbnTCcpAkokSe8
+    Uik6f8-U61zVmCBMJnpvnxEJllfV8fYldo8lWCqlOngScEbFQUh4fzRsH8O3
+    Znr20UZib4V4mGZqYPtPDVGTeu8xkty1t0aK-wEhbm6Hi-TQTi4kltJlw47M
+    cSVgF_8SswaGcW6Bf_954ir_ddi4Nexo9RBiWu4n3JMNcQvZU5xMPhu-EF-6
+    _nJNotp-lbnBUyxTSg
+    &state=af0ifjsldkj
+]]></artwork>
+            </figure>
+
+            <figure>
+              <preamble>
+		Verifying and decoding the ID Token will yield the following Claims:
+	      </preamble>
+              <artwork><![CDATA[
+  {
+   "iss": "http://server.example.com",
+   "sub": "248289761001",
+   "aud": "s6BhdRkqt3",
+   "nonce": "n-0S6_WzA2Mj",
+   "exp": 1311281970,
+   "iat": 1311280970,
+   "name": "Jane Doe",
+   "given_name": "Jane",
+   "family_name": "Doe",
+   "gender": "female",
+   "birthdate": "0000-10-31",
+   "email": "janedoe@example.com",
+   "picture": "http://example.com/janedoe/me.jpg"
+  }
+]]></artwork>
+            </figure>
+
+            <figure>
+                <preamble>
+		  The following is the RSA public key in JWK format that can be used to
+		  validate the ID Token signatures in the above examples
+		  (with line wraps within values for display purposes only):
+		</preamble>
+
+                <artwork><![CDATA[
+  {
+   "kty":"RSA",
+   "n":"zhEWTBJVTfcUeqnMzOQFMCEVQWOyOUZwP8LrBWh88tKrZyPGCvBkT
+  Dp-E2BzyHMQV4pK51Uys2YOwzL9se5THDWMda9rtsCJVcj1V7WaE7wPgl-kIIdWWf4o2g
+  6ZszOy_Fp4q0nG3OTtDRCkBu2iEP21j82pRSRrkCBxnzaChflA7KZbI1n_yhKtxyA7FdA
+  480LaSVZyKApvrKiYhocACSwf0y6CQ-wkEi6mVXRJt1aBSywlLYA08ojp5hkZQ39eCM2k
+  1EdXdhbar998Q9PZTwXA1cfvuGTZbDWxEKLjMKVuKrT1Yvs-2NTXhZAW1KjFS_3UwLkDk
+  -w4dVN-x5tDnw",
+   "e":"AQAB"
+  }
+]]></artwork>
+            </figure>            
+
+          </section>
+
+          <section anchor="authz_error"
+                   title="End-User Denies Authorization or Invalid Request">
+            <t>If the End-User denies the authorization or the user authentication
+            fails, the Authorization Server MUST return the
+	    Authorization Error Response as defined in
+	    Section 2.1.3 of <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>.
+	    The Authorization Server returns the Client to
+            the redirection URI specified in the Authorization Request
+            with the appropriate error parameters. No
+            other parameters SHOULD be returned.</t>
+
+            <t>The error response parameters are the following:
+              <list style="hanging">
+                <t hangText="error">REQUIRED. Error code.</t>
+
+                <t hangText="error_description">OPTIONAL. Human-readable ASCII
+                encoded text description of the error.</t>
+
+                <t hangText="error_uri">OPTIONAL. URI of a web page that
+                includes additional information about the error.</t>
+
+                <t hangText="state">
+		  OAuth 2.0 state value.
+		  REQUIRED if the Authorization Request
+                included the <spanx style="verb">state</spanx> parameter. Set
+                to the value received from the Client.</t>
+              </list></t>
+
+            <t>If the <spanx style="verb">response_type</spanx> parameter in the
+            Authorization Request includes the string value
+	    <spanx style="verb">token</spanx> or <spanx style="verb">id_token</spanx>,
+	    all error response parameters are be added to the 
+            fragment component of the redirection URI, as specified in
+	    <xref target="OAuth.Responses">OAuth 2.0 Multiple Response Type Encoding Practices</xref>.
+	    Otherwise, the response
+            parameters are added to the query component of the redirection URI.
+            </t>
+
+            <t><figure>
+                <preamble>The following is a non-normative example
+		(with line wraps within values for the display purposes only):</preamble>
+
+                <artwork><![CDATA[
+  HTTP/1.1 302 Found
+  Location: https://client.example.org/cb?
+    error=invalid_request
+    &error_description=
+      the%20request%20is%20not%20valid%20or%20malformed
+    &state=af0ifjsldkj
+]]></artwork>
+              </figure></t>
+          </section>
+        </section>
+      </section>
+    </section>
+
+    <section anchor="token_ep" title="Token Endpoint">
+      <t>The Token Endpoint handles requests for retrieving and refreshing
+      Access Tokens as well as ID Token and other variables.</t>
+
+      <t>Clients MUST use the HTTP <spanx style="verb">POST</spanx> method to make requests to the Token Endpoint.
+      Request parameters are added using
+      Form Serialization, per <xref target="form_serialization"/>.</t>
+
+      <t>Clients MAY provide authentication parameters in the request to the
+      Token Endpoint as described in
+      Section 2.2.1 of <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>.</t>
+
+      <t>The Token Endpoint MUST support the use of the HTTP <spanx style="verb">POST</spanx>
+      method defined in <xref target="RFC2616">RFC 2616</xref> at the
+      Token Endpoint.</t>
+
+      <t>
+	Communication with the Token Endpoint MUST utilize TLS.
+	See <xref target="TLS_requirements"/> for more information on using TLS.
+      </t>
+
+      <t>All Token Endpoint responses that contain tokens, secrets, or other
+      sensitive information MUST include the following HTTP response header
+      fields and values:</t>
+
+      <texttable title="HTTP Response Headers and Values">
+        <ttcol>Header Name</ttcol>
+
+        <ttcol>Header Value</ttcol>
+
+        <c>Cache-Control</c>
+
+        <c>no-store</c>
+
+        <c>Pragma</c>
+
+        <c>no-cache</c>
+      </texttable>
+
+      <section anchor="RequestingAccessToken" title="Requesting Access Token">
+        <t>
+	  To retrieve an Access Token when using the Authorization Code Flow,
+	  a Client MUST have an Authorization Code
+	  obtained as described in <xref target="code_flow"></xref>.
+	</t>
+
+        <section anchor="AccessTokenRequest" title="Access Token Request">
+          <t>To obtain an Access Token, Refresh Token or ID Token, the Client MUST
+          authenticate to the Token Endpoint using the authentication method
+	  registered for its <spanx style="verb">client_id</spanx>, as documented in
+	  Section 2.2.1 of <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>.
+          The Client sends the parameters via HTTPS <spanx style="verb">POST</spanx> to the Token Endpoint using
+          Form Serialization, per <xref target="form_serialization"/>,
+	  as described in Section 4.1.3 of 
+          <xref target="RFC6749">OAuth 2.0</xref>.</t>
+
+          <figure>
+            <preamble>The following is a non-normative example of an Access Token Request:</preamble>
+
+            <artwork><![CDATA[
+  POST /token HTTP/1.1
+  Host: server.example.com
+  Content-Type: application/x-www-form-urlencoded
+  Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
+
+  grant_type=authorization_code&code=SplxlOBeZQQYbYS6WxSbIA
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+]]></artwork>
+          </figure>
+          <t>
+            The Authorization Server MUST:
+          </t>
+          <t>
+            <list style='symbols'>
+              <t>
+                Authenticate any Clients that were issued Client Credentials
+		(or for which other Client Authentication methods can be used),
+              </t>
+              <t>
+                Ensure the
+                Authorization Code was issued to the authenticated Client,
+              </t>
+              <t>
+                Verify that the Authorization Code is valid, and
+              </t>
+              <t>
+                Ensure that the
+		Scheme, Host, Path, and Query Parameter segments
+		in the <spanx style='verb'>redirect_uri</spanx> parameter
+		are identical to the <spanx style='verb'>redirect_uri</spanx>
+		parameter value that was included in the initial Authorization Request.
+		If the <spanx style='verb'>redirect_uri</spanx> parameter value
+		not be present when there is only one registered
+		<spanx style='verb'>redirect_uri</spanx> value,
+		the Authorization Server MAY return an error
+		(since the Client should have included the parameter)
+		or MAY proceed without an error
+		(since OAuth 2.0 permits the parameter to be omitted in this case).
+              </t>
+            </list>
+          </t>
+        </section>
+
+        <section anchor="AccessTokenResponse" title="Access Token Response">
+          <t>Upon receipt of the Token Request, the Authorization Server MUST
+          return either a successful response or an error response that corresponds to
+          the received Authorization Code.</t>
+
+	  <t>A successful response returns the <spanx style="verb">application/json</spanx>
+	  media type and the response body is the Access Token Response documented in
+	  Section 2.2.3 of <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>.</t>
+
+
+	  <figure>
+	    <preamble>Following is a non-normative example of a
+	    successful response:</preamble>
+
+	    <artwork><![CDATA[
+  HTTP/1.1 200 OK
+  Content-Type: application/json
+  Cache-Control: no-store
+  Pragma: no-cache
+
+  {
+   "access_token": "SlAV32hkKG",
+   "token_type": "Bearer",
+   "refresh_token": "8xLOxBtZp8",
+   "expires_in": 3600,
+   "id_token": "eyJhbGciOiJSUzI1NiJ9.ew0KICAgICJpc3MiOiAiaHR0cDovL
+     3NlcnZlci5leGFtcGxlLmNvbSIsDQogICAgInVzZXJfaWQiOiAiMjQ4Mjg5NzYxM
+     DAxIiwNCiAgICAiYXVkIjogInM2QmhkUmtxdDMiLA0KICAgICJub25jZSI6ICJuL
+     TBTNl9XekEyTWoiLA0KICAgICJleHAiOiAxMzExMjgxOTcwLA0KICAgICJpYXQiO
+     iAxMzExMjgwOTcwDQp9.lsQI_KNHpl58YY24G9tUHXr3Yp7OKYnEaVpRL0KI4szT
+     D6GXpZcgxIpkOCcajyDiIv62R9rBWASV191Akk1BM36gUMm8H5s8xyxNdRfBViCa
+     xTqHA7X_vV3U-tSWl6McR5qaSJaNQBpg1oGPjZdPG7zWCG-yEJC4-Fbx2FPOS7-h
+     5V0k33O5Okd-OoDUKoFPMd6ur5cIwsNyBazcsHdFHqWlCby5nl_HZdW-PHq0gjzy
+     JydB5eYIvOfOHYBRVML9fKwdOLM2xVxJsPwvy3BqlVKc593p2WwItIg52ILWrc6A
+     tqkqHxKsAXLVyAoVInYkl_NDBkCqYe2KgNJFzfEC8g"
+  }
+]]></artwork>
+	  </figure>
+	</section>
+
+	<section anchor="AccessTokenErrorResponse" title="Access Token Error Response">
+	  <t>If the Token Request is invalid or unauthorized, the
+	  Authorization Server constructs the response by returning the
+	  Token Error Response defined in <xref
+	  target="OpenID.Messages">OpenID Connect Messages 1.0</xref> in the
+	  entity body of the HTTP response using the <spanx style="verb">application/json</spanx>
+	  media type with HTTP response code 400.</t>
+
+	  <figure>
+	    <preamble>Following is a non-normative example:</preamble>
+
+	    <artwork><![CDATA[
+  HTTP/1.1 400 Bad Request
+  Content-Type: application/json
+  Cache-Control: no-store
+  Pragma: no-cache
+
+  {
+   "error": "invalid_request"
+  }
+]]></artwork>
+	  </figure>
+        </section>
+      </section>
+
+      <section anchor="RefreshingAccessToken" title="Refreshing Access Token">
+         <t>To refresh an Access Token, the Client MUST
+          authenticate to the Token Endpoint using the authentication method registered
+	  for its <spanx style="verb">client_id</spanx>, as documented in
+	  Section 2.2.1 of <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>.
+	  The Client sends the parameters via HTTPS <spanx style="verb">POST</spanx> to the Token Endpoint using
+          Form Serialization, per <xref target="form_serialization"/>,
+	  as described in Section 6 of 
+          <xref target="RFC6749">OAuth 2.0</xref>:</t>
+        
+        <t>The Authorization Server MUST validate the Refresh Token.
+        </t>
+
+        <section anchor="RefreshTokenResponse" title="Refresh Token Response">
+          <t>Upon receipt of the Refresh Token Request, the Authorization Server MUST
+          return either a successful response or an error response that corresponds to
+          the received Refresh Token.</t>
+
+          <t>Upon successful validation of the Refresh Token, a successful
+          response returns the <spanx style="verb">application/json</spanx>
+          media type and the response body is the Access Token Response of 
+          Section 2.2.3 of <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>
+	  except that it MUST NOT return an <spanx style="verb">id_token</spanx>.</t>
+        
+          <figure>
+            <preamble>Following is a non-normative example of a
+	    Refresh Token Request and response:</preamble>
+
+            <artwork><![CDATA[
+  POST /token HTTP/1.1
+  Host: server.example.com
+  Content-Type: application/x-www-form-urlencoded
+
+  client_id=s6BhdRkqt3
+    &client_secret=some_secret12345
+    &grant_type=refresh_token
+    &refresh_token=8xLOxBtZp8
+    &scope=openid%20profile
+
+  HTTP/1.1 200 OK
+  Content-Type: application/json
+  Cache-Control: no-store
+  Pragma: no-cache
+
+  {
+   "access_token": "TlBN45jURg",
+   "token_type": "Bearer",
+   "refresh_token": "9yNOxJtZa5",
+   "expires_in": 3600
+  }
+]]></artwork>
+          </figure>
+        </section>
+
+	<section anchor="RefreshTokenErrorResponse" title="Refresh Token Error Response">
+	  <t>If the Refresh Token Request is invalid or unauthorized, the
+	  Authorization Server returns the 
+	  Token Error Response as defined in Section 5.2 of <xref
+	  target="RFC6749">OAuth 2.0</xref>.</t>
+	</section>
+      </section>
+    </section>
+
+    <section anchor="userinfo" title="UserInfo Endpoint">
+      <t>
+	The UserInfo Endpoint is an OAuth 2.0 Protected Resource that
+        returns Claims about the authenticated End-User.
+	To obtain the requested Claims about the End-User, the Client
+	makes a <spanx style="verb">GET</spanx> or
+	<spanx style="verb">POST</spanx> request to the UserInfo Endpoint as in
+	Section 2.3.1 of <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>.
+      </t>
+      <t>
+	Communication with the UserInfo Endpoint MUST utilize TLS.
+	See <xref target="TLS_requirements"/> for more information on using TLS.
+      </t>
+
+      <t>The UserInfo Endpoint MUST support the use of the HTTP <spanx style="verb">GET</spanx> and HTTP
+      <spanx style="verb">POST</spanx> methods defined in <xref target="RFC2616">RFC 2616</xref> at the
+      UserInfo Endpoint. </t>
+
+      <t>The UserInfo Endpoint MUST accept Access Tokens as
+      <xref target="RFC6750">OAuth 2.0 Bearer Token Usage</xref>.</t>
+      
+      <t>The UserInfo Endpoint SHOULD support the use of 
+      <xref target="CORS">Cross Origin Resource Sharing (CORS)</xref> and
+      or other methods as appropriate to enable Java Script Clients to access the endpoint.</t>
+
+      <section anchor="UserInfoRequest" title="UserInfo Request">
+        <t>Client SHOULD send the UserInfo Request defined in
+	Section 2.3.1 of <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>
+        either in an HTTPS <spanx style="verb">GET</spanx> or HTTPS <spanx style="verb">POST</spanx> request.</t>
+        
+        <t>The Access Token obtained
+            from an OpenID Connect Authorization Request MUST be sent as a Bearer Token.
+            Section 2 of the <xref target="RFC6750">OAuth 2.0 Bearer Token Usage</xref>
+            specification documents the permissible methods of sending the Access Token.</t> 
+            <t>It is RECOMMENDED that the Client use the
+	    <spanx style="verb">Authorization</spanx> header field
+	    method for all requests and that they use the <spanx style="verb">GET</spanx> method.</t>
+            
+        <figure>
+          <preamble>
+	    The following is a non-normative example of a UserInfo request:
+	  </preamble>
+
+          <artwork><![CDATA[
+  GET /userinfo HTTP/1.1
+  Host: server.example.com
+  Authorization: Bearer SlAV32hkKG
+]]></artwork>
+        </figure>
+      </section>
+
+      <section anchor="UserInfoResponse" title="UserInfo Response">
+        <t>The <spanx style="verb">sub</spanx> (subject) Claim in the UserInfo Endpoint response MUST exactly match the 
+        <spanx style="verb">sub</spanx> Claim in the ID Token, before using additional UserInfo Endpoint Claims.</t>
+        
+        <t>Upon receipt of the UserInfo request, the UserInfo Endpoint MUST
+        return the JSON Serialization of the UserInfo response as in
+	Section 2.3.2 of <xref
+        target="OpenID.Messages">OpenID Connect Messages 1.0</xref> in the HTTP response
+        body unless a
+	different format was specified during Registration
+	<xref target="OpenID.Registration"/>.
+	The content-type of the HTTP response MUST be set to <spanx
+        style="verb">application/json</spanx> if the response body is a text
+        JSON structure;
+	the response body SHOULD be encoded using UTF-8.
+	If the JSON response is
+        signed or encrypted, then the
+        content-type MUST be set to <spanx style="verb">application/jwt</spanx>.</t>
+
+        <t>Upon receipt of the UserInfo Response, the Client MUST verify 
+        the response in accordance with
+	Section 5.3 (UserInfo Response Validation) of <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>.
+        </t>
+
+        <figure>
+          <preamble>Following is a non-normative example of such
+          response:</preamble>
+
+          <artwork><![CDATA[
+  HTTP/1.1 200 OK
+  Content-Type: application/json
+
+  {
+   "sub": "248289761001",
+   "name": "Jane Doe",
+   "given_name": "Jane",
+   "family_name": "Doe",
+   "email": "janedoe@example.com",
+   "picture": "http://example.com/janedoe/me.jpg"
+  }
+]]></artwork>
+        </figure>
+      </section>
+
+      <section anchor="UserInfoErrorResponse" title="UserInfo Error Response">
+  <t>When an error condition occurs, the UserInfo Endpoint returns
+  an Error Response as defined in Section 3 of
+  the <xref target="RFC6750">OAuth 2.0 Bearer Token Usage</xref> specification
+  utilizing an error code as specified in
+  Section 2.3.3 of <xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>.</t>
+
+  <figure>
+      <preamble>Following is a non-normative example of an error
+      response:</preamble>
+
+      <artwork><![CDATA[
+  HTTP/1.1 401 Unauthorized
+  WWW-Authenticate: Bearer realm="example.com",
+                       error="invalid_token",
+                       error_description="The Access Token expired"
+]]></artwork>
+        </figure>
+      </section>
+    </section>
+
+    <section anchor="self_issued" title="Self-Issued OpenID Provider">
+      <t>
+	OpenID Connect supports Self-Issued OpenID Providers -
+	personal OPs that issue self-signed ID Tokens.
+	Self-Issued OPs use the special Issuer Identifier
+	<spanx style="verb">https://self-issued.me</spanx>.
+      </t>
+      <t>
+	The messages used to communicate with Self-Issued OPs are
+	mostly the same as those used to communicate with other OPs.
+	Specifications for the few additional parameters used and
+	for the values of some parameters in the Self-Issued case
+	are described in Section 7 of the
+	<xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>
+	specification.
+      </t>
+    </section>
+
+    <section anchor="client_Initiate_login" title="Initiating Login at Client from Third Party">
+      <t>
+	In some cases, the login flow can start at the Authorization Server
+	or another party by contacting the Client via a stored link.
+	The target resource at the Client can be a deep link,
+	rather than a default landing page.
+      </t>
+      <t>
+	The Client MAY optionally <xref target="OpenID.Registration">register</xref>
+	an <spanx style="verb">initiate_login_uri</spanx> that
+	can be used by the Authorization Server
+	or another party to initiate a login for an End-User at the Client.
+      </t>
+      <t>
+	The Authorization Server or a third party sends a
+	Login Initiation Request to the
+	Client Initiation URI with the following parameters:
+      </t>
+      <t>
+	<list style="hanging">
+          <t hangText="login_hint">REQUIRED.
+	    Hint to the Authorization Server
+            about the login identifier the End-User might use to log in (if necessary).
+          </t>
+          <t hangText="iss">REQUIRED.
+	    Issuer Identifier for the Issuer that the Client is to send
+	    the authentication request to. 
+            Its value MUST be a URL using the <spanx style="verb">https</spanx> scheme.
+          </t>
+          <t hangText="target_link_uri">OPTIONAL.
+	    URI that the Client is requested to redirect to after authentication.
+	    Clients MUST verify the value of the
+            <spanx style="verb">target_link_uri</spanx> to prevent being used as
+	    an open redirector to external sites.
+          </t>
+
+        </list>
+      </t>
+      
+      <t>
+	Other parameters MAY be sent, if defined by extensions.
+	Any parameters used that are not understood MUST be ignored by the Client.
+      </t>
+      
+      <t>Clients SHOULD employ frame busting and other techniques to prevent
+      End-Users from being logged in by third party sites without their knowledge.</t>
+      
+    </section>
+
+    <section anchor="Serializations" title="Serializations">
+      <t>
+	Messages are serialized using one of the following methods:
+        <list style="numbers">
+	  <t>Query String Serialization</t>
+	  <t>Form Serialization</t>
+	  <t>JSON Serialization</t>
+        </list>
+	Not all methods can be used for all messages.
+      </t>
+
+      <section anchor="qss" title="Query String Serialization">
+
+        <t>In order to serialize the parameters using the Query String
+        Serialization, the Client constructs the string by adding the
+        parameters and values to the query component of a URL using the <spanx
+        style="verb">application/x-www-form-urlencoded</spanx> format as
+        defined by <xref target="W3C.REC-html401-19991224"></xref>.
+	Query String Serialization is typically used in
+	HTTP <spanx style="verb">GET</spanx> requests.
+	The same serialization method is also used when adding
+	parameters to the fragment component of a URL.
+	</t>
+
+        <figure>
+          <preamble>
+	    Following is a non-normative example of this serialization
+	    (with line wraps within values for display purposes only):
+	  </preamble>
+
+          <artwork><![CDATA[
+  GET /authorize?scope=openid&response_type=code
+    &client_id=s6BhdRkqt3
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb HTTP/1.1
+  Host: server.example.com
+]]></artwork>
+        </figure>
+      </section>
+
+      <section anchor="form_serialization" title="Form Serialization">
+
+        <t>Parameters and their values are Form Serialized by adding the 
+        parameter names and values to the entity body of the HTTP request using
+        the <spanx style="verb">application/x-www-form-urlencoded</spanx> format
+        as defined by <xref target="W3C.REC-html401-19991224"></xref>.
+	Form Serialization is typically used in HTTP <spanx style="verb">POST</spanx> requests.</t>
+
+        <figure>
+          <preamble>
+	    Following is a non-normative example of this serialization
+	    (with line wraps within values for display purposes only):
+	  </preamble>
+
+          <artwork><![CDATA[
+  POST /authorize HTTP/1.1
+  Host: server.example.com
+  Content-Type: application/x-www-form-urlencoded
+
+  scope=openid&response_type=code
+    &client_id=s6BhdRkqt3
+    &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+]]></artwork>
+        </figure>
+      </section>
+
+      <section anchor="js" title="JSON Serialization">
+	<t>The parameters are serialized into a JSON structure by adding each
+	parameter at the highest structure level. Parameter names and string
+	values are included as JSON strings. Numerical values are included as
+	JSON numbers. Each parameter MAY have a JSON structure as its value.</t>
+
+	<figure>
+          <preamble>
+	    Following is a non-normative example of this serialization:
+	  </preamble>
+
+	  <artwork><![CDATA[
+  {
+   "access_token":"SlAV32hkKG",
+   "expires_in":3600,
+   "refresh_token":"8xLOxBtZp8"
+  }
+]]></artwork>
+	</figure>
+      </section>
+
+    </section>
+
+    <section anchor="ImplementationConsiderations" title="Implementation Considerations">
+      <t>
+	This specification defines features used by both Relying Parties and
+	OpenID Providers.  Features that are mandatory to implement for
+	Relying Parties are already described in the
+	<xref target="OpenID.Basic">OpenID Connect Basic Client Profile 1.0</xref> and
+	<xref target="OpenID.Implicit">OpenID Connect Implicit Client Profile 1.0</xref>
+	specifications, and so are not discussed again here.
+      </t>
+      <t>
+	All OpenID Providers MUST implement the features that are already listed elsewhere
+	in this specification as being "REQUIRED" or are described with a "MUST".
+	Since this specification is a protocol binding for the
+	<xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref> specification,
+	all the implementation considerations described in that specification
+	also apply here.
+      </t>
+
+      <section anchor="disco_reg" title="Discovery and Registration">
+
+	<t>Some OpenID Connect installations can use a pre-configured set of
+	OpenID Providers and/or Relying Parties. In those cases, it might not be
+	necessary to support dynamic discovery of information about identities
+	or services or dynamic registration of Clients.</t>
+
+	<t>However, if installations choose to support unanticipated
+	interactions between Relying Parties and OpenID Providers that do not
+	have pre-configured relationships, they SHOULD accomplish this by
+	implementing the facilities defined in the <xref
+	target="OpenID.Discovery">OpenID Connect Discovery 1.0</xref> and <xref
+	target="OpenID.Registration">OpenID Connect Dynamic Client Registration
+	1.0</xref> specifications.</t>
+      </section>
+    </section>
+
+    <section anchor="security_considerations" title="Security Considerations">
+      <t>
+	This specification references the security considerations defined in
+	<xref target="OpenID.Messages">OpenID Connect Messages 1.0</xref>,
+	Section 10 of <xref target="RFC6749">OAuth 2.0</xref>, and
+	Section 5 of <xref target="RFC6750">OAuth 2.0 Bearer Token Usage</xref>.
+	Furthermore, the <xref target="RFC6819">OAuth 2.0 Threat Model and Security
+	Considerations</xref> specification provides an extensive list of threats and controls 
+	that apply to this specification as well, given that it is an OAuth 2.0
+	binding of OpenID Connect Messages 1.0.  Implementers are highly advised to
+	read these references in detail and apply the countermeasures described therein.
+      </t>
+
+      <t>In addition, the following list of attack vectors and remedies are
+      also considered.</t>
+
+      <section anchor="ImplicitGrantFlowThreats" title="Implicit Grant Flow Threats">
+        <t>In the implicit grant flow, the Access Token is returned in the
+        fragment component of the Client's <spanx style="verb">redirect_uri</spanx> through HTTPS, thus it is
+        protected between the OP and the User-Agent, and User-Agent and the
+        RP. The only the place it can be captured is the User-Agent where the
+        TLS session is terminated, and is possible if the User-Agent is
+        infested by malware.</t>
+      </section>
+
+      <section anchor="TLS_requirements" title="TLS Requirements">
+	<t>
+	  Implementations MUST support TLS.
+	  Which version(s) ought to be implemented will vary over
+	  time, and depend on the widespread deployment and known
+	  security vulnerabilities at the time of implementation.
+	  At the time of this writing,
+	  TLS version 1.2 <xref target='RFC5246' />
+	  is the most recent version, but has very limited actual
+	  deployment, and might not be readily available in
+	  implementation toolkits.
+	  TLS version 1.0 <xref target='RFC2246' />
+	  is the most widely deployed version, and will give the
+	  broadest interoperability.
+	</t>
+	<t>
+	  To protect against information disclosure and tampering,
+	  confidentiality protection MUST be applied using TLS
+	  with a ciphersuite that provides confidentiality and
+	  integrity protection.
+	</t>
+	<t>
+	  Whenever TLS is used, a TLS server certificate check
+	  MUST be performed, per <xref target="RFC6125">RFC 6125</xref>.
+	</t>
+      </section>
+    </section>
+
+    <section anchor="IANA" title="IANA Considerations">
+      <t>This document makes no requests of IANA.</t>
+    </section>
+
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2246"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.2616"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.3986"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.5246"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.5646"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.6125"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.6749"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.6750"?>
+      <?rfc include="http://xml.resource.org/public/rfc/bibxml/reference.RFC.6819"?>
+
+      <?rfc include='http://xml.resource.org/public/rfc/bibxml4/reference.W3C.REC-html401-19991224.xml' ?>
+
+      <reference anchor="JWT">
+        <front>
+          <title>JSON Web Token (JWT)</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+           <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <date day="28" month="May" year="2013" />
+        </front>
+
+	<seriesInfo value="draft-ietf-oauth-json-web-token" name="Internet-Draft"/>
+	<format target="http://tools.ietf.org/html/draft-ietf-oauth-json-web-token-08"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="JWS">
+        <front>
+          <title>JSON Web Signature (JWS)</title>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <date day="28" month="May" year="2013" />
+        </front>
+
+	<seriesInfo value="draft-ietf-jose-json-web-signature" name="Internet-Draft"/>
+	<format target="http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-11"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="JWE">
+        <front>
+          <title>JSON Web Encryption (JWE)</title>
+
+	  <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+	    <organization>Microsoft</organization>
+	  </author>
+
+	  <author fullname="Eric Rescorla" initials="E." surname="Rescorla">
+	    <organization>RTFM, Inc.</organization>
+	  </author>
+
+	  <author fullname="Joe Hildebrand" initials="J." surname="Hildebrand">
+	    <organization>Cisco Systems, Inc.</organization>
+	  </author>
+
+	  <date day="28" month="May" year="2013" />
+        </front>
+
+	<seriesInfo value="draft-ietf-jose-json-web-encryption" name="Internet-Draft"/>
+	<format target="http://tools.ietf.org/html/draft-ietf-jose-json-web-encryption-11" type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.Messages">
+        <front>
+          <title>OpenID Connect Messages 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+	  <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+	    <organization abbrev="Salesforce">Salesforce</organization>
+	  </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="Illumila">Illumila</organization>
+          </author>
+
+          <date day="7" month="June" year="2013"/>
+        </front>
+
+	<format target="http://openid.net/specs/openid-connect-messages-1_0-20.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.Registration">
+        <front>
+          <title>OpenID Connect Dynamic Client Registration 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <date day="7" month="June" year="2013"/>
+        </front>
+
+	<format target="http://openid.net/specs/openid-connect-registration-1_0-19.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.Discovery">
+        <front>
+          <title>OpenID Connect Discovery 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+            <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="Illumila">Illumila</organization>
+          </author>
+
+          <date day="7" month="June" year="2013"/>
+        </front>
+
+	<format target="http://openid.net/specs/openid-connect-discovery-1_0-17.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OAuth.Responses">
+        <front>
+	  <title>OAuth 2.0 Multiple Response Type Encoding Practices</title>
+
+	  <author fullname="Breno de Medeiros" initials="B." role="editor" surname="de Medeiros">
+	    <organization abbrev="Google">Google</organization>
+	  </author>
+
+	  <author fullname="Marius Scurtescu" initials="M." surname="Scurtescu">
+	    <organization abbrev="Google">Google</organization>
+	  </author>
+
+	  <author fullname="Paul Tarjan" initials="P." surname="Tarjan">
+	    <organization abbrev="Facebook"> Facebook</organization>
+	  </author>
+
+	  <date day="7" month="June" year="2013" />
+        </front>
+
+	<format target="http://openid.net/specs/oauth-v2-multiple-response-types-1_0-08.html"
+		type="HTML" />
+      </reference>
+
+    </references>
+    <references title="Informative References"> 
+
+       <reference anchor="CORS">
+        <front>
+           <title>Cross-Origin Resource Sharing</title>
+           <author fullname="Anne van Kesteren">
+             <organization abbrev="Opera">Opera Software ASA</organization>
+           </author>
+           <date day="27" month="July" year="2010"></date>
+        </front>
+
+      <format target="http://www.w3.org/TR/access-control/"
+              type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.Basic">
+        <front>
+          <title>OpenID Connect Basic Client Profile 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+           <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+          <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+            <organization abbrev="Salesforce">Salesforce</organization>
+          </author>
+
+          <date day="7" month="June" year="2013"/>
+        </front>
+
+	<format target="http://openid.net/specs/openid-connect-basic-1_0-28.html"
+                type="HTML" />
+      </reference>
+
+      <reference anchor="OpenID.Implicit">
+        <front>
+          <title>OpenID Connect Implicit Client Profile 1.0</title>
+
+          <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+            <organization abbrev="NRI">Nomura Research Institute, Ltd.</organization>
+          </author>
+
+          <author fullname="John Bradley" initials="J." surname="Bradley">
+           <organization abbrev="Ping Identity">Ping Identity</organization>
+          </author>
+
+          <author fullname="Michael B. Jones" initials="M.B." surname="Jones">
+            <organization abbrev="Microsoft">Microsoft</organization>
+          </author>
+
+          <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+            <organization abbrev="Google">Google</organization>
+          </author>
+
+          <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+            <organization abbrev="Salesforce">Salesforce</organization>
+          </author>
+
+          <author fullname="Edmund Jay" initials="E." surname="Jay">
+            <organization abbrev="Illumila">Illumila</organization>
+          </author>
+
+          <date day="7" month="June" year="2013"/>
+        </front>
+
+	<format target="http://openid.net/specs/openid-connect-implicit-1_0-11.html"
+                type="HTML" />
+      </reference>
+
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>The OpenID Community would like to thank the following people for the
+      work they've done in the drafting and editing of this specification.</t>
+
+      <t><list style="empty">
+	  <t>Naveen Agarwal (naa@google.com), Google</t>
+	  <t>Amanda Anganes (aanganes@mitre.org), Mitre</t>
+          <t>John Bradley (ve7jtb@ve7jtb.com), Ping Identity</t>
+          <t>Tim Bray (tbray@textuality.com), Google</t>
+	  <t>Brian Campbell (bcampbell@pingidentity.com), Ping Identity</t>
+	  <t>Blaine Cook (romeda@gmail.com), Independent</t>
+          <t>Breno de Medeiros (breno@gmail.com), Google</t>
+	  <t>Vladimir Dzhuvinov (vladimir@nimbusds.com), Nimbus Directory Services</t>
+          <t>George Fletcher (gffletch@aol.com), AOL</t>
+	  <t>Roland Hedberg (roland.hedberg@adm.umu.se), University of Umea</t>
+          <t>Ryo Ito (ryo.ito@mixi.co.jp), mixi, Inc.</t>
+          <t>Michael B. Jones (mbj@microsoft.com), Microsoft</t>
+	  <t>Torsten Lodderstedt (t.lodderstedt@telecom.de), Deutsche Telekom</t>
+	  <t>Hideki Nara (hdknr@ic-tact.co.jp), Tact Communications</t>
+          <t>Axel Nennker (axel.nennker@telekom.de), Deutsche Telekom</t>
+	  <t>Justin Richer (jricher@mitre.org), Mitre</t>
+          <t>Nat Sakimura (n-sakimura@nri.co.jp), Nomura Research Institute, Ltd.</t>
+        </list></t>
+    </section>
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2013 The OpenID Foundation.</t>
+      <t>
+	The OpenID Foundation (OIDF) grants to any Contributor, developer, 
+	implementer, or other interested party a non-exclusive, royalty free, 
+	worldwide copyright license to reproduce, prepare derivative works from, 
+	distribute, perform and display, this Implementers Draft or 
+	Final Specification solely for the purposes of (i) developing 
+	specifications, and (ii) implementing Implementers Drafts and 
+	Final Specifications based on such documents, provided that attribution 
+	be made to the OIDF as the source of the material, but that such attribution 
+	does not indicate an endorsement by the OIDF.
+      </t>
+      <t>
+	The technology described in this specification was 
+	made available from contributions from various sources, 
+	including members of the OpenID Foundation and others.  
+	Although the OpenID Foundation has taken steps to help ensure 
+	that the technology is available for distribution, it takes 
+	no position regarding the validity or scope of any intellectual 
+	property or other rights that might be claimed to pertain to 
+	the implementation or use of the technology described in 
+	this specification or the extent to which any license under 
+	such rights might or might not be available; neither does it 
+	represent that it has made any independent effort to identify 
+	any such rights.  The OpenID Foundation and the contributors 
+	to this specification make no (and hereby expressly disclaim any) 
+	warranties (express, implied, or otherwise), including implied 
+	warranties of merchantability, non-infringement, fitness for 
+	a particular purpose, or title, related to this specification, 
+	and the entire risk as to implementing this specification is 
+	assumed by the implementer.  The OpenID Intellectual 
+	Property Rights policy requires contributors to offer 
+	a patent promise not to assert certain patent claims against 
+	other contributors and against implementers.  The OpenID Foundation invites 
+	any interested party to bring to its attention any copyrights, 
+	patents, patent applications, or other proprietary rights 
+	that may cover technology that may be required to practice 
+	this specification.
+      </t>
+    </section>
+
+    <section anchor="History" title="Document History">
+      <t>[[ To be removed from the final specification ]]</t>
+
+      <t>
+	-21
+	<list style="symbols">
+	  <t>
+	    Fixed #839 - Described requirement to employ countermeasures against
+	    Cross-Site Request Forgery and Clickjacking.
+	  </t>
+	  <t>
+	    Fixed #841 - Described verification requirements for
+	    Authorization Server responses.
+	  </t>
+	  <t>
+	    Fixed #846 - Provided a more complete introduction to Standard.
+	  </t>
+	  <t>
+	    Removed the Privacy Considerations section in Standard since it was
+	    a duplicate of the one in Messages.
+	  </t>
+	  <t>
+	    Stated that <spanx style="verb">redirect_uri</spanx> matches must be exact,
+	    with matching performed as described in
+	    Section 6.2.1 of RFC 3986 (Simple String Comparison).
+	  </t>
+	</list>
+      </t>
+
+      <t>-20
+	<list style="symbols">
+	  <t>
+	    Changed from using the term "byte" to either "octet" or "character".
+	  </t>
+	  <t>
+	    Fixed #836 - Clarified language describing signing and encrypting
+	    <spanx style="verb">request</spanx> parameter values.
+	  </t>
+	  <t>
+	    Stated that the JWS Compact Serialization and the JWE Compact Serialization
+	    are always used for JWS and JWE data structures.
+	  </t>
+	</list>
+      </t>
+
+      <t>-19
+	<list style="symbols">
+	  <t>
+	    Fixed #821 - Moved definition of JSON Serialization to where it's used.
+	  </t>
+	</list>
+      </t>
+
+      <t>-18
+	<list style="symbols">
+	  <t>
+	    Fixed #801 - Removed <spanx style="verb">schema</spanx> and <spanx style="verb">id</spanx>
+	    parameters to UserInfo Endpoint.
+	    Also fixed related issue #791 - Removed <spanx style="verb">invalid_schema</spanx> error.
+	  </t>
+	</list>
+      </t>
+
+      <t>-17
+        <list style="symbols">
+	  <t>
+	    Fixed #715 - Delete "profile" from request object example.
+	  </t>
+	  <t>
+	    Fixed #722 - Text on "id_token_hint" needs to be clarified.
+	  </t>
+	  <t>
+	    Fixed #718 - Text on re-encrypting should be clearer.
+	  </t>
+	  <t>
+	    Fixed #714 - Clarified text specifying response_type behaviors, including
+	    prohibiting the use of the "token" response_type, since it returns no ID Token.
+	  </t>
+	  <t>
+	    Added Security Considerations section about TLS version requirements and usage.
+	  </t>
+	  <t>
+	    Removed language about supporting other transport-layer
+	    mechanisms with equivalent security to TLS.
+	  </t>
+	  <t>
+	    State that when any validations fail, any operations requiring
+	    the information that failed to correctly validate MUST be aborted and
+	    the information that failed to validate MUST NOT be used.
+	  </t>
+	  <t>
+	    Fixed #744 - Promoted <spanx style="verb">max_age</spanx>
+	    to being a top-level parameter.
+	  </t>
+	  <t>
+	    Fixed #748 - Promoted <spanx style="verb">claims</spanx> to being a
+	    top-level parameter separate from the OpenID Request Object.
+	  </t>
+	  <t>
+	    Fixed #597 - Changed representation of omitted year in <spanx style="verb">birthdate</spanx>
+	    from <spanx style="verb">9999</spanx> to <spanx style="verb">0000</spanx>.
+	  </t>
+	  <t>
+	    Fixed #773 - Added <spanx style="verb">request_uris</spanx>
+	    registration parameter to pre-register
+	    <spanx style="verb">request_uri</spanx> values.
+	    Also clarified that Request File contents may be cached.
+	  </t>
+	  <t>
+	    Deleted top-level <spanx style="verb">policy_url</spanx> parameter from the
+	    Self-Issued case, since it is already a
+	    <spanx style="verb">registration</spanx> parameter member.
+	  </t>
+	  <t>
+	    Fixed #778 - Added <spanx style="verb">registration</spanx> parameter
+	    to Self-Issued request example.
+	  </t>
+	  <t>
+	    Fixed #782 - Changed uses of "_url" in identifiers to "_uri".
+	  </t>
+	  <t>
+	    Fixed #719 - Moved message definitions for Self-Issued OPs to the Messages spec.
+	  </t>
+	  <t>
+	    Fixed #788 - Renamed "OpenID Request Object" to "Request Object".
+	  </t>
+	  <t>
+	    Use legal <spanx style="verb">acr</spanx> values in examples.
+	  </t>
+	</list>
+      </t>
+
+      <t>-16
+        <list style="symbols">
+	  <t>
+	    Added Implementation Considerations section.
+	  </t>
+	  <t>
+	    Fixed #698 - Inconsistent use of articles.
+	  </t>
+	  <t>
+	    Fixed #655 - Specify UTF-8 as encoding scheme whenever necessary.
+	  </t>
+	  <t>
+	    To remove ambiguity in the self-issued <spanx style="verb">sub</spanx>
+	    computation, changed the text "the concatenation of the key values" to
+	    "the concatenation of the bytes of the UTF-8 representations of
+	    the base64url encoded key values".
+	  </t>
+	  <t>
+	    Renamed the <spanx style="verb">user_jwk</spanx> Claim to
+	    <spanx style="verb">sub_jwk</spanx>, paralleling the change from
+	    <spanx style="verb">user_id</spanx> to <spanx style="verb">sub</spanx>.
+	  </t>
+	  <t>
+	    Tracked JWK parameter name changes alg -> kty, mod -> n, exp -> e.
+	  </t>
+	  
+        </list></t>
+
+      <t>-15
+        <list style="symbols">
+	  <t>
+	    Fixed #687 - Inconsistency between <spanx style="verb">user_id</spanx>
+	    and <spanx style="verb">prn</spanx> claims.  The fix changed these names:
+	    user_id -> sub, user_id_types_supported -> subject_types_supported,
+	    user_id_type -> subject_type, and prn -> sub.
+	  </t>
+	  <t>
+	    Fixed #689 - Track JWT change that allows JWTs to have multiple audiences.
+	  </t>
+	  <t>
+	    Fixed #539 - Add scope for offline access.
+	  </t>
+	  <t>Re #601 add Initiating login at a client from a third party</t>
+	  <t>
+	    Made the OpenID Foundation Artifact Binding Working Group the change controller for
+	    the values registered with IANA.
+	  </t>
+	  <t>
+	    Moved OAuth error registrations from Standard to Messages
+	    since the errors are defined in Messages and not in Standard.
+	  </t>
+	  <t> Re #657 Changed id_token to id_token_hint in Sec 2.3.1</t>
+        </list></t>
+
+      <t>-14
+        <list style="symbols">
+	  <t>
+	    Fixed #614 - Discovery - 3.2 Distinguishing between signature and integrity parameters for HMAC algorithms.
+	    This fix tracks the parameter changes made to the JWE spec in draft-ietf-jose-json-web-encryption-06.
+	    It deletes the parameters {userinfo,id_token}_encrypted_response_int.
+	    It replaces the parameters {userinfo,id_token,request_object,token_endpoint}_algs_supported
+	    with {userinfo,id_token,request_object,token_endpoint}_signing_alg_values_supported
+	    and {userinfo,id_token,request_object,token_endpoint}_encryption_{alg,enc}_values_supported.
+	  </t>
+	  <t>Fixed #666 - JWS signature validation vs. verification.</t>
+	  <t>Fixed #681 - Change remaining uses of "birthday" to "birthdate".</t>
+	  <t>Fixed #669 - Inconsistent treatment of redirect_uri parameter.</t>
+          <t>Referenced OAuth 2.0 RFCs -- RFC 6749 and RFC 6750.</t>
+      </list></t>
+
+      <t>-13
+        <list style="symbols">
+	  <t>Defined means of using a self-issued OP</t>
+      </list></t>
+
+      <t>-12
+        <list style="symbols">
+	  <t>Updated matching of redirect URI to include query parameters
+	  to match Google's implementation</t>
+      </list></t>
+      
+      <t>-11
+        <list style="symbols">
+	  <t>Removed <spanx style="verb">claims_in_id_token</spanx> scope value,
+	  per decision on June 15, 2012 special working group call</t>
+      </list></t>
+
+      <t>-10
+        <list style="symbols">
+          <t>Changed <spanx style="verb">verified</spanx> to
+	  <spanx style="verb">email_verified</spanx>, per issue #564</t>
+          <t>Added scope value  <spanx style="verb">claims_in_id_token</spanx> as a switch
+	  to indicate that the UserInfo claims should be returned in the
+	  <spanx style="verb">id_token</spanx>, per issue #561</t>
+          <t>Changed  <spanx style="verb">optional</spanx> claim request parameter
+	  to <spanx style="verb">essential</spanx>, per issue #577</t>
+	  <t>Removed Check ID Endpoint, per issue #570</t>
+          <t>Specified that parameters present in both the OpenID Request Object and the
+	  OAuth 2.0 Authorization Request MUST exactly match, per issue #575</t>
+          <t>Changed OpenID Request Object from being specified as a JWT
+	  to being specified as a JWS signed base64url encoded JSON object, per issue #592</t>
+	  <t>Made use of the nonce REQUIRED when using the implicit flow
+	  and OPTIONAL when using the code flow, per issue #569</t>
+          <t>Changed client.example.com to client.example.org, per issue #251</t>
+          <t>Removed example text for generating a nonce via a signed session cookie,
+	  per issue #562</t>
+	  <t>Use standards track version of JSON Web Token spec
+	  (draft-ietf-oauth-json-web-token)</t>
+        </list>
+      </t>
+
+      <t>-09<list style="symbols">
+	  <t>Added error interaction_required and removed
+	  user_mismatched, per issue #523</t>
+	  <t>Changed invalid_request_request_uri to invalid_request_uri and
+	  invalid_request_redirect_uri to invalid_redirect_uri, per issue #553</t>
+	  <t>Added optional id_token to authorization request parameters, per issue #535</t>
+	  <t>Removed use of non-existent scope parameters registry, per issue #558</t>
+	  <t>Updated Notices</t>
+	  <t>Updated References</t>
+	</list></t>
+
+      <t>-08<list style="symbols"> 
+      <t>Updated version number and date</t>
+      <t>Fix #543 Section 2.3.1.3 Request file requiring all request params to be included is false</t>
+      <t>Fix Section 5.1 to reference Messages 2.4.1 rather than 3.3</t>
+      <t>Added reference to CORS for JS clients to userinfo and check_id endpoints</t>
+        </list></t>
+           
+      <t>-07<list style="symbols">
+	  <t>Removed definition and usage for assertion and claim object</t>
+	  <t>Removed Request File Registration Service</t>
+	  <t>Consistent use of End-User</t>
+	  <t>email scope allows access to the 'verified' claim</t>
+	  <t>Removed language pertaining to custom userinfo schemas</t>
+	  <t>Updated error section for refreshing access token</t>
+	  <t>Remove 'audience' parameter from Authorization Request</t>
+	  <t>Moved display=none to prompt=none</t>
+	  <t>Moved IANA considerations from Messages</t>
+	  <t>Check ID Endpoint returns only JSON</t>
+	  <t>Removed PPID scope value</t>
+	  <t>Reference Messages for validation of request object encryption and signature</t>
+	  <t>Redefined 'nonce' in Authorization Request. Changed to REQUIRED parameter.</t>
+	  <t>Changed usage of "approval" to "consent"</t>
+	  <t>Use RFC 6125 to verify TLS endpoints</t>
+	  <t>Added Privacy considerations</t>
+	  <t>Changed 'request_uri' to require HTTPS unless the referenced content is signed
+	    and only needs to be reachable by AS</t>
+	  <t>Added hash and entropy considerations to 'request_uri'</t>
+	  <t>Added requirement to compare user_id from userinfo endpoint to id_token</t>
+	  <t>Check ID Endpoint SHOULD use POST</t>
+	  <t>Changed UserInfo Error Response to augment and return OAuth 2.0 Bearer Token Error Response</t>
+	  <t>Added section about string comparison rules needed</t>
+	  <t>Added Response Encoding according to Multiple Response Types spec</t>
+	  <t>Allows only 'id_token' for 'response_type' parameter in Authorization Request</t>
+	  <t>Clarified redirect_uris matching</t>
+	  <t>Added explanation of select_account</t>
+	  <t>Changed Security Considerations to refer to corresponding section in Messages</t>
+	  <t>Check ID Endpoint uses ID Token as Access Token according to Bearer Token spec</t>
+      <t>Update John Bradley email and affiliation for Implementer's Draft</t>
+	  <t>Removed invalid_authorization_code, invalid_id_token error codes</t>
+        </list></t>
+        
+      <t>-06<list style="symbols">
+          <t>Reworked return type wording in section 4.4.1 per ticket #174.</t>
+
+          <t>Added reference to registered return types.</t>
+
+          <t>Bumped Version number and date.</t>
+          
+          <t>Make clear the server passes the value of nonce through untouched. Ticket #97.</t>
+          <t>Prevent caching of request_uri. Ticket #148.</t>
+          <t>Add nonce to request examples. Ticket #147.</t>
+          <t>Fixed 4.3.1.3 per ticket #150.</t>
+          <t>Fixed 4.3.2 to remove display scopes per ticket #172.</t>
+          <t>Make scope optional for refresh in 5.2.</t>
+          <t>Reference messages 3.2.2 for field definitions in section 5.2.1 per ticket #159.</t>
+          <t>Removed scopes from display value in 4.3.1 per ticket #172.</t>
+          <t>Make "code" and "id_token token" response types mandatory for Authorization Servers to support.</t>
+          
+        </list></t>
+
+      <t>-05<list style="symbols">
+          <t>Changed check_session to check_id.</t>
+
+          <t>schema=openid now required when requesting UserInfo.</t>
+
+          <t>Removed display values popup, touch, and mobile, since not well defined.</t>
+
+          <t>Resolve issue #135, clarifying that the access_token MAY
+          be sent in the message body.</t>
+
+        </list></t>
+
+      <t>-04 <list style="symbols">
+          <t>Changes associated with renaming "Lite" to "Basic Client"
+          and replacing "Core" and "Framework" with "Messages" and
+          "Standard".</t>
+
+          <t>Numerous cleanups, including updating references.</t>
+        </list></t>
+
+      <t>-03 <list style="symbols">
+          <t>Added secret_type to the Token Endpoint.</t>
+
+          <t>Minor edits to the samples.</t>
+        </list></t>
+
+      <t>-02 <list style="symbols">
+          <t>Incorporates feedback from Nat Sakimura.</t>
+        </list></t>
+
+      <t>-01 <list style="symbols">
+          <t>First Draft that incorporates the merge of the Core and Framework
+          specs.</t>
+        </list></t>
+    </section>
+  </back>
+</rfc>

@@ -1,0 +1,1703 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='http://xml.resource.org/authoring/rfc2629.xslt' ?>
+<!DOCTYPE rfc SYSTEM 'rfc2629.dtd' [
+  <!ENTITY OpenID.Core PUBLIC '' 'https://openid.net/bibxml/reference.OpenID.Core.xml'>
+  <!ENTITY OpenID.Registration PUBLIC '' 'https://openid.net/bibxml/reference.OpenID.Registration.xml'>
+]>
+<!--
+  NOTE:  This XML file is input used to produce the authoritative copy of an
+  OpenID Foundation specification.  The authoritative copy is the HTML output.
+  This XML source file is not authoritative.  The statement ipr="none" is
+  present only to satisfy the document compilation tool and is not indicative
+  of the IPR status of this specification.  The IPR for this specification is
+  described in the "Notices" section.  This is a public OpenID Foundation
+  document and not a private document, as the private="..." declaration could
+  be taken to indicate.
+-->
+<rfc category="std" docName="openid-client-initiated-backchannel-authentication-core-02" ipr="none">
+
+  <?rfc toc="yes" ?>
+  <?rfc tocdepth="5" ?>
+  <?rfc symrefs="yes" ?>
+  <?rfc sortrefs="yes"?>
+  <?rfc strict="yes" ?>
+  <?rfc iprnotified="no" ?>
+  <?rfc private="Draft" ?>
+  
+  <front>
+    <title abbrev="CIBA">
+            OpenID Connect Client Initiated Backchannel Authentication Flow - Core 1.0 draft-02</title>
+
+
+    <author fullname="Gonzalo Fernandez Rodriguez" initials="G." surname="Fernandez">
+      <organization abbrev="Telefonica">Telefonica I+D</organization>
+      <address>
+        <email>gonzalo.fernandezrodriguez@telefonica.com</email>
+      </address>
+    </author>
+
+    <author fullname="Florian Walter" initials="F." surname="Walter">
+      <organization abbrev="">Deutsche Telekom AG</organization>
+      <address>
+        <email>F.Walter@telekom.de</email>
+      </address>
+    </author>
+
+    <author fullname="Axel Nennker" initials="A." surname="Nennker">
+      <organization abbrev="">Deutsche Telekom AG</organization>
+      <address>
+        <email>axel.nennker@telekom.de</email>
+      </address>
+    </author>
+
+    <author fullname="Dave Tonge" initials="D." surname="Tonge">
+      <organization abbrev="Moneyhub">Moneyhub</organization>
+      <address>
+        <email>dave.tonge@moneyhub.com</email>
+      </address>
+    </author>
+
+    <author fullname="Brian Campbell" initials="B." surname="Campbell">
+      <organization abbrev="Ping Identity">Ping Identity</organization>
+      <address>
+        <email>bcampbell@pingidentity.com</email>
+      </address>
+    </author>
+
+
+
+    <date />
+    
+    <workgroup>OpenID Mobile Profile Working Group</workgroup>
+
+    <abstract>    
+      <t>
+        OpenID Connect Client Initiated Backchannel Authentication Flow is an authentication
+        flow like OpenID Connect. However, unlike OpenID Connect, there is direct Relying Party to OpenID
+        Provider communication without redirects through the user's browser.
+        This specification allows a Relying Party that knows the user's identifier to obtain tokens from the
+        OpenID Provider. The user consent is given at the user's Authentication Device mediated by the OpenID Provider.
+      </t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="Introduction" title="Introduction">
+      <t>
+        <xref target="OpenID.Core">OpenID Connect</xref> allows Relying Parties (RP) to authenticate their users for clients of all types, including 
+        browser-based JavaScript and native mobile apps, to launch sign-in flows and receive verifiable 
+        assertions about the identity of signed-in users.
+      </t>
+      <t>
+        In all of these flows initiated by the RP, the end-user interaction from the consumption device is 
+        required and, they are based on HTTP redirection mechanisms. However, some use cases not covered by
+        these flows have been raised, where the RP needs to be the initiator of the user authentication flow and end-user interaction
+        from the consumption device is not needed.
+      </t>
+      <t>
+        Client Initiated Backchannel Authentication (CIBA) is a new authentication flow
+        in which RPs, that can obtain a valid identifier for the user they want to authenticate, will be able to
+        initiate an interaction flow to authenticate their users without having end-user interaction
+        from the consumption device. The flow involves direct communication from the Client to the OpenID Provider 
+        without redirect through the user's browser (consumption device).
+      </t>
+      <t>
+        This specification does not change the semantics of the OpenID Connect Authentication flow.
+        It introduces a new endpoint to which the authentication request is posted.
+        It introduces a new asynchronous method for authentication result notification or delivery.
+        It does not introduce new scope values nor does it change the semantics of standard OpenID Connect parameters.
+      </t>
+      <t>
+        As the user does not provide authentication credentials directly to the consumption device, supporting this 
+        flow requires the to OP have some mechanism of initiating user authentication out-of-band from the interaction 
+        with the consumption device.
+      </t>
+      <section anchor="rnc" title="Requirements Notation and Conventions">
+        <t>
+          The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+          "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+          document are to be interpreted as described in <xref target="RFC2119"/>.
+        </t>
+
+        <t>
+          Throughout this document, values are quoted to indicate that they are
+          to be taken literally. When using these values in protocol messages, the
+          quotes MUST NOT be used as part of the value.
+        </t>
+      </section>
+    </section>
+    <section anchor="terminology" title="Terminology">
+      <t>
+        This specification uses the terms "OpenID Provider (OP)" and "Relying Party (RP)" as
+        defined by <xref target="OpenID.Core">OpenID Connect Core</xref>. Furthermore, it uses the term "Client" as
+        defined by <xref target="RFC6749">OAuth 2.0</xref>. OAuth 2.0 Authorization Servers implementing OpenID Connect
+        and CIBA are also referred to as OpenID Providers (OPs). 
+        OAuth 2.0 Clients using OpenID Connect and CIBA are also referred to as Relying Parties (RPs).
+        This specification also uses the following terms: 
+      </t>
+      <t>
+        <list style="hanging">
+          <t hangText="Consumption Device (CD)">
+            The Consumption Device is the device that helps the user consume the service.
+            In the CIBA use case, the user is not necessarily in control of the CD. For example, the CD may be in the control
+            of an RP agent (e.g. at a bank teller) or may be an RP controlled device (e.g. a petrol pump).
+          </t>
+          <t hangText="Authentication Device (AD)">
+            The device on which the user will authenticate and authorize the request, often a smartphone. 
+          </t>
+        </list>
+      </t>
+    </section>
+    <section anchor="overview" title="Overview">
+      <t>
+        Client Initiated Backchannel Authentication (CIBA) enables a Client to initiate the authentication of an end-user 
+        by means of out-of-band mechanisms.
+      </t>
+      <t>
+      <list style="numbers">
+		    <t>
+          The Client shall make an "HTTP POST" request to the Backchannel Authentication Endpoint to ask for end-user
+          authentication. 
+		    </t>
+		    <t>
+          The OP will respond immediately with a unique identifier that identifies that authentication while it tries 
+          to authenticate the user in the background. 
+		    </t>
+		    <t>
+          The Client will receive the ID Token, Access Token and optionally Refresh Token by means of either the Poll,  
+          Ping or Push modes, this choice MUST be established by the Client at registration time.
+          <list style="hanging">
+           <t hangText="Poll Mode">
+              When configured in Poll mode, the Client will poll the token endpoint to get a response with the tokens. 
+            </t>
+          <t hangText="Ping Mode">
+              When configured in Ping mode, the OP will send a request to a callback URI previously
+              registered by the Client with the unique identifier returned from the Backchannel Authentication Endpoint.
+              Upon receipt of the notification, the Client makes a request to the token endpoint to obtain the tokens.
+            </t>
+            <t hangText="Push Mode">
+              When configured in Push mode, the OP will send a request with the tokens to a callback URI previously
+              registered by the Client.
+            </t>
+
+          </list>
+        </t>
+		  </list>
+      </t>
+    </section>
+   <section anchor="registration" title="Registration and Discovery Metadata">
+   <t>
+      <list style="hanging">
+        <t hangText="Grant Type">
+          This specification introduces the CIBA grant type (an extension grant type as defined by
+          Section 4.5 of <xref target="RFC6749">OAuth 2.0</xref>) with the value: 
+          <spanx style="verb">urn:openid:params:grant-type:ciba</spanx>
+        </t>
+        <t hangText="OpenID Provider Metadata">
+          The following authorization server metadata parameters are introduced by this specification for OPs
+          publishing their support of the CIBA flow and details thereof.
+        </t>
+        <t>
+          <list style="symbols">
+            <t><spanx style="verb">backchannel_token_delivery_modes_supported</spanx>: REQUIRED. JSON array containing one or more of the
+            following values: <spanx style="verb">poll</spanx>, <spanx style="verb">ping</spanx> and <spanx style="verb">push</spanx>.</t>
+            <t><spanx style="verb">backchannel_authentication_endpoint</spanx>: REQUIRED. URL of the OP's Backchannel Authentication Endpoint
+              as defined in <xref target="auth_backchannel_endpoint"/>.</t>
+            <t><spanx style="verb">backchannel_authentication_request_signing_alg_values_supported</spanx>:
+              OPTIONAL. JSON array containing a list of the JWS signing algorithms (alg values) supported by the OP for signed authentication requests,
+              which are described in <xref target="signed_auth_request"/>.
+              If omitted, signed authentication requests are not supported by the OP.</t>
+            <t><spanx style="verb">backchannel_user_code_parameter_supported</spanx>:
+            OPTIONAL. Boolean value specifying whether the OP supports use of the <spanx style="verb">user_code</spanx> parameter, with true indicating support. If omitted, the default value is false.
+            </t>
+          </list>
+        </t>
+        <t>
+          The CIBA grant type is used in the <spanx style="verb">grant_types_supported</spanx> field of discovery metadata for OPs that support the ping or poll delivery modes.
+        </t>
+        <t>
+          The supported client authentication methods and, when applicable, the associated JWS signing
+          algorithms of the OP's Backchannel Authentication Endpoint are the same as those
+          indicated by the <spanx style="verb">token_endpoint_auth_methods_supported</spanx> and
+          <spanx style="verb">token_endpoint_auth_signing_alg_values_supported</spanx> metadata parameters respectively.
+        </t>
+
+        <t hangText="Client Metadata">
+          Clients registering to use CIBA MUST indicate a token delivery mode. When using the ping or poll mode, the Client MUST
+          include the CIBA grant type in the "grant_types" field. When using the ping or push mode, the Client MUST register a client notification
+          endpoint. Clients intending to send signed authentication requests MUST register the signature algorithm that will be used.
+          The following parameters are introduced by this specification:
+        </t>
+        <t>
+          <list style="symbols">
+            <t><spanx style="verb">backchannel_token_delivery_mode</spanx>: REQUIRED. One of the following values: <spanx style="verb">poll</spanx>,
+            <spanx style="verb">ping</spanx> or <spanx style="verb">push</spanx>.</t>
+            <t><spanx style="verb">backchannel_client_notification_endpoint</spanx>: REQUIRED if the token delivery mode is set to
+            <spanx style="verb">ping</spanx> or <spanx style="verb">push</spanx>. This is the endpoint to which the OP will post a notification after a successful or failed end-user authentication.
+            It MUST be an HTTPS URL.
+            </t>
+            <t><spanx style="verb">backchannel_authentication_request_signing_alg</spanx>:
+            OPTIONAL. The JWS algorithm <spanx style="verb">alg</spanx> value that the Client will use for signing authentication request, as described in <xref target="signed_auth_request"/>.
+            When omitted, the Client will not send signed authentication requests.</t>
+            <t><spanx style="verb">backchannel_user_code_parameter</spanx>:
+            OPTIONAL. Boolean value specifying whether the Client supports the <spanx style="verb">user_code</spanx> parameter. If omitted, the default value is false.
+            This parameter only applies when OP parameter <spanx style="verb">backchannel_user_code_parameter_supported</spanx> is true.
+            </t>
+          </list>
+        </t>
+        <t>
+          The <spanx style="verb">token_endpoint_auth_method</spanx> indicates the registered authentication method for the
+          client to use when making direct requests to the OP, including requests to both the token endpoint and
+          the backchannel authentication endpoint.
+        </t>
+
+
+    
+            <t hangText="Poll and Ping Modes with Pairwise Identifiers">
+              In order to use the Poll or Ping mode with Pairwise Pseudonymous Identifiers (PPIDs),
+              the Client needs to register a URI that is of its ownership and use it during the authentication process in a way that demonstrates 
+              that the URI belongs to it, which allows the OP to consider the host component of that URI as the Sector Identifier for the pairwise 
+              identifier calculation per <eref target="https://openid.net/specs/openid-connect-core-1_0.html#PairwiseAlg">Section 8.1 of OpenID 
+              Connect Core</eref>.
+            </t>
+            <t>
+              The only way that CIBA generates Pairwise Pseudonymous Identifiers in Ping and Poll modes is by providing a "jwks_uri" at the 
+              registration phase when the "urn:openid:params:grant-type:ciba" grant type is registered. In that way 
+              the OpenID Provider can use the host component of the "jwks_uri" as the Sector Identifier to generate the PPIDs for the Client. 
+              So, when an OpenID Provider that supports PPIDs receives a dynamic registration request for a Client that indicates that it wishes 
+              to use the Poll or Ping CIBA modes, it MUST check if a valid "jwks_uri" is set when the "subject_type" is "pairwise".
+
+              If a "sector_identifier_uri" is explicitly provided, then the "jwks_uri" must be included in the list of URIs pointed to by 
+              the "sector_identifier_uri".
+            </t>            
+            <t>
+              But having registered a "jwks_uri" is not enough to use PPIDs, Client needs somehow to demonstrate that such "jwks_uri" belongs to it,
+              which can be accomplished by proving possession of a private key corresponding to one of the public keys published at the "jwks_uri".
+              Such proof can be demonstrated with signed authentication requests using the asymmetric keys provided by the "jwks_uri" or
+              by authenticating to the OP using one of the following two mechanisms in conjunction with a key from its "jwks_uri":
+              <vspace />
+              <vspace />
+              <list style="numbers">
+                <t>
+                  Using the <eref target="https://tools.ietf.org/html/draft-ietf-oauth-mtls#section-2.2">Self-Signed Certificate Mutual TLS OAuth Client Authentication Method</eref> as defined in section 2.2 of
+                  <xref target="I-D.ietf-oauth-mtls"/>.
+                </t> 
+                <t>
+                  Using the private_key_jwt method as per the section 9 <eref target="https://openid.net/specs/openid-connect-core-1_0.html#ClientAuthentication">Client Authentication</eref>
+                  of <xref target="OpenID.Core"/>.
+                </t> 
+              </list>
+            </t>
+
+            <t hangText="Push Mode with Pairwise Identifiers">
+              When using the Push mode, the PPIDs will use the host component of the "backchannel_client_notification_endpoint" as the Sector Identifier. 
+              In case a "sector_identifier_uri" is explicitly provided, then the "backchannel_client_notification_endpoint" must be included in the 
+              list of URIs pointed to by the "sector_identifier_uri".
+            </t>      
+        </list>
+        <figure>
+          <preamble>The following is a non-normative example from a dynamic registration request that contains the CIBA grant type
+          as required and a "jwks_uri" (with line wraps within values for display purposes only).
+          </preamble>
+          <artwork>
+              <![CDATA[
+    POST /connect/register HTTP/1.1
+    Content-Type: application/json
+    Accept: application/json
+    Host: server.example.com
+    Authorization: Bearer eyJhbGciOiJSUzI1NiJ9.eyJ ...
+
+    {
+        "application_type": "web",
+        "client_name": "My Example",
+        "logo_uri": "https://client.example.org/logo.png",
+        "subject_type": "pairwise",
+        "token_endpoint_auth_method": "private_key_jwt",
+        "grant_types": ["urn:openid:params:grant-type:ciba"],
+        "backchannel_token_delivery_mode": "poll",
+        "jwks_uri": "https://client.example.org/my_public_keys.jwks",
+        "userinfo_encrypted_response_alg": "RSA1_5",
+        "userinfo_encrypted_response_enc": "A128CBC-HS256",
+        "contacts": ["ve7jtb@example.org", "mary@example.org"]
+    }
+                ]]>
+          </artwork>
+        </figure>      
+      </t>
+    </section>
+
+   <section title='Poll, Ping and Push Modes'>
+
+      <t>
+        This specification allows the Client to get the authentication result in three ways: poll, ping or push.
+      </t>
+      <t>
+        In the Poll mode, the authentication result is retrieved by the Client by polling the OP's token endpoint using the new grant type. 
+      </t>
+      <t>
+        In the Ping mode, the OP will post the unique identifier of the authentication session to the Client, the
+        Client will then retrieve the authentication result from the token endpoint using the new grant type.
+      </t>
+      <t>
+        In the Push mode, the OP will post the full authentication result to the Client.
+      </t>
+   
+
+      <figure>
+        <preamble>
+        CIBA Poll Mode is illustrated in the following diagram:
+        </preamble>
+        <artwork>
+        +--------+                                               +--------+
+        |        |                                               |        |
+        |        |&lt;---(1) CIBA Request--------------------------&gt;|        |
+        |        |                                               |        |
+        |        |  +--------+                                   |        |
+        |        |  |        |                                   |        |
+        | Client |  |   AD   |&lt;--(2) User interactions----------&gt;|   OP   |
+        |        |  |        |                                   |        |
+        |        |  +--------+                                   |        |
+        |        |                                               |        |
+        |        |----(3a) CIBA Polling Request-----------------&gt;|        |
+        |        |&lt;---(3b) CIBA Polling Response-----------------|        |
+        |        |                ...                            |        |
+        |        |----(3a) CIBA Polling Request-----------------&gt;|        |
+        |        |&lt;---(3b) CIBA Polling Response-----------------|        |
+        |        |                                               |        |
+        +--------+                                               +--------+
+        </artwork>
+      </figure>
+
+      <figure>
+        <preamble>
+        CIBA Ping Mode is illustrated in the following diagram:
+        </preamble>
+        <artwork>
+        +--------+                                               +--------+
+        |        |                                               |        |
+        |        |&lt;---(1) CIBA Request--------------------------&gt;|        |
+        |        |                                               |        |
+        |        |  +--------+                                   |        |
+        |        |  |        |                                   |        |
+        | Client |  |  AD    |&lt;--(2) User interactions----------&gt;|   OP   |
+        |        |  |        |                                   |        |
+        |        |  +--------+                                   |        |
+        |        |                                               |        |
+        |        |&lt;---(3) CIBA Ping Callback---------------------|        |
+        |        |                                               |        |
+        |        |----(4a) CIBA Token Request-------------------&gt;|        |
+        |        |&lt;---(4b) CIBA Token Response-------------------|        |
+        +--------+                                               +--------+
+        </artwork>
+      </figure>
+
+      <figure>
+        <preamble>
+        CIBA Push Mode is illustrated in the following diagram:
+        </preamble>
+        <artwork>
+        +--------+                                               +--------+
+        |        |                                               |        |
+        |        |&lt;---(1) CIBA Request--------------------------&gt;|        |
+        |        |                                               |        |
+        |        |  +--------+                                   |        |
+        |        |  |        |                                   |        |
+        | Client |  |  AD    |&lt;--(2) User interactions----------&gt;|   OP   |
+        |        |  |        |                                   |        |
+        |        |  +--------+                                   |        |
+        |        |                                               |        |
+        |        |&lt;---(3) CIBA Push Callback---------------------|        |
+        |        |                                               |        |
+        +--------+                                               +--------+
+        </artwork>
+      </figure>
+    </section>
+
+    <section title='Example Use Cases'>
+        <t>The following use cases are non-normative examples to illustrate the usage of this specification.</t>
+        <t>
+        <list style="numbers">
+        <t>A call center agent wants to authenticate a caller. 
+        Using additional scopes like e.g. "profile" or "phone" the call center agent would get access to claims
+        about the user like "phone_number" and "phone_number_verified".
+        </t>
+        <t>A bank teller wants to authenticate a customer in a bank branch - using CIBA for authentication in a face-to-face scenario.
+        </t>
+        <t>
+          A user wants to use their smartphone to authorize a payment they are making at a point of sale terminal.
+        </t>
+        </list>
+        </t>
+    </section>
+
+    <section anchor="auth_backchannel_endpoint" title="Backchannel Authentication Endpoint">
+      <t>
+        The Backchannel Authentication Endpoint is used to initiate an out-of-band authentication of the end-user. This is done by sending an HTTP
+        POST message directly from the Client to the OpenID Provider's Backchannel Authentication Endpoint, using 
+        a request defined in the following subsections.
+      </t>
+      <t>
+        Communication with the Backchannel Authentication Endpoint MUST utilize TLS. See Section 16.17 <xref target="OpenID.Core"/>
+        for more information on using TLS.
+      </t>
+
+      <section anchor="auth_request" title="Authentication Request">
+        <t>
+          Client Initiated Backchannel Authentication defines an authentication request that is requested directly from
+          the Client to the OpenID Provider without going through the user's browser. The Client MUST send an authentication 
+          request to the OpenID Provider by building an "HTTP POST" request that will take to the OpenID Provider all the 
+          information needed to authenticate the user without asking them for their identifier.      
+        </t>
+        <t>
+          The Client MUST authenticate to the Backchannel Authentication Endpoint using the authentication method registered for its 
+          client_id, such as the authentication methods from Section 9 of <xref target="OpenID.Core"/> or authentication methods
+          defined by extension in other specifications.
+        </t>
+        <t>
+          An authentication request is composed of the following parameters and MAY contain additional parameters defined by extension or profile:
+        </t>
+        <t>
+          <list style="hanging">
+            <t hangText="scope">
+              REQUIRED.
+              The scope of the access request as described by Section 3.3 of <xref target="RFC6749"/>.
+              OpenID Connect implements authentication as an extension to OAuth 2.0 by including the
+              <spanx style="verb">openid</spanx> scope value in the authorization requests. Consistent with that,
+              CIBA authentication requests MUST therefore contain the <spanx style="verb">openid</spanx> scope value.
+              The behavior when the <spanx style="verb">openid</spanx> scope value is not present is left unspecified by this document,
+              thus allowing for the potential definition of the behavior in a non OpenID context, such as an OAuth authorization flow.
+              Other scope values MAY be present, including but not limited to the
+              <spanx style="verb">profile</spanx>, <spanx style="verb">email</spanx>, <spanx style="verb">address</spanx>
+              and <spanx style="verb">phone</spanx> scope values from Section 5.4 of <xref target="OpenID.Core"/>.
+            </t>
+            <t hangText="client_notification_token">
+              REQUIRED if the Client is registered to use Ping or Push modes. 
+              It is a bearer token provided by the Client that will be used by the OpenID Provider to authenticate the callback request to the Client.
+              The length of the token MUST NOT exceed 1024 characters and it MUST conform to the syntax for Bearer credentials as defined in Section 2.1 of <xref target="RFC6750"/>.
+              Clients MUST ensure that it contains sufficient entropy (a minimum of 128 bits while 160 bits is recommended) to make
+              brute force guessing or forgery of a valid token computationally infeasible - the means of achieving this are implementation specific,
+              with possible approaches including secure pseudorandom number generation or cryptographically secured self-contained tokens.
+            </t>
+            <t hangText="acr_values">
+              OPTIONAL. Requested Authentication Context Class Reference values.
+              Space-separated string that specifies the acr values that the OpenID Provider is being requested to use for
+              processing this Authentication Request, with the values appearing in order of preference.
+              The actual means of authenticating the end-user, however, are ultimately at the discretion of the OP and
+              the Authentication Context Class satisfied by the authentication performed is returned as the <spanx style="verb">acr</spanx> Claim Value of the ID Token.
+              When the <spanx style="verb">acr_values</spanx> parameter is present in the authentication request, it is highly RECOMMENDED that the resulting ID Token
+              contain an <spanx style="verb">acr</spanx> Claim.
+            </t>
+
+            <t hangText="login_hint_token">
+              OPTIONAL.
+              A token containing information identifying the end-user for whom authentication is being requested.
+              The particular details and security requirements for the <spanx style="verb">login_hint_token</spanx> as well as how
+              the end-user is identified by its content are deployment or profile specific.
+            </t>
+
+            <t hangText="id_token_hint">
+              OPTIONAL.
+              An ID Token previously issued to the Client by the OpenID Provider being passed back as a hint to identify
+              the end-user for whom authentication is being requested.
+              If the ID Token received by the Client from the OP was encrypted, to use it as an id_token_hint,
+              the client MUST decrypt the encrypted ID Token to extract the signed ID Token contained in it.
+            </t> 
+            <t hangText="login_hint">
+              OPTIONAL.
+              A hint to the OpenID Provider regarding the end-user for whom authentication is being requested.
+              The value may contain an email address, phone number, account number, subject identifier, username, etc., which
+              identifies the end-user to the OP. The value may be directly collected from the user by the Client before
+              requesting authentication at the OP, for example, but may also be obtained by other means.
+            </t>
+            <t hangText="binding_message">
+              OPTIONAL.
+              A human readable identifier or message intended to be displayed on both the consumption device and the authentication device
+              to interlock them together for the transaction by way of a visual cue for the end-user. This interlocking message
+              enables the end-user to ensure that the action taken on the authentication device is related to the
+              request initiated by the consumption device.
+              The value SHOULD contain something that enables the end-user to reliably discern that the transaction is related across the consumption device and the authentication device,
+              such as a random value of reasonable entropy (e.g. a transactional approval code).
+              Because the various devices involved may have limited display abilities and the message is intending for visual inspection by the end-user,
+              the <spanx style="verb">binding_message</spanx> value
+              SHOULD be relatively short and use a limited set of plain text characters.
+              The <spanx style="verb">invalid_binding_message</spanx> defined in <xref target="auth_error_response"/> is used in the case
+              that it is necessary to inform the Client that the provided <spanx style="verb">binding_message</spanx> is unacceptable.
+            </t>
+            <t hangText="user_code">
+              OPTIONAL. A secret code, such as password or pin, known only to the user but verifiable by the OP. The code is used to authorize sending an authentication request to user's authentication device. 
+              This parameter should only be present if client registration parameter <spanx style="verb">backchannel_user_code_parameter</spanx> indicates support for user code.
+            </t>
+            <t hangText="requested_expiry">
+              OPTIONAL. A positive integer allowing the client to request the <spanx style="verb">expires_in</spanx> value for
+              the <spanx style="verb">auth_req_id</spanx> the server will return.
+              The server MAY use this value to influence the lifetime of the authentication request and is encouraged
+              to do so where it will improve the user experience, for example by terminating the authentication when as it knows
+              the client is no longer interested in the result.
+            </t>
+          </list>
+        </t>
+        <t>
+          As in the CIBA flow the OP does not have an interaction with the end-user through the consumption device,
+          it is REQUIRED that the Client provides one (and only one) of the hints specified above in the authentication request, that is "login_hint_token", 
+          "id_token_hint" or "login_hint".
+        </t>
+        <t>
+          An authentication request is made using the
+          HTTP <spanx style='verb'>POST</spanx> method with the aforementioned
+          parameters in the <spanx style='verb'>application/x-www-form-urlencoded</spanx>
+          format and a character encoding of UTF-8 in the HTTP request entity-body.
+          When applicable, additional parameters required by the given client authentication method
+          are also included (e.g. JWT assertion based client authentication uses
+          <spanx style="verb">client_assertion</spanx> and <spanx style="verb">client_assertion_type</spanx>
+          while Mutual TLS client authentication uses <spanx style="verb">client_id</spanx>).
+        </t>
+        <figure>
+          <preamble>The following is a non-normative example of an authentication request (with line wraps within values for display purposes only):
+          </preamble>
+          <artwork>
+       <![CDATA[
+   POST /bc-authorize HTTP/1.1
+   Host: server.example.com
+   Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
+   Content-Type: application/x-www-form-urlencoded
+
+   scope=openid%20email%20example-scope&
+   client_notification_token=8d67dc78-7faa-4d41-aabd-67707b374255&
+   binding_message=W4SCT&
+   login_hint_token=eyJraWQiOiJsdGFjZXNidyIsImFsZyI6IlJTMjU2In0.eyJ
+   zdWJqZWN0Ijp7InN1YmplY3RfdHlwZSI6InBob25lIiwicGhvbmUiOiIrMTMzMDI
+   4MTgwMDQifX0.YB8_8OksJd1FwfVsIUlH-rs9cPhkIa0DUi7OVW_Da9gP6huBxf7
+   aSDl3qKXA20uT1zThuSiYz0bdz8J_KPRHuC6vwoFlz9yBJ9ksWOP28sHPPi19_4-
+   xidwnb8P12-RoXwY2eAF82_NAn2vmpvqUjluoWyNHay8vguChIutqziV0bFl-7oa
+   xp36i4elbvT_DYeg20a0jz4wIBKc_46K8I28ErkwbI5O35GfElPXl-4J55NHkkOs
+   DxuUYQtWjSM3wme19735XWq2DIT2nmLFi4HzzT27W0cnJg7L_ai9uNNBvIx_Mp5A
+   bcmkR83apR4jxnQuE5Xf23qyRpAhawe7IPQ
+       ]]>
+          </artwork>
+        </figure>
+        <section title="Signed Authentication Request" anchor="signed_auth_request">
+        <t>
+          A signed authentication request is made by encoding all of the authentication request parameters as
+          claims of a signed JWT, with each parameter name as the claim name and its value as a JSON string.
+          The JWT MUST contain all of the authentication request parameters.
+          The JWT MUST be secured with an asymmetric signature and follow the guidance from
+          <eref target="https://openid.net/specs/openid-connect-core-1_0.html#Signing">Section 10.1</eref> of
+          <xref target="OpenID.Core"/> regarding asymmetric signatures.
+          The JWT MUST also contain the following <xref target="RFC7519"/> registered claims:
+        </t>
+        <t>
+          <list style="hanging">
+            <t hangText="aud">
+              The Audience claim MUST contain the value of the Issuer Identifier for the OP, which identifies the Authorization Server as an intended audience.
+            </t>
+            <t hangText="iss">
+              The Issuer claim MUST be the <spanx style="verb">client_id</spanx> of the OAuth Client.
+            </t>
+            <t hangText="exp">
+              An expiration time that limits the validity lifetime of the signed authentication request.
+            </t>
+            <t hangText="iat">
+              The time at which the signed authentication request was created.
+            </t>
+            <t hangText="nbf">
+              The time before which the signed authentication request is unacceptable.
+            </t>
+            <t hangText="jti">
+              A unique identifier for the signed authentication request.
+            </t>
+          </list>
+        </t>
+        <t>
+          The signed authentication request JWT is passed as an <spanx style='verb'>application/x-www-form-urlencoded</spanx>
+          HTTP request parameter with the name <spanx style='verb'>request</spanx>. Authentication request parameters
+          MUST NOT be present outside of the JWT, in particular they MUST NOT appear as HTTP request parameters.
+          Additional HTTP request parameters as required by the given client authentication method, however, MUST be
+          included as <spanx style='verb'>application/x-www-form-urlencoded</spanx>
+          parameters (e.g.  Mutual TLS client authentication uses <spanx style="verb">client_id</spanx>
+          while JWT assertion based client authentication uses
+          <spanx style="verb">client_assertion</spanx> and <spanx style="verb">client_assertion_type</spanx>).
+        </t>
+        <figure>
+          <preamble>For example, a signed authentication request using the same authentication request parameters and values
+            as the example from the previous section would look like the following (with line wraps within values for display purposes only):
+          </preamble>
+          <artwork>
+            <![CDATA[
+   POST /bc-authorize HTTP/1.1
+   Host: server.example.com
+   Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
+   Content-Type: application/x-www-form-urlencoded
+
+   request=eyJraWQiOiJsdGFjZXNidyIsImFsZyI6IlJTMjU2In0.eyJpc3MiOiJz
+   NkJoZFJrcXQzIiwiYXVkIjoiaHR0cHM6Ly9zZXJ2ZXIuZXhhbXBsZS5jb20iLCJl
+   eHAiOjE1Mzc4MjAwODYsImlhdCI6MTUzNzgxOTQ4NiwibmJmIjoxNTM3ODE4ODg2
+   LCJqdGkiOiI0TFRDcUFDQzJFU0M1QldDbk4zajU4RW5BIiwic2NvcGUiOiJvcGVu
+   aWQgZW1haWwgZXhhbXBsZS1zY29wZSIsImNsaWVudF9ub3RpZmljYXRpb25fdG9r
+   ZW4iOiI4ZDY3ZGM3OC03ZmFhLTRkNDEtYWFiZC02NzcwN2IzNzQyNTUiLCJiaW5k
+   aW5nX21lc3NhZ2UiOiJXNFNDVCIsImxvZ2luX2hpbnRfdG9rZW4iOiJleUpyYVdR
+   aU9pSnNkR0ZqWlhOaWR5SXNJbUZzWnlJNklsSlRNalUySW4wLmV5SnpkV0pxWldO
+   MElqcDdJbk4xWW1wbFkzUmZkSGx3WlNJNkluQm9iMjVsSWl3aWNHaHZibVVpT2lJ
+   ck1UTXpNREk0TVRnd01EUWlmWDAuWUI4XzhPa3NKZDFGd2ZWc0lVbEgtcnM5Y1Bo
+   a0lhMERVaTdPVldfRGE5Z1A2aHVCeGY3YVNEbDNxS1hBMjB1VDF6VGh1U2lZejBi
+   ZHo4Sl9LUFJIdUM2dndvRmx6OXlCSjlrc1dPUDI4c0hQUGkxOV80LXhpZHduYjhQ
+   MTItUm9Yd1kyZUFGODJfTkFuMnZtcHZxVWpsdW9XeU5IYXk4dmd1Q2hJdXRxemlW
+   MGJGbC03b2F4cDM2aTRlbGJ2VF9EWWVnMjBhMGp6NHdJQktjXzQ2SzhJMjhFcmt3
+   Ykk1TzM1R2ZFbFBYbC00SjU1Tkhra09zRHh1VVlRdFdqU00zd21lMTk3MzVYV3Ey
+   RElUMm5tTEZpNEh6elQyN1cwY25KZzdMX2FpOXVOTkJ2SXhfTXA1QWJjbWtSODNh
+   cFI0anhuUXVFNVhmMjNxeVJwQWhhd2U3SVBRIn0.IBuxW3F_L9tj9f6fGC7FnVsH
+   9B9RoJYA8QyxtnxgOgMc1kcnufyGxdtd7lU1TjPCVNsbkR0vfGasCmoMYSMohPOb
+   nwAlkm8Yf0uglhxM83B0dj_I10vwlMGnVFvydaH9wnacM4Ln7E-JIYOxtZa33abf
+   1PB3fLs29GKOBmgNPn3NrxJ0iCLb0F243556Ypzdhcyj7vM8ukNzkKT3eQ0ZWJ1v
+   VRToThgKyIN-HvLFpeSfJtSH5ycMYOjob-qXUgKpQryUbgbpqsM1XnUV-8aBD5d8
+   VF5fQoz0PQWq63B_zpC22nstIFxNmfxztSFpnW0vgX0htNKOtL_HMwFRfwh71g
+       ]]>
+          </artwork>
+        </figure>
+
+      <figure>
+        <preamble>Where the following is the JWT payload (with line wraps and added whitespace for display purposes only):
+        </preamble>
+        <artwork>
+          <![CDATA[
+    {
+     "iss": "s6BhdRkqt3",
+     "aud": "https://server.example.com",
+     "exp": 1537820086,
+     "iat": 1537819486,
+     "nbf": 1537818886,
+     "jti": "4LTCqACC2ESC5BWCnN3j58EnA",
+     "scope": "openid email example-scope",
+     "client_notification_token": "8d67dc78-7faa-4d41-aabd-67707b374255",
+     "binding_message": "W4SCT",
+     "login_hint_token": "eyJraWQiOiJsdGFjZXNidyIsImFsZyI6IlJTMjU2I
+       n0.eyJzdWJqZWN0Ijp7InN1YmplY3RfdHlwZSI6InBob25lIiwicGhvbmUiO
+       iIrMTMzMDI4MTgwMDQifX0.YB8_8OksJd1FwfVsIUlH-rs9cPhkIa0DUi7OV
+       W_Da9gP6huBxf7aSDl3qKXA20uT1zThuSiYz0bdz8J_KPRHuC6vwoFlz9yBJ
+       9ksWOP28sHPPi19_4-xidwnb8P12-RoXwY2eAF82_NAn2vmpvqUjluoWyNHa
+       y8vguChIutqziV0bFl-7oaxp36i4elbvT_DYeg20a0jz4wIBKc_46K8I28Er
+       kwbI5O35GfElPXl-4J55NHkkOsDxuUYQtWjSM3wme19735XWq2DIT2nmLFi4
+       HzzT27W0cnJg7L_ai9uNNBvIx_Mp5AbcmkR83apR4jxnQuE5Xf23qyRpAhaw
+       e7IPQ"
+    }
+       ]]>
+        </artwork>
+      </figure>
+
+          <t>Note that encrypted JWT authentication requests are not supported.</t>
+        </section>
+        <section title="User Code" anchor="user_code">
+          <t>
+            User code is a mechanism to prevent unsolicited authentication requests from appearing on a user's authentication device.
+          </t>
+          <t>
+            It is optional for the OP to implement user code functionality. If the OP implements user code functionality then it may allow 1) clients without user code and 2) users without user code.
+          </t>
+          <t>
+            Typically clients that establish a security context with the user prior to sending a CIBA request should be allowed without user code. Example use cases of client security context are web applications that use CIBA for step-up authentication or call center applications where a caller ID is used to identify the user.
+          </t>
+          <t>
+            The OP declares support for user code with the provider metadata parameter <spanx style="verb">backchannel_user_code_parameter_supported</spanx>.
+          </t>
+          <t>
+            The Client registration parameter <spanx style="verb">backchannel_user_code_parameter</spanx> specifies if support for user code is required from the Client.
+          </t>
+          <t>
+            A client may detect users who require a user code from the authentication request error code. For example a client may first attempt an authentication request without a user code, and only prompt for a user code if it receives the error code <spanx style="verb">missing_user_code</spanx>.
+          </t>
+          <t>
+            The Client MUST NOT store the user code, but should rather request it from the user 
+            for each CIBA flow.
+          </t>
+          <t>
+            Registering a user code for a user is not in scope of this specification. Examples include 
+            a facility provided by the authentication device, SMS text messages or other service provided 
+            by the OP. OPs should provide a method for the user to change the user code.
+          </t>          
+        </section>        
+    </section>
+
+      <section anchor="auth_request_validation" title="Authentication Request Validation">
+        <t>
+          The OpenID Provider MUST validate the request received as follows:
+        </t>
+        <t>
+          <list style="numbers">
+            <t>
+              Authenticate the Client per the authentication method registered or configured for its client_id.
+              It is RECOMMENDED that Clients not send shared secrets in the Authentication Request but rather that
+              public key cryptography be used.
+            </t>
+            <t>
+              If the authentication request is signed, validate the JWT sent with the <spanx style='verb'>request</spanx> parameter, which includes
+              verifying the signature and ensuring that the JWT is valid in all other respects per <xref target="RFC7519"/>.
+            </t>
+            <t>
+              Validate all the authentication request parameters.
+              In the event the request contains more than one of the hints specified in <xref target="auth_request">Authentication Request</xref>,
+              the OpenID Provider MUST return an "invalid_request" error response as per <xref target="auth_error_response"/>.
+            </t>
+            <t>
+              The OpenID Provider MUST process the hint provided to determine if the hint is valid and if it corresponds to a valid user. The type, issuer (where applicable) and maximum age (where applicable) of a hint that an OP accepts should be communicated to Clients. How the OP validates hints and informs Clients of its hint requirements is out-of-scope of this specification.
+            </t>
+               
+            <t>
+              If the hint is not valid or if the OP is not able to determine the user then 
+              an error should be returned to the Client as per Section <xref target="auth_error_response" format="title"/>.
+            </t>
+            <t>
+              The OpenID Provider MUST verify that all the REQUIRED parameters are present and their usage conforms to this 
+              specification.
+            </t>
+          </list>
+        </t>
+        <t>
+            OpenID Providers SHOULD ignore unrecognized request parameters.
+        </t>          
+        <t>
+            If the OpenID Provider encounters any error, it MUST return an error response, per <xref target="auth_error_response"/>.
+         </t>       
+      </section>
+
+      <section anchor="successful_authentication_request_acknowdlegment" title="Successful Authentication Request Acknowledgement">
+        <t>
+          If the <xref target="auth_request" format="title"/> is validated as per Section <xref target="auth_request_validation" format="title"/>, 
+          the OpenID Provider will return an HTTP 200 OK response to the Client
+          to indicate that the authentication request has been accepted and it is going to be processed. The body of this response will contain:
+        </t>
+        <t>
+          <list style="hanging">
+            <t hangText="auth_req_id">
+              REQUIRED. This is a unique identifier to identify the authentication request made by the Client. It MUST contain sufficient
+              entropy (a minimum of 128 bits while 160 bits is recommended) to make
+              brute force guessing or forgery of a valid <spanx style="verb">auth_req_id</spanx> computationally infeasible -
+              the means of achieving this are implementation specific,
+              with possible approaches including secure pseudorandom number generation or cryptographically secured self-contained tokens.
+             </t>
+            <t hangText="expires_in">
+              REQUIRED. A JSON number with a positive integer value indicating the expiration time of the "auth_req_id" in seconds since the authentication request was received. A Client calling the token endpoint with an expired <spanx style="verb">auth_req_id</spanx> will receive an error, see <xref target="token_error_response" format="title"/>.
+             </t>
+            <t hangText="interval">
+              OPTIONAL. A JSON number with a positive integer value indicating the minimum amount of time in seconds that the Client MUST wait between polling requests to the token endpoint.
+              This parameter will only be present if the Client is registered to use the Poll or Ping modes.
+             </t>
+          </list>
+        </t>
+        <figure> 
+          <preamble>The following is a non-normative example of an authentication response:
+          </preamble>
+          <artwork>
+            <![CDATA[
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+
+    {
+      "auth_req_id": "1c266114-a1be-4252-8ad1-04986c5b9ac1",
+      "expires_in": 3600,
+      "interval": 2
+    }
+            ]]>
+          </artwork>
+        </figure>      
+      </section>
+
+      <section anchor="auth_request_acknowdlegment_validation" title="Authentication Request Acknowledgment Validation">
+        <t>
+          If the Client receives an HTTP 200 OK, it MUST validate that all the required parameters are received. 
+        </t>
+        <t>
+          The Client MUST keep the <spanx style="verb">auth_req_id</spanx> in order to validate the callbacks received in Ping and Push modes or to use when making a token request in Poll and Ping modes.
+        </t>
+        <t>
+          The Client should store the expiration time in order to clean up authentication requests for which
+          no Ping Callback or Push Callback is received. 
+        </t>
+      </section>
+
+    </section>
+
+    <section anchor="auth_server_obtains_consent" title="OpenID Provider Obtains End-User Consent/Authorization">
+      <t>
+        After the OP has validated the Authentication Request, the OP identifies the user and chooses a channel to 
+        best authenticate the user and authorize the request, in line with the Client's requests regarding
+        acr_values. Typically this involves the OP initiating an interactive session on the user's authentication device. 
+      </t>
+      <t>
+        Once the end-user is authenticated, the OpenID Provider MUST obtain an authorization decision as described 
+        in Section 3.1.2.4 of <xref target="OpenID.Core"/>.
+      </t>
+      <t>
+        When using the Client Initiated Backchannel Authentication flow, there is no interactive dialogue between 
+        the OpenID Provider and the end-user through the user's consumption device. There might be an agent of the 
+        Client involved who transfers the binding_message to the user.
+      </t>
+    </section>
+
+      <section anchor="backchannel_client_notification_endpoint" title="Client Notification Endpoint">
+          <t>
+            The Client Notification Endpoint is set by the Client during <xref target="registration" format="title"/>. It is the endpoint the OP will call after a successful or failed end-user authentication.
+          </t>
+
+          <t>
+            It MUST be an HTTPS URL and Communication with the Client Notification Endpoint MUST utilize TLS. See Section 16.17 <xref target="OpenID.Core"/>
+            for more information on using TLS.
+          </t>
+
+          <t>
+            When the Client is configured in Ping mode, the endpoint receives a notification from the OP that an Authentication Result is ready to be retrieved from the Token Endpoint.
+          </t>
+
+          <t>
+            When the Client is configured in Push mode, the endpoint receives the Authentication Result (an ID Token, an Access Token and, optionally, a Refresh Token or in the event that the user did not grant authorization, an error).
+          </t>
+            
+          <t>
+            Requests to the Client Notification Endpoint must be authenticated using a "bearer token" created by the Client and sent to the OP in the Authentication request as the value of the parameter "client_notification_token".
+          </t>
+        
+
+        </section>
+
+    <section anchor="getting_transaction_result" title="Getting the Authentication Result">
+      <t>
+        The token delivery mode for the Client (Poll, Ping or Push) is determined at registration time.
+      </t>
+      <t>
+        A Client can only register a single token delivery method and the OP MUST only deliver the Authentication Result to the Client through the registered mode.
+      </t>
+
+      <section anchor="token_request" title="Token Request Using CIBA Grant Type">
+        <t>
+          If the Client is registered to use Poll or Ping modes, the Client will retrieve the Authentication Result from the token endpoint.
+        </t>
+        <t>
+        The Client MUST be authenticated as specified in Section 9 of <xref target="OpenID.Core"/>.
+        </t>
+        <t>
+          If the Client is registered to use the Poll mode, then the Client polls the token endpoint at reasonable interval, which MUST NOT be more frequent than the minimum interval provided by the OpenID Provider via the "interval" parameter (if provided).
+        </t>
+        <t>
+          If the Client is registered to use the Ping mode, then when the Client receives a notification to its
+          Client Notification Endpoint containing an auth_req_id that is verified against a client_notification_token, it must call the token endpoint to retrieve the authentication result. 
+        </t>
+        <t>
+          NOTE: A Client configured in Ping mode may also poll the token endpoint. The OpenID Provider must treat such a Client as if it had been registered to use the Poll mode.
+        </t>
+        <t>
+          The Client makes an "HTTP POST" request to the token endpoint by sending the following parameters using the "application/x-www-form-urlencoded" format with a character encoding of UTF-8
+          in the HTTP request entity-body:
+        </t>
+        <t>
+          <list style="hanging">
+            <t hangText="grant_type">
+              REQUIRED. Value MUST be <spanx style="verb">urn:openid:params:grant-type:ciba</spanx>
+             </t>
+            <t hangText="auth_req_id">
+              REQUIRED. It is the unique identifier to identify the authentication request (transaction) made by the Client.
+              The OP MUST check whether the auth_req_id was issued to this Client in response to an <xref target="auth_request" format="title"/>.
+              Otherwise, an error MUST be returned.
+             </t>
+          </list>
+        </t>    
+        <figure>
+          <preamble>The following is a non-normative example of a token request (with line wraps within values for display purposes only).
+          </preamble>
+          <artwork>
+    <![CDATA[
+    POST /token HTTP/1.1
+    Host: server.example.com
+    Content-Type: application/x-www-form-urlencoded
+    Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
+
+    grant_type=urn%3Aopenid%3Aparams%3Agrant-type%3Aciba
+      &auth_req_id=1c266114-a1be-4252-8ad1-04986c5b9ac1
+
+    ]]>
+          </artwork>
+        </figure>
+     
+
+      <section anchor="token_response" title="Successful Token Response">
+        <t>
+          After receiving and validating a valid and authorized Token Request from the Client and when the end-user associated with the supplied <spanx style="verb">auth_req_id</spanx> has been authenticated and has authorized the request, the OpenID Provider returns a successful response as specified in Section 3.1.3.3 of <xref target="OpenID.Core"/>.
+
+          If the end-user associated with the supplied <spanx style="verb">auth_req_id</spanx> has not been authenticated or has not authorized the request, an error response must be sent as defined in <xref target="token_error_response" format="title"/>.
+        </t>      
+        <figure>
+          <preamble>The following is a non-normative example of a successful token response
+           (with line wraps within values for display purposes only).
+          </preamble>
+          <artwork>
+            <![CDATA[
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    Cache-Control: no-store
+
+    {
+     "access_token": "G5kXH2wHvUra0sHlDy1iTkDJgsgUO1bN",
+     "token_type": "Bearer",
+     "refresh_token": "4bwc0ESC_IAhflf-ACC_vjD_ltc11ne-8gFPfA2Kx16",
+     "expires_in": 3600,
+     "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2NzcyNiJ9.eyJpc3MiOiJo
+       dHRwczovL3NlcnZlci5leGFtcGxlLmNvbSIsInN1YiI6IjI0ODI4OTc2MTAwMSIs
+       ImF1ZCI6InM2QmhkUmtxdDMiLCJlbWFpbCI6ImphbmVkb2VAZXhhbXBsZS5jb20i
+       LCJleHAiOjE1Mzc4MTk4MDMsImlhdCI6MTUzNzgxOTUwM30.aVq83mdy72ddIFVJ
+       LjlNBX-5JHbjmwK-Sn9Mir-blesfYMceIOw6u4GOrO_ZroDnnbJXNKWAg_dxVynv
+       MHnk3uJc46feaRIL4zfHf6Anbf5_TbgMaVO8iczD16A5gNjSD7yenT5fslrrW-NU
+       _vtmi0s1puoM4EmSaPXCR19vRJyWuStJiRHK5yc3BtBlQ2xwxH1iNP49rGAQe_LH
+       fW1G74NY5DaPv-V23JXDNEIUTY-jT-NbbtNHAxnhNPyn8kcO2WOoeIwANO9BfLF1
+       EFWtjGPPMj6kDVrikec47yK86HArGvsIIwk1uExynJIv_tgZGE0eZI7MtVb2UlCw
+       DQrVlg"
+    }
+            ]]>
+          </artwork>
+        </figure>
+      </section>   
+       </section>
+
+        <section anchor="ping_callback" title="Ping Callback">
+          <t>
+            If the Client is registered in Ping mode, the OpenID Provider will send an HTTP POST Request
+            to the <xref target="backchannel_client_notification_endpoint" format="title"/> after a successful or
+            failed end-user authentication.
+          </t>
+          <t>
+            In this mode the OP sends the <spanx style="verb">client_notification_token</spanx> as a bearer token in the Authorization header field and sends only the auth_req_id in the body of the request. The request uses the application/json media type.
+          </t>
+          <figure>
+            <preamble>The following is a non-normative example of a Ping callback sent as an HTTP POST
+              request to the Client's Notification Endpoint (with line wraps within values for display purposes only).
+            </preamble>
+            <artwork>
+              <![CDATA[
+    POST /cb HTTP/1.1
+    Host: client.example.com
+    Authorization: Bearer 8d67dc78-7faa-4d41-aabd-67707b374255
+    Content-Type: application/json
+
+    {
+     "auth_req_id": "1c266114-a1be-4252-8ad1-04986c5b9ac1"
+    }
+              ]]>
+            </artwork>
+          </figure>
+          <t>
+            The Client MUST verify the <spanx style="verb">client_notification_token</spanx> used to authenticate the request is valid and is associated with the <spanx style="verb">auth_req_id</spanx> received in the Ping callback. If the bearer token is not valid, the Client SHOULD return an HTTP 401 Unauthorized response.
+          </t>
+          <t>
+            For valid requests, the Client Notification Endpoint SHOULD respond with an HTTP 204 No Content.
+            The OP SHOULD also accept responses with HTTP 200 OK and any body in the response SHOULD be ignored.
+          </t>
+          <t>
+              The Client MUST NOT return an HTTP 3xx code. The OP MUST NOT follow redirects.
+          </t>
+          <t>
+            How the OP handles HTTP error codes in the ranges of 4xx and 5xx is out-of-scope of this specification.
+            Administrative action is likely to be needed in these cases.
+          </t>
+
+          <t>
+            For valid requests, the Client can now use the received <spanx style="verb">auth_req_id</spanx> to make a Token Request using the CIBA Grant Type to the Token Endpoint as described in <xref target="token_request" format="title"/>.
+
+          </t>
+       
+      </section>
+
+
+      <section anchor="push_callback" title="Push Callback">
+        <section anchor="successful_token_push" title="Successful Token Delivery">
+          <t>
+            If the Client is registered in Push mode and the user is well authenticated and has authorized the request, the OpenID Provider delivers a payload that includes an ID Token, an Access Token and, optionally, a Refresh Token to the <xref target="backchannel_client_notification_endpoint" format="title"/>.
+          </t>
+          <t>
+            Error conditions associated with the authentication request are delivered to the Client by sending a <xref target="push_error_payload" format="title"/>  to the <xref target="backchannel_client_notification_endpoint" format="title"/>.
+          </t>
+          <t>
+            The Push Callback uses the parameters defined for a successful token response in Section 4.1.4 of <xref target="RFC6749">OAuth 2.0</xref> and Section 3.1.3.3 of <xref target="OpenID.Core"/>. In addition a new parameter "auth_req_id" is included in the payload. This is the authentication request identifier as defined in <xref target="successful_authentication_request_acknowdlegment">Successful Authentication Response</xref>.
+          </t>
+          <t>
+            The Push Callback uses the application/json media type.
+          </t>
+           <t>
+              In order to bind together the ID Token, the Access Token and the auth_req_id, the OP MUST include the hash value of the Access Token and the auth_req_id within the ID Token using the <spanx style="verb">at_hash</spanx> and <spanx style="verb">urn:openid:params:jwt:claim:auth_req_id</spanx> claims respectively.
+              In case a Refresh Token is sent to the Client, the hash value of it MUST also be added to the ID token using the <spanx style="verb">urn:openid:params:jwt:claim:rt_hash</spanx> claim. Section 3.1.3.6 of <xref target="OpenID.Core"/> shows how to calculate the hash value of the access_token for <spanx style="verb">at_hash</spanx>,
+              the same method can also be applied to calculate the Refresh Token hash value. Note that these claims are only required in Push mode. 
+        </t>
+          <figure>
+            <preamble>The following is a non-normative example of a Push Callback sent as an HTTP POST
+              request to the Client's notification endpoint (with line wraps within values for display purposes only).
+              The request is authenticated through a bearer token that is the value of the "client_notification_token" provided by the Client in the Authentication Request.
+            </preamble>
+            <artwork>
+              <![CDATA[
+    POST /cb HTTP/1.1
+    Host: client.example.com
+    Authorization: Bearer 8d67dc78-7faa-4d41-aabd-67707b374255
+    Content-Type: application/json
+
+    {
+     "auth_req_id": "1c266114-a1be-4252-8ad1-04986c5b9ac1",
+     "access_token": "G5kXH2wHvUra0sHlDy1iTkDJgsgUO1bN",
+     "token_type": "Bearer",
+     "refresh_token": "4bwc0ESC_IAhflf-ACC_vjD_ltc11ne-8gFPfA2Kx16",
+     "expires_in": 3600,
+     "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2NzcyNiJ9.eyJpc3MiOiJ
+       odHRwczovL3NlcnZlci5leGFtcGxlLmNvbSIsInN1YiI6IjI0ODI4OTc2MTAwMS
+       IsImF1ZCI6InM2QmhkUmtxdDMiLCJlbWFpbCI6ImphbmVkb2VAZXhhbXBsZS5jb
+       20iLCJleHAiOjE1Mzc4MTk4MDMsImlhdCI6MTUzNzgxOTUwMywiYXRfaGFzaCI6
+       Ild0MGtWRlhNYWNxdm5IZXlVMDAwMXciLCJ1cm46b3BlbmlkOnBhcmFtczpqd3Q
+       6Y2xhaW06cnRfaGFzaCI6InNIYWhDdVNwWENSZzVta0REdnZyNHciLCJ1cm46b3
+       BlbmlkOnBhcmFtczpqd3Q6Y2xhaW06YXV0aF9yZXFfaWQiOiIxYzI2NjExNC1hM
+       WJlLTQyNTItOGFkMS0wNDk4NmM1YjlhYzEifQ.SGB5_a8E7GjwtoYrkFyqOhLK6
+       L8-Wh1nLeREwWj30gNYOZW_ZB2mOeQ5yiXqeKJeNpDPssGUrNo-3N-CqNrbmVCb
+       XYTwmNB7IvwE6ZPRcfxFV22oou-NS4-3rEa2ghG44Fi9D9fVURwxrRqgyezeD3H
+       HVIFUnCxHUou3OOpj6aOgDqKI4Xl2xJ0-kKAxNR8LljUp64OHgoS-UO3qyfOwIk
+       IAR7o4OTK_3Oy78rJNT0Y0RebAWyA81UDCSf_gWVBp-EUTI5CdZ1_odYhwB9OWD
+       W1A22Sf6rmjhMHGbQW4A9Z822yiZZveuT_AFZ2hi7yNp8iFPZ8fgPQJ5pPpjA7u
+       dg"
+    }
+              ]]>
+            </artwork>
+          </figure>
+        <t>
+          The Client MUST verify the client_notification_token used to authenticate the request is valid and is associated with the auth_req_id received in the Push Callback. If the bearer token is not valid the Client SHOULD return an HTTP 401 Unauthorized response.
+        </t>
+        <t>
+          The Client MUST validate the ID Token, which acts as a detached signature, as per Section 3.1.3.7 of <xref target="OpenID.Core"/>.
+        </t>
+        <t>
+          The Client MUST ensure that the value of the <spanx style="verb">urn:openid:params:jwt:claim:auth_req_id</spanx> claim in the ID Token matches the auth_req_id in the request.
+        </t>
+        <t>
+        The Client MUST validate the access token received using the at_hash in the ID Token as per Section 3.2.2.9 of <xref target="OpenID.Core"/>. If a refresh token is present, the Client MUST validate it using the <spanx style="verb">urn:openid:params:jwt:claim:rt_hash</spanx> in the ID Token in a similar manner as the access token is validated.
+      </t>
+
+        <t>
+          For valid requests, the Client Notification Endpoint SHOULD respond with an HTTP 204 No Content.
+          The OP SHOULD also accept HTTP 200 OK and any body in the response SHOULD be ignored.
+        </t>
+        <t>
+            The Client MUST NOT return an HTTP 3xx code. The OP MUST NOT follow redirects.
+        </t>
+        <t>
+          How the OP handles HTTP error codes in the ranges of 4xx and 5xx is out-of-scope of this specification.
+          Administrative action is likely to be needed in these cases.
+        </t>
+        <figure>
+            <preamble>
+              The following is a non-normative example of a base64url decoded ID Token sent to the client notification endpoint:
+            </preamble>
+            <artwork>
+              <![CDATA[
+    {
+      "iss": "https://server.example.com",
+      "sub": "248289761001",
+      "aud": "s6BhdRkqt3",
+      "email": "janedoe@example.com",
+      "exp": 1537819803,
+      "iat": 1537819503,
+      "at_hash": "Wt0kVFXMacqvnHeyU0001w",
+      "urn:openid:params:jwt:claim:rt_hash": "sHahCuSpXCRg5mkDDvvr4w",
+      "urn:openid:params:jwt:claim:auth_req_id":
+        "1c266114-a1be-4252-8ad1-04986c5b9ac1"
+    }
+              ]]>
+            </artwork>
+          </figure>
+          <t>
+          </t>
+
+        </section>
+      
+    </section>
+
+      </section>
+
+      <section anchor="token_error_response" title="Token Error Response">
+        <t>
+            If the Token Request is invalid or unauthorized, the OpenID Provider constructs an error response according to Section 3.1.3.4 Token Error Response of <xref target="OpenID.Core"/>.
+          In addition to the error codes defined in Section 5.2 of <xref target="RFC6749"/>, the following error codes defined in the <xref target="I-D.ietf-oauth-device-flow">OAuth Device Flow</xref> are also applicable:
+          </t>
+           <t>
+            <list style="hanging">
+              <t hangText="authorization_pending">
+                The authorization request is still pending as the end-user hasn't yet been authenticated. 
+              </t>
+              <t hangText="slow_down">
+                A variant of "authorization_pending", the authorization request is still pending and polling should continue, but the interval MUST be increased by at least 5 seconds for this and all subsequent requests.
+              </t>
+              <t hangText="expired_token">
+                The auth_req_id has expired. The Client will need to make a new Authentication Request.
+              </t>
+              <t hangText="access_denied">
+                The end-user denied the authorization request.
+              </t>
+             </list>
+        </t>       
+
+       <t>
+           If the auth_req_id is invalid or was issued to another Client, an <spanx style="verb">invalid_grant</spanx> error MUST be returned as described in Section 5.2 of <xref target="RFC6749"/>.
+        </t>
+
+        <t>
+           If the Client is registered to use the Push Mode then it MUST NOT call the Token Endpoint with the CIBA Grant Type and the following error is returned.
+        </t>
+        <t hangText="HTTP 403 Forbidden">
+          <list style="hanging">        
+            <t hangText="unauthorized_client">
+              The Client is not authorized as it is configured in Push Mode
+            </t>
+          </list>
+        </t>       
+      </section>
+
+      <section anchor="push_error_payload" title="Push Error Payload">
+        <t>
+          When Clients are configured to use the Push token delivery mode they can receive error payloads at their Client Notification Endpoint. These errors will be sent using the application/json media type with the following three parameters:
+          <list style="hanging">
+              <t hangText="error_description">
+                OPTIONAL.  Human-readable ASCII [USASCII] text providing additional information, used to assist the client developer in understanding the error that occurred.
+                Values for the "error_description" parameter MUST NOT include characters outside the set %x20-21 / %x23-5B / %x5D-7E
+              </t>
+              <t hangText="error">
+                REQUIRED. A single ASCII error code from one present in the list below.
+              </t>
+              <t hangText="auth_req_id">
+                REQUIRED. The authentication request identifier.
+              </t>
+            </list>
+        </t>
+        <t>
+          Error codes applicable to the push error payload:
+           <list style="hanging">
+              <t hangText="access_denied">
+                The end-user denied the authorization request.
+              </t>
+              <t hangText="expired_token">
+                The auth_req_id has expired. The Client will need to make a new Authentication Request. OpenID Providers are not required to send this error, but Clients SHOULD support receiving this error.
+              </t>
+             <t hangText="transaction_failed">
+                The OpenID Provider encountered an unexpected condition that prevented it from successfully completing the transaction.
+                This general case error code can be used to inform the Client that the CIBA transaction was unsuccessful for
+                reasons other than those explicitly defined by
+               <spanx style="verb">access_denied</spanx> and <spanx style="verb">expired_token</spanx>.
+             </t>
+            </list>
+        </t>
+
+      </section>
+
+      <section anchor="auth_error_response" title="Authentication Error Response">
+        <t>
+          An Authentication Error Response is returned directly from the Backchannel Authentication Endpoint in response to the Authentication Request sent by the Client. The applicable error codes are detailed below (some of which are repurposed from <xref target='RFC6749'>OAuth 2.0</xref> Sections 4.1.2.1 and 5.2).
+        </t>
+        <t>  
+          Authentication Error Responses are sent in the same format as Token Error Responses, i.e. the HTTP response body uses the application/json media type with the following parameters:
+          <list style="hanging">
+              <t hangText="error">
+                REQUIRED. A single ASCII error code from one present in the list below.
+              </t>
+              <t hangText="error_description">
+                OPTIONAL.  Human-readable ASCII [USASCII] text providing additional information, used to assist the 
+                client developer in understanding the error that occurred. Values for the "error_description" parameter 
+                MUST NOT include characters outside the set %x20-21 / %x23-5B / %x5D-7E.
+              </t>
+              <t hangText="error_uri">
+                OPTIONAL.  A URI identifying a human-readable web page with information about the error, used to 
+                provide the client developer with additional information about the error. Values for the "error_uri" 
+                parameter MUST conform to the URI-reference syntax and thus MUST NOT include characters outside the 
+                set %x21 / %x23-5B / %x5D-7E.
+              </t>
+              
+          </list>
+        </t>
+        <t>
+          List of authentication error codes associated to HTTP Errors.
+        </t>
+        <t>
+          <list style="hanging">        
+            <t hangText="HTTP 400 Bad Request">
+                <list style="hanging">        
+                    <t hangText="invalid_request">
+                      The request is missing a required parameter, includes an invalid parameter value, includes a parameter more than once,
+                      contains more than one of the hints, or is otherwise malformed.
+                    </t>
+                    <t hangText="invalid_scope">
+                      The requested scope is invalid, unknown, or malformed.
+                    </t>
+                    <t hangText="expired_login_hint_token">
+                       The login_hint_token provided in the authentication request is not valid because it has expired.
+                    </t>
+                    <t hangText="unknown_user_id">
+                      The OpenID Provider is not able to identify which end-user the Client wishes to be authenticated by means of the hint provided in the request (login_hint_token, 
+                      id_token_hint or login_hint).
+                    </t>
+                    <t hangText="unauthorized_client">
+                      The Client is not authorized to use this authentication flow.
+                    </t>
+                    <t hangText="missing_user_code">
+                      User code is required but was missing from the request.
+                    </t>
+                    <t hangText="invalid_user_code">
+                      User code was invalid.
+                    </t>
+                    <t hangText="invalid_binding_message">
+                      The binding message is invalid or unacceptable for use in the context of the given request.
+                    </t>
+                </list>
+            </t>
+            <t hangText="HTTP 401 Unauthorized">
+                <list style="hanging">        
+                    <t hangText="invalid_client">
+                      Client authentication failed (e.g., invalid client credentials, unknown client, no client authentication included, or unsupported authentication method).
+                    </t>
+                </list>
+            </t>
+            <t hangText="HTTP 403 Forbidden">
+                <list style="hanging">        
+                    <t hangText="access_denied">
+                      The resource owner or OpenID Provider denied the request. Note that as the authentication error response is received prior to any user interaction, such an error would only be received if a resource owner or OpenID Provider had made a decision to deny a certain type of request or requests from a certain type of client. The mechanism for such a decision to be made is outside the scope of this specification.
+                    </t>
+                </list>
+            </t>
+            
+          </list>
+        </t>         
+        <figure> 
+          <preamble>The following is a non-normative example from an authentication error response:
+          </preamble>
+          <artwork>
+            <![CDATA[
+  HTTP/1.1 400 Bad Request 
+  Content-Type: application/json
+
+  {
+    "error": "unauthorized_client",
+    "error_description":
+      "The client 'client.example.org' is not allowed to use CIBA."
+  }
+            ]]>
+          </artwork>
+        </figure>      
+ 
+      </section>
+
+    <section anchor="security_considerations" title="Security Considerations">
+      <t>
+        The login_hint_token SHOULD be digitally signed by the issuer.
+        This ensures authenticity of the data and reduces the threat of an injection attack.
+        The signature allows the OP to authenticate and authorize the sender of the hint and 
+        prevent collecting of user identifiers by rogue Clients.
+      </t>
+      <t>
+      The OP SHOULD ensure that the "backchannel_client_notification_endpoint" configured at registration time
+      is in the administrative authority of the Client.
+      Otherwise, the OP would post authentication results to the wrong Client.
+      How this check is done is outside the scope of this specification.
+      </t>
+      <t>
+        An id_token_hint cannot be validated using standard JWT processing rules because
+        the token is being used in a context (sent from the Client back to the OP) that is different
+        than that for which it was originally issued (typically a short lived token issued by
+        the OP intended to convey claims about the authentication of an end-user to the Client).
+        An expired ID Token therefore could still be considered valid as an id_token_hint so an OP should,
+        for some reasonable period, accept id_token_hints with an expiration time that has passed.
+        The OP should ensure that it is the issuer of the token and that
+        the Client presenting the id_token_hint is listed in the audience claim.
+        The OP should verify the signature to ensure that the token was, in fact, issued by it and
+        hasn't been modified since. Note that due to key rotation, however, the OP may not
+        necessarily have access to the key used to sign the token, so the length of time an
+        ID Token is considered a valid hint will be likely to be limited by the OP's key rotation interval and
+        retention period.
+
+        Given these restrictions, implementers may consider not verifying the signature at all and
+        only accepting ID Tokens with pairwise subject identifiers as hints.
+        The OP could then validate that the Client authenticated at
+        the Backchannel Authentication Endpoint was issued the pairwise subject identifier (or shares 
+        a Sector Identifier with the Client who was issued the pairwise subject identifier).   
+      </t>
+      <t>
+        This specification defines a method of token delivery, "Push Callback", which differs from standard OAuth 2.0 
+        flows. Most OAuth 2.0 and OpenID Connect profiles require the Client to authenticate at the token endpoint 
+        in order to retrieve access tokens, ID Tokens and refresh tokens. However with the CIBA Push mode, tokens are 
+        delivered directly to the Client at its Client Notification Endpoint. Implementers should ensure that appropriate
+        security controls are in place for this endpoint and its registration with the OP. CIBA requires that a hash of 
+        the access token, a hash of the refresh token and the auth_req_id itself are included in the ID Token when the Push 
+        mode is used. This allows the Client to verify that the values in the Push Callback have not been tampered with.                
+      </t>
+
+    
+
+    </section>
+
+    <section anchor="privacy_considerations" title="Privacy Considerations">
+      <t>
+        This flow requires the Client to obtain an identifier for the end-user.  When this identifier is 
+        a static global identifier, such as a phone number or email address, there are clear 
+        privacy implications. However this flow does not require the use of such identifiers and in 
+        deployments with higher privacy requirements, alternative identifiers could be used, such as:
+      </t>
+      <t>
+        <list style="hanging">
+          <t hangText="ID Token containing a pairwise identifier">
+            CIBA supports the use of ID Tokens as an <spanx style="verb">id_token_hint</spanx> in 
+            the authentication request. If the OP has previously issued an ID Token to the Client 
+            that contains a pairwise identifier and no personally identifiable information, then a 
+            CIBA flow can be initialized without the RP asking the user for a static identifier.
+            This ID Token may have been obtained by the Client via a standard front-channel 
+            redirect flow. 
+          </t>
+          <t hangText="Single-use user identifier, transferred from the AD to the CD">
+            The OP could generate a single-use identifier which could be transferred from the 
+            Authentication Device to the Consumption Device at the start of the flow. For example,
+            the user could authenticate on the AD and request an identifier for a CIBA flow. This could 
+            be displayed as a QR code, the user could scan this QR code at the CD. The RP would then 
+            decode the identifier and embed it in a <spanx style="verb">login_hint_token</spanx> which
+            it would use to initiate a CIBA flow. The OP would then gain consent from the end-user for 
+            the access requested by the RP. 
+          </t>                   
+          <t hangText="Discovery Service">
+            For some ecosystems the RP may be able to send the user to a discovery service and receive
+            back an encrypted <spanx style="verb">login_hint_token</spanx> which it can use in the 
+            authentication request. The OP would decrypt the token, identify the user and continue the 
+            CIBA flow.
+          </t>
+
+
+        </list>
+      </t>
+
+    </section>
+
+
+    <section anchor="IANA" title="IANA Considerations">
+
+      <section anchor="ietf-oauth-discoveryIANA" title="OAuth Authorization Server Metadata Registration">
+        <t>
+          This specification requests registration of the following values
+          in the IANA "OAuth Authorization Server Metadata" registry of
+          <xref target="IANA.OAuth.Parameters"/> established by <xref target="RFC8414"/>.
+        </t>
+        <t>
+          <?rfc subcompact="yes"?>
+          <list style='symbols'>
+            <t>Metadata Name: <spanx style="verb">backchannel_token_delivery_modes_supported</spanx></t>
+            <t>Metadata Description: Supported CIBA authentication result delivery modes</t>
+            <t>Change Controller: OpenID Foundation MODRNA Working Group - openid-specs-mobile-profile@lists.openid.net</t>
+            <t>Specification Document(s): <xref target="registration"/> of this document</t>
+          </list>
+          <?rfc subcompact="no"?>
+        </t>
+        <t>
+          <?rfc subcompact="yes"?>
+          <list style='symbols'>
+            <t>Metadata Name: <spanx style="verb">backchannel_authentication_endpoint</spanx></t>
+            <t>Metadata Description: CIBA Backchannel Authentication Endpoint</t>
+            <t>Change Controller: OpenID Foundation MODRNA Working Group - openid-specs-mobile-profile@lists.openid.net</t>
+            <t>Specification Document(s): <xref target="registration"/> of this document</t>
+          </list>
+          <?rfc subcompact="no"?>
+        </t>
+        <t>
+          <?rfc subcompact="yes"?>
+          <list style='symbols'>
+            <t>Metadata Name: <spanx style="verb">backchannel_authentication_request_signing_alg_values_supported</spanx></t>
+            <t>Metadata Description: JSON array containing a list of the JWS signing algorithms supported for validation of signed CIBA authentication requests</t>
+            <t>Change Controller: OpenID Foundation MODRNA Working Group - openid-specs-mobile-profile@lists.openid.net</t>
+            <t>Specification Document(s): <xref target="registration"/> of this document</t>
+          </list>
+          <?rfc subcompact="no"?>
+        </t>
+        <t>
+          <?rfc subcompact="yes"?>
+          <list style='symbols'>
+            <t>Metadata Name: <spanx style="verb">backchannel_user_code_parameter_supported</spanx></t>
+            <t>Metadata Description: Indicates whether the OP supports use of the CIBA <spanx style="verb">user_code</spanx> parameter.</t>
+            <t>Change Controller: OpenID Foundation MODRNA Working Group - openid-specs-mobile-profile@lists.openid.net</t>
+            <t>Specification Document(s): <xref target="registration"/> of this document</t>
+          </list>
+          <?rfc subcompact="no"?>
+        </t>
+      </section>
+
+      <section anchor="DynRegReg" title="OAuth Dynamic Client Registration Metadata Registration">
+        <t>
+          This specification requests registration of the following client metadata definitions
+          in the IANA "OAuth Dynamic Client Registration Metadata" registry of
+          <xref target="IANA.OAuth.Parameters"/>
+          established by <xref target="RFC7591"/>:
+        </t>
+        <t>
+          <?rfc subcompact="yes"?>
+          <list style="symbols">
+            <t>Client Metadata Name: <spanx style="verb">backchannel_token_delivery_mode</spanx></t>
+            <t>Client Metadata Description: CIBA authentication result delivery mode</t>
+            <t>Change Controller: OpenID Foundation MODRNA Working Group - openid-specs-mobile-profile@lists.openid.net</t>
+            <t>Specification Document(s): <xref target="registration"/> of this document</t>
+          </list>
+        </t>
+        <t>
+          <?rfc subcompact="yes"?>
+          <list style="symbols">
+            <t>Client Metadata Name: <spanx style="verb">backchannel_client_notification_endpoint</spanx></t>
+            <t>Client Metadata Description: Endpoint to which a notification will be sent after a CIBA end-user authentication event</t>
+            <t>Change Controller: OpenID Foundation MODRNA Working Group - openid-specs-mobile-profile@lists.openid.net</t>
+            <t>Specification Document(s): <xref target="registration"/> of this document</t>
+          </list>
+        </t>
+        <t>
+          <?rfc subcompact="yes"?>
+          <list style="symbols">
+            <t>Client Metadata Name: <spanx style="verb">backchannel_authentication_request_signing_alg</spanx></t>
+            <t>Client Metadata Description: The JWS algorithm that the client will use to sign CIBA authentication requests</t>
+            <t>Change Controller: OpenID Foundation MODRNA Working Group - openid-specs-mobile-profile@lists.openid.net</t>
+            <t>Specification Document(s): <xref target="registration"/> of this document</t>
+          </list>
+        </t>
+        <t>
+          <?rfc subcompact="yes"?>
+          <list style="symbols">
+            <t>Client Metadata Name: <spanx style="verb">backchannel_user_code_parameter</spanx></t>
+            <t>Client Metadata Description: Indicates whether the Client must support the CIBA <spanx style="verb">user_code</spanx> parameter.</t>
+            <t>Change Controller: OpenID Foundation MODRNA Working Group - openid-specs-mobile-profile@lists.openid.net</t>
+            <t>Specification Document(s): <xref target="registration"/> of this document</t>
+          </list>
+        </t>
+      </section>
+
+      <section anchor="OAuthParametersReg" title="OAuth Parameters Registration">
+        <t>
+          This specification requests registration of the following value
+          in the IANA "OAuth Parameters" registry of
+          <xref target="IANA.OAuth.Parameters"/>
+          established by <xref target="RFC6749"/>.
+        </t>
+        <t>
+          <?rfc subcompact="yes"?>
+          <list style='symbols'>
+            <t>Parameter name: auth_req_id</t>
+            <t>Parameter usage location: token response</t>
+            <t>Change Controller: OpenID Foundation MODRNA Working Group - openid-specs-mobile-profile@lists.openid.net</t>
+            <t>Specification document(s): <xref target="successful_authentication_request_acknowdlegment"/> of this document</t>
+          </list>
+        </t>
+      </section>
+
+      <section anchor="ClaimsReg" title="JSON Web Token Claims">
+        <t>
+          This specification makes no request of IANA with respect to the "JSON Web Token Claims" registry at
+          <xref target="IANA.JWT"/> established by <xref target="RFC7519"/>.
+          <eref target="https://tools.ietf.org/html/rfc7519#section-4.2">Public Claim Names</eref>
+          where used for the auth_req_id and refresh token hash in the ID Token in <xref target="successful_token_push"/>
+          in order to avoid further congestion of the registry with application specific claims that are
+          unlikely to be of general applicability.
+          For a <xref target="signed_auth_request">Signed Authentication Request</xref>, where
+          the the authentication request parameters are encoded as claims of the request JWT,
+          the context of use is sufficiently constrained so as to safely consider those to be
+          <eref target="https://tools.ietf.org/html/rfc7519#section-4.3">Private Claim Names</eref>.
+
+        </t>
+      </section>
+    </section>
+  </middle>
+
+  <back>
+    <references title="Normative References">
+      <?rfc include="reference.RFC.2119"?>
+      <?rfc include="reference.RFC.6750"?>
+      <?rfc include="reference.RFC.7519"?> <!-- JWT -->
+
+      &OpenID.Core;
+      &OpenID.Registration;
+      
+      <?rfc include="reference.I-D.draft-ietf-oauth-mtls-12"?>
+
+    </references>
+    
+    <references title="Informative References">
+
+      <?rfc include="reference.RFC.6749"?>
+      <?rfc include='reference.RFC.8414'?> <!-- OAuth AS metadata -->
+      <?rfc include="reference.RFC.7591"?> <!-- Client Registration -->
+
+      <?rfc include="reference.I-D.draft-ietf-oauth-device-flow-13"?>
+
+      <reference anchor="IANA.OAuth.Parameters" target="http://www.iana.org/assignments/oauth-parameters">
+        <front>
+          <title>OAuth Parameters</title>
+          <author>
+            <organization>IANA</organization>
+          </author>
+          <date/>
+        </front>
+      </reference>
+
+      <reference anchor="IANA.JWT" target="http://www.iana.org/assignments/jwt">
+        <front>
+          <title>JSON Web Token (JWT)</title>
+          <author>
+            <organization>IANA</organization>
+          </author>
+          <date/>
+        </front>
+      </reference>
+
+    </references>
+
+    <section anchor="Acknowledgements" title="Acknowledgements">
+      <t>The following have contributed to the development of this specification.</t>
+      <t>
+        John Bradley,
+        Ralph Bragg,
+        Geoff Graham,
+        Joseph Heenan,
+        Bjorn Hjelm,
+        Takahiko Kawasaki,
+        Torsten Lodderstedt,
+        James Manger,
+        Charles Marais,
+        Nat Sakimura,
+        and
+        Petteri Stenius.
+      </t>
+    </section>
+
+
+    <section anchor="Notices" title="Notices">
+      <t>Copyright (c) 2018 The OpenID Foundation.</t>
+      <t>
+        The OpenID Foundation (OIDF) grants to any Contributor, developer, 
+        implementer, or other interested party a non-exclusive, royalty free, 
+        worldwide copyright license to reproduce, prepare derivative works from, 
+        distribute, perform and display, this Implementers Draft or 
+        Final Specification solely for the purposes of (i) developing 
+        specifications, and (ii) implementing Implementers Drafts and 
+        Final Specifications based on such documents, provided that attribution 
+        be made to the OIDF as the source of the material, but that such attribution 
+        does not indicate an endorsement by the OIDF.
+      </t>
+      <t>
+        The technology described in this specification was 
+        made available from contributions from various sources, 
+        including members of the OpenID Foundation and others.  
+        Although the OpenID Foundation has taken steps to help ensure 
+        that the technology is available for distribution, it takes 
+        no position regarding the validity or scope of any intellectual 
+        property or other rights that might be claimed to pertain to 
+        the implementation or use of the technology described in 
+        this specification or the extent to which any license under 
+        such rights might or might not be available; neither does it 
+        represent that it has made any independent effort to identify 
+        any such rights.  The OpenID Foundation and the contributors 
+        to this specification make no (and hereby expressly disclaim any) 
+        warranties (express, implied, or otherwise), including implied 
+        warranties of merchantability, non-infringement, fitness for 
+        a particular purpose, or title, related to this specification, 
+        and the entire risk as to implementing this specification is 
+        assumed by the implementer.  The OpenID Intellectual 
+        Property Rights policy requires contributors to offer 
+        a patent promise not to assert certain patent claims against 
+        other contributors and against implementers.  The OpenID Foundation invites 
+        any interested party to bring to its attention any copyrights, 
+        patents, patent applications, or other proprietary rights 
+        that may cover technology that may be required to practice 
+        this specification.
+      </t>
+    </section>
+
+    <section anchor='History' title='Document History'>
+      <t>[[ To be removed from the final specification ]]</t>
+      <t>-01 
+        <list style='symbols'>
+          <t>Initial draft</t>
+        </list>
+      </t>
+      <t>-02 
+        <list style='symbols'>
+          <t>Second draft</t>
+          <t>Authentication Request Section: Improving the definition of <spanx style="verb">client_req_id</spanx></t>
+          <t>Successful Authentication Request Acknowledgement:
+              a.  <spanx style="verb">auth_req_id</spanx>: to explain that it will not be present in token when using Polling mode
+              b.  interval: fixing a misleading description
+          </t>
+          <t>Token Request Using Polling Mechanism: 
+              a.  Fixing a misleading description about the inclusion of <spanx style="verb">client_notification_endpoint</spanx> in the authentication request. 
+                  It does not  make sense since Notification or Polling mode is defined at the registration time and <spanx style="verb">client_notification_endpoint</spanx>. 
+                  is not sent in the authentication request anymore.
+              b. <spanx style="verb">auth_req_id</spanx>: fixing misleading description.
+          </t>
+          <t>Changing Successful Token Polling to Successful Token Polling Response</t>
+          <t>Improving descriptions in Successful Token Polling Response and Successful Token Notification</t>
+          <t><spanx style="verb">expires_in</spanx> parameter from Successful Authentication Request Acknowledgement refers to the <spanx style="verb">auth_req_id</spanx> that will be considered overdue 
+             to make new polling requests after that time.
+          </t>
+          <t>New <spanx style="verb">unknown_auth_req_id</spanx> and <spanx style="verb">expired_token</spanx> erros in Token Error Response</t>
+          <t>Authentication Error Response section is defined and incorporates two new errors: <spanx style="verb">unknown_user_id</spanx> when OP cannot figure out the user to 
+             be authenticated by means of the hint and <spanx style="verb">expired_token</spanx> to indicate that the login_hint_token or id_token_hint provided is expired.
+          </t>
+          <t>Changing <spanx style="verb">client_req_id</spanx>to <spanx style="verb">client_notification_token</spanx></t>
+          <t>New overview section</t>
+        </list>
+      </t>	  
+      <t>-03  
+        <list style='symbols'>
+          <t>Following the lead of user questioning remove the term Relying Party in most places.</t>
+        </list>
+      </t>
+      <t>-04
+        <list style='symbols'>
+          <t>The Client MUST be authenticated.</t>
+          <t>The Client SHOULD use a signed OpenID Connect Request object.</t>
+          <t>3)	The OP MUST support signed OpenID Connect Requests objects and if the validation of the signature fails the request MUST fail.
+          If alg == none another method of Client authentication MUST be used </t>
+          <t>Added text regarding Pairwise Identifiers.</t>
+          <t>Added SIM Applet Authenticator example to illustrate the CIBA flow with an specific authenticator</t>
+        </list>
+      </t>
+      <t>-05
+        <list style='symbols'>
+          <t>If the OP uses Pairwise Identifiers then registering a sector_identifier_uri at registration time is mandatory.</t>
+        </list>
+      </t>
+      <t>-06
+        <list style='symbols'>
+          <t>
+            If the OP uses Pairwise Identifiers and the Polling Mechanism to retrieve the token, it is necessary to provide a "jwks_uri" at the registration phase and
+            it is MANDATORY for the Client to authenticate the token endpoint using one of this two mechanisms: 
+            Using Mutual TLS Self-Signed Certificate method as defined in section 2.2 of <xref target="I-D.ietf-oauth-mtls"/>
+            or using the private_key_jwt method as per the section 9 <eref target="https://openid.net/specs/openid-connect-core-1_0.html#ClientAuthentication">Client Authentication</eref>
+            of the <xref target="OpenID.Core"/>
+          </t>
+          <t>
+            at_hash, urn:openid:params:jwt:claim:rt_hash and urn:openid:params:jwt:claim:auth_req_id values have been added within the id_token to bind it with the access_token, refresh_token and the auth_req_id
+            in the push mode.
+          </t>
+          <t>Change acr_values to be optional in the authentication request and define the parameter inline.</t>
+          <t>Clarify that error responses from the Backchannel Authentication Endpoint are as defined in the Authentication Error Response section.</t>
+          <t>Be clear that refresh tokens are optional.</t>
+          <t>Introduce a third mode for getting the tokens so now there's 1) Poll, 2) Ping and 3) Push.</t>
+          <t>Add AS/OP metadata parameter for the Backchannel Authentication Endpoint.</t>
+          <t>More clearly define the authentication request format and client authentication to the Backchannel Authentication Endpoint.</t>
+          <t>Change client_notification_endpoint to backchannel_client_notification_endpoint.</t>
+        </list>
+      </t>
+      <t>-OIDC-CIBA-CORE-01 
+        <list style='symbols'>
+          <t>Changed name to OpenID Connect Client Initiated Backchannel Authentication Flow - Core</t>
+          <t>Removed SimApplet Example</t>
+          <t>Changed Privacy Considerations to be less MNO specific and explain the different identifiers
+          that can be used.</t>
+        </list>
+      </t>
+      <t>-OIDC-CIBA-CORE-02
+        <list style='symbols'>
+          <t>Update the grant type URI to be more generic and not include MODRNA.</t>
+          <t>Add an invalid_binding_message error code that can be used on the Authentication Error Response if the binding_message is unacceptable.</t>
+          <t>Add the requested_expiry Authentication Request parameter.</t>
+          <t>Add a transaction_failed error code to Push Error Payload as a catch-all.</t>
+          <t>Be explicit that expires_in and interval of the Authentication Request Acknowledgement are positive integers represented as JSON numbers.</t>
+        </list>
+      </t>
+    </section>
+  </back>
+</rfc>
