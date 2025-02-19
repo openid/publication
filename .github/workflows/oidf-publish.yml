@@ -8,7 +8,6 @@ on:
 jobs:
   publish_to_specs:
     name: OIDF-Publish
-    if: github.event.review.state == 'APPROVED'
     runs-on: ubuntu-latest
     environment: openid.net/specs/
     steps:
@@ -42,13 +41,20 @@ jobs:
           cd ./publication-scripts
           chmod +x ./publish.sh
           ./publish.sh
-
-      - name: OpenID List publication candidates
-        run : |
           cd ../to-publish
-          ls -l 
+          ls -l
+          pwd
+          cp ./* ../sync/specs
+          cd ../sync/specs
+          git config --global user.name "OIDF GitHub Automation"
+          git config --global user.email "github@oidf.org"
+          git add ./*
+          git commit -m "$(ls ./*)"
+          git push
 
-      - name: list remote /specs via ssh
+
+
+      - name: Update remote clone on OIDF Web Server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.OIDF_SPECS_HOST }}
@@ -56,9 +62,7 @@ jobs:
           key: ${{ secrets.OIDF_USERID_KEY }}
           port: ${{ secrets.OIDF_SPECS_PORT }}
           script: |
-              pwd
-              whoami
-              ls
+
               cd /var/www/openid.net/publication
               git status
               git pull
