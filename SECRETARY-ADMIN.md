@@ -7,19 +7,20 @@ As described in https://github.com/openid/publication/blob/main/README.md, once 
 This approval and publication are now undertaken by reviewing the PR and if satisfied by simply approving the PR (not a manual merge!).  All other steps are scripted, including creation of correct filenames, update of the main branch, synchronisation with the webserver and closure of the PR.
 
 It is possible to see the output of the automated checks of the proposed documents in the "checks" tab of the PR on GitHub.
+- consider any "red" messages in the pre-publication checks that should have been run before the PR was raised.
+![image of checks tab](https://github.com/openid/publication/blob/main/.github/screenshots/approve-pr.png?raw=true)
 
 Specific checks that need to be done by the Secretary of their delegate are:
 - The documents submitted are documents that originate from the WG whose sub directory is being used.
-- consider any "red" messages in the pre-publication checks that should have been run before the PR was raised.
 
 Approval of the PR is done in the "Files Changed"
-
+![Approve PR screenshot](https://github.com/openid/publication/blob/main/.github/screenshots/image.jpg?raw=true)
 
 Note: when a draft is proposed as Implementers Draft it is published as a draft with usual draft number suffix.  Once there has been a positive vote for "Implementers Draft" status then the draft files need to be copied to files with an ID# suffix - this currently is not scripted and needs to be done via a manual change by the Secretary or their delegate - see process below
 
 ## How to manage WG co-chair/editor access
 
-WG co-chair and editor access is managed through Github "openid"" organisation level teams and the /.github/CODEOWNERS file in this repository.
+WG co-chair and editor access is managed through Github "openid" organisation level teams and the /.github/CODEOWNERS file in this repository.
 
 The "openid" organisation has teams set up in a hierarchy as follows:
 - The root openid teams list includes "working-groups" team - see https://github.com/orgs/openid/teams
