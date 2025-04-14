@@ -14,7 +14,7 @@ Specific checks that need to be done by the Secretary of their delegate are:
 - The documents submitted are documents that originate from the WG whose sub directory is being used.
 
 Approval of the PR is done in the "Files Changed"
-![Approve PR screenshot](https://github.com/openid/publication/blob/main/.github/screenshots/approve-pr.jpg?raw=true)
+![approve PR screenshot](https://github.com/openid/publication/blob/main/.github/screenshots/approve-pr.png?raw=true)
 
 Note: when a draft is proposed as Implementers Draft it is published as a draft with usual draft number suffix.  Once there has been a positive vote for "Implementers Draft" status then the draft files need to be copied to files with an ID# suffix - this currently is not scripted and needs to be done via a manual change by the Secretary or their delegate - see process below
 
