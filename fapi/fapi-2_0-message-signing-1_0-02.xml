@@ -1,0 +1,524 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
+<rfc version="3" ipr="none" docName="fapi-message-signing-2_0-02" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true" consensus="true">
+
+<front>
+<title abbrev="fapi-message-signing-2">FAPI 2.0 Message Signing - Draft 02</title><seriesInfo value="fapi-message-signing-2_0-02" status="standard" name="Internet-Draft"></seriesInfo>
+<author initials="D." surname="Tonge" fullname="Dave Tonge"><organization>Moneyhub Financial Technology</organization><address><postal><street></street>
+</postal><email>dave@tonge.org</email>
+</address></author><author initials="D." surname="Fett" fullname="Daniel Fett"><organization>Authlete</organization><address><postal><street></street>
+</postal><email>mail@danielfett.de</email>
+</address></author><author initials="J." surname="Heenan" fullname="Joseph Heenan"><organization>Authlete</organization><address><postal><street></street>
+</postal><email>joseph@authlete.com</email>
+</address></author><date/>
+<area>Internet</area>
+<workgroup>fapi</workgroup>
+<keyword>security</keyword>
+<keyword>openid</keyword>
+
+<note><name>Foreword</name>
+<t>The OpenID Foundation (OIDF) promotes, protects and nurtures the OpenID community and technologies. As a non-profit international standardizing body, it is comprised by over 160 participating entities (workgroup participant). The work of preparing implementer drafts and final international standards is carried out through OIDF workgroups in accordance with the OpenID Process. Participants interested in a subject for which a workgroup has been established have the right to be represented in that workgroup. International organizations, governmental and non-governmental, in liaison with OIDF, also take part in the work. OIDF collaborates closely with other standardizing bodies in the related fields.</t>
+<t>Final drafts adopted by the Workgroup through consensus are circulated publicly for the public review for 60 days and for the OIDF members for voting. Publication as an OIDF Standard requires approval by at least 50% of the members casting a vote. There is a possibility that some of the elements of this document may be the subject to patent rights. OIDF shall not be held responsible for identifying any or all such patent rights.</t>
+</note>
+
+<note><name>Introduction</name>
+<t>OIDF FAPI 2.0 is an API security profile based on the OAuth 2.0 Authorization
+Framework <xref target="RFC6749"></xref>. This Message Signing Profile is part of the FAPI 2.0 family of specifications with a focus on providing interoperable support for non-repudiation across OAuth 2.0 based requests and responses.</t>
+<t>It has been formally analysed <xref target="FAPI2MSANALYSIS"></xref> for it's security and non-repudiation properties.</t>
+</note>
+
+<note><name>Warning</name>
+<t>This document is not an OIDF International Standard. It is distributed for
+review and comment. It is subject to change without notice and may not be
+referred to as an International Standard.</t>
+<t>Recipients of this draft are invited to submit, with their comments,
+notification of any relevant patent rights of which they are aware and to
+provide supporting documentation.</t>
+</note>
+
+<note><name>Notational conventions</name>
+<t>The keywords &quot;shall&quot;, &quot;shall not&quot;, &quot;should&quot;, &quot;should not&quot;, &quot;may&quot;, and &quot;can&quot; in
+this document are to be interpreted as described in ISO Directive Part 2
+<xref target="ISODIR2"></xref>. These keywords are not used as dictionary terms such that any
+occurrence of them shall be interpreted as keywords and are not to be
+interpreted with their natural language meanings.</t>
+</note>
+
+</front>
+
+<middle>
+
+<section anchor="scope"><name>Scope</name>
+<t>This document specifies the methods for clients, authorization servers and resource servers to sign and verify messages.</t>
+</section>
+
+<section anchor="normative-references"><name>Normative references</name>
+<t>The following documents are referred to in the text in such a way that some or all of their content constitutes requirements of this document. For dated references, only the edition cited applies. For undated references, the latest edition of the referenced document (including any amendments) applies.</t>
+<t>See Clause 8 for normative references.</t>
+</section>
+
+<section anchor="terms-and-definitions"><name>Terms and definitions</name>
+<t>For the purpose of this document, the terms defined in <xref target="RFC6749"></xref>, <xref target="RFC6750"></xref>, <xref target="RFC7636"></xref>, <xref target="OIDC"></xref> and <xref target="ISO29100"></xref> apply.</t>
+</section>
+
+<section anchor="symbols-and-abbreviated-terms"><name>Symbols and Abbreviated terms</name>
+<t><strong>API</strong> – Application Programming Interface</t>
+<t><strong>HTTP</strong> – Hyper Text Transfer Protocol</t>
+<t><strong>JAR</strong> – JWT-Secured Authorization Request</t>
+<t><strong>JARM</strong> – JWT Secured Authorization Response Mode</t>
+<t><strong>JWT</strong> – JSON Web Token</t>
+<t><strong>JSON</strong> – JavaScript Object Notation</t>
+<t><strong>OIDF</strong> – OpenID Foundation</t>
+<t><strong>PAR</strong> – Pushed Authorization Requests</t>
+<t><strong>PKCE</strong> – Proof Key for Code Exchange</t>
+<t><strong>REST</strong> – Representational State Transfer</t>
+<t><strong>TLS</strong> – Transport Layer Security</t>
+<t><strong>URI</strong> – Uniform Resource Identifier</t>
+<t><strong>URL</strong> – Uniform Resource Locator</t>
+</section>
+
+<section anchor="message-signing-profile"><name>Message signing profile</name>
+<t>OIDF FAPI 2.0 is an API security profile based on the OAuth 2.0 Authorization
+Framework <xref target="RFC6749"></xref>. This Message Signing Profile aims to reach the security goals
+laid out in the Attacker Model <xref target="attackermodel"></xref> plus the non-repudiation goals listed below.</t>
+<t>All provisions of the <xref target="FAPI2_Security_Profile"></xref> apply to the Message Signing Profile
+as well, with the extensions described in the following.</t>
+
+<section anchor="profile"><name>Profile</name>
+<t>In addition to the technologies used in the <xref target="FAPI2_Security_Profile"></xref>, the
+following standards are used in this profile:</t>
+
+<ul spacing="compact">
+<li>OAuth 2.0 JWT Secured Authorization Request (JAR) <xref target="RFC9101"></xref> for signing authorization requests</li>
+<li>JWT Secured Authorization Response Mode for OAuth 2.0 <xref target="JARM"></xref> for signing authorization responses</li>
+<li>OAuth 2.0 Token Introspection <xref target="RFC7662"></xref> with <xref target="RFC9701"></xref> for signing introspection responses</li>
+</ul>
+<t>We understand that some ecosystems may only desire to implement 1, 2 or 3 of the above, it is therefore
+anticipated that a piece of software will be able to conform to each of the methods separately, i.e. there
+will be separate conformance testing options for each of the following:</t>
+
+<ul spacing="compact">
+<li>Signed authorization requests</li>
+<li>Signed authorization responses</li>
+<li>Signed introspection responses</li>
+</ul>
+</section>
+
+<section anchor="non-repudiation"><name>Non-repudiation</name>
+<t>Beyond what is captured by the security goals and the attacker model in
+<xref target="attackermodel"></xref>, parties could try to deny having sent a particular message,
+for example, a payment request. For this purpose, non-repudiation is needed.</t>
+<t>In the context of this specification, non-repudiation refers to the assurance that the owner of
+a signature key pair that was capable of generating an existing signature corresponding to certain
+data cannot convincingly deny having signed the data (<xref target="NIST.SP.800-133"></xref>).</t>
+<t>This is usually achieved by providing application-level signatures that can be
+stored together with the payload and meaningful metadata of a request or
+response.</t>
+<t>The following messages are affected by this specification:</t>
+
+<ul spacing="compact">
+<li>NR1: pushed authorization requests</li>
+<li>NR2: authorization requests (front-channel)</li>
+<li>NR3: authorization responses (front-channel)<br />
+</li>
+<li>NR4: introspection responses<br />
+</li>
+<li>NR5: ID tokens</li>
+</ul>
+</section>
+
+<section anchor="signing-authorization-requests"><name>Signing authorization requests</name>
+<t>To support non-repudiation for NR1, pushed authorization requests can be signed.
+Because FAPI2 uses <xref target="RFC9126"></xref>, NR2 is achieved by default when the pushed authorization request
+is signed.</t>
+
+<section anchor="requirements-for-authorization-servers"><name>Requirements for authorization servers</name>
+<t>Authorization servers implementing FAPI2 authorization request signing</t>
+
+<ol spacing="compact">
+<li>shall support, require use of, and verify signed request objects according to JAR
+<xref target="RFC9101"></xref> at the PAR endpoint <xref target="RFC9126"></xref>;</li>
+<li>shall require the aud claim in the request object to be, or to be an array containing, the authorization server's issuer identifier URL;</li>
+<li>shall require the request object to contain an <tt>nbf</tt> claim that is no longer than 60 minutes in the past; and</li>
+<li>shall require the request object to contain an <tt>exp</tt> claim that has a lifetime of no longer than 60 minutes after the <tt>nbf</tt> claim;</li>
+<li>shall accept request objects with <tt>typ</tt> header parameter with a value <tt>oauth-authz-req+jwt</tt>.</li>
+</ol>
+</section>
+
+<section anchor="requirements-for-clients"><name>Requirements for clients</name>
+<t>Clients implementing FAPI2 authorization request signing</t>
+
+<ol spacing="compact">
+<li>shall send all authorization parameters to the PAR endpoint <xref target="RFC9126"></xref> in a JAR
+<xref target="RFC9101"></xref> signed requested object;</li>
+<li>shall send the <tt>aud</tt> claim in the request object as the authorization server's issuer identifier URL;</li>
+<li>shall send a <tt>nbf</tt> claim in the request object;</li>
+<li>shall send an <tt>exp</tt> claim in the request object that has a lifetime of no longer than 60 minutes;</li>
+<li>should send a <tt>typ</tt> header parameter with a value <tt>oauth-authz-req+jwt</tt>.</li>
+</ol>
+</section>
+
+<section anchor="client-metadata"><name>Client metadata</name>
+<t>The Dynamic Client Registration Protocol <xref target="RFC7591"></xref> defines an API
+for dynamically registering OAuth 2.0 client metadata with authorization servers.
+The metadata defined by <xref target="RFC7591"></xref>, and registered extensions to it,
+also imply a general data model for clients that is useful for authorization server implementations
+even when the dynamic client registration protocol isn't in play.
+Such implementations will typically have some sort of user interface available for managing client configuration.</t>
+<t>The following client metadata parameter is introduced by this specification:</t>
+
+<ul spacing="compact">
+<li><t><tt>response_modes</tt>:</t>
+
+<ul spacing="compact">
+<li>OPTIONAL. A JSON array of strings containing the list of response modes that
+the client may use. If omitted, the default is that the client may use any of
+the response modes supported by the authorization server.</li>
+</ul></li>
+</ul>
+</section>
+</section>
+
+<section anchor="signing-authorization-responses"><name>Signing authorization responses</name>
+<t>To support non-repudiation for NR3, authorization responses can be signed.</t>
+
+<section anchor="requirements-for-authorization-servers-1"><name>Requirements for authorization servers</name>
+<t>Authorization servers implementing FAPI2 authorization response signing</t>
+
+<ol spacing="compact">
+<li>shall support, require use of, and issue signed authorization responses via JWT Secured Authorization
+Response Mode for OAuth 2.0 <xref target="JARM"></xref>.</li>
+</ol>
+<t><strong>NOTE</strong>: When using <xref target="JARM"></xref> an authorization server should only include the iss authorization response
+parameter defined by <xref target="RFC9207"></xref> inside the JWT. This is because <xref target="RFC9207"></xref> defines <tt>iss</tt>
+to be an authorization response parameter, and <xref target="JARM"></xref> Section 4.1 requires all authorization
+response parameters to be inside the JWT.</t>
+</section>
+
+<section anchor="requirements-for-clients-1"><name>Requirements for clients</name>
+<t>Clients implementing FAPI2 authorization response signing</t>
+
+<ol spacing="compact">
+<li>shall set the <tt>response_mode</tt> to <tt>jwt</tt> in the authorization request as defined in <xref target="JARM"></xref>; and</li>
+<li>shall verify signed authorization responses according to <xref target="JARM"></xref>.</li>
+</ol>
+</section>
+</section>
+
+<section anchor="signing-introspection-responses"><name>Signing introspection responses</name>
+<t>To support non-repudiation for NR4, introspection responses can be signed.</t>
+
+<section anchor="requirements-for-authorization-servers-2"><name>Requirements for authorization servers</name>
+<t>Authorization servers implementing FAPI2 introspection response signing</t>
+
+<ol spacing="compact">
+<li>shall sign introspection responses that are issued in JWT format according to <xref target="RFC9701"></xref></li>
+</ol>
+</section>
+
+<section anchor="requirements-for-clients-2"><name>Requirements for clients</name>
+<t>Clients implementing FAPI2 introspection response signing</t>
+
+<ol spacing="compact">
+<li>shall request signed token introspection responses according to <xref target="RFC9701"></xref>; and</li>
+<li>shall verify the signed token introspection responses.</li>
+</ol>
+</section>
+</section>
+
+<section anchor="signing-id-tokens"><name>Signing ID tokens</name>
+<t>To support non-repudiation for NR5, signed ID tokens are used.</t>
+
+<section anchor="requirements-for-authorization-servers-3"><name>Requirements for authorization servers</name>
+<t>No additional requirements.</t>
+<t>Note: Authorization servers implementing FAPI2 are already required to sign ID tokens as specified in section 5.4.1 in the <xref target="FAPI2_Security_Profile"></xref>.</t>
+</section>
+
+<section anchor="requirements-for-clients-3"><name>Requirements for clients</name>
+<t>Clients requesting and receiving ID tokens</t>
+
+<ol spacing="compact">
+<li>shall verify the signature of the signed ID token received.</li>
+</ol>
+</section>
+</section>
+</section>
+
+<section anchor="security-considerations"><name>Security considerations</name>
+
+<section anchor="authorization-response-encryption"><name>Authorization response encryption</name>
+<t>In FAPI2, there is no confidential information in the authorization response, hence encryption of the authorization response is not required for the purposes of security or confidentiality. In addition, to achieve greater interoperability, it is not recommended to use encryption in this case.</t>
+<t>Usage of PKCE in FAPI 2 provides protection for code leakage described in Section 5.4 of <xref target="JARM"></xref>.</t>
+</section>
+
+<section anchor="confusion-between-resource-servers-and-clients-in-introspection-request"><name>Confusion between resource servers and clients in introspection request</name>
+<t>In <xref target="RFC9701"></xref>, the resource server accessing
+the introspection endpoint is seen in the role of a client towards the
+authorization server that is providing the introspection endpoint. A malicious
+client (that is not a resource server) could attempt to call the introspection
+endpoint directly, and thus gather information about an access token to which it
+is not supposed to have access. This may, for example, leak secrets including,
+if the access token was leaked or stolen, personal information about an
+end-user.</t>
+<t>The authorization server therefore must ensure that the resource server is not
+confused with a regular client that is not supposed to call the introspection
+endpoint, and that the resource server has the necessary authorization to access
+the information associated with the access token.</t>
+</section>
+
+<section anchor="non-repudiation-limited-to-individual-messages"><name>Non-repudiation limited to individual messages</name>
+<t>It is important to note that while this specification provides mechanisms for non-repudiation for
+individual messages, it does not provide non-repudiation guarantees for a sequence of messages.</t>
+</section>
+
+<section anchor="non-repudiation-not-provided-for-front-channel-authorization-requests"><name>Non-repudiation not provided for front channel authorization requests</name>
+<t>While only a small amount of information is present in a <xref target="FAPI2_Security_Profile"></xref> front channel
+authorization request, it is important to note that non-repudiation is not provided for this message.</t>
+</section>
+
+<section anchor="difficulty-in-linking-a-signed-message-to-a-real-world-identity"><name>Difficulty in linking a signed message to a real world identity</name>
+<t>This specification provides the technical means to sign messages, however proving that a specific signed response is
+linked to a specific real world end-user, or that a real world end-user initiated a specific request is outside of the
+scope of this document.</t>
+</section>
+
+<section anchor="the-value-of-jarm-for-non-repudiation"><name>The value of JARM for non-repudiation</name>
+<t>The values signed in a JARM response may be of limited value for non-repudiation as the values are artifacts
+of the OAuth flow (e.g. code and state) rather than real world values (e.g. account number and amount). However JARM
+is still useful in providing message integrity to the authorization response.</t>
+</section>
+</section>
+
+<section anchor="privacy-considerations"><name>Privacy considerations</name>
+<t>In addition to the privacy considerations detailed in <xref target="FAPI2_Security_Profile"></xref> implementers should consider
+the privacy implications of storing messages for the purpose of non-repudiation.</t>
+<t>Such messages may well contain personally identifiable information and implementers should evaluate
+whether such messages need to be stored. If they are stored then adequate access controls must be
+put in place to protect that data. Such controls should follow data minimisation principles and ensure that
+there are tamper-proof audit logs.</t>
+</section>
+
+<section anchor="iana-considerations"><name>IANA considerations</name>
+
+<section anchor="oauth-dynamic-client-registration-metadata-registration"><name>OAuth dynamic client registration metadata registration</name>
+<t>This specification requests registration of the following client metadata
+definitions in the IANA &quot;OAuth Dynamic Client Registration Metadata&quot; registry
+established by <xref target="RFC7591"></xref>:</t>
+
+<section anchor="registry-contents"><name>Registry contents</name>
+
+<ul spacing="compact">
+<li>Client Metadata Name: <tt>response_modes</tt></li>
+<li>Client Metadata Description: Array of the response modes that the client may use</li>
+<li>Change Controller: IESG</li>
+<li>Specification Document(s): <xref target="client-metadata"></xref> of this specification</li>
+</ul>
+</section>
+</section>
+</section>
+
+<section anchor="acknowledgements"><name>Acknowledgements</name>
+<t>This specification was developed by the OpenID FAPI Working Group.</t>
+<t>We would like to thank Takahiko Kawasaki, Filip Skokan, Nat Sakimura, Dima Postnikov, Brian Campbell, Ralph Bragg, Justin Richer and Lukasz Jaromin for their valuable feedback and contributions that helped to evolve this specification.</t>
+</section>
+
+</middle>
+
+<back>
+<references><name>Normative References</name>
+<reference anchor="FAPI2_Security_Profile" target="https://openid.net/specs/fapi-security-profile-2_0.html">
+  <front>
+    <title>FAPI 2.0 Security Profile</title>
+    <author fullname="Daniel Fett" initials="D." surname="Fett">
+      <organization>Authlete</organization>
+    </author>
+    <author fullname="Dave Tonge" initials="D." surname="Tonge">
+      <organization>Moneyhub Financial Technology Ltd.</organization>
+    </author>
+    <author fullname="Joseph Heenan" initials="J." surname="Heenan">
+      <organization>Authlete</organization>
+    </author>
+    <date year="2025" month="Feb" day="22"></date>
+  </front>
+</reference>
+<reference anchor="ISO29100" target="https://standards.iso.org/ittf/PubliclyAvailableStandards/index.html#:~:text=IEC%2029100%3A2011-,EN,-%2D%20FR">
+  <front>
+    <title>ISO/IEC 29100 Information technology – Security techniques – Privacy framework</title>
+    <author fullname="ISO/IEC">
+      <organization></organization>
+    </author>
+  </front>
+</reference>
+<reference anchor="JARM" target="https://openid.net/specs/oauth-v2-jarm-final.html">
+  <front>
+    <title>JWT Secured Authorization Response Mode for OAuth 2.0 (JARM)</title>
+    <author fullname="Torsten Lodderstedt" initials="T." surname="Lodderstedt">
+      <organization>Yes</organization>
+    </author>
+    <author fullname="Brian Campbell" initials="B." surname="Campbell">
+      <organization>Ping</organization>
+    </author>
+    <date year="2022" month="Nov" day="9"></date>
+  </front>
+</reference>
+<reference anchor="NIST.SP.800-133" target="https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-133.pdf">
+  <front>
+    <title>NIST Special Publication 800-133</title>
+    <author fullname="Elaine Barker">
+      <organization></organization>
+    </author>
+    <author fullname="Allen Roginsky ">
+      <organization></organization>
+    </author>
+    <date year="2019" month="July" day="23"></date>
+  </front>
+</reference>
+<reference anchor="OIDC" target="http://openid.net/specs/openid-connect-core-1_0.html">
+  <front>
+    <title>OpenID Connect Core 1.0 incorporating errata set 2</title>
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization>NRI</organization>
+    </author>
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization>Ping Identity</organization>
+    </author>
+    <author fullname="Mike Jones" initials="M." surname="Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+      <organization>Google</organization>
+    </author>
+    <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+      <organization>Salesforce</organization>
+    </author>
+    <date year="2014" month="Nov" day="8"></date>
+  </front>
+</reference>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6749.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6750.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.7636.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.7662.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.9101.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.9126.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.9207.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.9701.xml"/>
+<reference anchor="attackermodel" target="https://openid.net/specs/fapi-attacker-model-2_0.html">
+  <front>
+    <title>FAPI 2.0 Attacker Model</title>
+    <author fullname="Daniel Fett" initials="D." surname="Fett">
+      <organization>Authlete</organization>
+    </author>
+    <date year="2025" month="FEb" day="22"></date>
+  </front>
+</reference>
+</references>
+<references><name>Informative References</name>
+<reference anchor="FAPI2MSANALYSIS" target="http://dx.doi.org/10.18419/opus-13698">
+  <front>
+    <title>Formal security analysis of the OpenID FAPI 2.0 Security Profile with &#xA;    FAPI 2.0 Message Signing, FAPI-CIBA, Dynamic Client Registration and Management </title>
+    <author fullname="Pedram Hosseyni" initials="P." surname="Hosseyni">
+      <organization>University of Stuttgart, Germany</organization>
+    </author>
+    <author fullname="Ralf Kuesters" initials="R." surname="Kuesters">
+      <organization>University of Stuttgart, Germany</organization>
+    </author>
+    <author fullname="Tim Würtele" initials="T." surname="Würtele">
+      <organization>University of Stuttgart, Germany</organization>
+    </author>
+    <date year="2024" month="Oct" day="04"></date>
+  </front>
+</reference>
+<reference anchor="ISODIR2" target="https://www.iso.org/sites/directives/current/part2/index.xhtml">
+  <front>
+    <title>ISO/IEC Directives, Part 2 - Principles and rules for the structure and drafting of ISO and IEC documents</title>
+    <author fullname="ISO/IEC">
+      <organization>ISO/IEC</organization>
+    </author>
+  </front>
+</reference>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.7591.xml"/>
+</references>
+
+<section anchor="notices"><name>Notices</name>
+<t>Copyright (c) 2025 The OpenID Foundation.</t>
+<t>The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer, or other interested party a non-exclusive, royalty free, worldwide copyright license to reproduce, prepare derivative works from, distribute, perform and display, this Implementers Draft or Final Specification solely for the purposes of (i) developing specifications, and (ii) implementing Implementers Drafts and Final Specifications based on such documents, provided that attribution be made to the OIDF as the source of the material, but that such attribution does not indicate an endorsement by the OIDF.</t>
+<t>The technology described in this specification was made available from contributions from various sources, including members of the OpenID Foundation and others. Although the OpenID Foundation has taken steps to help ensure that the technology is available for distribution, it takes no position regarding the validity or scope of any intellectual property or other rights that might be claimed to pertain to the implementation or use of the technology described in this specification or the extent to which any license under such rights might or might not be available; neither does it represent that it has made any independent effort to identify any such rights. The OpenID Foundation and the contributors to this specification make no (and hereby expressly disclaim any) warranties (express, implied, or otherwise), including implied warranties of merchantability, non-infringement, fitness for a particular purpose, or title, related to this specification, and the entire risk as to implementing this specification is assumed by the implementer. The OpenID Intellectual Property Rights policy requires contributors to offer a patent promise not to assert certain patent claims against other contributors and against implementers. The OpenID Foundation invites any interested party to bring to its attention any copyrights, patents, patent applications, or other proprietary rights that may cover technology that may be required to practice this specification.</t>
+</section>
+
+<section anchor="document-history"><name>Document History</name>
+<t>[[ To be removed from the final specification ]]</t>
+<t>-02
+ * Update references to final versions of fapi2 security profile and message signing
+ * editorial changes to get ready for final vote</t>
+<t>-01</t>
+
+<ul spacing="compact">
+<li>Update RFC9701 reference</li>
+<li>fix merge issue</li>
+<li>initial work on creating separate http signing spec</li>
+<li>get rid of [[ this specification ]] brackets</li>
+<li>numbering corrected and reworded the requirement</li>
+<li>Minor clarifications and typos</li>
+<li>ID token signing</li>
+<li>update refs to RFCs for http signatures</li>
+<li>typ in request objects</li>
+<li>Fixes #653 - Update abbreviated terms</li>
+<li>Addresses #672 - inconsistent capitalization</li>
+<li>Add Joseph to the FAPI2 SP &amp; MS authors list</li>
+<li>Fixes #649 - ISO29100 and ISO29134 is not in the reference</li>
+<li>Add myself to the FAPI2 SP &amp; MS authors list</li>
+<li>Fixes #648 - The first paragraph of the Normative reference shall be as provided in ISODIR2</li>
+<li>Fixes #645 - Author name of Normative reference ISODIR2 is wrong</li>
+<li>Fixes #645 - Author name of Normative reference ISODIR2 is wrong</li>
+<li>Fixes #648 - The first paragraph of the Normative reference shall be as provided in ISODIR2</li>
+<li>Renumber attackers, fix editorial stuff</li>
+<li>add security considerations around non repudiation limitations</li>
+<li>move MTLS Protection of all endpoints to SP</li>
+<li>Update DPoP references in FAPI 2 SP</li>
+<li>Update http signing intro text</li>
+<li>make clear that requests and responses can be signed independently</li>
+<li>Incorporate Brian's feedback</li>
+<li>Merged master into danielfett/fix-617</li>
+<li>attempt at clarifying request-response binding</li>
+<li>Fix typo</li>
+<li>Proposal to fix Issue #617</li>
+<li>Update affiliation to Authlete, add Dave as editor on the Security Profile, list Dave first for the Message Signing document</li>
+<li>FAPI2MS: Change 'above 3' to 'above 4'</li>
+<li>fapi2ms: require use of jarm, require use of jar, define response modes client metadata</li>
+<li>Add copyright notice to fapi-ms</li>
+<li>add draft to fapi2 message signing</li>
+<li>initial work on privacy for message signing</li>
+<li>FAPI2MS: Removed unused references</li>
+<li>FAPI2MS: Defer http signing to next implementer's draft</li>
+<li>Editorial fixes, working group in acknowledgements</li>
+<li>FAPI2MS: security profile/attacker model links updated</li>
+<li>add intro and rework initial section for message signing</li>
+<li>use ticks so it doesn't end up as privatekeyjwt - fapi-2_0-message-signing.md edited online with Bitbucket</li>
+<li>Update JARM ref in message signing</li>
+<li>FAPI2MS: Create acknowledgements section</li>
+<li>FAPI2MS: Make security considerations a top level section</li>
+<li>FAPI2MS: Make [security profile] a real reference</li>
+<li>FAPI2MS: Reword section about testing</li>
+<li>FAPI2MS: Reword section about testing</li>
+<li>FAPI2MS: Make [security profile] a real reference</li>
+<li>Remove Dave from acknowledgements as he's an author</li>
+<li>Update JARM ref in message signing</li>
+<li>FAPI2MS: Make security considerations a top level section</li>
+<li>FAPI2MS: Create acknowledgements section</li>
+<li>FAPI2MS: Make normative references normative</li>
+<li>use ticks so it doesn't end up as privatekeyjwt - fapi-2_0-message-signing.md edited online with Bitbucket</li>
+<li>Update filenames</li>
+</ul>
+<t>-00</t>
+
+<ul spacing="compact">
+<li>improvements to http sig wording</li>
+<li>Improve description of attacker model</li>
+<li>FAPI2MsgSign: Fix various links to the httpbis drafts</li>
+<li>Change name of Advanced Profile to Message Signing</li>
+</ul>
+</section>
+
+</back>
+
+</rfc>
