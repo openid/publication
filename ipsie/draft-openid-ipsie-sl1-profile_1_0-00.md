@@ -1,5 +1,5 @@
 ---
-title: "IPSIE SL1 OpenID Connect Profile"
+title: "IPSIE SL1 OpenID Connect Profile 1.0"
 abbrev: "IPSIE SL1"
 
 docname: draft-openid-ipsie-sl1-profile-00
