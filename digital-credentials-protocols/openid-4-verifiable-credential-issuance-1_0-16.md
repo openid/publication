@@ -1807,13 +1807,13 @@ regulation), the Credential Issuer should properly authenticate the Wallet and e
   </front>
 </reference>
 
-<reference anchor="USASCII">
+<reference anchor="USASCII" target="https://webstore.ansi.org/standards/INCITS/incits1986r2022">
         <front>
           <title>Coded Character Set -- 7-bit American Standard Code for Information Interchange</title>
           <author>
             <organization>American National Standards Institute</organization>
           </author>
-          <date year="1986"/>
+          <date year="2022"/>
         </front>
 </reference>
 
