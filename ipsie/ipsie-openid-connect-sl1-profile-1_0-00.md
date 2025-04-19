@@ -288,7 +288,7 @@ specification.
 
 Initial draft
 
-# Acknowledgments
+# Acknowledgements
 {:numbered="false"}
 
 TODO acknowledge.
