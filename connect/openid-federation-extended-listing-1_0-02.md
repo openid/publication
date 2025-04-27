@@ -380,6 +380,11 @@ Content-Type: application/json
 *Figure 10: Get list of Immediate Subordinates updated after certain moment in time. The response contains more than one
 page.*
 
+# Security Considerations
+
+The security considerations of OpenID Federation 1.0 [OpenID.Federation]
+apply to this specification.
+
 {backmatter}
 
 <reference anchor="OpenID.Federation" target="https://openid.net/specs/openid-federation-1_0.html">
@@ -464,6 +469,7 @@ Roland Hedberg.
 * Editorial pass on various typos and formatting issues.
 * Corrected example incorrectly still using the `entity_statement` query parameter renamed in 01.
 * Removed references to the `revoked` parameter.
+* Updates to pass the OIDF specification content validation checks.
 
 -01
 
