@@ -1,5 +1,5 @@
 %%%
-title = "JWT Secured Authorization Response Mode for OAuth 2.0 (JARM) - Draft 05"
+title = "JWT Secured Authorization Response Mode for OAuth 2.0 (JARM)"
 abbrev = "OAuth JARM"
 ipr = "none"
 workgroup = "FAPI"
@@ -7,14 +7,14 @@ keyword = ["security", "oauth2"]
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "oauth-v2-jarm-05"
+value = "oauth-v2-jarm-04"
 status = "standard"
 
 [[author]]
 initials="T."
 surname="Lodderstedt"
 fullname="Torsten Lodderstedt"
-organization="SPRIND"
+organization="yes.com"
     [author.address]
     email = "torsten@lodderstedt.net"
 
@@ -231,7 +231,7 @@ The client MUST process the JWT secured response as follows:
 1. The client checks the JWT's `exp` element to determine if the JWT is still valid. If the check fails, the client MUST abort processing and refuse the response. 
 1. The client MUST check the signature of the JWT according to [@!RFC7515] and the algorithm `none` (`"alg":"none"`) MUST NOT be accepted. If the check fails, the client MUST abort processing and refuse the response.
 
-The client will perform further checks, e.g. for CSRF detection, which are out of scope of this specification. Please see [@RFC9700] for more security recommendations.
+The client will perform further checks, e.g. for CSRF detection, which are out of scope of this specification. Please see [@I-D.ietf-oauth-security-topics] for more security recommendations.
 
 Note: The way the client obtains the keys for verifying the JWT's signature (step 5) is out of scope of this document. Established mechanism such as [@OIDD] or [@RFC8414] SHOULD be utilized.
 
@@ -283,7 +283,7 @@ Authorization servers SHOULD publish the supported response mode values utilizin
 
 # Security Considerations
 
-As JARM is used as a component in OAuth, many of the security considerations listed in OAuth 2.0 Security Best Current Practice [@RFC9700] apply. In addition, for the mechanisms described in this document, the following security considerations apply.
+As JARM is used as a component in OAuth, many of the security considerations listed in OAuth 2.0 Security Best Current Practice [@I-D.ietf-oauth-security-topics] apply. In addition, for the mechanisms described in this document, the following security considerations apply.
 
 ## DoS using specially crafted JWTs
 JWTs could be crafted to have an issuer that resolves to a JWK set URL with
@@ -302,7 +302,7 @@ protected, it is still conceivable that one or more of the messages are exchange
 message created for a different protocol run. The leakage and reuse of encrypted messages in
 (#code-leakage) is an example of such problems. To mitigate this problem, it is considered good
 practice to implement additional protection provided by PKCE [@RFC7636]
-as described in [@RFC9700].
+as described in [@I-D.ietf-oauth-security-topics].
 
 ## Mix-Up
 Mix-up is an attack on scenarios where an OAuth client interacts with
@@ -331,17 +331,17 @@ This specification requests registration of the following client metadata defini
 ### Registry Contents
 
 * Client Metadata Name: `authorization_signed_response_alg`
-* Client Metadata Description: String value indicating the client's desired authorization response signing algorithm.
+* Client Metadata Description: String value indicating the client's desired introspection response signing algorithm.
 * Change Controller: IESG
-* Specification Document(s): (#client-metadata) of this specification
+* Specification Document(s): (#client-metadata) of [[ this specification ]]
 * Client Metadata Name: `authorization_encrypted_response_alg`
-* Client Metadata Description: String value specifying the desired authorization response encryption algorithm (alg value).
+* Client Metadata Description: String value specifying the desired introspection response encryption algorithm (alg value).
 * Change Controller: IESG
-* Specification Document(s): (#client-metadata) of this specification
+* Specification Document(s): (#client-metadata) of [[ this specification ]]
 * Client Metadata Name: `authorization_encrypted_response_enc`
-* Client Metadata Description: String value specifying the desired authorization response encryption algorithm (enc value).
+* Client Metadata Description: String value specifying the desired introspection response encryption algorithm (enc value).
 * Change Controller: IESG
-* Specification Document(s): (#client-metadata) of this specification
+* Specification Document(s): (#client-metadata) of [[ this specification ]]
 
 ## OAuth Authorization Server Metadata Registration
 This specification requests registration of the following value in the IANA "OAuth Authorization Server Metadata" registry established by [@RFC8414].
@@ -349,17 +349,17 @@ This specification requests registration of the following value in the IANA "OAu
 ### Registry Contents
 
 * Metadata Name: `authorization_signing_alg_values_supported`
-* Metadata Description: JSON array containing a list of algorithms supported by the authorization server for authorization response signing.
+* Metadata Description: JSON array containing a list of algorithms supported by the authorization server for introspection response signing.
 * Change Controller: IESG
-* Specification Document(s): (#as-metadata) of this specification
+* Specification Document(s): (#as-metadata) of [[ this specification ]]
 * Metadata Name: `authorization_encryption_alg_values_supported`
-* Metadata Description: JSON array containing a list of algorithms supported by the authorization server for authorization response encryption (alg value).
+* Metadata Description: JSON array containing a list of algorithms supported by the authorization server for introspection response encryption (alg value).
 * Change Controller: IESG
-* Specification Document(s): (#as-metadata) of this specification
+* Specification Document(s): (#as-metadata) of [[ this specification ]]
 * Metadata Name: `authorization_encryption_enc_values_supported`
-* Metadata Description: JSON array containing a list of algorithms supported by the authorization server for authorization response encryption (enc value).
+* Metadata Description: JSON array containing a list of algorithms supported by the authorization server for introspection response encryption (enc value).
 * Change Controller: IESG
-* Specification Document(s): (#as-metadata) of this specification
+* Specification Document(s): (#as-metadata) of [[ this specification ]]
 
 {backmatter}
 
@@ -462,10 +462,10 @@ This specification requests registration of the following value in the IANA "OAu
 
 The following people contributed to this document:
 
-* Torsten Lodderstedt (SPRIND), Editor
+* Torsten Lodderstedt (YES), Editor
 * Brian Campbell (Ping Identity), Co-editor
 * Nat Sakimura (NAT Consulting LLC) -- Chair
-* Dave Tonge (Moneyhub) -- Chair
+* Dave Tonge (Momentum Financial Technology) -- Chair
 * Joseph Heenan (Authlete)
 * Ralph Bragg (Raidiam)
 * Vladimir Dzhuvinov (Connect2ID)
@@ -474,44 +474,8 @@ The following people contributed to this document:
 
 # Notices
 
-Copyright (c) 2025 The OpenID Foundation.
+Copyright (c) 2022 The OpenID Foundation.
 
-The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer,
-or other interested party a non-exclusive, royalty free, worldwide copyright license to
-reproduce, prepare derivative works from, distribute, perform and display, this
-Implementers Draft, Final Specification, or Final Specification Incorporating Errata
-Corrections solely for the purposes of (i) developing specifications, and (ii)
-implementing Implementers Drafts, Final Specifications, and Final Specification
-Incorporating Errata Corrections based on such documents, provided that attribution
-be made to the OIDF as the source of the material, but that such attribution does not
-indicate an endorsement by the OIDF.
+The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer, or other interested party a non-exclusive, royalty free, worldwide copyright license to reproduce, prepare derivative works from, distribute, perform and display, this Implementers Draft or Final Specification solely for the purposes of (i) developing specifications, and (ii) implementing Implementers Drafts and Final Specifications based on such documents, provided that attribution be made to the OIDF as the source of the material, but that such attribution does not indicate an endorsement by the OIDF.
 
-The technology described in this specification was made available from contributions
-from various sources, including members of the OpenID Foundation and others.
-Although the OpenID Foundation has taken steps to help ensure that the technology
-is available for distribution, it takes no position regarding the validity or scope of any
-intellectual property or other rights that might be claimed to pertain to the
-implementation or use of the technology described in this specification or the extent
-to which any license under such rights might or might not be available; neither does it
-represent that it has made any independent effort to identify any such rights. The
-OpenID Foundation and the contributors to this specification make no (and hereby
-expressly disclaim any) warranties (express, implied, or otherwise), including implied
-warranties of merchantability, non-infringement, fitness for a particular purpose, or
-title, related to this specification, and the entire risk as to implementing this
-specification is assumed by the implementer. The OpenID Intellectual Property
-Rights policy (found at openid.net) requires contributors to offer a patent promise not
-to assert certain patent claims against other contributors and against implementers.
-OpenID invites any interested party to bring to its attention any copyrights, patents,
-patent applications, or other proprietary rights that may cover technology that may be
-required to practice this specification.
-
-# Document History
-
-[[ To be removed from the approved specification incorporating errata corrections ]]
-
--05
-
-* Resolve JARM IANA registration review feedback
-* Update copyright notice
-* Update author and contributor associations
-* Update security topics reference to RFC970
+The technology described in this specification was made available from contributions from various sources, including members of the OpenID Foundation and others. Although the OpenID Foundation has taken steps to help ensure that the technology is available for distribution, it takes no position regarding the validity or scope of any intellectual property or other rights that might be claimed to pertain to the implementation or use of the technology described in this specification or the extent to which any license under such rights might or might not be available; neither does it represent that it has made any independent effort to identify any such rights. The OpenID Foundation and the contributors to this specification make no (and hereby expressly disclaim any) warranties (express, implied, or otherwise), including implied warranties of merchantability, non-infringement, fitness for a particular purpose, or title, related to this specification, and the entire risk as to implementing this specification is assumed by the implementer. The OpenID Intellectual Property Rights policy requires contributors to offer a patent promise not to assert certain patent claims against other contributors and against implementers. The OpenID Foundation invites any interested party to bring to its attention any copyrights, patents, patent applications, or other proprietary rights that may cover technology that may be required to practice this specification.
