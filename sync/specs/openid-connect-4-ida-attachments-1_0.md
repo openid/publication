@@ -1,5 +1,5 @@
 %%%
-title = "OpenID Attachments 1.0 - draft 01"
+title = "OpenID Attachments 1.0 - draft 02"
 abbrev = "openid-connect-4-ida-attachments-1_0"
 ipr = "none"
 workgroup = "eKYC-IDA"
@@ -8,7 +8,7 @@ keyword = ["security", "openid", "identity assurance", "ekyc", "claims"]
 [seriesInfo]
 name = "Internet-Draft"
 
-value = "openid-connect-4-ida-attachments-1_0-00"
+value = "openid-connect-4-ida-attachments-1_0-02"
 
 status = "standard"
 
@@ -190,9 +190,9 @@ As attachments will most likely contain more personal information than was reque
 
 When using attachments containing personal information, implementers should choose a well tested and well-supported hashing function. Cryptographic hash functions take as input a message of arbitrary length and produce a fixed length message digest and are employed as a data integrity mechanism for non-repudiation. The OP should ensure that hash functions and algorithms used follow the recommendedations of an appropriate standards body. Lists of approved digest/hash function names and status are maintained by NIST CSRC in [@nist_approved_hash_algorithms] (established in [@FIPSSP180-4] and [@FIPSSP202]), by ISO as established in [@ISO10118-3], and by EPC as esablished in [@EPCCryptoAlgoUsage].
 
-# Client registration and management
+# Client registration and management {#client_metadata_parameters}
 
-If external attachments are used in the context of an OpenID Provider that uses either [@!OpenID-Registration] or [@RFC7592] the following additional properties should be available as part of any client registration or client management interactions:
+If external attachments are used in the context of an OpenID Provider that uses mechanisms such as [@!OpenID-Registration] or [@RFC7592] to gather client details the following additional properties should be available as part of any client registration or client management interactions:
 
 `digest_algorithm`: String value representing the chosen digest algorithm (for external attachments). The value shall be one of the digest algorithms supported by the OP as advertised in the [OP metadata](#opmetadata). If this property is not set, `sha-256` will be used by default.
 
@@ -480,6 +480,51 @@ Note: examples of embedded attachments contain truncated values.
   </front>
 </reference>
 
+<reference anchor="IANA.OAuth.Parameters" target="https://www.iana.org/assignments/oauth-parameters">
+  <front>
+    <title>OAuth Parameters</title>
+    <author>
+      <organization>IANA</organization>
+    </author>
+    <date/>
+  </front>
+</reference>
+
+# IANA Considerations
+
+## OAuth Authorization Server Metadata Registry
+
+This specification registers the following authorization server metadata parameters
+in the IANA "OAuth Authorization Server Metadata" registry [@IANA.OAuth.Parameters]
+established by [@!RFC8414].
+
+### attachments_supported
+
+* Metadata Name: `attachments_supported`
+* Metadata Description: An array containing a list attachment types supported by the OP
+* Change Controller: OpenID Foundation eKYC & IDA Working Group - openid-specs-ekyc-ida@lists.openid.net
+* Reference: (#opmetadata) of this specification
+
+### digest_algorithms_supported
+
+* Metadata Name: `digest_algorithms_supported`
+* Metadata Description: An array containing a list of values, where each value is a string identifying a digest algorithm supported by the OP in the context of an external attachment.
+* Change Controller: OpenID Foundation eKYC & IDA Working Group - openid-specs-ekyc-ida@lists.openid.net
+* Reference: (#opmetadata) of this specification
+
+## OAuth Dynamic Client Registration Metadata Registry
+
+This specification registers the following client metadata parameters
+in the IANA "OAuth Dynamic Client Registration Metadata" registry [@IANA.OAuth.Parameters]
+established by [@!RFC7591].
+
+### digest_algorithm
+
+* Client Metadata Name: `digest_algorithm`
+* Client Metadata Description: An element containing a single value, where the value of the string identifies the digest algorithm chosen the client to used by the OP when presenting any external attachments
+* Change Controller: OpenID Foundation eKYC & IDA Working Group - openid-specs-ekyc-ida@lists.openid.net
+* Reference: (#client_metadata_parameters) of this specification
+
 # Acknowledgements {#Acknowledgements}
 
 The following people at yes.com and partner companies contributed to the concept described in the initial contribution to this document: Karsten Buch, Lukas Stiebig, Sven Manz, Waldemar Zimpfer, Willi Wiedergold, Fabian Hoffmann, Daniel Keijsers, Ralf Wagner, Sebastian Ebling, Peter Eisenhofer.
@@ -522,6 +567,10 @@ required to practice this specification.
 # Document History
 
    [[ To be removed from the final specification ]]
+
+   -02
+   * Added IANA Registration
+   * Editorial change to Client Registration and Management
 
    -01
    * Various editorial updates
