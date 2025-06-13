@@ -33,7 +33,6 @@ organization="Independent"
 OpenID Connect 1.0 has become a popular choice for single sign on in enterprise use cases. To improve interoperability, OpenID Connect Enterprise Extensions specifies a number of common or desirable extensions to OpenID Connect.
 
 
-
 {mainmatter}
 
 # Introduction
