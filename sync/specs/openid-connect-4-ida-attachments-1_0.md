@@ -1,5 +1,5 @@
 %%%
-title = "OpenID Attachments 1.0 - draft 02"
+title = "OpenID Attachments 1.0"
 abbrev = "openid-connect-4-ida-attachments-1_0"
 ipr = "none"
 workgroup = "eKYC-IDA"
@@ -71,15 +71,6 @@ This document defines a way of representing binary data in the context of a JSON
 This document defines an attachment element as a JWT claim for use in various contexts.
 
 Attachment element was inspired by the work done on [@OpenID4IDA] and in particular how to include images of various pieces of evidence used as part of an identity assurance process. However, it is anticipated that there are other cases where the ability to embed or refer to non-JSON structured data is useful.
-
-.# Warning
-
-This document is not an OIDF International Standard. It is distributed for
-review and comment. It is subject to change without notice and may not be
-referred to as an International Standard.
-Recipients of this draft are invited to submit, with their comments,
-notification of any relevant patent rights of which they are aware and to
-provide supporting documentation.
 
 .# Foreword
 
@@ -563,20 +554,3 @@ to assert certain patent claims against other contributors and against implement
 OpenID invites any interested party to bring to its attention any copyrights, patents,
 patent applications, or other proprietary rights that may cover technology that may be
 required to practice this specification.
-
-# Document History
-
-   [[ To be removed from the final specification ]]
-
-   -02
-   * Added IANA Registration
-   * Editorial change to Client Registration and Management
-
-   -01
-   * Various editorial updates
-
-   -00 (WG document)
-
-   *  Split this content from openid-connect-4-identity-assurance-1_0-13 WG document
-   * Add RFC4648 as normative reference
-
