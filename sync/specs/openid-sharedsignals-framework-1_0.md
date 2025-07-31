@@ -1,8 +1,8 @@
 ---
-title: OpenID Shared Signals Framework Specification 1.0 - draft 04
+title: OpenID Shared Signals Framework Specification 1.0 - draft 05
 abbrev: SharedSignals
 docname: openid-sharedsignals-framework-1_0
-date: 2025-06-03
+date: 2025-07-30
 
 ipr: none
 cat: std
@@ -24,8 +24,8 @@ author:
       -
         ins: T. Cappalli
         name: Tim Cappalli
-        org: Microsoft
-        email: tim.cappalli@microsoft.com
+        org: Okta
+        email: tim.cappalli@okta.com
       -
         ins: M. Scurtescu
         name: Marius Scurtescu
@@ -118,6 +118,7 @@ normative:
     -
       ins: T. Cappalli
       name: Tim Cappalli
+      org: Okta
     -
       ins: A. Tulshibagwale
       name: Atul Tulshibagwale
@@ -162,7 +163,7 @@ Profile ({{CAEP}})
 
 This specification defines:
 
-* A profile for Security Events Tokens {{RFC8417}}
+* A profile for Security Event Tokens {{RFC8417}}
 * Subject principals
 * Subject claims in SSF events
 * Event types
@@ -175,8 +176,8 @@ specifications:
 
 * Security Event Token (SET) {{RFC8417}}
 * Subject Identifiers for Security Event Tokens {{RFC9493}}
-* Push-Based SET Token Delivery Using HTTP {{RFC8935}}
-* Poll-Based SET Token Delivery Using HTTP {{RFC8936}}
+* Push-Based Security Event Token (SET) Delivery Using HTTP {{RFC8935}}
+* Poll-Based Security Event Token (SET) Delivery Using HTTP {{RFC8936}}
 
 --- middle
 
@@ -211,7 +212,7 @@ Subject Principals are identified by Subject Members defined below.
 ## Subject Members {#subject-members}
 
 A Subject Member of an SSF event describes a subject of the event. A top-level
-claimnamed `sub_id` MUST be used to describe the primary subject of the event.
+claim named `sub_id` MUST be used to describe the primary subject of the event.
 
 ### Existing CAEP and RISC Events
 
@@ -294,14 +295,14 @@ Below is a non-normative example of a Complex Subject claim in an SSF event.
 ~~~ json
 "sub_id": {
   "format": "complex",
-  "user" : {
+  "user": {
     "format": "email",
     "email": "bar@example.com"
   },
-  "tenant" : {
+  "tenant": {
     "format": "iss_sub",
-    "iss" : "https://example.com/idp1",
-    "sub" : "1234"
+    "iss": "https://example.com/idp1",
+    "sub": "1234"
   }
 }
 ~~~
@@ -357,9 +358,9 @@ Identifier Format.
 
 ~~~ json
 {
-    "format": "jwt_id",
-    "iss": "https://idp.example.com/123456789/",
-    "jti": "B70BA622-9515-4353-A866-823539EECBC8"
+  "format": "jwt_id",
+  "iss": "https://idp.example.com/123456789/",
+  "jti": "B70BA622-9515-4353-A866-823539EECBC8"
 }
 ~~~
 {: #sub-id-jwtid title="Example: 'jwt_id' Subject Identifier"}
@@ -388,11 +389,10 @@ Below is a non-normative example of Subject Identifier for the
 
 ~~~ json
 {
-    "format": "saml_assertion_id",
-    "issuer": "https://idp.example.com/123456789/",
-    "assertion_id": "_8e8dc5f69a98cc4c1ff3427e5ce34606fd672f91e6"
+  "format": "saml_assertion_id",
+  "issuer": "https://idp.example.com/123456789/",
+  "assertion_id": "_8e8dc5f69a98cc4c1ff3427e5ce34606fd672f91e6"
 }
-
 ~~~
 {: #sub-id-samlassertionid title="Example: 'saml_assertion_id' Subject
 Identifier"}
@@ -417,19 +417,18 @@ Subject Identifier Format.
 
 ~~~ json
 {
-    "format": "ip-addresses",
-    "ip-addresses": ["10.29.37.75", "2001:0db8:0000:0000:0000:8a2e:0370:7334"]
+  "format": "ip-addresses",
+  "ip-addresses": ["10.29.37.75", "2001:0db8:0000:0000:0000:8a2e:0370:7334"]
 }
-
 ~~~
 {: #sub-id-ips-example title="Example: 'ip-addresses' Subject Identifier"}
 
 ## Receiver Subject Processing {#receiver-subject-processing}
 
-A SSF Receiver MUST make a best effort to process all members from a Subject in
+An SSF Receiver MUST make a best effort to process all members from a Subject in
 an SSF event. The Transmitter Configuration Metadata ({{discovery-meta}})
 defined below MAY define certain members within a Complex Subject to be
-Critical. A SSF Receiver MUST discard any event that contains a Subject with a
+Critical. An SSF Receiver MUST discard any event that contains a Subject with a
 Critical member that it is unable to process.
 
 # Events {#events}
@@ -446,14 +445,14 @@ SSF events MUST use explicit typing as defined in Section 2.3 of {{RFC8417}}.
 
 ~~~ json
 {
-  "typ":"secevent+jwt",
-  "alg":"HS256"
+  "typ": "secevent+jwt",
+  "alg": "HS256"
 }
 ~~~
 {: title="Explicitly Typed JOSE Header" #explicit-type-header}
 
 The purpose is defense against confusion with other JWTs, as described in
-Sections 4.5, 4.6 and 4.7 of {{RFC8417}}. While current Id Token {{OpenID.Core}}
+Sections 4.5, 4.6 and 4.7 of {{RFC8417}}. While current ID Token {{OpenID.Core}}
 validators may not be using the "typ" header parameter, requiring it for SSF
 SETs guarantees a distinct value for future validators.
 
@@ -521,7 +520,7 @@ multiple Receivers would lead to unintended data disclosure.
   "iss": "https://transmitter.example.com",
   "aud": ["receiver.example.com/web", "receiver.example.com/mobile"],
   "iat": 1493856000,
-  "txn": 8675309,
+  "txn": "8675309",
   "sub_id": {
     "format": "opaque",
     "id": "72e6991badb44e08a69672960053b342"
@@ -541,7 +540,7 @@ Transmitters SHOULD set the "txn" claim value in Security Event Tokens (SETs).
 If the value is present, it MUST be unique to the underlying event that caused
 the Transmitter to generate the Security Event Token (SET). The Transmitter,
 however, may use the same value in the "txn" claim across different Security
-Events Tokens (SETs), such as session revoked and credential change, to indicate
+Event Tokens (SETs), such as session revoked and credential change, to indicate
 that the SETs originated from the same underlying cause or reason.
 
 ## Event Properties {#event-properties}
@@ -575,7 +574,7 @@ Signals Framework.
   "iss": "https://idp.example.com/",
   "jti": "756E69717565206964656E746966696572",
   "iat": 1520364019,
-  "txn": 8675309,
+  "txn": "8675309",
   "aud": "636C69656E745F6964",
   "sub_id": {
     "format": "email",
@@ -594,7 +593,7 @@ Simple Subject Member"}
   "iss": "https://idp.example.com/",
   "jti": "756E69717565206964656E746966696572",
   "iat": 1520364019,
-  "txn": 8675309,
+  "txn": "8675309",
   "aud": "636C69656E745F6964",
   "sub_id": {
     "format": "phone_number",
@@ -615,7 +614,7 @@ a Phone Number Subject"}
   "iss": "https://idp.example.com/",
   "jti": "756E69717565206964656E746966696572",
   "iat": 1520364019,
-  "txn": 8675309,
+  "txn": "8675309",
   "aud": "636C69656E745F6964",
   "sub_id": {
     "format": "email",
@@ -638,7 +637,7 @@ with Properties"}
   "iss": "https://idp.example.com/",
   "jti": "756E69717565206964656E746966696572",
   "iat": 1520364019,
-  "txn": 8675309,
+  "txn": "8675309",
   "aud": "636C69656E745F6964",
   "sub_id": {
     "format": "complex",
@@ -676,7 +675,7 @@ Complex Subject Member"}
   "iss": "https://sp.example2.com/",
   "jti": "756E69717565206964656E746966696572",
   "iat": 1520364019,
-  "txn": 8675309,
+  "txn": "8675309",
   "aud": "636C69656E745F6964",
   "sub_id": {
     "format": "email",
@@ -700,7 +699,7 @@ Simple Subject and a Property Member"}
   "iss": "https://myservice.example3.com/",
   "jti": "756E69717565206964656E746966696534",
   "iat": 15203800012,
-  "txn": 8675309,
+  "txn": "8675309",
   "aud": "636C69656E745F6324",
   "sub_id": {
     "format": "catalog_item",
@@ -785,9 +784,9 @@ Transmitter is assumed to conform to "1_0-ID1" version of the specification.
 > final specification of the Shared Signals Framework 1_0.
 
 ~~~ json
-   {
-        "spec_version": "1_0"
-   }
+{
+  "spec_version": "1_0"
+}
 ~~~
 {: #figspecversionfinal title="Example: spec_version referring to the final 1_0
 spec"}
@@ -882,14 +881,14 @@ spec_urn
 The Receiver will call the Transmitter APIs by providing appropriate credentials
 as per the `spec_urn`.
 
-The following is a non-normative example of the `spec_urn`
+The following is a non-normative example of the `spec_urn`:
 
 ~~~ json
-   {
-        "spec_urn": "urn:ietf:rfc:6749"
-   }
+{
+  "spec_urn": "urn:ietf:rfc:6749"
+}
 ~~~
-{: #figspecurn title="Example: `spec_urn` specifying the OAuth protocol for
+{: #figspecurn title="Example: 'spec_urn' specifying the OAuth protocol for
 authorization"}
 
 In this case, the Receiver may obtain an access token using the Client
@@ -974,7 +973,7 @@ zero elements MUST be omitted from the response.
 
 An error response uses the applicable HTTP status code value.
 
-The following is a non-normative example of a Transmitter Configuration Response
+The following is a non-normative example of a Transmitter Configuration Response:
 
 ~~~ http
 HTTP/1.1 200 OK
@@ -999,8 +998,8 @@ Content-Type: application/json
     "https://tr.example.com/ssf/mgmt/subject:remove",
   "verification_endpoint":
     "https://tr.example.com/ssf/mgmt/verification",
-  "critical_subject_members": [ "tenant", "user" ],
-  "authorization_schemes":[
+  "critical_subject_members": ["tenant", "user"],
+  "authorization_schemes": [
       {
         "spec_urn": "urn:ietf:rfc:6749"
       },
@@ -1269,10 +1268,10 @@ Authorization: Bearer eyJ0b2tlbiI6ImV4YW1wbGUifQo=
     "urn:example:secevent:events:type_3",
     "urn:example:secevent:events:type_4"
   ],
-  "description" : "Stream for Receiver A using events type_2, type_3, type_4"
+  "description": "Stream for Receiver A using events type_2, type_3, type_4"
 }
 ~~~
-{: #figcreatestreamreq title="Example: Create Event Stream Request"}
+{: #figcreatestreamreq title="Example: Create Stream Request"}
 
 The following is a non-normative example response:
 
@@ -1284,9 +1283,9 @@ Content-Type: application/json
   "stream_id": "f67e39a0a4d34d56b3aa1bc4cff0069f",
   "iss": "https://tr.example.com",
   "aud": [
-      "https://receiver.example.com/web",
-      "https://receiver.example.com/mobile"
-    ],
+    "https://receiver.example.com/web",
+    "https://receiver.example.com/mobile"
+  ],
   "delivery": {
     "method": "urn:ietf:rfc:8935",
     "endpoint_url": "https://receiver.example.com/events"
@@ -1305,7 +1304,7 @@ Content-Type: application/json
     "urn:example:secevent:events:type_2",
     "urn:example:secevent:events:type_3"
   ],
-  "description" : "Stream for Receiver A using events type_2, type_3, type_4"
+  "description": "Stream for Receiver A using events type_2, type_3, type_4"
 }
 ~~~
 {: #figcreatestreamresp title="Example: Create Stream Response"}
@@ -1320,7 +1319,7 @@ Errors are signaled with HTTP status codes as follows:
 | 409  | if the Transmitter does not support multiple streams per Receiver |
 {: title="Create Stream Errors" #tablecreatestream}
 
-##### Validating a Stream Creation Response
+##### Validating a Create Stream Response
 
 * `aud`: the Receiver SHOULD validate the `aud` in the Create Stream Response.
 A Transmitter and Receiver MAY agree upon the audience value out of band.
@@ -1363,9 +1362,9 @@ Cache-Control: no-store
   "stream_id": "f67e39a0a4d34d56b3aa1bc4cff0069f",
   "iss": "https://tr.example.com",
   "aud": [
-      "https://receiver.example.com/web",
-      "https://receiver.example.com/mobile"
-    ],
+    "https://receiver.example.com/web",
+    "https://receiver.example.com/mobile"
+  ],
   "delivery": {
     "method": "urn:ietf:rfc:8935",
     "endpoint_url": "https://receiver.example.com/events"
@@ -1384,7 +1383,7 @@ Cache-Control: no-store
     "urn:example:secevent:events:type_2",
     "urn:example:secevent:events:type_3"
   ],
-  "description" : "Stream for Receiver A using events type_2, type_3, type_4"
+  "description": "Stream for Receiver A using events type_2, type_3, type_4"
 }
 ~~~
 {: title="Example: Read Stream Configuration Response" #figreadconfigresp}
@@ -1413,9 +1412,9 @@ Cache-Control: no-store
     "stream_id": "f67e39a0a4d34d56b3aa1bc4cff0069f",
     "iss": "https://tr.example.com",
     "aud": [
-        "https://receiver.example.com/web",
-        "https://receiver.example.com/mobile"
-      ],
+      "https://receiver.example.com/web",
+      "https://receiver.example.com/mobile"
+    ],
     "delivery": {
       "method": "urn:ietf:rfc:8935",
       "endpoint_url": "https://receiver.example.com/events"
@@ -1439,9 +1438,9 @@ Cache-Control: no-store
     "stream_id": "50b2d39934264897902c0581ba7c21a3",
     "iss": "https://tr.example.com",
     "aud": [
-        "https://receiver.example.com/web",
-        "https://receiver.example.com/mobile"
-      ],
+      "https://receiver.example.com/web",
+      "https://receiver.example.com/mobile"
+    ],
     "delivery": {
       "method": "urn:ietf:rfc:8935",
       "endpoint_url": "https://receiver.example.com/events"
@@ -1460,7 +1459,7 @@ Cache-Control: no-store
       "urn:example:secevent:events:type_2",
       "urn:example:secevent:events:type_3"
     ],
-    "description" : "Stream for Receiver A using events type_2, type_3, type_4"
+    "description": "Stream for Receiver A using events type_2, type_3, type_4"
   }
 ]
 ~~~
@@ -1480,9 +1479,9 @@ Cache-Control: no-store
     "stream_id": "f67e39a0a4d34d56b3aa1bc4cff0069f",
     "iss": "https://tr.example.com",
     "aud": [
-        "https://receiver.example.com/web",
-        "https://receiver.example.com/mobile"
-      ],
+      "https://receiver.example.com/web",
+      "https://receiver.example.com/mobile"
+    ],
     "delivery": {
       "method": "urn:ietf:rfc:8935",
       "endpoint_url": "https://receiver.example.com/events"
@@ -1567,7 +1566,7 @@ Authorization: Bearer eyJ0b2tlbiI6ImV4YW1wbGUifQo=
     "urn:example:secevent:events:type_3",
     "urn:example:secevent:events:type_4"
   ],
-  "description" : "Stream for Receiver B using events type_2, type_3, type_4"
+  "description": "Stream for Receiver B using events type_2, type_3, type_4"
 }
 ~~~
 {: title="Example: Update Stream Configuration Request" #figupdateconfigreq}
@@ -1604,7 +1603,7 @@ Cache-Control: no-store
     "urn:example:secevent:events:type_2",
     "urn:example:secevent:events:type_3"
   ],
-  "description" : "Stream for Receiver B using events type_2, type_3, type_4"
+  "description": "Stream for Receiver B using events type_2, type_3, type_4"
 }
 ~~~
 {: title="Example: Update Stream Configuration Response" #figupdateconfigresp}
@@ -1663,7 +1662,7 @@ Authorization: Bearer eyJ0b2tlbiI6ImV4YW1wbGUifQo=
     "urn:example:secevent:events:type_3",
     "urn:example:secevent:events:type_4"
   ],
-  "description" : "Stream for Receiver C"
+  "description": "Stream for Receiver C"
 }
 ~~~
 {: title="Example: Replace Stream Configuration Request" #figreplaceconfigreq}
@@ -1700,7 +1699,7 @@ Cache-Control: no-store
     "urn:example:secevent:events:type_2",
     "urn:example:secevent:events:type_3"
   ],
-  "description" : "Stream for Receiver C"
+  "description": "Stream for Receiver C"
 }
 ~~~
 {: title="Example: Replace Stream Configuration Response" #figreplaceconfigresp}
@@ -1819,7 +1818,7 @@ status:
 ~~~ http
 GET /ssf/status?stream_id=f67e39a0a4d34d56b3aa1bc4cff0069f HTTP/1.1
 Host: transmitter.example.com
-Authorization: Bearer zzzz
+Authorization: Bearer eyJ0b2tlbiI6ImV4YW1wbGUifQo=
 ~~~
 {: title="Example: Check Stream Status Request" #figstatusreq}
 
@@ -2077,8 +2076,8 @@ broadcast the event over the Receiver's stream.
 #### Adding a Subject to a Stream {#adding-a-subject-to-a-stream}
 
 To add a subject to an Event Stream, the Event Receiver makes an HTTP POST
-request to the Add Subject Endpoint, containing in the body a JSON object the
-following claims:
+request to the Add Subject Endpoint, containing in the body a JSON object with
+the following claims:
 
 stream_id
 
@@ -2223,7 +2222,7 @@ contains the following attribute:
 
 state
 
-> OPTIONAL An opaque value provided by the Event Receiver when the event is
+> OPTIONAL. An opaque value provided by the Event Receiver when the event is
   triggered.
 
 As with any SSF event, the Verification Event has a top-level `sub_id` claim:
@@ -2247,7 +2246,7 @@ In many cases, Event Transmitters MAY disable or suspend an Event Stream that
 fails to successfully verify based on the acknowledgement or lack of
 acknowledgement by the Event Receiver.
 
-#### Triggering a Verification Event. {#triggering-a-verification-event}
+#### Triggering a Verification Event {#triggering-a-verification-event}
 
 To request that a Verification Event be sent over an Event Stream, the Event
 Receiver makes an HTTP POST request to the Verification Endpoint, with a JSON
@@ -2282,7 +2281,7 @@ Errors are signaled with HTTP status codes as follows:
 
 | Code | Description |
 |------|-------------|
-| 400  | if the request body cannot be parsed or if the request is otherwiseinvalid |
+| 400  | if the request body cannot be parsed or if the request is otherwise invalid |
 | 401  | if authorization failed or it is missing |
 | 404  | if there is no Event Stream with the given "stream_id" for this Event Receiver |
 | 429  | if the Event Receiver is sending too many requests in a given amount of time; see related "min_verification_interval" in {{stream-config}}
@@ -2327,7 +2326,7 @@ Event Receiver as a result of the above request:
     "id": "f67e39a0a4d34d56b3aa1bc4cff0069f"
   },
   "events": {
-    "https://schemas.openid.net/secevent/ssf/event-type/verification":{
+    "https://schemas.openid.net/secevent/ssf/event-type/verification": {
       "state": "VGhpcyBpcyBhbiBleGFtcGxlIHN0YXRlIHZhbHVlLgo="
     }
   }
@@ -2369,7 +2368,7 @@ As with any SSF event, this event has a top-level `sub_id` claim:
 
 sub_id
 
-> REQUIRED. The top-level `sub_id` claim specifies the Stream Id for which the
+> REQUIRED. The top-level `sub_id` claim specifies the Stream ID for which the
 status has been updated. The value of the `sub_id` field MUST be of format
 `opaque`, and its `id` value MUST be the unique ID of the stream.
 >
@@ -2492,7 +2491,7 @@ policy.
 # IANA Considerations {#iana}
 
 Subject Identifiers defined in this document will be added to the "Security
-Events Subject Identifier Types" registry. This registry is defined in the
+Event Identifier Formats" registry. This registry is defined in the
 Subject Identifiers for Security Event Tokens {{RFC9493}} specification.
 
 The `ssf-configuration` well-known endpoint is registered in IANA's Well-Known
@@ -2520,7 +2519,7 @@ Change Controller
 
 # Acknowledgements
 
-The authors wish to thank all members of the OpenID Foundation SSF
+The authors wish to thank all members of the OpenID Foundation Shared Signals
 Working Group who contributed to the development of this
 specification.
 
