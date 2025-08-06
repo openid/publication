@@ -1,10 +1,8 @@
 ---
-title: "IPSIE Common Requirements Profile"
+title: "IPSIE Common Requirements Profile Draft 00"
 abbrev: "IPSIE Common Requirements"
-category: info
 
-docname: draft-ipsie-common-requirements-profile-latest
-submissiontype: "independent"
+docname: draft-ipsie-common-requirements-profile-00
 number:
 date:
 v: 3
@@ -71,7 +69,7 @@ informative:
 
 --- abstract
 
-The IPSIE Common Requirements Profile is a profile of multiple common security requirements that are applicable to all IPSIE levels (SL* and IL*) and protocols. These common requirements are intended to meet the security and interoperability requirements of enterprise using one or more IPSIE profiles.
+The IPSIE Common Requirements Profile Draft 00 is a profile of multiple common security requirements that are applicable to all IPSIE levels (SL* and IL*) and protocols. These common requirements are intended to meet the security and interoperability requirements of enterprise using one or more IPSIE profiles.
 
 --- middle
 
