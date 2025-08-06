@@ -225,7 +225,7 @@ specification.
 * Initial draft
 * Moved the sections Network Layer Requirements and Cryptography and Secrets from the IPSIE SL1 OIDC profile draft.
 
-# Acknowledgments
+# Acknowledgements
 {:numbered="false"}
 
 TODO acknowledge Aaron Parecki for his initial documentation of the Network Layer Requirements and Cryptography and Secrets from the IPSIE SL1 OIDC profile draft.  Acknowledge feedback and contributions from the IPSIE WG.
