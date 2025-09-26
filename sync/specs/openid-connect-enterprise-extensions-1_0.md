@@ -1,5 +1,5 @@
 %%%
-title = "OpenID Connect Enterprise Extensions 1.0 - draft 00"
+title = "OpenID Connect Enterprise Extensions 1.0 - draft 01"
 abbrev = "openid-connect-enterprise-extensions"
 ipr = "none"
 workgroup = "OpenID Connect"
@@ -31,6 +31,7 @@ organization="Independent"
 .# Abstract
 
 OpenID Connect 1.0 has become a popular choice for single sign on in enterprise use cases. To improve interoperability, OpenID Connect Enterprise Extensions specifies a number of common or desirable extensions to OpenID Connect.
+
 
 
 {mainmatter}
@@ -80,7 +81,11 @@ The `session_expiry` claim is a JSON integer that represents the Unix timestamp 
 
 ## tenant
 
-The `tenant` claim is an opaque JSON string that represents a tenant identifier and MAY have the value `personal`, `organization` or a stable OP unique value for multi-tenant OPs. The `personal` value is reserved for when Accounts are managed by individuals. The `organization` value is reserved for Accounts managed by an organization.
+The `tenant` claim is a JSON string that represents a tenant identifier and MAY have the value `personal`, `organization` or a stable, opaque to the RP, OP unique value for multi-tenant OPs. The `personal` value is reserved for when Accounts are managed by individuals. The `organization` value is reserved for Accounts managed by an organization.
+
+## aud_sub
+
+The `aud_sub` claim is an opaque JSON string that represents the identifier the RP has for the account. How the OP acquires the `aud_sub` and how the OP account and RP account linking is out of scope.
 
 
 # Authentication Request Parameters
@@ -197,3 +202,7 @@ specification.
    -00
 
    initial draft
+
+   -01
+
+   * added `aud_sub` claim
