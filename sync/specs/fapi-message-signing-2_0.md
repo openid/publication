@@ -1,5 +1,5 @@
 %%%
-title = "FAPI 2.0 Message Signing - Draft 02"
+title = "FAPI 2.0 Message Signing"
 abbrev = "fapi-message-signing-2"
 ipr = "none"
 workgroup = "fapi"
@@ -493,76 +493,3 @@ to assert certain patent claims against other contributors and against implement
 OpenID invites any interested party to bring to its attention any copyrights, patents,
 patent applications, or other proprietary rights that may cover technology that may be
 required to practice this specification.
-
-# Document History
-
-[[ To be removed from the final specification ]]
-
--02
- * Update references to final versions of fapi2 security profile and message signing
- * editorial changes to get ready for final vote
-
--01
-
- * Update RFC9701 reference
- * fix merge issue
- * initial work on creating separate http signing spec
- * get rid of [[ this specification ]] brackets
- * numbering corrected and reworded the requirement
- * Minor clarifications and typos
- * ID token signing
- * update refs to RFCs for http signatures
- * typ in request objects
- * Fixes #653 - Update abbreviated terms
- * Addresses #672 - inconsistent capitalization
- * Add Joseph to the FAPI2 SP & MS authors list
- * Fixes #649 - ISO29100 and ISO29134 is not in the reference
- * Add myself to the FAPI2 SP & MS authors list
- * Fixes #648 - The first paragraph of the Normative reference shall be as provided in ISODIR2
- * Fixes #645 - Author name of Normative reference ISODIR2 is wrong
- * Fixes #645 - Author name of Normative reference ISODIR2 is wrong
- * Fixes #648 - The first paragraph of the Normative reference shall be as provided in ISODIR2
- * Renumber attackers, fix editorial stuff
- * add security considerations around non repudiation limitations
- * move MTLS Protection of all endpoints to SP
- * Update DPoP references in FAPI 2 SP
- * Update http signing intro text
- * make clear that requests and responses can be signed independently
- * Incorporate Brian's feedback
- * Merged master into danielfett/fix-617
- * attempt at clarifying request-response binding
- * Fix typo
- * Proposal to fix Issue #617
- * Update affiliation to Authlete, add Dave as editor on the Security Profile, list Dave first for the Message Signing document
- * FAPI2MS: Change 'above 3' to 'above 4'
- * fapi2ms: require use of jarm, require use of jar, define response modes client metadata
- * Add copyright notice to fapi-ms
- * add draft to fapi2 message signing
- * initial work on privacy for message signing
- * FAPI2MS: Removed unused references
- * FAPI2MS: Defer http signing to next implementer's draft
- * Editorial fixes, working group in acknowledgements
- * FAPI2MS: security profile/attacker model links updated
- * add intro and rework initial section for message signing
- * use ticks so it doesn't end up as privatekeyjwt - fapi-2_0-message-signing.md edited online with Bitbucket
- * Update JARM ref in message signing
- * FAPI2MS: Create acknowledgements section
- * FAPI2MS: Make security considerations a top level section
- * FAPI2MS: Make [security profile] a real reference
- * FAPI2MS: Reword section about testing
- * FAPI2MS: Reword section about testing
- * FAPI2MS: Make [security profile] a real reference
- * Remove Dave from acknowledgements as he's an author
- * Update JARM ref in message signing
- * FAPI2MS: Make security considerations a top level section
- * FAPI2MS: Create acknowledgements section
- * FAPI2MS: Make normative references normative
- * use ticks so it doesn't end up as privatekeyjwt - fapi-2_0-message-signing.md edited online with Bitbucket
- * Update filenames
-
- -00
-
- * improvements to http sig wording
- * Improve description of attacker model
- * FAPI2MsgSign: Fix various links to the httpbis drafts
- * Change name of Advanced Profile to Message Signing
