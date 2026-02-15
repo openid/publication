@@ -1,5 +1,5 @@
 %%%
-title = "OpenID Federation for Wallet Architectures 1.0 - draft 04"
+title = "OpenID Federation for Wallet Architectures 1.0 - draft 05"
 abbrev = "OpenID Federation for Wallet Architectures"
 ipr = "none"
 workgroup = "OpenID Connect Working Group"
@@ -288,8 +288,67 @@ the OpenID for Verifiable Presentations [@!OpenID4VP] specification.
 The OpenID Federation Entity Type Identifier for the Credential Issuer is `openid_credential_issuer`.
 
 For information on metadata parameters specific to OpenID Credential Issuers,
-refer to Section *11.2. Credential Issuer Metadata* of
+refer to Section 11.2 (Credential Issuer Metadata) and Section 12.2.4 (Credential Issuer Metadata Parameters) of
 the OpenID for Verifiable Credential Issuance [@!OpenID4VCI] specification.
+
+### OpenID Credential Issuer Metadata Parameters
+
+When the Credential Issuer is represented as a Federation Entity, the
+`openid_credential_issuer` metadata is carried inside the Entity Configuration
+and Entity Statements under the `metadata` (and, if used, `metadata_policy`)
+parameters defined by OpenID Federation [@!OpenID.Federation].
+
+This specification profiles the OpenID4VCI Credential Issuer metadata as
+follows when used in Wallet federations:
+
+- `credential_issuer`:
+  The Credential Issuer Identifier as defined in [@!OpenID4VCI], Section 12.2.1.
+  It MUST be a case-sensitive `https` URL and MUST be equal to the
+  `iss`/`sub` pair value in the Credential Issuer's Entity Configuration and to the
+  `sub` value in any Subordinate Statement about that Credential Issuer,
+  as defined in [@!OpenID.Federation].
+
+- `authorization_servers`:
+  As defined in [@!OpenID4VCI], Section 12.2.4. Each element of this array
+  is the Issuer Identifier of an OAuth 2.0 Authorization Server
+  [@!RFC8414] that is itself represented as a Federation Entity of
+  type `oauth_authorization_server` in this specification (see Table 1).
+
+- `credential_endpoint`, `nonce_endpoint`, `deferred_credential_endpoint`,
+  `notification_endpoint`, `credential_request_encryption`,
+  `credential_response_encryption`, `batch_credential_issuance`,
+  `display`, and `credential_configurations_supported`:
+  These parameters MUST follow the definitions and processing rules in
+  [@!OpenID4VCI], Section 12.2.4 and Appendix A and are carried
+  unchanged in the `openid_credential_issuer` metadata inside the
+  Federation `metadata` / `metadata_policy` structures.
+
+- `jwks`:
+  A JSON Web Key Set document containing the protocol-specific public keys
+  of the Credential Issuer. When present in the `openid_credential_issuer`
+  metadata, it MUST follow the same conventions as the `jwks` parameter
+  defined for Federation Entities in [@!OpenID.Federation], Section 5.2.1.
+  The keys in this set are used for signature of responses, tokens, and
+  issued credentials. When a trust framework requires the Credential Issuer
+  to sign its metadata (for example, when serving signed metadata at
+  `.well-known/openid-credential-issuer` as defined in [@!OpenID4VCI],
+  Section 12.2.3, using an X.509 certificate or other cryptographic
+  material), the public key material used to verify that signature SHOULD be
+  provided in the `jwks` parameter within the `openid_credential_issuer`
+  metadata of the OpenID Federation Entity Configuration.
+
+Additional metadata parameters MAY be defined by profiles of this
+specification and OpenID4VCI (for example, `status_list_aggregation_endpoint`
+as in [@!I-D.ietf-oauth-status-list]). In accordance with [@!OpenID4VCI],
+Wallets and other clients interacting with `openid_credential_issuer`
+metadata MUST ignore unrecognized metadata parameters.
+
+OpenID4VCI also defines JOSE header parameters such as `trust_chain`
+for proofs and signed metadata (see Appendix F.1 and Section 12.2.3
+of [@!OpenID4VCI]), which enable a Credential Issuer to bind its keys
+and metadata to an OpenID Federation Trust Chain [@!OpenID.Federation].
+Use of these mechanisms is OPTIONAL; when they are used, they MUST be
+consistent with the federation model defined in this document.
 
 ## OpenID Credential Verifier Entity Type
 
@@ -300,6 +359,101 @@ This specification introduces a distinct Entity Type Identifier for the OpenID C
 For information on metadata parameters specific to OpenID Credential Verifiers,
 refer to Section *11. Verifier Metadata (Client Metadata)* of
 the OpenID for Verifiable Presentations [@!OpenID4VP] specification.
+
+### Additional OpenID Credential Verifier Metadata Parameters
+
+This profile defines additional requirements on some `openid_credential_verifier`
+metadata parameters used when a Credential Verifier acts as an OpenID4VP Verifier
+and participates in a federation.
+
+Unless otherwise stated, the definitions and processing rules from
+OpenID for Verifiable Presentations [@!OpenID4VP] and
+OpenID Connect Dynamic Client Registration 1.0 [@!OpenID.Registration]
+apply.
+
+The following parameters are used within the `openid_credential_verifier`
+metadata:
+
+`jwks`:
+: OPTIONAL. A JSON Web Key Set, as defined in [@!RFC7591] and [@!RFC7517],
+  that contains one or more public keys used by the Credential Verifier for
+  OpenID4VP interactions.
+  Keys in this set are used by Wallets to verify signed Request Objects and,
+  when supported by the profile, as input to key agreement or for encrypting
+  Authorization Responses as defined in [@!OpenID4VP], Sections 5 and 8.3.
+  Each JWK in the set MUST have a `kid` (Key ID) parameter that uniquely
+  identifies the key within the context of the Credential Verifier.
+  When a Credential Verifier participates in a federation and exposes
+  `openid_credential_verifier.jwks` via its Entity Configuration and the
+  evaluated Trust Chain, Wallets and other relying parties MUST use the
+  keys obtained from the federation metadata and MUST ignore any `jwks`
+  value conveyed in `client_metadata` within the Authorization Request.
+  Only when no federated `openid_credential_verifier` metadata is available
+  MAY implementations rely on `jwks` from `client_metadata` as defined in
+  [@!OpenID4VP].
+
+`request_uris`:
+: OPTIONAL. A non-empty array of HTTPS URLs that are pre-registered Request
+  Object endpoints for the Credential Verifier.
+  Each value corresponds to a `request_uri` that MAY be used in
+  Authorization Requests as defined in [@!RFC9101] and [@!OpenID4VP],
+  Section 5.10.
+  Wallets and Federation Authorities MUST treat these values as the set of
+  trusted Request Object endpoints for the Credential Verifier.
+
+`response_uris`:
+: OPTIONAL. A non-empty array of HTTPS URLs that are pre-registered Response
+  URIs for the Credential Verifier.
+  Each value corresponds to a `response_uri` that MAY be used in
+  Authorization Requests in conjunction with the `direct_post` and
+  `direct_post.jwt` Response Modes as defined in [@!OpenID4VP],
+  Section 8.2 and Section 8.3.2.
+  Wallets and Federation Authorities MUST treat these values as the set of
+  trusted Response Endpoints for the Credential Verifier.
+
+`redirect_uris`:
+: OPTIONAL. A non-empty array of HTTPS Redirect URIs at which the Credential
+  Verifier continues the user interaction after processing an Authorization
+  Response.
+  Each value corresponds to a `redirect_uri` used with
+  Response Mode `fragment` or as the `redirect_uri` value returned from the
+  Response Endpoint in the `direct_post` and `direct_post.jwt` modes, as
+  defined in [@!OpenID4VP], Section 8.2.
+  Wallets and Federation Authorities MUST treat these values as the set of
+  trusted Redirect URIs for the Credential Verifier.
+
+`dcql_queries`:
+: OPTIONAL. A non-empty array of JSON objects, each containing a Digital
+  Credentials Query Language (DCQL) query as defined in [@!OpenID4VP],
+  Section 6.
+  Each array element has the same structure as the `dcql_query` Authorization
+  Request parameter in [@!OpenID4VP].
+  When present, this parameter lists the DCQL queries that the Credential
+  Verifier is authorized to use in different situations (e.g. identification,
+  education, employment, voluntary work).
+  Profiles of this specification MAY define policies that require the
+  `dcql_query` in an Authorization Request to be equal to, or a constrained
+  refinement of, one of the query objects in this array.
+
+#### Rationale for Extending the Set of `openid_credential_verifier` Metadata Parameters
+
+The rationale for extending the set of `openid_credential_verifier` metadata
+parameters is to align OpenID4VP Verifiers with the Trusted Third-Party trust
+model employed by this specification. Cryptographic material, protocol endpoints 
+and default or constrained DCQL queries are published in federation-managed metadata,
+constrained DCQL queries in federation-managed metadata. This practice aims to:
+
+- enforce common technical and policy requirements on all participating
+  Credential Verifiers,
+- restrict which endpoints and keys are considered trustworthy for
+  presentation flows, and
+- limit the kinds of Digital Credentials and claims that a Credential
+  Verifier is allowed to request from Wallets.
+
+When these parameters are expressed and enforced through Subordinate
+Statements, as defined in [@!OpenID.Federation], critical configuration and
+authorization decisions move from ad‑hoc, per‑instance configuration into a
+federated, policy-driven framework anchored in the Trust Anchor and the Superior Entities.
 
 # Federation Policies
 
@@ -342,6 +496,71 @@ These modifications allow a federation authority, such as a Trust Anchor, to app
 }
 ```
 **Example 1**: Example demonstrating how a Federation Authority can issue a Subordinate Statement about a Credential Verifier, specifying certain metadata parameters such as the endpoints to use and the allowed Digital Credentials to be requested.
+
+### OpenID Credential Verifier Presentation Metadata in Subordinate Statements
+
+When the subject of a Subordinate Statement is a Credential Verifier, the
+`metadata` and `metadata_policy` members of that Subordinate Statement MAY
+contain an `openid_credential_verifier` object.
+This profile uses these objects to control the OpenID4VP behaviour of the
+Credential Verifier in a way that can be enforced by superior entities.
+
+Superior entities (for example Trust Anchors or Intermediates):
+
+- MAY set, add or replace the `openid_credential_verifier.jwks` value
+  to constrain which public keys are accepted for signing Request Objects
+  and, where applicable, for response encryption.
+- MAY set or restrict the `openid_credential_verifier.request_uris`,
+  `openid_credential_verifier.response_uris`, and
+  `openid_credential_verifier.redirect_uris` values to the endpoints that
+  have been registered and approved for the Credential Verifier.
+- MAY add or constrain the `openid_credential_verifier.dcql_queries` value to
+  define the list of DCQL queries that the Credential Verifier is permitted
+  to use.
+
+When `metadata` is used, the resulting `openid_credential_verifier` metadata
+in the Leaf Entity Configuration after Trust Chain evaluation represents the
+effective set of keys, endpoints, and DCQL queries that the Wallet MUST use
+for trust and policy checks.
+
+When `metadata_policy` is used, the same constraints are propagated along the
+Trust Chain according to [@!OpenID.Federation], Sections 3, 5, and 6.1.
+In particular:
+
+- A Wallet evaluating a Credential Verifier MUST treat the final
+  `openid_credential_verifier.request_uris`,
+  `openid_credential_verifier.response_uris`, and
+  `openid_credential_verifier.redirect_uris` values as the authoritative
+  lists of allowed endpoints.
+  Any `request_uri`, `response_uri`, or `redirect_uri` appearing in an
+  Authorization Request that is not contained in the corresponding list
+  MUST cause the Wallet to reject the request to prevent endpoint mix-up
+  attacks, consistent with the considerations in [@!OpenID4VP],
+  Section 8.2 and the checks defined for Relying Parties in the
+  IT Wallet specifications.
+- A Wallet evaluating a Credential Verifier SHOULD use the effective
+  `openid_credential_verifier.dcql_queries` metadata to determine which
+  Credential types and claims the Credential Verifier is authorized to
+  request.
+  When a `dcql_queries` value is provided via
+  `metadata.openid_credential_verifier` in a Subordinate Statement,
+  any `dcql_query` conveyed by the Credential Verifier in the Request Object
+  or in `client_metadata` MUST be ignored, as it is overridden by the
+  federation-managed list.
+  When a `dcql_queries` constraint is expressed via
+  `metadata_policy.openid_credential_verifier`, that policy MUST be
+  applied to any `dcql_queries` present in the Credential Verifier metadata,
+  if available, or otherwise to the `dcql_query` contained in
+  `client_metadata` in the Authorization Request.
+  Profiles MAY additionally convey `dcql_queries`-related policies using
+  Trust Marks bound to the Credential Verifier; see the section on
+  Trust Marks and policy expression for further guidance.
+
+This mechanism allows superior entities to centrally define and enforce
+policy on Credential Verifiers’ OpenID4VP behaviour (including cryptographic
+material, endpoints, and requested Digital Credentials) while Wallets rely
+only on the final, policy-processed `metadata.openid_credential_verifier`
+obtained from Trust Chain evaluation.
 
 ## Differences Between `metadata` and `metadata_policy`
 
@@ -621,6 +840,24 @@ The Entity that receives the data object including the JWT `trust_chain`, such a
 
 Using short-lived Trust Chains ensures compatibility with required revocation administrative protocols, such as those defined in a legal framework. For example, if a revocation must be propagated in less than 24 hours, the Trust Chain should not be valid for more than that period.
 
+# Security Considerations
+
+The security considerations in
+[@!OpenID.Federation], [@!OpenID4VP], and [@!OpenID4VCI]
+apply to this specification.
+
+# IANA Considerations
+
+## OAuth Parameters Registry
+
+This specification registers the following parameter in the IANA "OAuth Parameters" registry [@IANA.OAuth.Parameters] established by [@!RFC6749].
+
+### dcql_queries
+
+* Name: `dcql_queries`
+* Parameter Usage Location: authorization request, client metadata, and in `openid_credential_verifier` entity metadata as defined by this specification.
+* Change Controller: OpenID Foundation AB/Connect Working Group - openid-specs-ab@lists.openid.net
+* Reference: Additional OpenID Credential Verifier Metadata Parameters section of this specification
 
 # Acknowledgements
 
@@ -629,6 +866,7 @@ Leif Johansson,
 Stefan Liström,
 Francesco Antonio Marino,
 Eduardo Perottoni,
+Samuel Rinnetmäki,
 Giada Sciarretta,
 and
 Niels van Dijk.
@@ -763,8 +1001,15 @@ Niels van Dijk.
           <author fullname="Vladimir Dzhuvinov">
             <organization>Connect2id</organization>
           </author>
-          <date day="29" month="January" year="2026"/>
+          <date day="15" month="February" year="2026"/>
         </front>
+</reference>
+
+<reference anchor="IANA.OAuth.Parameters" target="https://www.iana.org/assignments/oauth-parameters/">
+  <front>
+    <title>OAuth Parameters</title>
+    <author><organization>IANA</organization></author>
+  </front>
 </reference>
 
 # Notices
@@ -778,6 +1023,31 @@ The technology described in this specification was made available from contribut
 # Document History
 
    [[ To be removed from the final specification ]]
+
+   -05
+
+   * Added subsection "OpenID Credential Issuer Metadata Parameters" under OpenID Credential Issuer Entity Type, profiling `openid_credential_issuer` metadata when used in Wallet federations.
+   * Documented `credential_issuer`, `authorization_servers`, and the OpenID4VCI parameters (credential_endpoint, nonce_endpoint, display, credential_configurations_supported, etc.) as carried in Federation metadata/metadata_policy.
+   * Added `jwks`: scope for signature of responses, tokens, and issued credentials; requirement that public keys used to verify signed Credential Issuer metadata (e.g. at .well-known/openid-credential-issuer per OpenID4VCI 12.2.3) be provided in `openid_credential_issuer` jwks when trust frameworks require it.
+   * Extended OpenID Credential Verifier entity type with additional metadata
+     parameters: jwks, request_uris, response_uris, redirect_uris, and
+     dcql_queries, with definitions and rationale aligned to the Trusted
+     Third-Party trust model.
+   * Specified that when a Credential Verifier participates in a federation,
+     Wallets MUST use jwks from federation metadata and MUST ignore jwks
+     from client_metadata in the Authorization Request.
+   * Added section on using openid_credential_verifier metadata and
+     metadata_policy in Subordinate Statements for policy enforcement by
+     superior entities (endpoints, keys, dcql_queries).
+   * Clarified dcql_queries override rules: metadata in a Subordinate
+     Statement overrides request/client_metadata; metadata_policy applies to
+     verifier metadata or, if absent, to client_metadata; profiles MAY use
+     Trust Marks to convey dcql_queries-related policies.
+   * Defined dcql_queries as a non-empty array of DCQL query objects (as in
+     OpenID4VP) so verifiers can publish multiple authorized queries for
+     different situations.
+   * Added IANA Considerations registering the dcql_queries parameter.
+   * Added Security Considerations.
 
    -04
 
