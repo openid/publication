@@ -26,7 +26,7 @@
 
   <front>
     <title abbrev="OpenID Federation">OpenID Federation 1.0 -
-      draft 47
+      draft 49
     </title>
 
     <author fullname="Roland Hedberg" initials="R." role="editor"
@@ -78,7 +78,7 @@
       </address>
     </author>
 
-    <date day="20" month="January" year="2026"/>
+    <date day="15" month="February" year="2026"/>
 
     <workgroup>OpenID Connect Working Group</workgroup>
 
@@ -232,7 +232,7 @@
           by <xref target="OpenID.Core">OpenID Connect Core 1.0</xref>, and
 	  the terms "Authorization Endpoint", "Authorization Server (AS)",
 	  "Client", "Client Authentication", "Client Identifier", "Client Secret",
-	  "Grant Type", "Protected Resource", "Redirection URI", "Refresh Token",
+	  "Protected Resource", "Redirection URI", "Refresh Token",
 	  "Resource Server (RS)", and "Token Endpoint"
 	  defined by <xref target="RFC6749">OAuth 2.0</xref>.
 
@@ -1009,7 +1009,7 @@
 		If the <spanx style="verb">aud</spanx> Claim is present,
 		if the Entity Statement is an Explicit Registration request,
 		validate that the value is the Entity Identifier for an OP,
-		or if the Entity Statement is an Explicit Registration request,
+		or if the Entity Statement is an Explicit Registration response,
 		validate that the value is the Entity Identifier for an RP.
 		This Claim MUST NOT be present in Entity Statements that are not
 		Explicit Registration requests or responses
@@ -1117,7 +1117,9 @@
             </t>
             <t hangText="Leaf">
               <vspace/>
-              In an OpenID Connect identity federation, an RP or an OP,
+	      An Entity with no Subordinate Entities,
+	      which typically plays a protocol role.
+              For instance, in an OpenID Connect identity federation, an RP or an OP,
 	      or in an OAuth 2.0 federation, a Client, Authorization Server, or Protected Resource.
             </t>
             <t hangText="Intermediate">
@@ -1422,13 +1424,13 @@
 	<t>
       The Entity Type Identifier uniquely identifies the Entity Type of a
       federation participant and the metadata format for that Entity Type. This
-      section defines a <spanx style="verb">federation_entity</spanx> Entity
+      section defines the <spanx style="verb">federation_entity</spanx> Entity
       Type Identifier as well as identifiers for OpenID Connect and OAuth 2.0
       Federation Entities.
 	</t>
 	<t>
 	  Additional Entity Type Identifiers MAY be defined to
-	  support use cases outside OpenID Connect and OAuth 2.0 federations.
+	  support use cases for other protocols.
 	</t>
 
       <section anchor="federation_entity" title="Federation Entity">
@@ -5726,15 +5728,33 @@ Host: trust-anchor.example.com
 	      REQUIRED.
 	      Error codes in the IANA "OAuth Extensions Error Registry"
 	      <xref target="IANA.OAuth.Parameters"/> MAY be used.
+	      In particular, these existing error codes are used by this specification:
+	      <list style="hanging">
+		<t hangText="invalid_request">
+		  <vspace/>
+		  The request is incomplete or does
+		  not comply with current specifications.
+		  The HTTP response status code SHOULD be 400 (Bad Request).
+		</t>
+		<t hangText="server_error">
+		  <vspace/>
+		  The server encountered an unexpected
+		  condition that prevented it from fulfilling the request.
+		  The HTTP response status code SHOULD be one in the 5xx range,
+		  like 500 (Internal Server Error).
+		</t>
+		<t hangText="temporarily_unavailable">
+		  <vspace/>
+		  The server hosting the federation endpoint
+		  is currently unable to handle
+		  the request due to temporary overloading or maintenance.
+		  The HTTP response status code SHOULD be 503 (Service Unavailable).
+		</t>
+	      </list>
+
 	      This specification also defines the following error codes:
 
               <list style="hanging">
-                <t hangText="invalid_request">
-                  <vspace/>
-                  The request is incomplete or does
-                  not comply with current specifications.
-                  The HTTP response status code SHOULD be 400 (Bad Request).
-                </t>
                 <t hangText="invalid_client">
                   <vspace/>
                   The Client cannot be authorized or is not
@@ -5770,20 +5790,6 @@ Host: trust-anchor.example.com
                   <vspace/>
                   The requested Entity Identifier cannot be found.
                   The HTTP response status code SHOULD be 404 (Not Found).
-                </t>
-                <t hangText="server_error">
-                  <vspace/>
-                  The server encountered an unexpected
-                  condition that prevented it from fulfilling the request.
-                  The HTTP response status code SHOULD be one in the 5xx range,
-                  like 500 (Internal Server Error).
-                </t>
-                <t hangText="temporarily_unavailable">
-                  <vspace/>
-                  The server hosting the federation endpoint
-                  is currently unable to handle
-                  the request due to temporary overloading or maintenance.
-                  The HTTP response status code SHOULD be 503 (Service Unavailable).
                 </t>
                 <t hangText="unsupported_parameter">
                   <vspace/>
@@ -6733,7 +6739,7 @@ GET /authorize?
 	      a client authentication method for the PAR endpoint
 	      MUST be used that proves possession of one of the RP's private keys.
 	      Furthermore, the corresponding public key MUST be in the
-	      Entity's RP JWK Set.
+	      Entity's RP JWK Set <xref target="RFC7517"/>.
 	    </t>
             <t>
               The two applicable PAR client authentication methods are:
@@ -7433,8 +7439,9 @@ HTTP/1.1 302 Found
 		value in the response MUST be
 		<spanx style="verb">explicit-registration-response+jwt</spanx>
 		(and not <spanx style="verb">entity-statement+jwt</spanx>)
-		to prevent confusion between the Explicit Registration response
-		and other kinds of Entity Statements.
+		to prevent cross-JWT confusion between the Explicit Registration response
+		and other kinds of Entity Statements,
+		per Section 3.11 of <xref target="RFC8725"/>.
               </t>
 	    </section>
 
@@ -8927,17 +8934,6 @@ HTTP/1.1 302 Found
           <t>
             <?rfc subcompact="yes"?>
             <list style="symbols">
-              <t>Name: invalid_request</t>
-              <t>Usage Location: authorization endpoint</t>
-              <t>Protocol Extension: OpenID Federation</t>
-              <t>
-                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
-              </t>
-              <t>Reference: <xref target="error_response"/> of this specification</t>
-            </list>
-          </t>
-          <t>
-            <list style="symbols">
               <t>Name: invalid_client</t>
               <t>Usage Location: authorization endpoint</t>
               <t>Protocol Extension: OpenID Federation</t>
@@ -9005,28 +9001,6 @@ HTTP/1.1 302 Found
           <t>
             <list style="symbols">
               <t>Name: not_found</t>
-              <t>Usage Location: authorization endpoint</t>
-              <t>Protocol Extension: OpenID Federation</t>
-              <t>
-                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
-              </t>
-              <t>Reference: <xref target="error_response"/> of this specification</t>
-            </list>
-          </t>
-          <t>
-            <list style="symbols">
-              <t>Name: server_error</t>
-              <t>Usage Location: authorization endpoint</t>
-              <t>Protocol Extension: OpenID Federation</t>
-              <t>
-                Change Controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
-              </t>
-              <t>Reference: <xref target="error_response"/> of this specification</t>
-            </list>
-          </t>
-          <t>
-            <list style="symbols">
-              <t>Name: temporarily_unavailable</t>
               <t>Usage Location: authorization endpoint</t>
               <t>Protocol Extension: OpenID Federation</t>
               <t>
@@ -9969,7 +9943,7 @@ HTTP/1.1 302 Found
                 Type name: application
               </t>
               <t>
-                Subtype name: explicit-registration-response+jwt
+                Subtype name: trust-mark-status-response+jwt
               </t>
               <t>
                 Required parameters: n/a
@@ -9979,7 +9953,7 @@ HTTP/1.1 302 Found
               </t>
               <t>
                 Encoding considerations: binary;
-                An Explicit Registration response is a JWT;
+                A Trust Mark Status Response is a signed JWT;
                 JWT values are encoded as a
                 series of base64url-encoded values (some of which may be the
                 empty string) separated by period ('.') characters.
@@ -9991,7 +9965,7 @@ HTTP/1.1 302 Found
                 Interoperability considerations: n/a
               </t>
               <t>
-                Published specification: <xref target="explicit-registration-response+jwt"/> of this specification
+                Published specification: <xref target="trust-mark-status-response+jwt"/> of this specification
               </t>
               <t>
                 Applications that use this media type:
@@ -10038,7 +10012,7 @@ HTTP/1.1 302 Found
                 Type name: application
               </t>
               <t>
-                Subtype name: trust-mark-status-response+jwt
+                Subtype name: explicit-registration-response+jwt
               </t>
               <t>
                 Required parameters: n/a
@@ -10048,7 +10022,7 @@ HTTP/1.1 302 Found
               </t>
               <t>
                 Encoding considerations: binary;
-                A Trust Mark Status Response is a signed JWT;
+                An Explicit Registration response is a signed JWT;
                 JWT values are encoded as a
                 series of base64url-encoded values (some of which may be the
                 empty string) separated by period ('.') characters.
@@ -10060,7 +10034,7 @@ HTTP/1.1 302 Found
                 Interoperability considerations: n/a
               </t>
               <t>
-                Published specification: <xref target="trust-mark-status-response+jwt"/> of this specification
+                Published specification: <xref target="explicit-registration-response+jwt"/> of this specification
               </t>
               <t>
                 Applications that use this media type:
@@ -10405,7 +10379,7 @@ HTTP/1.1 302 Found
 	    </address>
 	  </author>
 
-          <date day="20" month="January" year="2026"/>
+          <date day="15" month="February" year="2026"/>
         </front>
       </reference>
 
@@ -10461,7 +10435,7 @@ HTTP/1.1 302 Found
 	    </address>
 	  </author>
 
-          <date day="20" month="January" year="2026"/>
+          <date day="15" month="February" year="2026"/>
         </front>
       </reference>
 
@@ -11676,6 +11650,28 @@ Host: op.umu.se
 
     <section anchor="History" title="Document History">
       <t>[[ To be removed from the final specification ]]</t>
+
+      <t>
+	-49
+	<list style="symbols">
+	  <t>
+	    Fixed #330: Corrected typo in Entity Statement Validation text.
+	  </t>
+	  <t>
+	    Reference, rather than define, the existing error values
+	    invalid_request, server_error, and temporarily_unavailable.
+	  </t>
+	</list>
+      </t>
+
+      <t>
+	-48
+	<list style="symbols">
+	  <t>
+	    Applied editorial improvements originally made in the 1.1 specifications.
+	  </t>
+	</list>
+      </t>
 
       <t>
 	-47
@@ -13439,6 +13435,7 @@ Host: op.umu.se
 	Sean Turner,
 	Davide Vaghetti,
 	Niels van Dijk,
+	Luiky Vasconcelos,
 	Tim Würtele,
 	Kristina Yasuda,
 	Gabriel Zachmann,
