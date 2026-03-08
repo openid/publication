@@ -1,0 +1,958 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
+<rfc version="3" ipr="none" docName="openid-connect-advanced-syntax-for-claims-1_0-01" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true" consensus="true">
+
+<front>
+<title abbrev="openid-connect-asc-1_0">OpenID Connect Advanced Syntax for Claims (ASC) 1.0 - draft 01</title><seriesInfo value="openid-connect-advanced-syntax-for-claims-1_0-01" status="standard" name="Internet-Draft"></seriesInfo>
+<author initials="D." surname="Fett" fullname="Daniel Fett"><organization>Authlete</organization><address><postal><street></street>
+</postal><email>mail@danielfett.de</email>
+</address></author><date/>
+<area>Internet</area>
+<workgroup>eKYC-IDA</workgroup>
+<keyword>openid</keyword>
+<keyword>identity assurance</keyword>
+<keyword>ekyc</keyword>
+<keyword>asc</keyword>
+<keyword>data minimization</keyword>
+
+<abstract>
+<t>This specification defines an extension of OpenID Connect to enable new features for requesting and receiving Claims and meta-information about Claims.  There are two components that can be implemented independently or together, &quot;Selective Abort and Omit&quot; and &quot;Transformed Claims&quot;.  These components enable additional data minimization requirements to be expressed between the Relying Party and the Identity Provider thus helping both parties comply with business requirements, policies and regulatory requirements relating to limiting data being transferred to that which is needed.</t>
+</abstract>
+
+</front>
+
+<middle>
+
+<section anchor="Introduction"><name>Introduction</name>
+<t>When using OpenID Connect there are two existing mechanisms to limit the data returned.  These are through the use of the <tt>scope</tt> parameter (where a predefined set of claims may be described) or the <tt>claims</tt> parameter where individual claims can be requested explicitly. The OpenID Provider in these cases may return some or all of the requested claims dependent on availability, end-user approval or some other policy.</t>
+<t>With OpenID Connect Advanced Syntax for Claims (ASC) two further tools are made available to implementers.  The &quot;Selective Abort and Omit&quot; feature allows the Relying Party to express to the Identity Provider certain conditions when it might like some subset or perhaps all of the requested claims to be not returned. This is provided to allow for cases where when one or more key attributes are unavailable then the rest are insufficient to meet the business requirement and reduced return of data is better than incomplete data. With the &quot;Transformed Claims&quot; feature a general purpose way of taking an existing &quot;base claim&quot; and applying functions to it is provided.  This capability was inspired by the age verification use case where the full <tt>birthdate</tt> is not needed to satisfy the business requirement and would not meet the principle of data minimization. With Transformed Claims it is possible to transform claims in various ways either by applying one or more functions to the value of a claim.</t>
+<t>In the case of age verification, <tt>birthdate</tt> is transformed to <tt>age is greater than or equal to x</tt> but it is also possible to express <tt>postcode contains &quot;EH1&quot;</tt>  or <tt>end-user nationality includes &quot;USA&quot;</tt> meeting the business and policy requirements of Relying Parties much more effectively.</t>
+<t>With these two capabilities it is possible for the relying party to be highly specific about what the claims returned should be, that some of those claims should be data minimized, and in which circumstances claims should or should not be returned.</t>
+</section>
+
+<section anchor="warning"><name>Warning</name>
+<t>This document is not an OIDF International Standard. It is distributed for review and comment. It is subject to change without notice and may not be referred to as an International Standard.</t>
+<t>Recipients of this draft are invited to submit, with their comments, notification of any relevant patent rights of which they are aware and to provide supporting documentation.</t>
+</section>
+
+<section anchor="notational-conventions"><name>Notational conventions</name>
+<t>The keywords &quot;shall&quot;, &quot;shall not&quot;, &quot;should&quot;, &quot;should not&quot;, &quot;may&quot;, and &quot;can&quot; in this document are to be interpreted as described in ISO Directive Part 2 <xref target="ISODIR2"></xref>. These keywords are not used as dictionary terms such that any occurrence of them shall be interpreted as keywords and are not to be interpreted with their natural language meanings.</t>
+</section>
+
+<section anchor="scope"><name>Scope</name>
+<t>This specification is based on OpenID Connect Core <xref target="OpenID"></xref> and defines the
+technical mechanisms to allow Relying Parties present &quot;Selective Abort and Omit&quot; (SAO)
+conditions and to request &quot;Transformed Claims&quot; (TC).  The specification also allows
+implementers the choice to implement each feature in isolation or in conjunction
+depending on their requirements, provides options for restricted
+implementations, provides features for communication of these capabilities to
+Relying Parties and includes examples of how both features may be used.</t>
+</section>
+
+<section anchor="normative-references"><name>Normative references</name>
+<t>See section 13 for normative references.</t>
+</section>
+
+<section anchor="terms-and-definitions"><name>Terms and definitions</name>
+<t>For the purposes of this document, the following terms and definitions apply.</t>
+
+<section anchor="claim"><name>claim</name>
+<t>piece of information asserted about an entity</t>
+<t>[SOURCE: <xref target="OpenID"></xref>, 1.2]</t>
+</section>
+
+<section anchor="openid-provider"><name>OpenID provider</name>
+<t>OAuth 2.0 Authorization Server that is capable of Authenticating the End-User and providing Claims to a Relying Party about the Authentication event and the End-User. Also referred to as OP or identity provider</t>
+<t>[SOURCE: <xref target="OpenID"></xref>, 1.2]</t>
+</section>
+
+<section anchor="relying-party"><name>relying party</name>
+<t>OAuth 2.0 Client application requiring End-User Authentication and Claims from an OpenID Provider. Also referred to as RP</t>
+<t>[SOURCE: <xref target="OpenID"></xref>, 1.2]</t>
+</section>
+</section>
+
+<section anchor="selective-abort-omit"><name>Selective Abort/Omit</name>
+<t>Using Selective Abort/Omit (SAO), an RP can define the expected behavior of an
+OP when certain data is not available, when a user does not consent to the
+release of the data, or when restrictions defined on claims using <tt>value</tt> or
+<tt>values</tt> cannot be fulfilled. It supports a lightweight extension of existing
+OpenID Connect features as well as more complex cases by allowing matching of
+claims structures against JSON Schemas.</t>
+<t>Note: SAO is in particular useful when some of the claims (e.g., verified
+claims) are priced and the RP is only interested to pay for the respective
+claims if certain conditions are met.</t>
+<t>This feature is fully independent from the use of <tt>essential</tt> as defined in
+Section 5.5 of <xref target="OpenID"></xref>.</t>
+
+<section anchor="example"><name>Example</name>
+<t>The following example illustrates the new syntax introduced by this
+specification. It shows the contents of the <tt>claims</tt> request parameter.</t>
+<t>Example 1:</t>
+
+<sourcecode type="json">{
+   &quot;id_token&quot;: {
+      &quot;verified_claims&quot;: {
+         &quot;verification&quot;: {
+            &quot;trust_framework&quot;:null,
+            &quot;assurance_level&quot;: null
+         },
+         &quot;claims&quot;: {
+            &quot;family_name&quot;: {
+               &quot;value&quot;:&quot;nonexistent_family_name&quot;
+            },
+            &quot;given_name&quot;:null,
+            &quot;birthdate&quot;: null,
+            &quot;address&quot;:null
+         }
+      }
+   },
+   &quot;userinfo&quot;: {
+      &quot;address&quot;:null
+   },
+   &quot;_asc&quot;: {
+      &quot;sao&quot;: {
+         &quot;id_token&quot;:[
+            {
+              &quot;loc&quot;:&quot;/verified_claims/verification/assurance_level&quot;,
+              &quot;method&quot;: &quot;simple&quot;,
+              &quot;value&quot;: &quot;example_assurance_level&quot;,
+              &quot;else&quot;:&quot;abort&quot;
+            },
+            {
+               &quot;loc&quot;:&quot;/verified_claims/claims&quot;,
+               &quot;method&quot;: &quot;schema&quot;,
+               &quot;schema&quot;: {
+                  &quot;$schema&quot;:&quot;http://json-schema.org/draft-07/schema#&quot;,
+                  &quot;type&quot;:&quot;object&quot;,
+                  &quot;properties&quot;: {
+                     &quot;birthdate&quot;: {
+                        &quot;type&quot;:&quot;string&quot;,
+                        &quot;const&quot;:&quot;1900-01-01&quot;
+                     }
+                  }
+               },
+               &quot;else&quot;:&quot;omit&quot;
+            },
+            {
+               &quot;loc&quot;:&quot;/verified_claims/claims/family_name&quot;,
+               &quot;method&quot;: &quot;simple&quot;,
+               &quot;value&quot;: &quot;nonexistent_family_name&quot;,
+               &quot;else&quot;:&quot;omit&quot;,
+               &quot;what&quot;:[
+                  &quot;/verified_claims&quot;
+               ]
+            }
+         ],
+         &quot;userinfo&quot;:[
+            {
+               &quot;loc&quot;:&quot;/address/postal_code&quot;,
+               &quot;method&quot;: &quot;exists&quot;,
+               &quot;else&quot;:&quot;abort&quot;
+            }
+         ]
+      }
+   }
+}
+</sourcecode>
+<t>Another example for using SAO together with TC is shown below.</t>
+</section>
+
+<section anchor="syntax-and-processing"><name>Syntax and Processing</name>
+<t>To use Advanced Syntax for Claims, the RP adds a new subelement <tt>_asc</tt> to the
+root level of the <tt>claims</tt> JSON structure in the authentication request. Within
+<tt>_asc</tt>, the RP adds a new subelement <tt>sao</tt> that contains the SAO rules. The SAO
+rules are grouped by delivery type, i.e., <tt>id_token</tt> and <tt>userinfo</tt>.</t>
+<t>Within each delivery type, there is an array of SAO rules, each being an object
+with the following fields:</t>
+
+<ul spacing="compact">
+<li><tt>loc</tt>: REQUIRED. A string containing a JSON Pointer <xref target="RFC6901"></xref> to the
+respective element in the ID Token or Userinfo response structure where the
+rule is to be applied.</li>
+<li><tt>method</tt>: OPTIONAL string. If provided, MUST be one of <tt>simple</tt>, <tt>schema</tt>, or
+<tt>exists</tt>. If omitted, defaults to <tt>exists</tt>. Support for <tt>schema</tt> is OPTIONAL
+for OPs and can be discovered using metadata, as described in
+<xref target="sao-metadata"></xref>.</li>
+<li><tt>schema</tt>: REQUIRED if <tt>method</tt> is <tt>schema</tt>, MUST NOT be present otherwise. A
+JSON schema object as defined in <xref target="I-D.bhutton-json-schema"></xref> that the respective element
+in the ID Token or Userinfo response structure must validate against.</li>
+<li><tt>value</tt> or <tt>values</tt>: Either <tt>value</tt> or <tt>values</tt> is REQUIRED if <tt>method</tt> is
+<tt>simple</tt>; MUST NOT be present otherwise; <tt>value</tt> and <tt>values</tt> MUST NOT be
+used together. For <tt>value</tt>, a valid claim value MUST be provided which is
+either a string, a number, or a boolean. For <tt>values</tt>, an array of such
+values MUST be provided.</li>
+<li><tt>else</tt>: REQUIRED. A string, either <tt>abort</tt> or <tt>omit</tt>, indicating the action
+to take if the rule is not fulfilled. If <tt>abort</tt> is used, the transaction
+MUST be aborted. If <tt>omit</tt> is used, one or more elements MUST be omitted from
+the response, as defined next.</li>
+<li><tt>what</tt>: OPTIONAL if the value of <tt>else</tt> is <tt>omit</tt>, MUST NOT be used
+otherwise. An array of one or more strings, each containing a JSON Pointer
+<xref target="RFC6901"></xref> to the respective element in the ID Token or Userinfo response
+structure that are to be omitted if the rule is not fulfilled. If <tt>what</tt> is
+not defined, the element specified in <tt>loc</tt> is omitted.</li>
+</ul>
+<t>The <tt>else</tt> action MUST be triggered when</t>
+
+<ul spacing="compact">
+<li>the element indicated by <tt>loc</tt> does not exist,</li>
+<li>the element was removed by a previously executed <tt>omit</tt> rule, or</li>
+<li>the user does not consent to the release of the claim.</li>
+</ul>
+<t>Additionally, depending on the value of <tt>method</tt>, the following matches MUST be
+performed:</t>
+
+<ul spacing="compact">
+<li><tt>simple</tt>: The value of the claim indicated by <tt>loc</tt> is matched against
+<tt>value</tt> or <tt>values</tt> provided in the SAO rule. If <tt>value</tt> is provided, the
+claim value will be matched to the provided value using exact matching. For
+<tt>values</tt>, the claim value must exactly match at least one of the values in
+the array. In the example above, the <tt>assurance_level</tt> would be matched
+against <tt>example_assurance_level</tt> and <tt>family_name</tt> would be matched against
+<tt>nonexistent_family_name</tt>. The <tt>else</tt> action MUST be triggered if the value
+of the claim does not match the requested value or values.</li>
+<li><tt>schema</tt>: The JSON Schema <tt>schema</tt> element MUST apply to the
+JSON structure under the element indicated by <tt>loc</tt>. In the example above,
+the schema would be applied to the whole <tt>claims</tt> object under
+<tt>verified_claims</tt>. The <tt>else</tt> action MUST be triggered if the schema does not
+apply.</li>
+<li><tt>exists</tt>: No additional matches are performed.</li>
+</ul>
+<t>The SAO rules provided MUST be executed first for all <tt>id_token</tt> rules and then
+for all <tt>userinfo</tt> rules.  Within each delivery type, the SAO rules MUST be
+executed in the order they are provided in the request. If an <tt>abort</tt> action is
+triggered, the transaction MUST be aborted and remaining SAO rules MUST NOT be
+executed. If an <tt>omit</tt> action is triggered, the respective elements MUST be
+omitted from the response; further SAO rules MUST be executed. Note that <tt>omit</tt>
+is scoped to the respective delivery type, i.e., an element that was omitted
+from the <tt>id_token</tt> response can still be present in the <tt>userinfo</tt> response if
+it was requested for both delivery types.</t>
+<t>In Example 1, data would be processed as follows:</t>
+
+<ol spacing="compact">
+<li>If the <tt>assurance_level</tt> is not available as a verified claim or it does not
+match the string <tt>example_assurance_level</tt>, the transaction is aborted.</li>
+<li>If the <tt>birthdate</tt> claim is not available or the birthdate is not a string
+with the value <tt>1900-01-01</tt>, the <tt>verified_claims/claims</tt> object is omitted
+from the response. Since the <tt>verified_claims</tt> element may not be used
+without the <tt>claims</tt> subelement, the whole <tt>verified_claims</tt> object is
+omitted.</li>
+<li>If the <tt>family_name</tt> is not available as a verified claim or it does not
+match the string <tt>nonexistent_family_name</tt>, the <tt>verified_claims</tt> object is
+omitted from the response.</li>
+<li>If the <tt>postal_code</tt> is not available in the <tt>address</tt> object, the
+transaction is aborted.</li>
+</ol>
+
+<section anchor="interoperability-with-oidc-rules"><name>Interoperability with OIDC Rules</name>
+<t>Any restrictions defined using <tt>value</tt> or <tt>values</tt> in the <tt>claims</tt> parameter
+outside of <tt>_asc</tt>/<tt>sao</tt> MUST be ignored when <tt>_asc</tt>/<tt>sao</tt> is present. This means
+that RPs that define <tt>_asc</tt>/<tt>sao</tt> MUST define all restrictions explicitly as SAO
+rules.</t>
+<t>Relying parties MAY still use <tt>value</tt>/<tt>values</tt> outside of <tt>_asc</tt>/<tt>sao</tt> to
+provide a fallback in case the OP does not support SAO. In this case, there is
+no requirement for the rules outside of <tt>_asc</tt>/<tt>sao</tt> to be consistent with the
+SAO rules.</t>
+</section>
+</section>
+
+<section anchor="sao-metadata"><name>OP Metadata</name>
+<t>The OP advertises its capabilities with respect to Selective Abort/Omit in its openid-configuration (see <xref target="OpenID-Discovery"></xref>) using the following new elements:</t>
+
+<ul spacing="compact">
+<li><tt>selective_abort_omit_supported</tt>: OPTIONAL. Boolean value indicating OP support for &quot;Selective Abort/Omit&quot;. Defaults to <tt>false</tt>.</li>
+<li><tt>selective_abort_omit_schema_supported</tt>: OPTIONAL. Boolean value indicating
+OP support for the <tt>method</tt> value <tt>schema</tt>. Defaults to <tt>true</tt>. If <tt>false</tt>,
+the OP MUST abort the transaction with an <tt>invalid_request</tt> error if a JSON
+Schema is used in an SAO rule.</li>
+</ul>
+</section>
+
+<section anchor="privacy"><name>Privacy Considerations</name>
+<t>Using Selective Abort/Omit can in general lead to more privacy preserving
+systems, as an RP can instruct an OP not to send incomplete datasets that are
+not useful to the RP.</t>
+<t>An RP might be able to derive information from a response even if the response
+is an error response or claims are omitted. For example, the following request
+can be used to derive whether or not the user is named <tt>Max</tt>:</t>
+
+<sourcecode type="json">{
+  &quot;id_token&quot;: {
+    &quot;given_name&quot;: {
+      &quot;value&quot;: &quot;Max&quot;
+    }
+  },
+  &quot;_asc&quot;: {
+    &quot;sao&quot;: {
+      &quot;id_token&quot;: [
+        {
+          &quot;loc&quot;: &quot;/given_name&quot;,
+          &quot;method&quot;: &quot;simple&quot;,
+          &quot;else&quot;: &quot;abort&quot;
+        }
+      ]
+    }
+  }
+}
+</sourcecode>
+<t>When the request is aborted, the user is not called Max. In a naive
+implementation, the abort of the request might happen before the user has
+consented to the release of the data. In this case, using a series of carefully
+crafted requests, an RP might be able to derive substantial information about a
+user even if the user's name is never transferred from the OP to the RP
+directly. A malicious RP can use this to derive user information without the
+user's consent or without paying for the data. Note that <tt>omit</tt> can leak
+information in a similar way.</t>
+<t>To avoid leakage of user information through this mechanism without the user's
+consent, implementations SHOULD in general avoid returning a result before a
+user has consented to the release of the base data if privacy is a concern in
+the respective application. In the example above, the user would be asked to
+confirm the release of the given name data field before the OP aborts the
+transaction or omits the claim. OPs MAY make exceptions for RPs when a
+contractual or trust relationship with this RP was established beforehand or
+there are other mechanisms in place to ensure that misuse is prevented.</t>
+<t>To the same end, and to avoid relying parties not paying for data, OPs SHOULD
+additionally consider rate-limiting requests and monitoring requests for
+anomalies (frequent dynamic changes in request structure, frequent aborts).</t>
+</section>
+
+<section anchor="compatibility-considerations"><name>Compatibility Considerations</name>
+<t>An OP not supporting ASC will ignore the additional <tt>_asc</tt> key as defined in
+Section 5.5.1 of <xref target="OpenID"></xref>. An OP supporting ASC but not SAO MUST ignore the
+<tt>sao</tt> key.</t>
+<t>An RP may receive data from an OP that does not support SAO when aborting the
+transaction or not delivering the data was requested instead. RPs can avoid this
+by checking for SAO support in the metadata of the OP before sending the
+request.</t>
+</section>
+</section>
+
+<section anchor="transformed-claims"><name>Transformed Claims</name>
+<t>Using Transformed Claims (TC), a claim value can be transformed using a limited set of functions before any further evaluation on the claim value is performed and before the claim value is returned to the RP.</t>
+<t>Each Transformed Claim is based off exactly one Claim provided by the OP. For example, the Claim <tt>birthdate</tt> can be used to derive a Transformed Claim for age verification (End-User is above a certain age) by applying a suitable chain of functions.  The number of functions in the chain MAY be limited by use of the OPTIONAL OP Metadata element <tt>transformed_claims_max_depth</tt>.</t>
+<t>Each function takes one input value (the original Claim's value or the output of the previous function) and produces one output value. Besides the input value, functions can only have static function arguments, typically zero or one.</t>
+
+<section anchor="example-age-verification"><name>Example: Age Verification</name>
+<t>The Claim <tt>birthdate</tt>, a date, can be transformed into an integer using the function <tt>years_ago</tt>. This function outputs the number of years between the current date and the input date, rounded down. The resulting integer can be transformed using the function <tt>gte</tt> with the argument <tt>18</tt>. This function evaluates whether the input value is greater than or equal to the given argument. Its output is either <tt>true</tt> or <tt>false</tt>. The resulting Transformed Claim, representing whether the End-User is above 18 or not, can be aliased, for example <tt>age_18_or_over</tt>. This Claim can be used within the OpenID Connect <tt>claims</tt> parameter instead of or together with the original Claim, <tt>birthdate</tt>.</t>
+<t>If data for the original Claim <tt>birthdate</tt> is unavailable, the new Claim <tt>age_18_or_over</tt> shall be treated like an unavailable Claim as well.</t>
+</section>
+
+<section anchor="defining-transformed-claims"><name>Defining Transformed Claims</name>
+<t>Transformed Claims are defined by the RP in the <tt>claims</tt> parameter of the Authentication Request. The RP adds a new subelement <tt>transformed_claims</tt> within the <tt>_asc</tt> element in the root of the <tt>claims</tt> JSON structure.</t>
+<t><tt>transformed_claims</tt> is a JSON object in which each key represents a definition for a new Transformed Claim. Each definition consists of an object with the following keys:</t>
+
+<ul spacing="compact">
+<li><tt>claim</tt> defines the Claim on which the Transformed Claim is based</li>
+<li><tt>fn</tt> is the array of functions to apply to the base Claim, in order of application. Each function is either a string, like <tt>year_ago</tt> to apply the function without further arguments, or an array, like <tt>[&quot;gte&quot;, 18]</tt>, to apply the function with arguments.</li>
+</ul>
+<t>For example, the Transformed Claim for age verification from above could be defined as follows:</t>
+
+<sourcecode type="json">{
+  &quot;_asc&quot;: {
+    &quot;transformed_claims&quot;: {
+      &quot;age_18_or_over&quot;: {
+        &quot;claim&quot;: &quot;birthdate&quot;,
+        &quot;fn&quot;: [
+          &quot;years_ago&quot;,
+          [
+            &quot;gte&quot;,
+            18
+          ]
+        ]
+      }
+    }
+  },
+  &quot;id_token&quot;: {
+    ...
+  }
+}
+
+</sourcecode>
+<t>Note: There can be multiple Transformed Claims defined on the same base Claim.</t>
+<t>TODO: Define charset for transformed claim names, shall not start with ':'.</t>
+
+<section anchor="requesting-transformed-claims"><name>Requesting Transformed Claims</name>
+<t>To request a Transformed Claim, the RP uses the name of the Transformed Claim where it would normally use the base Claim. A colon (<tt>:</tt>) is prepended to avoid confusion with potentially existing normal Claims.</t>
+<t>Example:</t>
+
+<sourcecode type="json">{
+  &quot;_asc&quot;: {
+    &quot;transformed_claims&quot;: {
+      &quot;age_18_or_over&quot;: {
+        &quot;claim&quot;: &quot;birthdate&quot;,
+        &quot;fn&quot;: [
+          &quot;years_ago&quot;,
+          [
+            &quot;gte&quot;,
+            18
+          ]
+        ]
+      }
+    }
+  },
+  &quot;id_token&quot;: {
+    &quot;given_name&quot;: null,
+    &quot;family_name&quot;: null,
+    &quot;:age_18_or_over&quot;: null
+  }
+}
+
+</sourcecode>
+<t>In some circumstances, the same Claim name can appear in different locations within the <tt>claims</tt> parameter with different meanings. For example, in <xref target="IDA"></xref>, <tt>birthdate</tt> can also be used within <tt>verified_claims/claims</tt>. Therefore, the reference to the base Claim shall be evaluated relative to the location where the Transformed Claim is used.</t>
+<t>Example: In <xref target="IDA"></xref>, the same <tt>age_18_or_over</tt> Claim defined above can be evaluated based on the 'Verified Claim' <tt>birthdate</tt> when used like this:</t>
+
+<sourcecode type="json">{
+  ...
+  &quot;id_token&quot;: {
+    &quot;verified_claims&quot;: {
+      &quot;claims&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null,
+        &quot;:age_18_or_over&quot;: null
+      },
+      ...
+    }
+  }
+}
+
+</sourcecode>
+<t>It is therefore theoretically possible to use the same Transformed Claim in two
+different locations in the request, yielding potentially different values.</t>
+<t>Any option available for normal Claims can also be used with Transformed Claims. The evaluation of these options (e.g., a constraint defined using <tt>value</tt>) is always performed based on the transformed value.</t>
+
+<sourcecode type="json">{
+  ...
+  &quot;id_token&quot;: {
+    &quot;given_name&quot;: null,
+    &quot;family_name&quot;: null,
+    &quot;:age_18_or_over&quot;: {
+      &quot;value&quot;: true,
+      &quot;essential&quot;: true
+    }
+  }
+}
+</sourcecode>
+<t>There is no requirement to use all defined Transformed Claims within a request.</t>
+</section>
+
+<section anchor="combination-with-selective-abort-omit"><name>Combination with Selective Abort/Omit</name>
+<t>Transformed Claims can be used together with Selective Abort/Omit. In this case,
+transformed claims are evaluated before the SAO rules are applied. The SAO rules
+are applied to the transformed value.</t>
+<t>Example:</t>
+
+<sourcecode type="json">{
+  &quot;id_token&quot;: {
+    &quot;given_name&quot;: null,
+    &quot;family_name&quot;: null,
+    &quot;:age_18_or_over&quot;: {
+      &quot;value&quot;: true
+    }
+  },
+  &quot;_asc&quot;: {
+    &quot;transformed_claims&quot;: {
+      &quot;age_18_or_over&quot;: {
+        &quot;claim&quot;: &quot;birthdate&quot;,
+        &quot;fn&quot;: [
+          &quot;years_ago&quot;,
+          [
+            &quot;gte&quot;,
+            18
+          ]
+        ]
+      }
+    },
+    &quot;sao&quot;: {
+      &quot;id_token&quot;: [
+        {
+          &quot;loc&quot;: &quot;/:age_18_or_over&quot;,
+          &quot;method&quot;: &quot;simple&quot;,
+          &quot;value&quot;: true,
+          &quot;else&quot;: &quot;abort&quot;
+        }
+      ]
+    }
+  }
+}
+</sourcecode>
+</section>
+</section>
+
+<section anchor="data-types"><name>Data Types</name>
+<t>Claims defined in <xref target="OpenID"></xref> and <xref target="IDA"></xref> have one of the data types 'string', 'boolean', 'number', 'JSON object' or 'array'. For the purpose of this specification, these data types are used as well as the new data type 'date', which applies to Claims representing dates, and 'datetime', which applies to Claims representing date and time. Therefore, <tt>birthdate</tt> is both of type <tt>string</tt> and <tt>date</tt>, and <tt>updated_at</tt> is both of type <tt>number</tt> and <tt>datetime</tt>.</t>
+<t>Todo: Define input formats for date and datetime.</t>
+</section>
+
+<section anchor="transformation-functions"><name>Transformation Functions</name>
+<t>In the following, a base set of transformation functions is defined. OPs supporting Transformed Claims shall support at least one transformation function.</t>
+<t>In the following, the first function argument <tt>Input</tt> refers to the value of the
+base Claim, or, if multiple functions are to be applied, the output of the
+previous function. For other arguments, the RP defines a constant value in each
+request. Optional arguments may be omitted.</t>
+<t>This specification defines the following functions:</t>
+
+<section anchor="counting-years"><name>Counting Years</name>
+<t>Function signature: <tt>years_ago(date|datetime Input, optional date ReferenceDate) -&gt; number</tt></t>
+<t>If only an input date or datetime is provided, returns the number of years elapsed since the given <tt>Input</tt> day, rounded down. With a <tt>ReferenceDate</tt>, returns the number of years elapsed between the <tt>Input</tt> date and the <tt>ReferenceDate</tt>.</t>
+<t>Note: If the year of the <tt>Input</tt> date is <tt>0000</tt>, the resulting Claim shall be unavailable.</t>
+<t>Note: When applied to an array of valid input values, returns an array with the function applied to each input value in order.</t>
+</section>
+
+<section anchor="equality"><name>Equality</name>
+<t>Function signatures:</t>
+
+<ul spacing="compact">
+<li><tt>eq(string Input, string Compare) -&gt; boolean</tt></li>
+<li><tt>eq(number Input, number Compare) -&gt; boolean</tt></li>
+<li><tt>eq(boolean Input, boolean Compare) -&gt; boolean</tt></li>
+<li><tt>eq(date|datetime Input, date|datetime Compare) -&gt; boolean</tt></li>
+</ul>
+<t>Return <tt>true</tt> if and only if <tt>Input</tt> equals <tt>Output</tt>. Return <tt>false</tt> otherwise. For comparisons between <tt>date</tt> and <tt>datetime</tt> values, the time of day is ignored unless <tt>Input</tt> and <tt>Compare</tt> are both of type <tt>datetime</tt>.</t>
+<t>Additionally, the following functions for partial string matching are defined:</t>
+
+<ul spacing="compact">
+<li><tt>contains(string Input, string Compare) -&gt; boolean</tt></li>
+<li><tt>starts_with(string Input, string Compare) -&gt; boolean</tt></li>
+<li><tt>ends_with(string Input, string Compare) -&gt; boolean</tt></li>
+</ul>
+<t>Return <tt>true</tt> if and only if <tt>Input</tt> contains, starts with, or ends with <tt>Compare</tt>. Return <tt>false</tt> otherwise.</t>
+</section>
+
+<section anchor="number-date-datetime-comparison"><name>Number/Date/Datetime Comparison</name>
+<t>Function signatures:</t>
+
+<ul spacing="compact">
+<li><tt>gt(number Input, number Compare): -&gt; boolean</tt></li>
+<li><tt>gt(date|datetime Input, date|datetime Compare): -&gt; boolean</tt></li>
+<li><tt>lt(number Input, number Compare): -&gt; boolean</tt></li>
+<li><tt>lt(date|datetime Input, date|datetime Compare): -&gt; boolean</tt></li>
+<li><tt>gte(number Input, number Compare): -&gt; boolean</tt></li>
+<li><tt>gte(date|datetime Input, date|datetime Compare): -&gt; boolean</tt></li>
+<li><tt>lte(number Input, number Compare): -&gt; boolean</tt></li>
+<li><tt>lte(date|datetime Input, date|datetime Compare): -&gt; boolean</tt></li>
+</ul>
+<t>Evaluate whether <tt>Input</tt> is greather/less than (or equal to) the given
+<tt>Compare</tt>. For comparisons between <tt>date</tt> and <tt>datetime</tt> values, the time of day
+is ignored unless <tt>Input</tt> and <tt>Compare</tt> are both of type <tt>datetime</tt>.</t>
+<t>Note: When applied to an array of valid input values, returns an array with the function applied to each input value in order.</t>
+</section>
+
+<section anchor="hashing"><name>Hashing</name>
+<t>Function signature: <tt>hash(string Input, string HashAlgorithm) -&gt; string</tt></t>
+<t>Returns the hash of the UTF-8 representation of the input string, encoded as a
+lowercase hex string. <tt>HashAlgorithm</tt> refers to the hash algorithm to be used,
+with valid values being <tt>sha-256</tt> and <tt>sha-512</tt>.</t>
+<t>Example: <tt>hash('Jörg', 'sha-256')</tt> produces the string
+<tt>8e63741c42f7c08025339f1a380d98030a698aa04f1fa3c595dcb581632af452</tt>.</t>
+<t>This function can be used together with the <tt>eq</tt> operator or a restriction
+expressed using <tt>value</tt> or <tt>values</tt> to have the OP match a string against a
+value without revealing the clear-text value to the OP.</t>
+<t>It is important to note that the privacy advantage is generally limited,
+especially when the input strings can be enumerated easily, as is common for
+names, numbers and date/datetime values. A malicious OP could try to calculate
+the hashes of all possible clear-text values and match the hashes against the
+hash provided by the RP in order to reveal the original clear-text value.</t>
+</section>
+
+<section anchor="array-evaluation"><name>Array Evaluation</name>
+<t>Function signatures:</t>
+
+<ul spacing="compact">
+<li><tt>any(array of booleans Input) -&gt; boolean</tt></li>
+<li><tt>all(array of booleans Input) -&gt; boolean</tt></li>
+<li><tt>none(array of booleans Input) -&gt; boolean</tt></li>
+</ul>
+<t>Return <tt>true</tt> if and only if any, all, or none of the boolean values in the <tt>Input</tt> array are <tt>true</tt>. Return <tt>false</tt> otherwise.</t>
+</section>
+
+<section anchor="json-object-access"><name>JSON Object Access</name>
+<t>Function signature: <tt>get(JSON object Input, string Key) -&gt; *</tt></t>
+<t>From the JSON object <tt>Input</tt>, return the member with key <tt>Key</tt>. If the respective key is not available in the JSON object, the resulting Claim shall be unavailable.</t>
+</section>
+
+<section anchor="matching"><name>Matching</name>
+<t>Function signature: <tt>match(string Input, string RegEx) -&gt; boolean</tt></t>
+<t>Return <tt>true</tt> if and only if the <tt>RegEx</tt> matches the <tt>Input</tt> string. The match
+can be at any location within <tt>Input</tt> unless further constrained by <tt>RegEx</tt>. Return <tt>false</tt> otherwise.</t>
+<t>Important: OPs implementing this function shall take precautions against 'catastrophic backtracking', i.e., regular expressions that are designed to exhaust the computing power of the OP. To this end, a reasonably brief time limit on the execution time for the regular expression matching operation shall be imposed, e.g., a few milliseconds. If the execution takes longer, the resulting Claim shall be unavailable.</t>
+<t>TODO: Define Regex dialect to use. PCRE, PCRE2?</t>
+</section>
+
+<section anchor="extending-the-transformation-functions"><name>Extending the Transformation Functions</name>
+<t>Extensions of this specification may define further Transformation Functions.
+New Transformation Functions defined outside official standards shall use the
+prefix <tt>x-</tt> to avoid naming collisions with standardized Transformation
+Functions.</t>
+<t>TODO: Registry? Prefixing considered harmful?</t>
+<t>All Transformation Functions shall follow the following conventions:</t>
+
+<ul spacing="compact">
+<li><t>To avoid information leakage to the RP, a Transformation Function shall be designed such that it does not open a side-channel to other information stored at the OP. To this end, a Transformation Function shall only make use of information that is either</t>
+
+<ul spacing="compact">
+<li>directly provided via the static function arguments,</li>
+<li>can be derived from the <tt>Input</tt>, or</li>
+<li>is available to the RP from other sources, e.g., public information like time and date.</li>
+</ul></li>
+<li>The application of Transformation Functions shall have no side effects on other Claim values.</li>
+<li>Transformation Functions shall be safe to execute for the OP for all combinations of inputs and arguments, as the requests generally come from an untrusted source. This includes security against Denial-of-Service attacks.</li>
+</ul>
+</section>
+</section>
+
+<section anchor="predefined-transformed-claims-ptc"><name>Predefined Transformed Claims (PTC)</name>
+<t>An OP supporting Transformed Claims shall publish the key <tt>transformed_claims_functions_supported</tt> containing an array of supported functions (only the function names) in its OP Metadata.</t>
+<t>Example:</t>
+
+<sourcecode type="json">...
+  &quot;transformed_claims_functions_supported&quot;: [&quot;eq&quot;, &quot;match&quot;, &quot;years_ago&quot;],
+...
+</sourcecode>
+<t>An RP can use the presence of this key to determine general support for Transformed Claims at the OP.</t>
+<t>An OP may predefine Transformed Claims. This avoids repetitions in requests and enables RPs to use Transformed Claims without requiring specific software support.</t>
+<t>To predefine a Transformed Claim, the OP publishes the key <tt>transformed_claims_predefined</tt> in its OP metadata. Its contents follow the same syntax as <tt>transformed_claims</tt> in the <tt>claims</tt> object:</t>
+
+<sourcecode type="json">...
+  &quot;transformed_claims_predefined&quot;: {
+    &quot;age_18_or_over&quot;: {
+      &quot;claim&quot;: &quot;birthdate&quot;,
+      &quot;fn&quot;: [
+        &quot;years_ago&quot;,
+        [
+          &quot;gte&quot;,
+          18
+        ]
+      ]
+    },
+    &quot;age_21_or_over&quot;: {
+      &quot;claim&quot;: &quot;birthdate&quot;,
+      &quot;fn&quot;: [
+        &quot;years_ago&quot;,
+        [
+          &quot;gte&quot;,
+          21
+        ]
+      ]
+    }
+  }
+...
+</sourcecode>
+<t>RPs may use PTCs in a request to the OP as if the respective Transformed Claims
+were defined in <tt>transformed_claims</tt> in the request. However, two colons (<tt>::</tt>) are prepended to distinguish predefined from custom Transformed Claims:</t>
+
+<sourcecode type="json">{
+  &quot;id_token&quot;: {
+    &quot;given_name&quot;: null,
+    &quot;family_name&quot;: null,
+    &quot;::age_18_or_over&quot;: {
+      &quot;value&quot;: true,
+      &quot;essential&quot;: true
+    }
+  }
+}
+</sourcecode>
+<t>An OP may further set the key <tt>transformed_claims_max_count</tt> to <tt>0</tt> to
+denote that only PTCs can be used and custom Transformed Claims are not
+supported.</t>
+<t>Example:</t>
+
+<sourcecode type="json">...
+  &quot;transformed_claims_functions_supported&quot;: [&quot;years_ago&quot;, &quot;gte&quot;],
+  &quot;transformed_claims_max_count&quot;: 0,
+  &quot;transformed_claims_predefined&quot;: {
+    &quot;age_18_or_over&quot;: {
+      &quot;claim&quot;: &quot;birthdate&quot;,
+      &quot;fn&quot;: [
+        &quot;years_ago&quot;,
+        [
+          &quot;gte&quot;,
+          18
+        ]
+      ]
+    }
+  },
+...
+</sourcecode>
+</section>
+
+<section anchor="op-metadata"><name>OP Metadata</name>
+<t>The OP advertises its capabilities with respect to Transformed Claims in its openid-configuration (see <xref target="OpenID-Discovery"></xref>) using the following new elements:</t>
+<t><tt>transformed_claims_functions_supported</tt>: OPTIONAL. JSON array indicating support for Transformed Claims, and containing an array of the supported function names. When present this array must have at least one member.</t>
+<t><tt>transformed_claims_predefined</tt>: OPTIONAL. JSON object containing the definitions of all supported Predefined Transformed Claims following the same syntax as <tt>transformed_claims</tt> in the <tt>claims</tt> object. When present this object must contain at least one definition of a Predefined Transformed Claim. If this metadata value is omitted, the OP does not support Predefined Transformed Claims.</t>
+<t><tt>transformed_claims_max_depth</tt>: OPTIONAL. Integer value indicating the maximum number of functions in a chain of functions used to define a transformed claim. If this metadata value is omitted, the OP MUST support chains of functions of any length.</t>
+<t><tt>transformed_claims_max_count</tt>: OPTIONAL. Integer value indicating the maximum number of transformed claims an RP can define, excluding any Predefined Transformed Claims. If this is set to <tt>0</tt>, the RP may only use Predefined Transformed Claims.  If this metadata value is omitted, the OP MUST support any number of transformed claims.</t>
+</section>
+
+<section anchor="error-conditions"><name>Error Conditions</name>
+<t>The following error conditions MUST be checked by an OP, in this order:</t>
+
+<ol spacing="compact">
+<li>If the definition of a transformed claim provided by an RP uses more than <tt>transformed_claims_max_depth</tt> function applications or the number of custom transformed claims exceeds <tt>transformed_claims_max_count</tt>, the OP MUST abort the transaction with an <tt>invalid_request</tt> error. The <tt>error_description</tt> provided by the OP SHOULD indicate the location and nature of the error.</li>
+<li>If an RP uses, in a definition for a transformed claim, a function not supported by the OP and therefore not listed in <tt>transformed_claims_functions_supported</tt>, or the wrong number of arguments, or a wrong type of argument, the OP MUST abort the transaction with an <tt>invalid_request</tt> error. The <tt>error_description</tt> provided by the OP SHOULD indicate the location and nature of the error.</li>
+<li>Each transformed claim is based on a single base claim, as expressed by the <tt>claim</tt> key in the definition of the transformed claim. In case this base claim is not known to the OP, or data is not available for this claim, or similar conditions, the transformed claim MUST be treated the same as the base claim. For example, if the base claim is unknown to the OP, the transformed claim is handled as if it were an unknown claim as well. If an End-User choses not to release the base claim, or the base claim is not released to the RP for some other reason, the transformed claim MUST NOT be released as well.</li>
+</ol>
+<t>In general, if an RP references an undefined transformed claim in the <tt>claims</tt> parameter, the claim MUST be treated like a claim unknown to the OP.</t>
+</section>
+
+<section anchor="ux-and-privacy-considerations"><name>UX and Privacy Considerations</name>
+<t>The consent of the End-User is typically required before data can be released by the OP to the RP. An OP cannot be expected to automatically parse and understand all potential combinations of transformation functions and their arguments in order to create a detailed consent prompt for the End-User.</t>
+<t>OPs can use a number of strategies to ensure that End-User consent is always given in a meaningful way and to provide a good user experience (UX):</t>
+
+<ul spacing="compact">
+<li>Simple cases, for example the combination of <tt>years_ago</tt> and <tt>gte(x)</tt> applied
+to <tt>birthdate</tt> shown above, can be translated into a statement like &quot;The RP
+wants to know that you are above age <tt>x</tt>&quot;. OPs can prepare a number of
+patterns to match against the RP's request for common use cases in their
+ecosystem.</li>
+<li>Since PTCs are predefined by the OP, the OP shall be able to provide a
+meaningful consent text for all its PTCs.</li>
+<li>In all other cases, the OP can ask the End-User for
+their consent to release the full information of the base Claim, e.g., to ask
+for the consent to release the birthdate instead of verification of age. This is a safe overapproximation due to the guidelines for transformation functions described above.</li>
+</ul>
+</section>
+
+<section anchor="compatibility-considerations-1"><name>Compatibility Considerations</name>
+<t>An OP not supporting Transformed Claims will ignore the additional element in the <tt>claims</tt> parameter as defined in Section 5.5 of <xref target="OpenID"></xref>. All Transformed Claims requested by RPs are therefore unknown to the OP and treated like other unknown claims, i.e., they will typically be ignored.</t>
+</section>
+
+<section anchor="examples"><name>Examples</name>
+<t>The following example shows two custom Transformed Claims being defined and used. Note: Features from Selective Abort/Omit defined above are used as well.</t>
+
+<sourcecode type="json">{
+    &quot;transformed_claims&quot;: {
+        &quot;company_email&quot;: {
+            &quot;claim&quot;: &quot;email&quot;,
+            &quot;fn&quot;: [
+                [
+                    &quot;match&quot;,
+                    &quot;@company\\.com$&quot;
+                ]
+            ]
+        },
+        &quot;nationality_usa&quot;: {
+            &quot;claim&quot;: &quot;nationalities&quot;,
+            &quot;fn&quot;: [
+                [
+                    &quot;eq&quot;,
+                    &quot;USA&quot;
+                ],
+                &quot;any&quot;
+            ]
+        }
+    },
+    &quot;id_token&quot;: {
+        &quot;given_name&quot;: null,
+        &quot;family_name&quot;: null,
+        &quot;:company_email&quot;: {
+            &quot;value&quot;: true,
+            &quot;if_different&quot;: &quot;abort&quot;
+        },
+        &quot;email_verified&quot;: {
+            &quot;value&quot;: true,
+            &quot;if_different&quot;: &quot;abort&quot;
+        },
+        &quot;verified_claims&quot;: {
+            &quot;claims&quot;: {
+                &quot;:nationality_usa&quot;: {
+                    &quot;value&quot;: true,
+                    &quot;if_different&quot;: &quot;abort&quot;
+                }
+            },
+            &quot;verification&quot;: {
+                &quot;trust_framework&quot;: null
+            }
+        }
+    }
+}
+</sourcecode>
+</section>
+</section>
+
+<section anchor="Security"><name>Security Considerations</name>
+
+<section anchor="integrity-protection-of-the-authentication-request"><name>Integrity Protection of the Authentication Request</name>
+<t>For a secure operation of the mechanisms defined in this specification, it is important to protect the <tt>claims</tt> parameter against modifications. Otherwise, a malicious End-User or attacker could create situations where the RP receives misleading data.</t>
+<t>Moreover, some features in this specification are particularly suited for use cases of OpenID Connect where the RP pays for data received. In such use cases, integrity protection of the <tt>claims</tt> parameter can be advised to avoid having the RP pay for data not requested.</t>
+<t>As an example for a malicious modification, when an RP defines a transformed claim <tt>:age_18_or_over</tt> as shown above, an End-User that is only 12 years old could modify the definition of the Claim from</t>
+
+<artwork>    &quot;age_18_or_over&quot;: {
+      &quot;claim&quot;: &quot;birthdate&quot;,
+      &quot;fn&quot;: [
+        &quot;years_ago&quot;,
+        [
+          &quot;gte&quot;,
+          18
+        ]
+      ]
+    }
+</artwork>
+<t>to</t>
+
+<artwork>    &quot;age_18_or_over&quot;: {
+      &quot;claim&quot;: &quot;birthdate&quot;,
+      &quot;fn&quot;: [
+        &quot;years_ago&quot;,
+        [
+          &quot;gte&quot;,
+          12
+        ]
+      ]
+    }
+</artwork>
+<t>and pass the age verification check. When using Selective Abort/Omit, a user could create situations where a flow continues instead of being aborted due to a mismatch in the End-User's data.</t>
+<t>Therefore, the following rules apply:</t>
+
+<ul spacing="compact">
+<li>Authentication requests using features from Selective Abort/Omit SHOULD only be accepted by an OP if they are integrity-protected and authenticated.</li>
+<li>Authentication requests using Transformed Claims MUST only be accepted by an OP if they are integrity-protected, unless <tt>transformed_claims_max_count</tt> is set to <tt>0</tt> in which case the OP MAY accept authentication requests without integrity protection and authentication. Since Predefined Transformed Claims are defined by the OP, integrity protection and authentication is not required for their use.</li>
+</ul>
+<t>Integrity protection and authentication of authentication requests can be achieved in particular by</t>
+
+<ul spacing="compact">
+<li>using Pushed Authorization Requests <xref target="RFC9126"></xref> to send requests server-to-server with authentication of the RP, or</li>
+<li>using JWT-Secured Authorization Requests <xref target="RFC9101"></xref> to sign the authentication request parameters.</li>
+</ul>
+<t>Using a suitable security profile for OpenID Connect that includes authentication and integrity protection for the authentication request is RECOMMENDED, as this helps to ensure that the protection cannot be circumvented.</t>
+</section>
+
+<section anchor="safe-execution-of-transformation-functions"><name>Safe Execution of Transformation Functions</name>
+<t>OPs MUST ensure that all possible combinations of transformation functions and their respective arguments can be executed securely and without undesired side effects. In particular, for any function supported by the OP, the OP MUST ensure that time and memory limits apply to avoid Denial-of-Service Attacks. For many functions, for example, comparison functions, this is usually inherent to the function itself. For other functions, execution time and complexity limits SHOULD be considered. For example, when applying regular expressions, Regular Expression DoS attacks (ReDoS) are a concern.</t>
+<t>OPs therefore MAY limit the range of valid input arguments and valid combinations of functions to ensure a secure operation.</t>
+<t>OPs SHOULD consider setting <tt>transformed_claims_max_depth</tt> and <tt>transformed_claims_max_count</tt> to reasonable values to avoid Denial-of-Service attacks.</t>
+</section>
+</section>
+
+</middle>
+
+<back>
+<references><name>Normative References</name>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml-ids/reference.I-D.bhutton-json-schema.xml"/>
+<reference anchor="IDA" target="https://openid.net/specs/openid-connect-4-identity-assurance-1_0.html">
+  <front>
+    <title>OpenID Connect for Identity Assurance 1.0</title>
+    <author fullname="Torsten Lodderstedt" initials="T." surname="Lodderstedt">
+      <organization>yes.com</organization>
+    </author>
+    <author fullname="Daniel Fett" initials="D." surname="Fett">
+      <organization>Authlete</organization>
+    </author>
+    <author fullname="Mark Haine" initials="M." surname="Haine">
+      <organization>Considrd.Consulting Ltd</organization>
+    </author>
+    <author fullname="Alberto Pulido" initials="A." surname="Pulido">
+      <organization>Santander</organization>
+    </author>
+    <author fullname="Kai Lehmann" initials="K." surname="Lehmann">
+      <organization>1&amp;1 Mail &amp; Media Development &amp; Technology GmbH</organization>
+    </author>
+    <author fullname="Kosuke Koiwai" initials="K." surname="Koiwai">
+      <organization>KDDI Corporation</organization>
+    </author>
+  </front>
+</reference>
+<reference anchor="ISODIR2" target="https://www.iso.org/sites/directives/current/part2/index.xhtml">
+  <front>
+    <title>ISO/IEC Directives Part 2 - </title>
+    <author fullname="International Organization for Standardization">
+      <organization></organization>
+    </author>
+  </front>
+</reference>
+<reference anchor="OpenID" target="https://openid.net/specs/openid-connect-core-1_0.html">
+  <front>
+    <title>OpenID Connect Core 1.0 incorporating errata set 1</title>
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization>NRI</organization>
+    </author>
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization>Ping Identity</organization>
+    </author>
+    <author fullname="Mike Jones" initials="M." surname="Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+      <organization>Google</organization>
+    </author>
+    <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+      <organization>Salesforce</organization>
+    </author>
+    <date year="2014" month="Nov" day="8"></date>
+  </front>
+</reference>
+<reference anchor="OpenID-Discovery" target="https://openid.net/specs/openid-connect-discovery-1_0.html">
+  <front>
+    <title>OpenID Connect Discovery 1.0 incorporating errata set 1</title>
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization>NRI</organization>
+    </author>
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization>Ping Identity</organization>
+    </author>
+    <author fullname="Mike Jones" initials="M." surname="Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Edmund Jay" initials="E." surname="Jay">
+      <organization>Illumila</organization>
+    </author>
+    <date year="2014" month="Nov" day="8"></date>
+  </front>
+</reference>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6901.xml"/>
+</references>
+<references><name>Informative References</name>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.9101.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.9126.xml"/>
+</references>
+
+<section anchor="Acknowledgements"><name>Acknowledgements</name>
+<t>The OpenID Foundation Working Group developed the the concept described in the initial contribution to this specification with including Daniel Fett, Mark Haine, Takahiko Kawasaki, Kai Lehmann who all committed to the early drafts.</t>
+<t>We would also like to thank Alberto Pulido, Torsten Lodderstedt, Kristina Yasuda, Kosuke Koiwai, Joseph Heenan, Mike Jones, Dima Postnikov, and Nat Sakimura for their valuable feedback and contributions that helped to evolve this specification.</t>
+</section>
+
+<section anchor="notices"><name>Notices</name>
+<t>Copyright (c) 2026 The OpenID Foundation.</t>
+<t>The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer,
+or other interested party a non-exclusive, royalty free, worldwide copyright license to
+reproduce, prepare derivative works from, distribute, perform and display, this
+Implementers Draft, Final Specification, or Final Specification Incorporating Errata
+Corrections solely for the purposes of (i) developing specifications, and (ii)
+implementing Implementers Drafts, Final Specifications, and Final Specification
+Incorporating Errata Corrections based on such documents, provided that attribution
+be made to the OIDF as the source of the material, but that such attribution does not
+indicate an endorsement by the OIDF.</t>
+<t>The technology described in this specification was made available from contributions
+from various sources, including members of the OpenID Foundation and others.
+Although the OpenID Foundation has taken steps to help ensure that the technology
+is available for distribution, it takes no position regarding the validity or scope of any
+intellectual property or other rights that might be claimed to pertain to the
+implementation or use of the technology described in this specification or the extent
+to which any license under such rights might or might not be available; neither does it
+represent that it has made any independent effort to identify any such rights. The
+OpenID Foundation and the contributors to this specification make no (and hereby
+expressly disclaim any) warranties (express, implied, or otherwise), including implied
+warranties of merchantability, non-infringement, fitness for a particular purpose, or
+title, related to this specification, and the entire risk as to implementing this
+specification is assumed by the implementer. The OpenID Intellectual Property
+Rights policy (found at openid.net) requires contributors to offer a patent promise not
+to assert certain patent claims against other contributors and against implementers.
+OpenID invites any interested party to bring to its attention any copyrights, patents,
+patent applications, or other proprietary rights that may cover technology that may be
+required to practice this specification.</t>
+</section>
+
+<section anchor="document-history"><name>Document History</name>
+<t>[[ To be removed from the final specification ]]</t>
+<t>-01
+   *  Updated Syntax to resolve race condition that led to non-deterministic results
+   *  various editorial updates</t>
+<t>-00</t>
+
+<ul spacing="compact">
+<li>first version</li>
+</ul>
+</section>
+
+</back>
+
+</rfc>
