@@ -1,24 +1,22 @@
 name: OIDF Publish
 on:
-  pull_request_review:
-    types: 
-    - submitted
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   publish_to_specs:
     name: OIDF-Publish
-    if: github.event.review.state == 'APPROVED'
     runs-on: ubuntu-latest
     environment: openid.net/specs/
     steps:
       - uses: actions/checkout@v6
-        with: 
+        with:
           fetch-depth: 0
-          ref: ${{ github.head_ref }}
           ssh-key: ${{ secrets.OPENID_PUBLICATION_ACTION_DEPLOY_KEY }}
 
-      - name: Checkout
+      - name: Checkout publication-checks
         uses: actions/checkout@v6
         with:
           repository: openid/publication-checks
@@ -36,48 +34,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: OpenID publication prep
-        run : |
-          echo
-          git checkout ${{ github.event.pull_request.head.ref }} 
-          # echo "Current Branch: $(git branch --show-current)"
-          echo "------"
+      - name: Prepare publish files
+        run: |
           mkdir ./to-publish
-          # ls -l ./publication-scripts
           cd ./publication-scripts
           python3 publish.py
-          # pwd
-          # ls -l
-          # cat delete_files.txt
           cd ../to-publish
-          git diff --name-status | grep "^D" | while read -r status filename; do
-          # Issue git rm command for the file
-            echo "Removing $filename from git index"
-            git rm "../$filename"
-          done
-          # ls -l
           PUBLISH_LIST=$(ls)
-          # GIT_TRACE=true
           echo "PUBLISH_LIST = $PUBLISH_LIST"
           cp ./* ../sync/specs
           cd ../sync/specs
           echo "In /sync/specs directory"
-          # git ls-files --others --exclude-standard
-          echo "Adding files to branch!"
           git add -A .
           git status
-          # Setting Git User details
           git config --global user.name "OIDF GitHub Automation"
           git config --global user.email "github@oidf.org"
-          echo "Commiting"
-          git commit -m "$PUBLISH_LIST"
-          echo "Merge and Push"
-          # Check out target branch (e.g. main)
-          git checkout ${{ github.event.pull_request.base.ref }}
-          # merge head branch into base (e.g. main)
-          git merge -X theirs --no-ff ${{ github.event.pull_request.head.ref }} -m "Merge approved PR #${{ github.event.pull_request.number }}"
-          # Push changes to remote
-          git push origin ${{ github.event.pull_request.base.ref }}
+          git diff --cached --quiet || git commit -m "$PUBLISH_LIST"
+          git push origin main
 
       - name: Update remote clone on OIDF Web Server
         uses: appleboy/ssh-action@v1.2.5
@@ -93,7 +66,5 @@ jobs:
               git pull
               NEW_HEAD=$(git rev-parse HEAD)
               for i in `git diff --name-only $OLD_HEAD $NEW_HEAD`; do echo "Purging cache of $i" ;  curl -X PURGE https://openid.net/specs/`basename $i`; echo "done" ; done
-
-  
-
-
+              echo "Purging /specs/ index cache"
+              curl -X PURGE https://openid.net/specs/

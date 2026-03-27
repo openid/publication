@@ -1,0 +1,82 @@
+name: OIDF Publish Prep
+on:
+  pull_request_review:
+    types:
+    - submitted
+  workflow_dispatch:
+
+jobs:
+  publish_prep:
+    name: OIDF-Publish-Prep
+    if: github.event_name == 'workflow_dispatch' || github.event.review.state == 'APPROVED'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref || github.ref }}
+
+      - name: Checkout publication-checks
+        uses: actions/checkout@v6
+        with:
+          repository: openid/publication-checks
+          path: publication-scripts
+          ssh-key: ${{ secrets.OPENID_PUBLICATION_DEPLOY_KEY }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install Python requirements
+        run: |
+          cd ./publication-scripts
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run publish prep
+        id: prep
+        run: |
+          git checkout ${{ github.event.pull_request.head.ref || github.ref_name }}
+          mkdir ./to-publish
+          cd ./publication-scripts
+          python3 publish.py 2>&1 | tee /tmp/publish-output.txt
+          cd ../to-publish
+          echo "## Files to be published" > /tmp/publish-summary.md
+          echo "" >> /tmp/publish-summary.md
+          echo "| File | Size |" >> /tmp/publish-summary.md
+          echo "|------|------|" >> /tmp/publish-summary.md
+          for f in *; do
+            size=$(stat --printf="%s" "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo "?")
+            echo "| \`$f\` | ${size} bytes |" >> /tmp/publish-summary.md
+          done
+          echo "" >> /tmp/publish-summary.md
+          echo "## Published URLs" >> /tmp/publish-summary.md
+          echo "" >> /tmp/publish-summary.md
+          grep "https://openid.net/specs/" /tmp/publish-output.txt | while read -r line; do
+            url=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | grep -oP 'https://[^ ]+' || true)
+            if [ -n "$url" ]; then
+              echo "- \`$url\`" >> /tmp/publish-summary.md
+            fi
+          done
+          echo "" >> /tmp/publish-summary.md
+          echo "---" >> /tmp/publish-summary.md
+          echo "" >> /tmp/publish-summary.md
+          echo "> To publish, go to [Actions > OIDF Publish](../actions/workflows/oidf-publish.yml) and run the workflow manually, selecting this PR's branch." >> /tmp/publish-summary.md
+
+      - name: Comment on PR
+        if: github.event.pull_request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('/tmp/publish-summary.md', 'utf8');
+            const body = `### Publication Preview\n\n${summary}`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
