@@ -496,7 +496,7 @@ The data structures described in this specification will contain personal inform
 
 <reference anchor="ISO8601" target="https://www.iso.org/standard/70907.html">
     <front>
-      <title>ISO 8601-1:2019. Date and time â€” Representations for information interchange Part 1: Basic rules</title>
+      <title>ISO 8601-1:2019. Date and time — Representations for information interchange Part 1: Basic rules</title>
       <author surname="International Organization for Standardization">
         <organization abbrev="ISO">International Organization for Standardization</organization>
       </author>
