@@ -3,20 +3,21 @@ on:
   pull_request_review:
     types:
     - submitted
-  workflow_dispatch:
 
 jobs:
   publish_prep:
     name: OIDF-Publish-Prep
-    if: github.event_name == 'workflow_dispatch' || github.event.review.state == 'APPROVED'
+    if: github.event.review.state == 'APPROVED'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      contents: write
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          ref: ${{ github.head_ref || github.ref }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          ssh-key: ${{ secrets.OPENID_PUBLICATION_ACTION_DEPLOY_KEY }}
 
       - name: Checkout publication-checks
         uses: actions/checkout@v6
@@ -36,38 +37,45 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run publish prep
-        id: prep
+      - name: Run publish prep and push results
         run: |
-          git checkout ${{ github.event.pull_request.head.ref || github.ref_name }}
           mkdir ./to-publish
           cd ./publication-scripts
           python3 publish.py 2>&1 | tee /tmp/publish-output.txt
+          PUBLISH_EXIT=$?
           cd ../to-publish
+
+          # Build summary for the PR comment
           echo "## Files to be published" > /tmp/publish-summary.md
           echo "" >> /tmp/publish-summary.md
-          echo "| File | Size |" >> /tmp/publish-summary.md
-          echo "|------|------|" >> /tmp/publish-summary.md
-          for f in *; do
-            size=$(stat --printf="%s" "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo "?")
-            echo "| \`$f\` | ${size} bytes |" >> /tmp/publish-summary.md
-          done
-          echo "" >> /tmp/publish-summary.md
-          echo "## Published URLs" >> /tmp/publish-summary.md
-          echo "" >> /tmp/publish-summary.md
-          grep "https://openid.net/specs/" /tmp/publish-output.txt | while read -r line; do
-            url=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | grep -oP 'https://[^ ]+' || true)
-            if [ -n "$url" ]; then
-              echo "- \`$url\`" >> /tmp/publish-summary.md
-            fi
-          done
-          echo "" >> /tmp/publish-summary.md
-          echo "---" >> /tmp/publish-summary.md
-          echo "" >> /tmp/publish-summary.md
-          echo "> To publish, go to [Actions > OIDF Publish](../actions/workflows/oidf-publish.yml) and run the workflow manually, selecting this PR's branch." >> /tmp/publish-summary.md
+          if [ "$(ls -A 2>/dev/null)" ]; then
+            echo "| File | Size |" >> /tmp/publish-summary.md
+            echo "|------|------|" >> /tmp/publish-summary.md
+            for f in *; do
+              size=$(stat --printf="%s" "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo "?")
+              echo "| \`$f\` | ${size} bytes |" >> /tmp/publish-summary.md
+            done
+
+            # Copy to sync/specs and commit to the PR branch
+            cp ./* ../sync/specs/
+            cd ../sync/specs
+            git add -A .
+            git config user.name "OIDF GitHub Automation"
+            git config user.email "github@oidf.org"
+            PUBLISH_LIST=$(ls ../to-publish/)
+            git diff --cached --quiet || git commit -m "Publish prep: $PUBLISH_LIST"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+            echo "" >> /tmp/publish-summary.md
+            echo "The publish-ready files have been added to this PR in \`sync/specs/\`." >> /tmp/publish-summary.md
+            echo "Review the changes above, then **merge** to deploy to openid.net/specs/." >> /tmp/publish-summary.md
+          else
+            echo "No files were produced by publish.py." >> /tmp/publish-summary.md
+            echo "" >> /tmp/publish-summary.md
+            echo "Check the [workflow log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." >> /tmp/publish-summary.md
+          fi
 
       - name: Comment on PR
-        if: github.event.pull_request
+        if: always()
         uses: actions/github-script@v7
         with:
           script: |

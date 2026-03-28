@@ -3,63 +3,20 @@ on:
   push:
     branches:
       - main
+    # Only deploy when sync/specs changes (set by publish-prep)
+    paths:
+      - 'sync/specs/**'
   workflow_dispatch:
 
 jobs:
-  publish_to_specs:
-    name: OIDF-Publish
+  deploy:
+    name: OIDF-Deploy
     runs-on: ubuntu-latest
     environment: openid.net/specs/
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          ssh-key: ${{ secrets.OPENID_PUBLICATION_ACTION_DEPLOY_KEY }}
-
-      - name: Checkout publication-checks
-        uses: actions/checkout@v6
-        with:
-          repository: openid/publication-checks
-          path: publication-scripts
-          ssh-key: ${{ secrets.OPENID_PUBLICATION_DEPLOY_KEY }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-
-      - name: Install Python requirements
-        run: |
-          cd ./publication-scripts
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Prepare publish files
-        run: |
-          # After merge, origin/main...HEAD won't show the right diff.
-          # Use first parent of merge commit to find what the PR changed.
-          export CHANGED_FILES=$(git diff --name-only HEAD^1..HEAD)
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-          mkdir ./to-publish
-          cd ./publication-scripts
-          python3 publish.py
-          cd ../to-publish
-          PUBLISH_LIST=$(ls)
-          echo "PUBLISH_LIST = $PUBLISH_LIST"
-          if [ -z "$PUBLISH_LIST" ]; then
-            echo "No files to publish"
-            exit 0
-          fi
-          cp ./* ../sync/specs
-          cd ../sync/specs
-          echo "In /sync/specs directory"
-          git add -A .
-          git status
-          git config --global user.name "OIDF GitHub Automation"
-          git config --global user.email "github@oidf.org"
-          git diff --cached --quiet || git commit -m "$PUBLISH_LIST"
-          git push origin main
 
       - name: Update remote clone on OIDF Web Server
         uses: appleboy/ssh-action@v1.2.5
