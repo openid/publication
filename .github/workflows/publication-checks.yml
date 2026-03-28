@@ -72,7 +72,7 @@ jobs:
 
           # Count passes and fails
           PASS_COUNT=$(grep -c "^PASS:" /tmp/checks-clean.txt || true)
-          FAIL_COUNT=$(grep -c "^FAIL:" /tmp/checks-clean.txt || true)
+          FAIL_COUNT=$(grep "^FAIL:" /tmp/checks-clean.txt | grep -cv "did not pass all checks" || true)
           WARN_COUNT=$(grep -c "^WARNING:" /tmp/checks-clean.txt || true)
 
           if [ "${{ steps.checks.outcome }}" = "success" ]; then
@@ -92,7 +92,7 @@ jobs:
           if [ "$FAIL_COUNT" -gt 0 ] 2>/dev/null; then
             echo "### ❌ Failures" >> /tmp/checks-summary.md
             echo "" >> /tmp/checks-summary.md
-            grep "^FAIL:" /tmp/checks-clean.txt | while read -r line; do
+            grep "^FAIL:" /tmp/checks-clean.txt | grep -v "did not pass all checks" | while read -r line; do
               echo "- $line" >> /tmp/checks-summary.md
             done
             echo "" >> /tmp/checks-summary.md
@@ -108,6 +108,10 @@ jobs:
               echo "- $line" >> /tmp/checks-summary.md
             done
           fi
+
+          echo "" >> /tmp/checks-summary.md
+          echo "---" >> /tmp/checks-summary.md
+          echo "[Full log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> /tmp/checks-summary.md
 
       - name: Comment on PR
         if: always() && github.event_name == 'pull_request'
