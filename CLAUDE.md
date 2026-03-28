@@ -11,20 +11,22 @@ Hosts OpenID Foundation specifications for publication to https://openid.net/spe
 
 ## Workflows
 
-- `publication-checks.yml` - Triggered on push to `propose/**` branches. Runs `process.py` from `openid/publication-checks` to validate proposed specs.
-- `oidf-publish-prep.yml` - Triggered on PR approval. Runs publish prep and posts a comment showing what files/URLs will be created.
-- `oidf-publish.yml` - Triggered on merge to main. Copies files to `sync/specs/`, deploys to web server, purges CDN cache.
+- `publication-checks.yml` - Triggered on PRs targeting main from `propose/` branches. Runs `process.py` from `openid/publication-checks` to validate proposed specs. Posts a comment on the PR with pass/fail/warning details. PRs from non-propose/ branches get a warning comment instead.
+- `oidf-publish-prep.yml` - Triggered on PR approval. Runs `publish.py` to generate correctly-named files, copies them to `sync/specs/`, removes the WG source files, commits and pushes back to the PR branch. Posts a comment listing the files to be published.
+- `oidf-publish.yml` - Triggered on push to main when `sync/specs/` changes. Deploys to the web server via SSH and purges CDN cache.
 - `sync.yml` - Manual trigger to sync web server with repo.
 
 ## Publication Flow
 
-1. Editor pushes to `propose/{wg}/` branch
-2. `publication-checks.yml` validates the spec
-3. Editor creates PR from `propose/` to `main`
-4. Secretary reviews and approves PR
-5. `oidf-publish-prep.yml` posts a preview comment on the PR
-6. Secretary clicks merge
-7. `oidf-publish.yml` deploys to web server and purges CDN cache
+1. Editor pushes spec files to a `propose/{wg}/` branch
+2. Editor creates PR from `propose/` to `main`
+3. `publication-checks.yml` runs and posts check results as a PR comment
+4. Editor fixes any issues and pushes again (checks re-run automatically)
+5. Secretary reviews and approves PR
+6. `oidf-publish-prep.yml` generates publish-ready files in `sync/specs/`, removes WG source files, pushes to the PR branch, and posts a preview comment
+7. Secretary reviews the `sync/specs/` changes in the PR diff
+8. Secretary clicks merge
+9. `oidf-publish.yml` deploys to web server and purges CDN cache
 
 ## Branch Naming
 
