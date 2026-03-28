@@ -37,13 +37,95 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run publish prep and push results
+      - name: Check approval permissions
+        id: permissions
+        uses: actions/github-script@v8
+        with:
+          script: |
+            // Check if the reviewer is a member of the secretary team
+            const reviewer = context.payload.review.user.login;
+            let isSecretary = false;
+            try {
+              const membership = await github.rest.teams.getMembershipForUserInOrg({
+                org: 'openid',
+                team_slug: 'secretaryandteam',
+                username: reviewer,
+              });
+              isSecretary = membership.data.state === 'active';
+            } catch (e) {
+              // 404 means not a member
+              isSecretary = false;
+            }
+            core.setOutput('is_secretary', isSecretary.toString());
+            core.setOutput('reviewer', reviewer);
+            core.info(`Reviewer ${reviewer} is${isSecretary ? '' : ' not'} on secretaryandteam`);
+
+      - name: Run publish prep
         run: |
           REPO_ROOT=$(pwd)
           mkdir ./to-publish
           cd ./publication-scripts
           python3 publish.py 2>&1 | tee /tmp/publish-output.txt
           cd "$REPO_ROOT"
+
+      - name: Check approval requirements
+        id: approval_check
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const isSecretary = '${{ steps.permissions.outputs.is_secretary }}' === 'true';
+            const reviewer = '${{ steps.permissions.outputs.reviewer }}';
+
+            // Read publish output to determine document states
+            const output = fs.readFileSync('/tmp/publish-output.txt', 'utf8')
+              .replace(/\x1b\[[0-9;]*m/g, '');
+            const stateLines = output.split('\n').filter(l => l.startsWith('Do '));
+            const states = stateLines.map(l => l.replace('Do ', '').replace(/ copies.*/, '').trim());
+            core.info(`Document states: ${states.join(', ')}`);
+
+            const needsSecretary = states.some(s =>
+              ['FINAL', 'ERRATA', 'IMPLEMENTERS'].includes(s)
+            );
+
+            // Check if publication-checks passed (look at check runs on the PR head)
+            const pr = context.payload.pull_request;
+            const checks = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: pr.head.sha,
+            });
+            const checkRun = checks.data.check_runs.find(
+              c => c.name === 'Run automated checks on proposed OIDF specs'
+            );
+            const checksClean = checkRun && checkRun.conclusion === 'success';
+            core.info(`Publication checks passed: ${checksClean}`);
+
+            // Determine if this approval is sufficient
+            let blocked = false;
+            let reason = '';
+
+            if (needsSecretary && !isSecretary) {
+              blocked = true;
+              reason = `⛔ **Publication blocked.** This PR contains a Final, Errata, or Implementers Draft which requires approval from the secretary team. @${reviewer}'s approval is not sufficient for this publication type.\n\nPlease request a review from @openid/secretaryandteam.`;
+            } else if (!isSecretary && !checksClean) {
+              blocked = true;
+              reason = `⛔ **Publication blocked.** Co-chair approval is only sufficient when all publication checks pass with no errors. The checks have not passed for this PR.\n\nEither fix the issues and re-run the checks, or request approval from @openid/secretaryandteam who can override.`;
+            }
+
+            if (blocked) {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: reason,
+              });
+              core.setFailed(reason.replace(/\n/g, ' '));
+            }
+
+      - name: Push publish results
+        run: |
+          REPO_ROOT=$(pwd)
 
           # Build summary for the PR comment
           echo "## Files to be published" > /tmp/publish-summary.md
@@ -85,13 +167,18 @@ jobs:
           fi
 
       - name: Comment on PR
-        if: always()
+        if: always() && !cancelled() && steps.approval_check.outcome != 'failure'
         uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
-            const summary = fs.readFileSync('/tmp/publish-summary.md', 'utf8');
-            const body = `### Publication Preview\n\n${summary}`;
+            let summary;
+            try {
+              summary = fs.readFileSync('/tmp/publish-summary.md', 'utf8');
+            } catch (e) {
+              return; // No summary to post
+            }
+            const body = `### 📦 Publication Preview\n\n${summary}`;
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
