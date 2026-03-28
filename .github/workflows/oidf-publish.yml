@@ -3,22 +3,97 @@ on:
   push:
     branches:
       - main
-    # Only deploy when sync/specs changes (set by publish-prep)
     paths:
-      - 'sync/specs/**'
+      - 'authzen/**'
+      - 'connect/**'
+      - 'digital-credentials-protocols/**'
+      - 'ekyc-ida/**'
+      - 'fapi/**'
+      - 'igov/**'
+      - 'ipsie/**'
+      - 'sharedsignals/**'
+      - 'sync/**'
   workflow_dispatch:
 
 jobs:
-  deploy:
-    name: OIDF-Deploy
+  publish_and_deploy:
+    name: OIDF-Publish
     runs-on: ubuntu-latest
     environment: openid.net/specs/
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ssh-key: ${{ secrets.OPENID_PUBLICATION_ACTION_DEPLOY_KEY }}
 
-      - name: Update remote clone on OIDF Web Server
+      - name: Check what changed
+        id: changes
+        run: |
+          CHANGED=$(git diff --name-only HEAD^1..HEAD 2>/dev/null || echo "")
+          echo "Changed files:"
+          echo "$CHANGED"
+          # Check if any WG directories changed (need to run publish.py)
+          WG_CHANGES=$(echo "$CHANGED" | grep -v "^sync/" | grep -v "^\.github/" | grep -v "^$" || true)
+          if [ -n "$WG_CHANGES" ]; then
+            echo "has_wg_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_wg_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No WG directory changes - skipping publish.py"
+          fi
+
+      - name: Checkout publication-checks
+        if: steps.changes.outputs.has_wg_changes == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: openid/publication-checks
+          path: publication-scripts
+          ssh-key: ${{ secrets.OPENID_PUBLICATION_DEPLOY_KEY }}
+
+      - name: Set up Python
+        if: steps.changes.outputs.has_wg_changes == 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install Python requirements
+        if: steps.changes.outputs.has_wg_changes == 'true'
+        run: |
+          cd ./publication-scripts
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Publish
+        if: steps.changes.outputs.has_wg_changes == 'true'
+        run: |
+          export CHANGED_FILES=$(git diff --name-only HEAD^1..HEAD)
+          mkdir ./to-publish
+          cd ./publication-scripts
+          python3 publish.py
+          cd ../to-publish
+          PUBLISH_LIST=$(ls 2>/dev/null)
+          if [ -z "$PUBLISH_LIST" ]; then
+            echo "No files to publish"
+            exit 0
+          fi
+          echo "PUBLISH_LIST = $PUBLISH_LIST"
+          cp ./* ../sync/specs
+          cd ..
+
+          git add sync/specs/
+
+          for f in $CHANGED_FILES; do
+            if [ -f "$f" ]; then
+              echo "Removing source file: $f"
+              git rm "$f"
+            fi
+          done
+
+          git config --global user.name "OIDF GitHub Automation"
+          git config --global user.email "github@oidf.org"
+          git diff --cached --quiet || git commit -m "$PUBLISH_LIST"
+          git push origin main
+
+      - name: Deploy to OIDF Web Server
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.OIDF_SPECS_HOST }}

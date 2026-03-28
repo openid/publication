@@ -9,15 +9,10 @@ As described in [README.md](https://github.com/openid/publication/blob/main/READ
 1. Check the automated check results in the PR comments - look for any failures
 2. Verify that the documents submitted originate from the WG whose sub-directory is being used
 3. If satisfied, approve the PR via the "Files Changed" tab review
-4. On approval, the **Publish Prep** workflow will automatically:
-   - Generate the correctly-named files in `sync/specs/`
-   - Remove the source files from the WG directory
-   - Push these changes back to the PR branch
-   - Post a comment listing the files to be published
-5. Review the updated PR diff to verify the `sync/specs/` changes look correct
-6. **Merge the PR** to deploy the files to https://openid.net/specs/
+4. On approval, the **Publish Prep** workflow will post a comment previewing what files will be published
+5. **Merge the PR** to publish
 
-The deploy workflow will automatically pull the changes to the web server and purge CDN caches for the affected files.
+On merge, the publish workflow will automatically generate the correctly-named files in `sync/specs/`, deploy them to the web server, and purge CDN caches.
 
 ### Implementers Drafts
 
@@ -52,6 +47,4 @@ When a new WG is formed there are some administrative actions required by the ad
 
 The privileged users of this repository can also make changes to any file in the repository and update the webserver.
 
-This is done by updating files under the `sync` directory in the main branch (either directly or via a branch and PR). Changes to `sync/specs/` will automatically trigger the deploy workflow and update the web server.
-
-If the web server needs to be re-synced for any other reason, the "OIDF Sync" GitHub action can be manually triggered at https://github.com/openid/publication/actions/workflows/sync.yml.
+This is done by updating files under the `sync` directory in the main branch (either directly or via a branch and PR). Changes will be automatically deployed to the web server.

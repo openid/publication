@@ -14,9 +14,9 @@ The proposed document sets should be as described in https://openid.net/wg/resou
 4. The automated checks will run and post a comment on the PR showing any issues
 5. Fix any failures and push again - the checks will re-run automatically
 6. Once ready, request a review from the Secretary team
-7. On approval, the publish prep workflow will generate the correctly-named files in `sync/specs/`, remove the source files from the WG directory, and push the changes to your PR branch
-8. The Secretary reviews the final `sync/specs/` changes in the PR diff
-9. On merge, the files are deployed to https://openid.net/specs/ and CDN caches are purged
+7. On approval, the publish prep workflow posts a preview comment showing what files will be published
+8. The Secretary merges the PR
+9. On merge, the publish workflow generates the correctly-named files in `sync/specs/`, deploys to https://openid.net/specs/, and purges CDN caches
 
 Details of how to fix the various check errors are documented in [ERROR-MODES.md](https://github.com/openid/publication/blob/main/ERROR-MODES.md).
 

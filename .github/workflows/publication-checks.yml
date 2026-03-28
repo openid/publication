@@ -35,31 +35,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check if publish-prep commit
-        id: is_prep
-        run: |
-          LAST_MSG=$(git log -1 --format=%s)
-          if [[ "$LAST_MSG" == Publish\ prep:* ]]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "This is a publish-prep commit - skipping checks"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Post ready-to-merge comment
-        if: steps.is_prep.outputs.skip == 'true' && github.event_name == 'pull_request'
-        uses: actions/github-script@v8
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '✅ Publication files have been prepared. Review the changes in this PR, then **merge to publish**.'
-            });
-
       - name: Checkout publication-checks
-        if: steps.is_prep.outputs.skip != 'true'
         uses: actions/checkout@v6
         with:
           repository: openid/publication-checks
@@ -67,20 +43,17 @@ jobs:
           ssh-key: ${{ secrets.OPENID_PUBLICATION_DEPLOY_KEY }}
 
       - name: Set up Python
-        if: steps.is_prep.outputs.skip != 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
       - name: Install Python requirements
-        if: steps.is_prep.outputs.skip != 'true'
         run: |
           cd ./openid-workflow
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run OpenID pre-publication checks
-        if: steps.is_prep.outputs.skip != 'true'
         id: checks
         run: |
           set -o pipefail
@@ -89,7 +62,7 @@ jobs:
         continue-on-error: true
 
       - name: Build check results summary
-        if: steps.is_prep.outputs.skip != 'true'
+        if: always()
         run: |
           sed 's/\x1b\[[0-9;]*m//g' /tmp/checks-output.txt > /tmp/checks-clean.txt
 
@@ -137,7 +110,7 @@ jobs:
           echo "[Full log](PLACEHOLDER_JOB_URL)" >> /tmp/checks-summary.md
 
       - name: Comment on PR
-        if: steps.is_prep.outputs.skip != 'true' && github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v8
         with:
           script: |
@@ -159,5 +132,5 @@ jobs:
             });
 
       - name: Fail if checks failed
-        if: steps.is_prep.outputs.skip != 'true' && steps.checks.outcome != 'success'
+        if: steps.checks.outcome != 'success'
         run: exit 1
