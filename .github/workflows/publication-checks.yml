@@ -1,30 +1,46 @@
 name: OIDF Publication Checks
 on:
-  push:
-    branches: 
-    - 'propose/**'
+  pull_request:
+    branches:
+    - main
   workflow_dispatch:
 
 jobs:
-  Check:
-    name: Run automated checks on proposed OIDF specs
+  check-branch:
+    name: Check branch naming
+    if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'propose/')
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post warning comment
+        uses: actions/github-script@v8
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ **This PR is not from a `propose/` branch.** Publication checks have been skipped.\n\nIf this is a direct fix to `sync/specs/`, this is expected and you need to carefully check this change manually. If this is a new spec submission, please use a branch named `propose/{wg-name}/...`.'
+            });
+
+  validate:
+    name: Run automated checks on proposed OIDF specs
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'propose/')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
-        with: 
+        with:
           fetch-depth: 0
 
-      - name: Checkout
+      - name: Checkout publication-checks
         uses: actions/checkout@v6
         with:
           repository: openid/publication-checks
           path: openid-workflow
           ssh-key: ${{ secrets.OPENID_PUBLICATION_DEPLOY_KEY }}
-
-      - name: Run 'tree' tool
-        run: |
-          # sudo apt-get install tree -y
-          # tree
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -38,6 +54,75 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run OpenID pre-publication checks
-        run : |
+        id: checks
+        run: |
           cd ./openid-workflow
-          python3 process.py
+          python3 process.py 2>&1 | tee /tmp/checks-output.txt
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Build check results summary
+        if: always()
+        run: |
+          # Strip ANSI color codes
+          sed 's/\x1b\[[0-9;]*m//g' /tmp/checks-output.txt > /tmp/checks-clean.txt
+
+          echo "## 📋 Publication Check Results" > /tmp/checks-summary.md
+          echo "" >> /tmp/checks-summary.md
+
+          # Count passes and fails
+          PASS_COUNT=$(grep -c "^PASS:" /tmp/checks-clean.txt || true)
+          FAIL_COUNT=$(grep -c "^FAIL:" /tmp/checks-clean.txt || true)
+          WARN_COUNT=$(grep -c "^WARNING:" /tmp/checks-clean.txt || true)
+
+          if [ "${{ steps.checks.outcome }}" = "success" ]; then
+            echo "### ✅ All checks passed" >> /tmp/checks-summary.md
+          else
+            echo "### ❌ Some checks failed" >> /tmp/checks-summary.md
+          fi
+          echo "" >> /tmp/checks-summary.md
+          echo "| | Count |" >> /tmp/checks-summary.md
+          echo "|---|---|" >> /tmp/checks-summary.md
+          echo "| ✅ Passed | $PASS_COUNT |" >> /tmp/checks-summary.md
+          echo "| ❌ Failed | $FAIL_COUNT |" >> /tmp/checks-summary.md
+          echo "| ⚠️ Warnings | $WARN_COUNT |" >> /tmp/checks-summary.md
+          echo "" >> /tmp/checks-summary.md
+
+          # List failures
+          if [ "$FAIL_COUNT" -gt 0 ] 2>/dev/null; then
+            echo "### ❌ Failures" >> /tmp/checks-summary.md
+            echo "" >> /tmp/checks-summary.md
+            grep "^FAIL:" /tmp/checks-clean.txt | while read -r line; do
+              echo "- $line" >> /tmp/checks-summary.md
+            done
+            echo "" >> /tmp/checks-summary.md
+            echo "See [ERROR-MODES.md](https://github.com/openid/publication/blob/main/ERROR-MODES.md) for guidance on fixing each failure." >> /tmp/checks-summary.md
+          fi
+
+          # List warnings
+          if [ "$WARN_COUNT" -gt 0 ] 2>/dev/null; then
+            echo "" >> /tmp/checks-summary.md
+            echo "### ⚠️ Warnings" >> /tmp/checks-summary.md
+            echo "" >> /tmp/checks-summary.md
+            grep "^WARNING:" /tmp/checks-clean.txt | while read -r line; do
+              echo "- $line" >> /tmp/checks-summary.md
+            done
+          fi
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('/tmp/checks-summary.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+      - name: Fail if checks failed
+        if: steps.checks.outcome != 'success'
+        run: exit 1
