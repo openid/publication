@@ -39,30 +39,31 @@ jobs:
 
       - name: Run publish prep and push results
         run: |
+          REPO_ROOT=$(pwd)
           mkdir ./to-publish
           cd ./publication-scripts
           python3 publish.py 2>&1 | tee /tmp/publish-output.txt
-          PUBLISH_EXIT=$?
-          cd ../to-publish
+          cd "$REPO_ROOT"
 
           # Build summary for the PR comment
           echo "## Files to be published" > /tmp/publish-summary.md
           echo "" >> /tmp/publish-summary.md
-          if [ "$(ls -A 2>/dev/null)" ]; then
+          if [ "$(ls -A to-publish/ 2>/dev/null)" ]; then
             echo "| File | Size |" >> /tmp/publish-summary.md
             echo "|------|------|" >> /tmp/publish-summary.md
-            for f in *; do
+            for f in to-publish/*; do
+              name=$(basename "$f")
               size=$(stat --printf="%s" "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo "?")
-              echo "| \`$f\` | ${size} bytes |" >> /tmp/publish-summary.md
+              echo "| \`$name\` | ${size} bytes |" >> /tmp/publish-summary.md
             done
 
             # Copy to sync/specs and commit to the PR branch
-            cp ./* ../sync/specs/
-            cd ../sync/specs
+            cp to-publish/* sync/specs/
+            cd sync/specs
             git add -A .
             git config user.name "OIDF GitHub Automation"
             git config user.email "github@oidf.org"
-            PUBLISH_LIST=$(ls ../to-publish/)
+            PUBLISH_LIST=$(ls "$REPO_ROOT/to-publish/")
             git diff --cached --quiet || git commit -m "Publish prep: $PUBLISH_LIST"
             git push origin HEAD:${{ github.event.pull_request.head.ref }}
             echo "" >> /tmp/publish-summary.md
