@@ -7,12 +7,21 @@ As described in [README.md](https://github.com/openid/publication/blob/main/READ
 ### Review process
 
 1. Check the automated check results in the PR comments - look for any failures
-2. Verify that the documents submitted originate from the WG whose sub-directory is being used
-3. If satisfied, approve the PR via the "Files Changed" tab review
-4. On approval, the **Publish Prep** workflow will post a comment previewing what files will be published
-5. **Merge the PR** to publish
+2. Check the GitHub Pages preview links to verify the specs look correct
+3. Verify that the documents submitted originate from the WG whose sub-directory is being used
+4. If satisfied, approve the PR via the "Files Changed" tab review
+5. On approval, the **Publish Prep** workflow will check approval permissions and post a comment previewing the files and URLs to be published
+6. **Merge the PR** to publish
 
-On merge, the publish workflow will automatically generate the correctly-named files in `sync/specs/`, deploy them to the web server, and purge CDN caches.
+On merge, the publish workflow will automatically generate the correctly-named files in `sync/specs/`, deploy them to the web server, purge CDN caches, and comment on the PR with the published URLs. If publication fails, an issue is automatically opened.
+
+### Approval permissions
+
+- **Secretary team** can approve any publication type (drafts, finals, errata, implementers drafts)
+- **WG co-chairs/editors** (listed in CODEOWNERS) can approve working group drafts, but only if the publication checks pass
+- **Final, Errata, and Implementers Draft** publications always require secretary team approval
+
+This requires "Require review from Code Owners" enabled in branch protection for main.
 
 ### Implementers Drafts
 
