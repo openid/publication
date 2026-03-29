@@ -15,13 +15,35 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      checks: read
+      members: read
     steps:
+      - name: Check if already previewed
+        id: already_previewed
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const headSha = context.payload.pull_request.head.sha.substring(0, 7);
+            let already = false;
+            for await (const response of github.paginate.iterator(
+              github.rest.issues.listComments,
+              { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, per_page: 100 }
+            )) {
+              if (response.data.some(c =>
+                c.body.includes('📦 Publication Preview') && c.body.includes(headSha)
+              )) { already = true; break; }
+            }
+            core.setOutput('skip', already.toString());
+            if (already) core.info(`Preview already posted for ${headSha}`);
+
       - uses: actions/checkout@v6
+        if: steps.already_previewed.outputs.skip != 'true'
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Checkout publication-checks
+        if: steps.already_previewed.outputs.skip != 'true'
         uses: actions/checkout@v6
         with:
           repository: openid/publication-checks
@@ -29,26 +51,50 @@ jobs:
           ssh-key: ${{ secrets.OPENID_PUBLICATION_DEPLOY_KEY }}
 
       - name: Set up Python
+        if: steps.already_previewed.outputs.skip != 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
       - name: Install Python requirements
+        if: steps.already_previewed.outputs.skip != 'true'
         run: |
           cd ./publication-scripts
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run publish prep
+        if: steps.already_previewed.outputs.skip != 'true'
         id: prep
         run: |
+          # Pass CHANGED_FILES the same way the publish workflow does,
+          # so publish.py sees the same file list it will see after merge.
+          export CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
           mkdir ./to-publish
           cd ./publication-scripts
           python3 publish.py 2>&1 | tee "$RUNNER_TEMP/publish-output.txt"
+          PUBLISH_EXIT=$?
           cd ..
 
+          # Dry-run the copy and rm steps to verify they'd work
+          if [ "$(ls -A to-publish/ 2>/dev/null)" ]; then
+            # Check sync/specs exists
+            if [ ! -d sync/specs ]; then
+              echo "WARNING: sync/specs/ directory does not exist on this branch"
+            fi
+            # Check source files exist for removal
+            echo "$CHANGED_FILES" | while read -r f; do
+              if [ -n "$f" ] && [ ! -f "$f" ]; then
+                echo "WARNING: Source file $f not found (may already be removed)"
+              fi
+            done
+          fi
+
+          HEAD_SHA=$(git rev-parse --short HEAD)
           SUMMARY="$RUNNER_TEMP/publish-summary.md"
           echo "## 📦 Publication Preview" > "$SUMMARY"
+          echo "" >> "$SUMMARY"
+          echo "_For commit ${HEAD_SHA}_" >> "$SUMMARY"
           echo "" >> "$SUMMARY"
           if [ "$(ls -A to-publish/ 2>/dev/null)" ]; then
             echo "The following files will be published to \`sync/specs/\` when this PR is merged:" >> "$SUMMARY"
@@ -61,6 +107,12 @@ jobs:
               echo "| \`$name\` | ${size} bytes |" >> "$SUMMARY"
             done
             echo "" >> "$SUMMARY"
+            echo "### Published URLs" >> "$SUMMARY"
+            echo "" >> "$SUMMARY"
+            sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/publish-output.txt" | grep -oP 'https://openid\.net/specs/\S+' | sort -u | while read -r url; do
+              echo "- \`$url\`" >> "$SUMMARY"
+            done
+            echo "" >> "$SUMMARY"
             echo "**To publish these files, merge this pull request.**" >> "$SUMMARY"
           else
             echo "No files were produced by publish.py." >> "$SUMMARY"
@@ -69,8 +121,78 @@ jobs:
           fi
         continue-on-error: true
 
+      - name: Check approval permissions
+        if: steps.already_previewed.outputs.skip != 'true'
+        id: approval_check
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const reviewer = context.payload.review.user.login;
+
+            // Secretary team can approve anything
+            let isSecretary = false;
+            try {
+              const membership = await github.rest.teams.getMembershipForUserInOrg({
+                org: 'openid',
+                team_slug: 'secretaryandteam',
+                username: reviewer,
+              });
+              isSecretary = membership.data.state === 'active';
+            } catch (e) {
+              // 404 = not a member
+            }
+            core.info(`Reviewer ${reviewer} is${isSecretary ? '' : ' not'} on secretaryandteam`);
+            if (isSecretary) return;
+
+            // Non-secretary: block Final/Errata/Implementers Draft
+            let output = '';
+            try {
+              output = fs.readFileSync(`${process.env.RUNNER_TEMP}/publish-output.txt`, 'utf8')
+                .replace(/\x1b\[[0-9;]*m/g, '');
+            } catch (e) {
+              core.setFailed('Could not read publish output');
+              return;
+            }
+            const states = output.split('\n')
+              .filter(l => l.trim().startsWith('Do '))
+              .map(l => l.trim().replace('Do ', '').replace(/ copies.*/, '').trim());
+            const needsSecretary = states.some(s =>
+              ['FINAL', 'ERRATA', 'IMPLEMENTERS'].includes(s)
+            );
+            if (needsSecretary) {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `⛔ **Publication blocked.** This PR contains a Final, Errata, or Implementers Draft which requires approval from the secretary team. @${reviewer}'s approval is not sufficient for this publication type.\n\nPlease request a review from @openid/secretaryandteam.`
+              });
+              core.setFailed('Secretary approval required for Final/Errata/Implementers Draft');
+              return;
+            }
+
+            // Non-secretary approving a draft: check that publication checks passed
+            const checks = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.payload.pull_request.head.sha,
+            });
+            const checkRun = checks.data.check_runs.find(
+              c => c.name === 'Run automated checks on proposed OIDF specs'
+            );
+            if (!checkRun || checkRun.conclusion !== 'success') {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `⛔ **Publication blocked.** Co-chair approval is only sufficient when all publication checks pass. The checks have not passed for this PR.\n\nEither fix the issues and re-run the checks, or request approval from @openid/secretaryandteam who can override.`
+              });
+              core.setFailed('Co-chair approval requires passing publication checks');
+              return;
+            }
+
       - name: Comment on PR
-        if: always()
+        if: always() && steps.already_previewed.outputs.skip != 'true' && steps.approval_check.outcome != 'failure'
         uses: actions/github-script@v8
         with:
           script: |
