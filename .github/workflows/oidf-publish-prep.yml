@@ -4,6 +4,10 @@ on:
     types:
     - submitted
 
+concurrency:
+  group: publish-prep-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   publish_prep:
     name: OIDF-Publish-Prep
@@ -36,42 +40,52 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run publish prep
+        id: prep
         run: |
           mkdir ./to-publish
           cd ./publication-scripts
-          python3 publish.py 2>&1 | tee /tmp/publish-output.txt
+          python3 publish.py 2>&1 | tee "$RUNNER_TEMP/publish-output.txt"
           cd ..
 
-          # Build summary for the PR comment
-          echo "## 📦 Publication Preview" > /tmp/publish-summary.md
-          echo "" >> /tmp/publish-summary.md
+          SUMMARY="$RUNNER_TEMP/publish-summary.md"
+          echo "## 📦 Publication Preview" > "$SUMMARY"
+          echo "" >> "$SUMMARY"
           if [ "$(ls -A to-publish/ 2>/dev/null)" ]; then
-            echo "The following files will be published to \`sync/specs/\` when this PR is merged:" >> /tmp/publish-summary.md
-            echo "" >> /tmp/publish-summary.md
-            echo "| File | Size |" >> /tmp/publish-summary.md
-            echo "|------|------|" >> /tmp/publish-summary.md
+            echo "The following files will be published to \`sync/specs/\` when this PR is merged:" >> "$SUMMARY"
+            echo "" >> "$SUMMARY"
+            echo "| File | Size |" >> "$SUMMARY"
+            echo "|------|------|" >> "$SUMMARY"
             for f in to-publish/*; do
               name=$(basename "$f")
               size=$(stat --printf="%s" "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo "?")
-              echo "| \`$name\` | ${size} bytes |" >> /tmp/publish-summary.md
+              echo "| \`$name\` | ${size} bytes |" >> "$SUMMARY"
             done
-            echo "" >> /tmp/publish-summary.md
-            echo "**To publish these files, merge this pull request.**" >> /tmp/publish-summary.md
+            echo "" >> "$SUMMARY"
+            echo "**To publish these files, merge this pull request.**" >> "$SUMMARY"
           else
-            echo "No files were produced by publish.py." >> /tmp/publish-summary.md
-            echo "" >> /tmp/publish-summary.md
-            echo "Check the [workflow log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." >> /tmp/publish-summary.md
+            echo "No files were produced by publish.py." >> "$SUMMARY"
+            echo "" >> "$SUMMARY"
+            echo "Check the [workflow log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." >> "$SUMMARY"
           fi
+        continue-on-error: true
 
       - name: Comment on PR
+        if: always()
         uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
-            const summary = fs.readFileSync('/tmp/publish-summary.md', 'utf8');
-            github.rest.issues.createComment({
+            const summaryPath = `${process.env.RUNNER_TEMP}/publish-summary.md`;
+            let body;
+            try {
+              body = fs.readFileSync(summaryPath, 'utf8');
+            } catch (e) {
+              body = '⚠️ Publish prep failed before generating a summary. Check the [workflow log](' +
+                `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
+            }
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: summary
+              body: body
             });
