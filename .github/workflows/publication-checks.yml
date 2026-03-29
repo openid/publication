@@ -5,37 +5,42 @@ on:
     - main
   workflow_dispatch:
 
+concurrency:
+  group: publication-checks-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
-  check-branch:
-    name: Check branch naming
-    if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'propose/')
+  validate:
+    name: Run automated checks on proposed OIDF specs
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     steps:
-      - name: Post warning comment
+      - name: Check branch naming
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'propose/')
         uses: actions/github-script@v8
         with:
           script: |
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: '⚠️ **This PR is not from a `propose/` branch.** Publication checks have been skipped.\n\nIf this is a direct fix to `sync/specs/`, this is expected and you need to carefully check this change manually. If this is a new spec submission, please use a branch named `propose/{wg-name}/...`.'
             });
 
-  validate:
-    name: Run automated checks on proposed OIDF specs
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'propose/')
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-    steps:
+      - name: Early exit if not propose/ branch
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'propose/')
+        run: |
+          echo "Not a propose/ branch - checks skipped"
+          exit 0
+
       - uses: actions/checkout@v6
+        if: startsWith(github.head_ref || '', 'propose/') || github.event_name == 'workflow_dispatch'
         with:
           fetch-depth: 0
 
       - name: Checkout publication-checks
+        if: startsWith(github.head_ref || '', 'propose/') || github.event_name == 'workflow_dispatch'
         uses: actions/checkout@v6
         with:
           repository: openid/publication-checks
@@ -43,74 +48,78 @@ jobs:
           ssh-key: ${{ secrets.OPENID_PUBLICATION_DEPLOY_KEY }}
 
       - name: Set up Python
+        if: startsWith(github.head_ref || '', 'propose/') || github.event_name == 'workflow_dispatch'
         uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
       - name: Install Python requirements
+        if: startsWith(github.head_ref || '', 'propose/') || github.event_name == 'workflow_dispatch'
         run: |
           cd ./openid-workflow
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run OpenID pre-publication checks
+        if: startsWith(github.head_ref || '', 'propose/') || github.event_name == 'workflow_dispatch'
         id: checks
         run: |
           set -o pipefail
           cd ./openid-workflow
-          python3 process.py 2>&1 | tee /tmp/checks-output.txt
+          python3 process.py 2>&1 | tee "$RUNNER_TEMP/checks-output.txt"
         continue-on-error: true
 
       - name: Build check results summary
-        if: always()
+        if: always() && steps.checks.outcome
         run: |
-          sed 's/\x1b\[[0-9;]*m//g' /tmp/checks-output.txt > /tmp/checks-clean.txt
+          sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/checks-output.txt" > "$RUNNER_TEMP/checks-clean.txt"
 
-          echo "## 📋 Publication Check Results" > /tmp/checks-summary.md
-          echo "" >> /tmp/checks-summary.md
+          SUMMARY="$RUNNER_TEMP/checks-summary.md"
+          echo "## 📋 Publication Check Results" > "$SUMMARY"
+          echo "" >> "$SUMMARY"
 
-          PASS_COUNT=$(grep -c "^PASS:" /tmp/checks-clean.txt || true)
-          FAIL_COUNT=$(grep "^FAIL:" /tmp/checks-clean.txt | grep -cv "did not pass all checks" || true)
-          WARN_COUNT=$(grep -c "^WARNING:" /tmp/checks-clean.txt || true)
+          PASS_COUNT=$(grep -c "^PASS:" "$RUNNER_TEMP/checks-clean.txt" || true)
+          FAIL_COUNT=$(grep "^FAIL:" "$RUNNER_TEMP/checks-clean.txt" | grep -cv "did not pass all checks" || true)
+          WARN_COUNT=$(grep -c "^WARNING:" "$RUNNER_TEMP/checks-clean.txt" || true)
 
           if [ "${{ steps.checks.outcome }}" = "success" ]; then
-            echo "### ✅ All checks passed" >> /tmp/checks-summary.md
+            echo "### ✅ All checks passed" >> "$SUMMARY"
           else
-            echo "### ❌ Some checks failed" >> /tmp/checks-summary.md
+            echo "### ❌ Some checks failed" >> "$SUMMARY"
           fi
-          echo "" >> /tmp/checks-summary.md
-          echo "| | Count |" >> /tmp/checks-summary.md
-          echo "|---|---|" >> /tmp/checks-summary.md
-          echo "| ✅ Passed | $PASS_COUNT |" >> /tmp/checks-summary.md
-          echo "| ❌ Failed | $FAIL_COUNT |" >> /tmp/checks-summary.md
-          echo "| ⚠️ Warnings | $WARN_COUNT |" >> /tmp/checks-summary.md
-          echo "" >> /tmp/checks-summary.md
+          echo "" >> "$SUMMARY"
+          echo "| | Count |" >> "$SUMMARY"
+          echo "|---|---|" >> "$SUMMARY"
+          echo "| ✅ Passed | $PASS_COUNT |" >> "$SUMMARY"
+          echo "| ❌ Failed | $FAIL_COUNT |" >> "$SUMMARY"
+          echo "| ⚠️ Warnings | $WARN_COUNT |" >> "$SUMMARY"
+          echo "" >> "$SUMMARY"
 
           if [ "$FAIL_COUNT" -gt 0 ] 2>/dev/null; then
-            echo "### ❌ Failures" >> /tmp/checks-summary.md
-            echo "" >> /tmp/checks-summary.md
-            grep "^FAIL:" /tmp/checks-clean.txt | grep -v "did not pass all checks" | while read -r line; do
-              echo "- $line" >> /tmp/checks-summary.md
+            echo "### ❌ Failures" >> "$SUMMARY"
+            echo "" >> "$SUMMARY"
+            grep "^FAIL:" "$RUNNER_TEMP/checks-clean.txt" | grep -v "did not pass all checks" | while read -r line; do
+              echo "- $line" >> "$SUMMARY"
             done
-            echo "" >> /tmp/checks-summary.md
-            echo "See [ERROR-MODES.md](https://github.com/openid/publication/blob/main/ERROR-MODES.md) for guidance on fixing each failure." >> /tmp/checks-summary.md
+            echo "" >> "$SUMMARY"
+            echo "See [ERROR-MODES.md](https://github.com/openid/publication/blob/main/ERROR-MODES.md) for guidance on fixing each failure." >> "$SUMMARY"
           fi
 
           if [ "$WARN_COUNT" -gt 0 ] 2>/dev/null; then
-            echo "" >> /tmp/checks-summary.md
-            echo "### ⚠️ Warnings" >> /tmp/checks-summary.md
-            echo "" >> /tmp/checks-summary.md
-            grep "^WARNING:" /tmp/checks-clean.txt | while read -r line; do
-              echo "- $line" >> /tmp/checks-summary.md
+            echo "" >> "$SUMMARY"
+            echo "### ⚠️ Warnings" >> "$SUMMARY"
+            echo "" >> "$SUMMARY"
+            grep "^WARNING:" "$RUNNER_TEMP/checks-clean.txt" | while read -r line; do
+              echo "- $line" >> "$SUMMARY"
             done
           fi
 
-          echo "" >> /tmp/checks-summary.md
-          echo "---" >> /tmp/checks-summary.md
-          echo "[Full log](PLACEHOLDER_JOB_URL)" >> /tmp/checks-summary.md
+          echo "" >> "$SUMMARY"
+          echo "---" >> "$SUMMARY"
+          echo "[Full log](PLACEHOLDER_JOB_URL)" >> "$SUMMARY"
 
       - name: Comment on PR
-        if: always() && github.event_name == 'pull_request'
+        if: always() && steps.checks.outcome && github.event_name == 'pull_request'
         uses: actions/github-script@v8
         with:
           script: |
@@ -121,10 +130,11 @@ jobs:
               run_id: context.runId,
             });
             const job = jobs.data.jobs.find(j => j.name === 'Run automated checks on proposed OIDF specs');
-            const jobUrl = job ? job.html_url : `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const summary = fs.readFileSync('/tmp/checks-summary.md', 'utf8')
+            const jobUrl = job ? job.html_url
+              : `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const summary = fs.readFileSync(`${process.env.RUNNER_TEMP}/checks-summary.md`, 'utf8')
               .replace('PLACEHOLDER_JOB_URL', jobUrl);
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -132,9 +142,9 @@ jobs:
             });
 
       - name: Fail if checks failed
-        if: steps.checks.outcome != 'success'
+        if: steps.checks.outcome == 'failure'
         run: |
-          cat /tmp/checks-clean.txt
+          cat "$RUNNER_TEMP/checks-clean.txt"
           echo ""
           echo "See ERROR-MODES.md for guidance: https://github.com/openid/publication/blob/main/ERROR-MODES.md"
           exit 1
