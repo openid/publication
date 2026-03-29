@@ -24,6 +24,10 @@ jobs:
     name: OIDF-Publish
     runs-on: ubuntu-latest
     environment: openid.net/specs/
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -69,13 +73,14 @@ jobs:
           pip install -r requirements.txt
 
       - name: Publish
+        id: publish
         if: steps.changes.outputs.has_wg_changes == 'true'
         env:
           CHANGED_FILES: ${{ steps.changes.outputs.changed_files }}
         run: |
           mkdir ./to-publish
           cd ./publication-scripts
-          python3 publish.py
+          python3 publish.py 2>&1 | tee "$RUNNER_TEMP/publish-output.txt"
           cd ../to-publish
           PUBLISH_LIST=$(ls 2>/dev/null)
           if [ -z "$PUBLISH_LIST" ]; then
@@ -101,6 +106,7 @@ jobs:
           git push origin main
 
       - name: Deploy to OIDF Web Server
+        id: deploy
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.OIDF_SPECS_HOST }}
@@ -118,3 +124,70 @@ jobs:
               done
               echo "Purging /specs/ index cache"
               curl -X PURGE https://openid.net/specs/
+
+      - name: Comment on merged PR
+        if: always() && steps.changes.outputs.has_wg_changes == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            // Find the PR that was merged via the GitHub API (works for all merge types)
+            const { execSync } = require('child_process');
+            const mergeCommit = execSync('git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD').toString().trim();
+            let prNumber = null;
+            try {
+              const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: mergeCommit,
+              });
+              if (prs.data.length > 0) {
+                prNumber = prs.data[0].number;
+              }
+            } catch (e) {
+              core.info(`Could not find PR for commit ${mergeCommit}: ${e.message}`);
+            }
+            if (!prNumber) {
+              core.info('No PR found for this commit');
+              return;
+            }
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const publishOk = '${{ steps.publish.outcome }}' !== 'failure';
+            const deployOk = '${{ steps.deploy.outcome }}' !== 'failure';
+            const success = publishOk && deployOk;
+
+            let body;
+            if (success) {
+              let urls = '';
+              try {
+                const output = fs.readFileSync(`${process.env.RUNNER_TEMP}/publish-output.txt`, 'utf8')
+                  .replace(/\x1b\[[0-9;]*m/g, '');
+                const specUrls = [...output.matchAll(/https:\/\/openid\.net\/specs\/\S+/g)]
+                  .map(m => m[0])
+                  .filter((v, i, a) => a.indexOf(v) === i);
+                if (specUrls.length) {
+                  urls = '\n\n' + specUrls.map(u => `- [${u.split('/').pop()}](${u})`).join('\n');
+                }
+              } catch (e) {}
+              body = `✅ **Published successfully.** Specs deployed to [openid.net/specs](https://openid.net/specs/)${urls}\n\n[Workflow log](${runUrl})`;
+            } else {
+              body = `❌ **Publication failed.** The specs were merged but could not be deployed.\n\n[Workflow log](${runUrl})\n\ncc @openid/secretaryandteam`;
+            }
+            await github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body,
+            });
+
+      - name: Open issue on failure
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Publication failed - ${new Date().toISOString().split('T')[0]}`,
+              body: `The publish workflow failed after merge.\n\n[Workflow log](${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n\nThe specs were merged to main but may not have been deployed to openid.net/specs/. Manual investigation needed.`,
+            });
