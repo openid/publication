@@ -38,7 +38,7 @@ This tool analyses the HTML document headers to determine what type of submissio
 
 __ACTION TO FIX__: The document should contain one of the following:
 - Title: "Document Name 1.0 - Draft 01" (for working group drafts)
-- Title: "Document Name 1.0 - Implementers Draft 1" (for implementers drafts)
+- Title: "Document Name 1.0 - Draft NN" with filename `-IDN.html` (for implementers drafts)
 - Title: "Document Name 1.0 incorporating errata set 1 - Draft 01" (for post-final drafts)
 - Status header: "Final" (for final specifications)
 - Title containing "incorporating errata set N" without "Draft" (for approved errata)
