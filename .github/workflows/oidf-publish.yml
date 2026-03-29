@@ -15,6 +15,10 @@ on:
       - 'sync/**'
   workflow_dispatch:
 
+concurrency:
+  group: publish-deploy
+  cancel-in-progress: false
+
 jobs:
   publish_and_deploy:
     name: OIDF-Publish
@@ -26,13 +30,15 @@ jobs:
           fetch-depth: 0
           ssh-key: ${{ secrets.OPENID_PUBLICATION_ACTION_DEPLOY_KEY }}
 
-      - name: Check what changed
+      - name: Determine changes
         id: changes
         run: |
-          CHANGED=$(git diff --name-only HEAD^1..HEAD 2>/dev/null || echo "")
+          CHANGED=$(git diff --name-only HEAD~1..HEAD 2>/dev/null || echo "")
           echo "Changed files:"
           echo "$CHANGED"
-          # Check if any WG directories changed (need to run publish.py)
+          echo "changed_files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
           WG_CHANGES=$(echo "$CHANGED" | grep -v "^sync/" | grep -v "^\.github/" | grep -v "^$" || true)
           if [ -n "$WG_CHANGES" ]; then
             echo "has_wg_changes=true" >> "$GITHUB_OUTPUT"
@@ -64,8 +70,9 @@ jobs:
 
       - name: Publish
         if: steps.changes.outputs.has_wg_changes == 'true'
+        env:
+          CHANGED_FILES: ${{ steps.changes.outputs.changed_files }}
         run: |
-          export CHANGED_FILES=$(git diff --name-only HEAD^1..HEAD)
           mkdir ./to-publish
           cd ./publication-scripts
           python3 publish.py
@@ -76,20 +83,20 @@ jobs:
             exit 0
           fi
           echo "PUBLISH_LIST = $PUBLISH_LIST"
-          cp ./* ../sync/specs
+          cp ./* ../sync/specs/
           cd ..
 
           git add sync/specs/
 
-          for f in $CHANGED_FILES; do
-            if [ -f "$f" ]; then
+          echo "$CHANGED_FILES" | while read -r f; do
+            if [ -n "$f" ] && [ -f "$f" ]; then
               echo "Removing source file: $f"
               git rm "$f"
             fi
           done
 
-          git config --global user.name "OIDF GitHub Automation"
-          git config --global user.email "github@oidf.org"
+          git config user.name "OIDF GitHub Automation"
+          git config user.email "github@oidf.org"
           git diff --cached --quiet || git commit -m "$PUBLISH_LIST"
           git push origin main
 
@@ -103,9 +110,11 @@ jobs:
           script: |
               cd /var/www/openid.net/publication
               OLD_HEAD=$(git rev-parse HEAD)
-              git status
               git pull
               NEW_HEAD=$(git rev-parse HEAD)
-              for i in `git diff --name-only $OLD_HEAD $NEW_HEAD`; do echo "Purging cache of $i" ;  curl -X PURGE https://openid.net/specs/`basename $i`; echo "done" ; done
+              for i in `git diff --name-only $OLD_HEAD $NEW_HEAD`; do
+                echo "Purging cache of $i"
+                curl -X PURGE "https://openid.net/specs/$(basename $i)"
+              done
               echo "Purging /specs/ index cache"
               curl -X PURGE https://openid.net/specs/
