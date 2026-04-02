@@ -83,7 +83,7 @@ This document adds a new subject identifier type as follows, in addition to what
 ephemeral
 : type of an identifier when the sub provided by ID Token is different for every authentication request
 
-NOTE: It will ensure that it is not possible for Clients to correlate the End-User's multiple visits, an OP 
+To ensure that it is not possible for Clients to correlate multiple authentication response, an OP 
 
 1. MUST NOT reuse an ephemeral identifier value;
 2. MUST generate the value with a guessing probability of 2^-128^ or less;
