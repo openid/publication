@@ -1,5 +1,5 @@
 %%%
-title = "OpenID Connect Ephermeral Subject Identifier 1.0 - Draft 01"
+title = "OpenID Connect Ephermeral Subject Identifier 1.0 - Draft 02"
 abbrev = "oidc-esid"
 ipr = "none"
 workgroup = "Connect"
@@ -7,12 +7,12 @@ keyword = ["openid", "ephemeral", "subject", "privacy"]
 
 [seriesInfo]
 name = "OpenID-Draft"
-value = "openid-connect-ephemeral-subject-identifier-1_0-01"
+value = "openid-connect-ephemeral-subject-identifier-1_0-02"
 status = "standard"
 
 [pi]
 subcompact = "yes"
-private = "Draft-01"
+private = "Draft-02"
 tocdepth = "5"
 iprnotified = "no"
 
@@ -56,7 +56,7 @@ The OpenID Foundation (OIDF) promotes, protects and nurtures the OpenID communit
 This document specifies an ephemeral subject identifier type for [OpenID Connect Core 1.0][OIDC]. The ephemeral subject identifier identifies the End-User for a short time and remains constant for the duration of the authentication session. In subsequent visits by the End-User to a Relying Party application that requires authentication, the authorization server will return a subject identifier with a different value. The authorization server provides an ephemeral subject identifier to the Relying Party in the ID Token and UserInfo endpoint response as specified by [OpenID Connect Core 1.0][OIDC]. 
 
 There are several reasons for defining it:  
-* It is already used in some ecosystems. Standardizing it would therefore reduce existing variations;
+* It is already used in some ecosystems. Standardizing it would therefore reduce existing variations.
 * It is a condition needed to mathematically prove that OIDC/SIOP fulfills the Unlinkability Level (UL) 3A+ defined in ISO/IEC 27551 Information security, cybersecurity and privacy protection — Requirements for attribute-based unlinkable entity authentication. 
 
 Examples of attribute-based unlinkable entity authentication include Overage verification, Underage verification, Registered domicile verification, etc. 
@@ -81,8 +81,14 @@ For the purpose of this document, the terms defined in [RFC6749], and [OpenID Co
 This document adds a new subject identifier type as follows, in addition to what is defined in Section 8 of [OpenID Connect Core 1.0][OIDC]:
 
 ephemeral
-: This provides a different *sub* value to each visit by the End User to a relying party, so as not to enable Clients to correlate the End-User's multiple visits.
+: type of an identifier when the sub provided by ID Token is different for every authentication request
 
+To ensure that it is not possible for Clients to correlate multiple authentication response, an OP 
+
+1. MUST NOT reuse an ephemeral identifier value;
+2. MUST generate the value with a guessing probability of 2^-128^ or less;
+3. SHOULD target 2^-160^ or less; and
+4. SHOULD generate the value with a collision probability that is infeasible for the expected lifetime and scale of the deployment.
 
 # OpenID Provider Discovery Metadata
 
@@ -113,7 +119,7 @@ The privacy objectives of this document are as follows:
 # References
 
 ## Normative references
-The following referenced documents are indispensable for the application of this document. For dated references, only the edition cited applied. For undated references, the latest edition of the referenced document (including any amendments) applies.
+The following referenced documents are indispensable for the application of this document. For dated references, only the edition cited applies. For undated references, the latest edition of the referenced document (including any amendments) applies.
 
 [BCP14] - Key words for use in RFCs to Indicate Requirement Levels
 [BCP14]: https://tools.ietf.org/html/bcp14
@@ -149,10 +155,13 @@ We would like to thank the following people for their valuable feedback and cont
 
 * Frederik Krogsdal Jacobsen
 * Mark Haine
+* Andy Barlow
+* Edmund Jay
+* Nat Sakimura
 
 # Notices
 
-Copyright (c) 2025 The OpenID Foundation.
+Copyright (c) 2026 The OpenID Foundation.
 
 The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer, or other interested party a non-exclusive, royalty free, worldwide copyright license to reproduce, prepare derivative works from, distribute, perform and display, this Implementers Draft, Final Specification, or Final Specification Incorporating Errata Corrections solely for the purposes of (i) developing specifications, and (ii) implementing Implementers Drafts, Final Specifications, and Final Specification Incorporating Errata Corrections based on such documents, provided that attribution be made to the OIDF as the source of the material, but that such attribution does not indicate an endorsement by the OIDF.
 
@@ -161,6 +170,8 @@ The technology described in this specification was made available from contribut
 # Document History
 
 [[ To be removed from the final specification ]]
+
+-02 Tightened the ephemeral identifier definition. Added names to acknowledgements. 
 
 -01 Added rationale for this document and a reference to ISO/IEC 27551. 
 
