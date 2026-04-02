@@ -3,7 +3,7 @@ title: FAPI security profile 1.0 - Part 1&colon; Baseline - Draft 11 incorporati
 date: 2026-03-27
 author: 
 - name: Nat Sakimura
-  organization: Nat.Consulting
+  organization: NAT.Consulting
   email: nat@nat.consulting
   uri: http://nat.sakimura.org/
 - name: John Bradley
