@@ -512,7 +512,7 @@ The following people contributed to this document:
 * Lukasz Jaromin (Cloudentity)
 * James Manger
 
-# Appendix B (Informative) Changes {-}
+# Appendix B (Informative) Document History {-}
 
 To be removed at the publication time. 
 
