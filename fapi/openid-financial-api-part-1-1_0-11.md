@@ -292,7 +292,7 @@ valid IPv4 or IPv6 address.
 
 Further, the resource server
 
-1. should support the use of Cross Origin Resource Sharing (CORS) [CORS] and or other methods as appropriate to enable JavaScript clients to access the endpoint if it decides to provide access to JavaScript clients.
+14. should support the use of Cross Origin Resource Sharing (CORS) [CORS] and or other methods as appropriate to enable JavaScript clients to access the endpoint if it decides to provide access to JavaScript clients.
 
     **NOTE**: Providing access to JavaScript clients has other security implications. Before supporting those clients [RFC 6819] should be consulted.
 
