@@ -86,8 +86,8 @@ ephemeral
 NOTE: It will ensure that it is not possible for Clients to correlate the End-User's multiple visits, an OP 
 
 1. MUST NOT reuse an ephemeral identifier value;
-2. MUST generate the value with a guessing probability of 2^{-128} or less;
-3. SHOULD target 2^{-160} or less; and
+2. MUST generate the value with a guessing probability of 2^-128^ or less;
+3. SHOULD target 2^-160^ or less; and
 4. SHOULD generate the value with a collision probability that is infeasible for the expected lifetime and scale of the deployment.
 
 # OpenID Provider Discovery Metadata
