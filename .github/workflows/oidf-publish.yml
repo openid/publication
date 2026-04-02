@@ -1,88 +1,113 @@
 name: OIDF Publish
 on:
-  pull_request_review:
-    types: 
-    - submitted
+  push:
+    branches:
+      - main
+    paths:
+      - 'authzen/**'
+      - 'connect/**'
+      - 'digital-credentials-protocols/**'
+      - 'ekyc-ida/**'
+      - 'fapi/**'
+      - 'igov/**'
+      - 'ipsie/**'
+      - 'sharedsignals/**'
+      - 'sync/**'
   workflow_dispatch:
 
+concurrency:
+  group: publish-deploy
+  cancel-in-progress: false
+
 jobs:
-  publish_to_specs:
+  publish_and_deploy:
     name: OIDF-Publish
-    if: github.event.review.state == 'APPROVED'
     runs-on: ubuntu-latest
     environment: openid.net/specs/
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     steps:
-      - uses: actions/checkout@v4
-        with: 
+      - uses: actions/checkout@v6
+        with:
           fetch-depth: 0
-          ref: ${{ github.head_ref }}
           ssh-key: ${{ secrets.OPENID_PUBLICATION_ACTION_DEPLOY_KEY }}
 
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Determine changes
+        id: changes
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1..HEAD 2>/dev/null || echo "")
+          echo "Changed files:"
+          echo "$CHANGED"
+          echo "changed_files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          WG_CHANGES=$(echo "$CHANGED" | grep -v "^sync/" | grep -v "^\.github/" | grep -v "^$" || true)
+          if [ -n "$WG_CHANGES" ]; then
+            echo "has_wg_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_wg_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No WG directory changes - skipping publish.py"
+          fi
+
+      - name: Checkout publication-checks
+        if: steps.changes.outputs.has_wg_changes == 'true'
+        uses: actions/checkout@v6
         with:
           repository: openid/publication-checks
           path: publication-scripts
           ssh-key: ${{ secrets.OPENID_PUBLICATION_DEPLOY_KEY }}
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        if: steps.changes.outputs.has_wg_changes == 'true'
+        uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
       - name: Install Python requirements
+        if: steps.changes.outputs.has_wg_changes == 'true'
         run: |
           cd ./publication-scripts
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          echo "::set-output name=path::$(which python)"
 
-      - name: OpenID publication prep
-        run : |
-          echo
-          git checkout ${{ github.event.pull_request.head.ref }} 
-          # echo "Current Branch: $(git branch --show-current)"
-          echo "------"
+      - name: Publish
+        id: publish
+        if: steps.changes.outputs.has_wg_changes == 'true'
+        env:
+          CHANGED_FILES: ${{ steps.changes.outputs.changed_files }}
+        run: |
           mkdir ./to-publish
-          # ls -l ./publication-scripts
           cd ./publication-scripts
-          chmod +x ./publish.sh
-          ./publish.sh
-          # pwd
-          # ls -l
-          # cat delete_files.txt
+          python3 publish.py 2>&1 | tee "$RUNNER_TEMP/publish-output.txt"
           cd ../to-publish
-          git diff --name-status | grep "^D" | while read -r status filename; do
-          # Issue git rm command for the file
-            echo "Removing $filename from git index"
-            git rm "../$filename"
-          done
-          # ls -l
-          PUBLISH_LIST=$(ls)
-          # GIT_TRACE=true
+          PUBLISH_LIST=$(ls 2>/dev/null)
+          if [ -z "$PUBLISH_LIST" ]; then
+            echo "No files to publish"
+            exit 0
+          fi
           echo "PUBLISH_LIST = $PUBLISH_LIST"
-          cp ./* ../sync/specs
-          cd ../sync/specs
-          echo "In /sync/specs directory"
-          # git ls-files --others --exclude-standard
-          echo "Adding files to branch!"
-          git add -A .
-          git status
-          # Setting Git User details
-          git config --global user.name "OIDF GitHub Automation"
-          git config --global user.email "github@oidf.org"
-          echo "Commiting"
-          git commit -m "$PUBLISH_LIST"
-          echo "Merge and Push"
-          # Check out target branch (e.g. main)
-          git checkout ${{ github.event.pull_request.base.ref }}
-          # merge head branch into base (e.g. main)
-          git merge -X theirs --no-ff ${{ github.event.pull_request.head.ref }} -m "Merge approved PR #${{ github.event.pull_request.number }}"
-          # Push changes to remote
-          git push origin ${{ github.event.pull_request.base.ref }}
+          cp ./* ../sync/specs/
+          cd ..
 
-      - name: Update remote clone on OIDF Web Server
-        uses: appleboy/ssh-action@v1.0.3
+          git add sync/specs/
+
+          echo "$CHANGED_FILES" | while read -r f; do
+            if [ -n "$f" ] && [ -f "$f" ]; then
+              echo "Removing source file: $f"
+              git rm "$f"
+            fi
+          done
+
+          git config user.name "OIDF GitHub Automation"
+          git config user.email "github@oidf.org"
+          git diff --cached --quiet || git commit -m "$PUBLISH_LIST"
+          git push origin main
+
+      - name: Deploy to OIDF Web Server
+        id: deploy
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.OIDF_SPECS_HOST }}
           username: ${{ secrets.OIDF_USERID }}
@@ -91,11 +116,78 @@ jobs:
           script: |
               cd /var/www/openid.net/publication
               OLD_HEAD=$(git rev-parse HEAD)
-              git status
               git pull
               NEW_HEAD=$(git rev-parse HEAD)
-              for i in `git diff --name-only $OLD_HEAD $NEW_HEAD`; do echo "Purging cache of $i" ;  curl -X PURGE https://openid.net/specs/`basename $i`; echo "done" ; done
+              for i in `git diff --name-only $OLD_HEAD $NEW_HEAD`; do
+                echo "Purging cache of $i"
+                curl -X PURGE "https://openid.net/specs/$(basename $i)"
+              done
+              echo "Purging /specs/ index cache"
+              curl -X PURGE https://openid.net/specs/
 
-  
+      - name: Comment on merged PR
+        if: always() && steps.changes.outputs.has_wg_changes == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            // Find the PR that was merged via the GitHub API (works for all merge types)
+            const { execSync } = require('child_process');
+            const mergeCommit = execSync('git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD').toString().trim();
+            let prNumber = null;
+            try {
+              const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: mergeCommit,
+              });
+              if (prs.data.length > 0) {
+                prNumber = prs.data[0].number;
+              }
+            } catch (e) {
+              core.info(`Could not find PR for commit ${mergeCommit}: ${e.message}`);
+            }
+            if (!prNumber) {
+              core.info('No PR found for this commit');
+              return;
+            }
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const publishOk = '${{ steps.publish.outcome }}' !== 'failure';
+            const deployOk = '${{ steps.deploy.outcome }}' !== 'failure';
+            const success = publishOk && deployOk;
 
+            let body;
+            if (success) {
+              let urls = '';
+              try {
+                const output = fs.readFileSync(`${process.env.RUNNER_TEMP}/publish-output.txt`, 'utf8')
+                  .replace(/\x1b\[[0-9;]*m/g, '');
+                const specUrls = [...output.matchAll(/https:\/\/openid\.net\/specs\/\S+/g)]
+                  .map(m => m[0])
+                  .filter((v, i, a) => a.indexOf(v) === i);
+                if (specUrls.length) {
+                  urls = '\n\n' + specUrls.map(u => `- [${u.split('/').pop()}](${u})`).join('\n');
+                }
+              } catch (e) {}
+              body = `✅ **Published successfully.** Specs deployed to [openid.net/specs](https://openid.net/specs/)${urls}\n\n[Workflow log](${runUrl})`;
+            } else {
+              body = `❌ **Publication failed.** The specs were merged but could not be deployed.\n\n[Workflow log](${runUrl})\n\ncc @openid/secretaryandteam`;
+            }
+            await github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body,
+            });
 
+      - name: Open issue on failure
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Publication failed - ${new Date().toISOString().split('T')[0]}`,
+              body: `The publish workflow failed after merge.\n\n[Workflow log](${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n\nThe specs were merged to main but may not have been deployed to openid.net/specs/. Manual investigation needed.`,
+            });

@@ -1,45 +1,144 @@
 name: OIDF Publication Checks
 on:
-  push:
-    branches: 
-    - 'propose/**'
+  pull_request:
+    branches:
+    - main
   workflow_dispatch:
 
+concurrency:
+  group: publication-checks-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
-  Check:
+  validate:
     name: Run automated checks on proposed OIDF specs
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
-        with: 
+      - name: Check branch naming
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'propose/')
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ **This PR is not from a `propose/` branch.** Publication checks have been skipped.\n\nIf this is a direct fix to `sync/specs/`, this is expected and you need to carefully check this change manually. If this is a new spec submission, please use a branch named `propose/{wg-name}/...`.'
+            });
+
+      - uses: actions/checkout@v6
+        if: startsWith(github.head_ref || '', 'propose/') || github.event_name == 'workflow_dispatch'
+        with:
           fetch-depth: 0
 
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout publication-checks
+        if: startsWith(github.head_ref || '', 'propose/') || github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v6
         with:
           repository: openid/publication-checks
           path: openid-workflow
           ssh-key: ${{ secrets.OPENID_PUBLICATION_DEPLOY_KEY }}
 
-      - name: Run 'tree' tool
-        run: |
-          # sudo apt-get install tree -y
-          # tree
-
       - name: Set up Python
-        uses: actions/setup-python@v4
+        if: startsWith(github.head_ref || '', 'propose/') || github.event_name == 'workflow_dispatch'
+        uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
       - name: Install Python requirements
+        if: startsWith(github.head_ref || '', 'propose/') || github.event_name == 'workflow_dispatch'
         run: |
           cd ./openid-workflow
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          echo "::set-output name=path::$(which python)"
 
       - name: Run OpenID pre-publication checks
-        run : |
+        if: startsWith(github.head_ref || '', 'propose/') || github.event_name == 'workflow_dispatch'
+        id: checks
+        run: |
+          set -o pipefail
           cd ./openid-workflow
-          chmod +x ./process.sh
-          ./process.sh
+          python3 process.py 2>&1 | tee "$RUNNER_TEMP/checks-output.txt"
+        continue-on-error: true
+
+      - name: Build check results summary
+        if: always() && steps.checks.outcome
+        run: |
+          sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/checks-output.txt" > "$RUNNER_TEMP/checks-clean.txt"
+
+          SUMMARY="$RUNNER_TEMP/checks-summary.md"
+          echo "## 📋 Publication Check Results" > "$SUMMARY"
+          echo "" >> "$SUMMARY"
+
+          PASS_COUNT=$(grep -c "^PASS:" "$RUNNER_TEMP/checks-clean.txt" || true)
+          FAIL_COUNT=$(grep "^FAIL:" "$RUNNER_TEMP/checks-clean.txt" | grep -cv "did not pass all checks" || true)
+          WARN_COUNT=$(grep -c "^WARNING:" "$RUNNER_TEMP/checks-clean.txt" || true)
+
+          if [ "${{ steps.checks.outcome }}" = "success" ]; then
+            echo "### ✅ All checks passed" >> "$SUMMARY"
+          else
+            echo "### ❌ Some checks failed" >> "$SUMMARY"
+          fi
+          echo "" >> "$SUMMARY"
+          echo "| | Count |" >> "$SUMMARY"
+          echo "|---|---|" >> "$SUMMARY"
+          echo "| ✅ Passed | $PASS_COUNT |" >> "$SUMMARY"
+          echo "| ❌ Failed | $FAIL_COUNT |" >> "$SUMMARY"
+          echo "| ⚠️ Warnings | $WARN_COUNT |" >> "$SUMMARY"
+          echo "" >> "$SUMMARY"
+
+          if [ "$FAIL_COUNT" -gt 0 ] 2>/dev/null; then
+            echo "### ❌ Failures" >> "$SUMMARY"
+            echo "" >> "$SUMMARY"
+            grep "^FAIL:" "$RUNNER_TEMP/checks-clean.txt" | grep -v "did not pass all checks" | while read -r line; do
+              echo "- $line" >> "$SUMMARY"
+            done
+            echo "" >> "$SUMMARY"
+            echo "See [ERROR-MODES.md](https://github.com/openid/publication/blob/main/ERROR-MODES.md) for guidance on fixing each failure." >> "$SUMMARY"
+          fi
+
+          if [ "$WARN_COUNT" -gt 0 ] 2>/dev/null; then
+            echo "" >> "$SUMMARY"
+            echo "### ⚠️ Warnings" >> "$SUMMARY"
+            echo "" >> "$SUMMARY"
+            grep "^WARNING:" "$RUNNER_TEMP/checks-clean.txt" | while read -r line; do
+              echo "- $line" >> "$SUMMARY"
+            done
+          fi
+
+          echo "" >> "$SUMMARY"
+          echo "---" >> "$SUMMARY"
+          echo "[Full log](PLACEHOLDER_JOB_URL)" >> "$SUMMARY"
+
+      - name: Comment on PR
+        if: always() && steps.checks.outcome && github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const jobs = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+            const job = jobs.data.jobs.find(j => j.name === 'Run automated checks on proposed OIDF specs');
+            const jobUrl = job ? job.html_url
+              : `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const summary = fs.readFileSync(`${process.env.RUNNER_TEMP}/checks-summary.md`, 'utf8')
+              .replace('PLACEHOLDER_JOB_URL', jobUrl);
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+      - name: Fail if checks failed
+        if: steps.checks.outcome == 'failure'
+        run: |
+          cat "$RUNNER_TEMP/checks-output.txt"
+          echo ""
+          echo "See ERROR-MODES.md for guidance: https://github.com/openid/publication/blob/main/ERROR-MODES.md"
+          exit 1

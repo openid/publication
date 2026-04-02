@@ -1,5 +1,5 @@
 %%%
-title = "OpenID Connect Ephermeral Subject Identifier 1.0 - Draft 00"
+title = "OpenID Connect Ephermeral Subject Identifier 1.0 - Draft 01"
 abbrev = "oidc-esid"
 ipr = "none"
 workgroup = "Connect"
@@ -7,12 +7,12 @@ keyword = ["openid", "ephemeral", "subject", "privacy"]
 
 [seriesInfo]
 name = "OpenID-Draft"
-value = "openid-connect-ephemeral-subject-identifier-1_0-00"
+value = "openid-connect-ephemeral-subject-identifier-1_0-01"
 status = "standard"
 
 [pi]
 subcompact = "yes"
-private = "Draft-00"
+private = "Draft-01"
 tocdepth = "5"
 iprnotified = "no"
 
@@ -53,7 +53,13 @@ The OpenID Foundation (OIDF) promotes, protects and nurtures the OpenID communit
 {mainmatter}
 
 # Introduction
-This document specifies an ephemeral subject identifier type for [OpenID Connect Core 1.0][OIDC]. The ephemeral subject identifier identifies the End-User for a short time and remains constant for the duration of the authentication session. In subsequent visits by the End-User to a Relying Party application that requires authentication, the authorization server will return a subject identifier with a different value. The authorization server provides an ephemeral subject identifier to the Relying Party in the ID Token and UserInfo endpoint response as specified by [OpenID Connect Core 1.0][OIDC].
+This document specifies an ephemeral subject identifier type for [OpenID Connect Core 1.0][OIDC]. The ephemeral subject identifier identifies the End-User for a short time and remains constant for the duration of the authentication session. In subsequent visits by the End-User to a Relying Party application that requires authentication, the authorization server will return a subject identifier with a different value. The authorization server provides an ephemeral subject identifier to the Relying Party in the ID Token and UserInfo endpoint response as specified by [OpenID Connect Core 1.0][OIDC]. 
+
+There are several reasons for defining it:  
+* It is already used in some ecosystems. Standardizing it would therefore reduce existing variations;
+* It is a condition needed to mathematically prove that OIDC/SIOP fulfills the Unlinkability Level (UL) 3A+ defined in ISO/IEC 27551 Information security, cybersecurity and privacy protection — Requirements for attribute-based unlinkable entity authentication. 
+
+Examples of attribute-based unlinkable entity authentication include Overage verification, Underage verification, Registered domicile verification, etc. 
 
 
 # Requirements Notation and Conventions
@@ -130,6 +136,10 @@ The following referenced documents are indispensable for the application of this
 [OpenID.Registration] - OpenID Connect Registration 1.0
 [OpenID.Registration]: http://openid.net/specs/openid-connect-registration-1_0.html
 
+## Informative references
+
+[ISO/IEC 27551] - Information security, cybersecurity and privacy protection — Requirements for attribute-based unlinkable entity authentication
+[ISO/IEC 27551]: https://www.iso.org/standard/72018.html
 
 {backmatter}
 
@@ -137,7 +147,8 @@ The following referenced documents are indispensable for the application of this
 
 We would like to thank the following people for their valuable feedback and contributions to this specification.
 
-[[TBD]]
+* Frederik Krogsdal Jacobsen
+* Mark Haine
 
 # Notices
 
@@ -151,6 +162,6 @@ The technology described in this specification was made available from contribut
 
 [[ To be removed from the final specification ]]
 
--00
+-01 Added rationale for this document and a reference to ISO/IEC 27551. 
 
 * initial revision

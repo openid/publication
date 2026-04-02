@@ -1,0 +1,138 @@
+name: Spec Preview
+on:
+  pull_request:
+    types: [opened, synchronize, closed]
+    branches:
+      - main
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    name: Deploy spec preview
+    if: >
+      github.event.action != 'closed' &&
+      startsWith(github.head_ref, 'propose/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Find HTML files
+        id: files
+        run: |
+          HTML_FILES=$(git diff --name-only origin/main...HEAD | grep '\.html$' || true)
+          echo "html_files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$HTML_FILES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          if [ -z "$HTML_FILES" ]; then
+            echo "has_html=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_html=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy to gh-pages
+        if: steps.files.outputs.has_html == 'true'
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          PREVIEW_DIR="PREVIEW-DO-NOT-USE/pr-${PR_NUM}"
+
+          # Save the HTML files to temp
+          mkdir -p "$RUNNER_TEMP/preview"
+          while IFS= read -r f; do
+            if [ -n "$f" ] && [ -f "$f" ]; then
+              cp "$f" "$RUNNER_TEMP/preview/"
+            fi
+          done <<< "${{ steps.files.outputs.html_files }}"
+
+          # Switch to gh-pages branch
+          git fetch origin gh-pages
+          git checkout gh-pages
+
+          # Clean previous preview for this PR and add new files
+          rm -rf "$PREVIEW_DIR"
+          mkdir -p "$PREVIEW_DIR"
+          cp "$RUNNER_TEMP/preview/"*.html "$PREVIEW_DIR/" 2>/dev/null || true
+
+          git add "$PREVIEW_DIR/"
+          git config user.name "OIDF GitHub Automation"
+          git config user.email "github@oidf.org"
+          git diff --cached --quiet || git commit -m "Preview for PR #${PR_NUM}"
+          git push origin gh-pages
+
+      - name: Comment with preview links
+        if: steps.files.outputs.has_html == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const prNum = context.issue.number;
+            const htmlFiles = `${{ steps.files.outputs.html_files }}`.trim().split('\n').filter(Boolean);
+            const baseUrl = `https://openid.github.io/publication/PREVIEW-DO-NOT-USE/pr-${prNum}`;
+
+            const links = htmlFiles.map(f => {
+              const name = f.split('/').pop();
+              return `- [${name}](${baseUrl}/${name})`;
+            }).join('\n');
+
+            const body = `📄 **Spec Preview**\n\n${links}\n\n_These are preview links only. The official specs are published at https://openid.net/specs/_`;
+
+            // Find existing preview comment (paginate to handle busy PRs)
+            let existing = null;
+            for await (const response of github.paginate.iterator(
+              github.rest.issues.listComments,
+              { owner: context.repo.owner, repo: context.repo.repo, issue_number: prNum, per_page: 100 }
+            )) {
+              const found = response.data.find(c =>
+                c.body.includes('📄 **Spec Preview**')
+              );
+              if (found) { existing = found; break; }
+            }
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: prNum,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body,
+              });
+            }
+
+  cleanup-preview:
+    name: Clean up spec preview
+    if: >
+      github.event.action == 'closed' &&
+      startsWith(github.head_ref, 'propose/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: gh-pages
+          fetch-depth: 1
+
+      - name: Remove preview
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          PREVIEW_DIR="PREVIEW-DO-NOT-USE/pr-${PR_NUM}"
+          if [ -d "$PREVIEW_DIR" ]; then
+            git rm -rf "$PREVIEW_DIR"
+            git config user.name "OIDF GitHub Automation"
+            git config user.email "github@oidf.org"
+            git commit -m "Remove preview for PR #${PR_NUM}"
+            git push origin gh-pages
+          fi
