@@ -72,6 +72,9 @@ jobs:
           echo "## 📋 Publication Check Results" > "$SUMMARY"
           echo "" >> "$SUMMARY"
 
+          PR_NUM="${{ github.event.pull_request.number }}"
+          PREVIEW_BASE="https://openid.github.io/publication/PREVIEW-DO-NOT-USE/pr-${PR_NUM}"
+
           PASS_COUNT=$(grep -c "^PASS:" "$RUNNER_TEMP/checks-clean.txt" || true)
           FAIL_COUNT=$(grep "^FAIL:" "$RUNNER_TEMP/checks-clean.txt" | grep -cv "did not pass all checks" || true)
           WARN_COUNT=$(grep -c "^WARNING:" "$RUNNER_TEMP/checks-clean.txt" || true)
@@ -89,11 +92,24 @@ jobs:
           echo "| ⚠️ Warnings | $WARN_COUNT |" >> "$SUMMARY"
           echo "" >> "$SUMMARY"
 
+          # linkify: replace wg/spec.html paths with [spec.html](preview_url) links
+          linkify() {
+            local line="$1"
+            if [[ "$line" =~ ([a-z-]+/[a-z0-9_-]+\.html) ]]; then
+              local fpath="${BASH_REMATCH[1]}"
+              local fname
+              fname=$(basename "$fpath")
+              local url="${PREVIEW_BASE}/${fname}"
+              line="${line//$fpath/[$fpath]($url)}"
+            fi
+            echo "$line"
+          }
+
           if [ "$FAIL_COUNT" -gt 0 ] 2>/dev/null; then
             echo "### ❌ Failures" >> "$SUMMARY"
             echo "" >> "$SUMMARY"
             grep "^FAIL:" "$RUNNER_TEMP/checks-clean.txt" | grep -v "did not pass all checks" | while read -r line; do
-              echo "- $line" >> "$SUMMARY"
+              echo "- $(linkify "$line")" >> "$SUMMARY"
             done
             echo "" >> "$SUMMARY"
             echo "See the [full log](PLACEHOLDER_JOB_URL) for more detailed diagnostics. See [ERROR-MODES.md](https://github.com/openid/publication/blob/main/ERROR-MODES.md) for guidance on fixing each failure." >> "$SUMMARY"
@@ -104,7 +120,7 @@ jobs:
             echo "### ⚠️ Warnings" >> "$SUMMARY"
             echo "" >> "$SUMMARY"
             grep "^WARNING:" "$RUNNER_TEMP/checks-clean.txt" | while read -r line; do
-              echo "- $line" >> "$SUMMARY"
+              echo "- $(linkify "$line")" >> "$SUMMARY"
             done
           fi
 
