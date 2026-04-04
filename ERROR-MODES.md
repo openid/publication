@@ -45,13 +45,18 @@ __ACTION TO FIX__: The document should contain one of the following:
 
 Check that both the `<title>` tag and the `<h1 id="title">` have the correct content and that the two are the same.
 
-## <span style="color:red">FAIL: A final spec already exists. Post-final drafts must be titled like 'Spec Name 1.0 - Draft NN incorporating errata set N'</span>
+## <span style="color:red">FAIL: {file} is a draft but a Final spec already exists on openid.net</span>
 A final specification has already been published for this spec. New drafts after a final must include errata language in the title.
 
 __ACTION TO FIX__: Update the title to include both the draft number and errata set number, e.g., "OpenID Example 1.0 - Draft 18 incorporating errata set 1".
 
-## <span style="color:red">FAIL: DRAFT state but does not have required history section</span>
-When the document is in a DRAFT or DRAFT_ERRATA state it must have a Document History section.
+## <span style="color:red">FAIL: {file} is a draft but does not have a Document History section</span>
+When the document is in a DRAFT, DRAFT_ERRATA, or IMPLEMENTERS state it must have a Document History section listing changes made in each numbered draft.
+
+The heading must contain the text "Document History" and use one of these formats:
+- `<h2 id="name-document-history">` (xml2rfc style)
+- `<h1 id="...-document-history">...Document History</h1>` (pandoc style)
+- `<h3>Appendix X.&nbsp; Document History</h3>` (older style)
 
 __ACTION TO FIX__: Add a Document History section, or change the title if the document is intended to be Final or Errata.
 
@@ -60,23 +65,18 @@ The Document History section must contain an entry for the current draft number.
 
 __ACTION TO FIX__: Add a history entry for the current draft number (e.g., "-17" for draft 17).
 
-## <span style="color:red">FAIL: FINAL state but history section exists</span>
+## <span style="color:red">FAIL: {file} is a Final spec but contains a Document History section</span>
 When the document is in a FINAL state it must not have a Document History section.
 
 __ACTION TO FIX__: Delete the Document History section, or change the title if this is intended to be a Draft.
 
-## <span style="color:red">FAIL: ERRATA state but history section exists</span>
+## <span style="color:red">FAIL: {file} is an approved errata but contains a Document History section</span>
 When the document is in an approved ERRATA state it must not have a Document History section.
 
 __ACTION TO FIX__: Delete the Document History section, or change the title if this is intended to be a Draft Errata.
 
-## <span style="color:red">FAIL: IMPLEMENTERS state but history section exists</span>
-When the document is an approved Implementers Draft it must not have a Document History section.
-
-__ACTION TO FIX__: Delete the Document History section.
-
-## <span style="color:red">FAIL: A predecessor final spec does not exist</span>
-When the document is in an ERRATA or DRAFT_ERRATA state there must be a FINAL spec previously published with the same base name.
+## <span style="color:red">FAIL: {file} is an errata but no predecessor Final spec was found</span>
+When the document is in an ERRATA or DRAFT_ERRATA state there must be a FINAL spec previously published with the same base name on openid.net.
 
 __ACTION TO FIX__: Either change the document state to FINAL by adjusting the title if there is no pre-existing FINAL spec, or correct the filename to match the previously published final spec.
 
