@@ -1,0 +1,530 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
+<rfc version="3" ipr="none" docName="openid-federation-entity-collection" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true" consensus="true">
+
+<front>
+<title abbrev="openid-federation-entity-collection">OpenID Federation Entity Collection Endpoint 1.0 - draft 00</title><seriesInfo value="openid-federation-entity-collection" status="standard" name="Internet-Draft"></seriesInfo>
+<author initials="G." surname="Zachmann" fullname="Gabriel Zachmann"><organization>Karlsruhe Institute of Technology</organization><address><postal><street></street>
+</postal><email>gabriel.zachmann@kit.edu</email>
+</address></author><date/>
+<area>Internet</area>
+<workgroup>individual</workgroup>
+<keyword>security</keyword>
+<keyword>openid</keyword>
+<keyword>federation</keyword>
+
+<abstract>
+<t>This specification acts as an extension to <xref target="OpenID.Federation"></xref>. It defines an additional federation endpoint to retrieve a filterable list of Entities in a (sub-)federation.</t>
+</abstract>
+
+</front>
+
+<middle>
+
+<section anchor="introduction"><name>Introduction</name>
+<t>This specification introduces a new federation endpoint that provides a single, queryable
+interface for discovering Entities within a federation subtree anchored at a
+Trust Anchor. In contrast to the Subordinate Listing Endpoint defined in
+ <xref target="OpenID.Federation"></xref>, which enumerates only direct subordinates, this endpoint
+enables discovery of Entities that are subordinate either directly or
+indirectly to the selected Trust Anchor.</t>
+<t>The endpoint is intended to support discovery and selection use cases in which
+a client presents a curated set of Entities to end users or administrators.
+Examples include selection interfaces (for example, login pickers) and
+administrative views. To support such use cases, responses MAY include user
+interface–oriented information (for example, display names, logos, and
+descriptions) and the endpoint MAY support filtering (for example, by entity
+type, trust mark type, or query text), as defined in this specification.
+Usage of the endpoint for other use cases that require a list of entities in a
+federation is possible.</t>
+<t>Information returned by this endpoint is informational. It is intended to
+facilitate presentation and efficient narrowing of the result set. It does not
+replace trust validation. When an Entity is to be relied upon, trust validation
+MUST be performed according to OpenID Federation.</t>
+
+<section anchor="rationale-and-benefits"><name>Rationale and Benefits</name>
+<t>This specification complements the federation core functionality by providing
+an endpoint optimized for discovery, filtering, and presentation of federation
+entities at scale. The following benefits motivate implementation:</t>
+
+<ul spacing="compact">
+<li>Coverage beyond direct subordinates: Enables discovery across multiple
+federation levels without requiring clients to recursively traverse
+intermediates.</li>
+<li>UI-oriented metadata: Supports inclusion of human-readable attributes (for
+example, display name, description, logo URI, policy URI) to directly power
+selection and catalog views without separate metadata lookups.</li>
+<li>Server-side filtering: Allows responders to filter by entity type, trust mark
+type, and free-form query, reducing client-side processing and network
+round-trips.</li>
+<li>Pagination and incremental retrieval: Supports efficient list pagination using
+<tt>from</tt> and <tt>limit</tt>, suitable for large federations.</li>
+<li>Reduced coupling to resolution: Provides a lightweight, list-oriented surface
+distinct from the Resolve and Fetch flows, allowing clients to defer
+resolution and full trust validation until a concrete Entity is selected.</li>
+</ul>
+<t>These properties enable relying parties, portals, and administrative tools to
+implement consistent, efficient, and user-friendly discovery experiences while
+preserving the core trust validation model defined by OpenID Federation.</t>
+</section>
+
+<section anchor="requirements-notation-and-conventions"><name>Requirements Notation and Conventions</name>
+<t>The keywords &quot;MUST&quot;, &quot;MUST NOT&quot;, &quot;REQUIRED&quot;, &quot;SHALL&quot;, &quot;SHALL NOT&quot;, &quot;SHOULD&quot;, &quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;NOT
+RECOMMENDED&quot;, &quot;MAY&quot;, and &quot;OPTIONAL&quot; in this document are to be interpreted as described in BCP
+14 <xref target="RFC2119"></xref> <xref target="RFC8174"></xref> when, and only when, they appear in all capitals, as shown here.</t>
+</section>
+</section>
+
+<section anchor="terminology"><name>Terminology</name>
+<t>This specification uses the terms
+&quot;Entity&quot; as defined by OpenID Connect Core <xref target="OpenID.Core"></xref>,
+&quot;Client&quot; as defined by <xref target="RFC6749"></xref>,
+and &quot;Trust Mark&quot;, &quot;Federation Entity&quot;, &quot;Federation Entity Key&quot;, &quot;Trust Anchor&quot;,
+&quot;Intermediate&quot;, and &quot;Subordinate Statement&quot; defined in <xref target="OpenID.Federation"></xref>.</t>
+</section>
+
+<section anchor="entity-collection-endpoint"><name>Entity Collection Endpoint</name>
+<t>The Federation Entity Collection Endpoint is an optional endpoint that MAY be published by Federation Entities. It MUST use the <tt>https</tt> scheme and MAY include port, path, and query parameter components encoded in <tt>application/x-www-form-urlencoded</tt> format. It MUST NOT contain a fragment component.
+Federation Entities publishing this endpoint SHOULD also publish a
+<tt>federation_resolve_endpoint</tt>.</t>
+
+<section anchor="pagination"><name>Pagination</name>
+<t>By segmenting the data into pages, the endpoint facilitates the efficient transmission and processing of data and also adds to the client's ability to navigate through the information.
+The selected method of pagination offers a mix of consistency and performance characteristics appropriate for the intended use of the endpoint.</t>
+
+<section anchor="ordering"><name>Ordering</name>
+<t>As pagination enables consumers of this endpoint to retrieve a subset of the full dataset, the responding Entity MUST ensure consistent ordering is implemented across all returned responses.
+No recommendation is made on which key the ordering is based upon and is left up to the choice of implementing Entities.</t>
+</section>
+
+<section anchor="response-limits"><name>Response Limits</name>
+<t>This endpoint defines the limit query parameter, allowing consumers to specify a desired maximum number of Entities returned in a given response set. However, this number may, in some cases, be impractical or not feasible for the issuing Entity to return. To address this, it is RECOMMENDED that implementations define a practical upper limit for the response size that can be served. This defined limit MUST be set to a value that ensures if no limit is specified in a request, or if the implementation deems the requested limit impractical, the response can be returned successfully with all requested additional parameters.</t>
+</section>
+</section>
+
+<section anchor="endpoint-location"><name>Endpoint Location</name>
+<t>The location of the Federation Entity Collection Endpoint is published in the <tt>federation_entity</tt> metadata, using the <tt>federation_collection_endpoint</tt> parameter.</t>
+<t>The following is a non-normative example of an Entity Configuration payload, for a Trust Anchor that includes the <tt>federation_collection_endpoint</tt>:</t>
+
+<sourcecode type="json">{
+  &quot;iss&quot;: &quot;https://ta.example.org&quot;,
+  &quot;sub&quot;: &quot;https://ta.example.org&quot;,
+  &quot;iat&quot;: 1590000000,
+  &quot;exp&quot;: 1590086400,
+  &quot;jwks&quot;: {
+    &quot;keys&quot;: [
+      {
+        &quot;kty&quot;: &quot;RSA&quot;,
+        &quot;kid&quot;: &quot;key1&quot;,
+        &quot;use&quot;: &quot;sig&quot;,
+        &quot;n&quot;: &quot;n4EPtAOCc9AlkeQHPzHStgAbgs7bTZLwUBZdR8_KuKPEHLd4rHVTeT&quot;,
+        &quot;e&quot;: &quot;AQAB&quot;
+      }
+    ]
+  },
+  &quot;metadata&quot;: {
+    &quot;federation_entity&quot;: {
+      &quot;federation_fetch_endpoint&quot;: &quot;https://ta.example.org/fetch&quot;,
+      &quot;federation_list_endpoint&quot;: &quot;https://ta.example.org/list&quot;,
+      &quot;federation_resolve_endpoint&quot;: &quot;https://ta.example.org/resolve&quot;,
+      &quot;federation_collection_endpoint&quot;: &quot;https://ta.example.org/collect&quot;
+    }
+  }
+}
+</sourcecode>
+</section>
+
+<section anchor="entity-collection-request"><name>Entity Collection Request</name>
+
+<section anchor="request-format"><name>Request Format</name>
+<t>When client authentication is not used, the request to the <tt>federation_collection_endpoint</tt> MUST be an HTTP request using the GET method with the following query parameters, encoded in <tt>application/x-www-form-urlencoded</tt> format:</t>
+
+<ul>
+<li><t><strong>from</strong>: (OPTIONAL) If this parameter is present, the resulting list MUST be the subset of the overall ordered response starting from this pointer. This parameter MUST be copied from the <tt>next</tt> response parameter of a previous request.
+If the pointer in this parameter is not or not longer known to the responder, it MUST return an error response with the error code <tt>page_not_found</tt> as defined in <eref target="#error-response-format">Error Response Format</eref>.<br />
+If the responder does not support this feature, it MUST return an error response with the error code <tt>unsupported_parameter</tt> as defined in <eref target="#error-response-format">Error Response Format</eref>.</t>
+</li>
+<li><t><strong>limit</strong>: (OPTIONAL) Requested number of results included in the response.
+If this parameter is present, the number of results in the returned list MUST NOT be greater than the minimum of the responder's upper limit and the value of this parameter.
+If this parameter is not present the server MUST fall back on the upper limit.<br />
+If the responder does not support this feature, it MUST return an error response with the error code <tt>unsupported_parameter</tt> as defined in <eref target="#error-response-format">Error Response Format</eref>.</t>
+</li>
+<li><t><strong>entity_type</strong>: (OPTIONAL) The value of this parameter is an Entity Type Identifier. The result MUST be filtered to include only those entities that include the specified Entity Type. When multiple <tt>entity_type</tt> parameters are present, for example <tt>entity_type=openid_provider&amp;entity_type=openid_relying_party</tt>, the result MUST be filtered to include all Entities that include any of the specified Entity Types.
+If the responder does not support this feature, it MUST return an error response with the error code <tt>unsupported_parameter</tt> as defined in <eref target="#error-response-format">Error Response Format</eref>.</t>
+</li>
+<li><t><strong>trust_mark_type</strong>: (OPTIONAL) The value of this parameter is a Trust Mark Type Identifier. The result MUST be filtered to include only Entities that publish a Trust Mark of this Trust Mark Type in their Entity Configuration and that Trust Mark MUST be verified by the responder. The responder SHOULD verify the Trust Mark using the same Trust Anchor that is used to collect the Entities. When multiple <tt>trust_mark_type</tt> parameters are present, the result MUST be filtered to include only Entities that have a Trust Mark for all the specified Trust Mark Types.<br />
+If the responder does not support this feature, it MUST return an error response with the error code <tt>unsupported_parameter</tt> as defined in <eref target="#error-response-format">Error Response Format</eref>.</t>
+</li>
+<li><t><strong>trust_anchor</strong>: (RECOMMENDED) The Trust Anchor that the collection endpoint MUST use when collecting Entities. The value is an Entity Identifier. If omitted, the responder sets this parameter to its own Entity Identifier. If the responder does not have a defined Entity Identifier, it MUST return an error response with the error code <tt>invalid_request</tt> as defined in <eref target="#error-response-format">Error Response Format</eref>.</t>
+</li>
+<li><t><strong>query</strong>: (OPTIONAL) The value of this parameter is used by the responder to
+filter down the list of returned Entities to only entities that match this
+parameter value. It is entirely up to the responder to define when an Entity
+matches the query.<br />
+If the responder does not support this feature, it MUST return an error response with the error code <tt>unsupported_parameter</tt> as defined in <eref target="#error-response-format">Error Response Format</eref>.</t>
+</li>
+<li><t><strong>entity_claims</strong>: (OPTIONAL) Array of claims to be included in the Entity Info Object included in the response for each collected Entity.<br />
+If this parameter is NOT present it is at the discretion of the responder which claims are included or not.<br />
+If this parameter is present and it is NOT an empty array, each Entity Info Object that represents an Entity MUST include the requested claims unless a specific claim is not available for that Entity. Also Claims that are optional to return and not present in the array MUST NOT be included in the Entity Info.<br />
+If the responder does not support a requested claim, it MUST return an error response with the error code <tt>unsupported_parameter</tt> as defined in <eref target="#error-response-format">Error Response Format</eref>.</t>
+</li>
+<li><t><strong>ui_claims</strong>: (OPTIONAL) Array of claims to be included in the Entity Type UI Info Object included in the response for each returned Entity.<br />
+If this parameter is NOT present it is at the discretion of the responder which claims are included or not.<br />
+If this parameter is present and it is NOT an empty array, each Entity Type UI Info Object MUST include the requested claims unless a specific claim is not available for that Entity and Entity Type.<br />
+If the responder does not support a requested claim, it MUST return an error response with the error code <tt>unsupported_parameter</tt> as defined in <eref target="#error-response-format">Error Response Format</eref>.</t>
+</li>
+</ul>
+<t>When Client authentication is used, the request MUST be an HTTP request using the POST method, with the parameters passed in the POST body.</t>
+
+<section anchor="example-request"><name>Example Request</name>
+<t>The following is a non-normative example of a collection request:</t>
+
+<sourcecode type="http">GET /collection?entity_type=openid_provider&amp;trust_mark_type=https%3A%2F%2Frp%2Erefeds.org%2Fsitfi&amp;trust_anchor=https%3A%2F%2Fswamid.se HTTP/1.1
+Host: openid.sunet.se
+</sourcecode>
+</section>
+</section>
+</section>
+
+<section anchor="entity-collection-response"><name>Entity Collection Response</name>
+
+<section anchor="response-format"><name>Response Format</name>
+<t>A successful response MUST use the HTTP status code 200 and the content type <tt>application/json</tt>.</t>
+<t>The response is a JSON object with the following claims:</t>
+
+<ul spacing="compact">
+<li><strong>entities</strong>: (REQUIRED) Array of JSON objects, each representing a
+Federation Entity as described in <eref target="#entity-info">Entity Info</eref>. The list of Entities MUST
+only contain Entities that are in line with the requested parameters. The
+responder MAY also filter down the list further at its own discretion.</li>
+<li><strong>next</strong>: (OPTIONAL) An opaque pointer to the next page in the
+result list. This attribute is REQUIRED when additional results are available
+beyond those included in the <tt>entities</tt> array. To content of this attribute is
+entirely up to the responder and its pagination implementation strategy.</li>
+<li><strong>last_updated</strong>: (RECOMMENDED) Number. Time when the responder last updated the result list. This is expressed as Seconds Since the Epoch, per <xref target="RFC7519"></xref>. If the <tt>last_updated</tt> time changes between paginated calls, this might be an indication for the client that it might have received outdated information in a previous call.</li>
+</ul>
+<t>Additional claims MAY be defined and used in conjunction with the claims above.</t>
+
+<section anchor="entity-info"><name>Entity Info</name>
+<t>Each JSON Object in the returned <tt>entities</tt> array MAY contain the following
+claims:</t>
+
+<ul>
+<li><strong>entity_id</strong>: (REQUIRED) The Entity Identifier for the subject entity of the
+current record.</li>
+<li><strong>entity_types</strong>: (RECOMMENDED) Array of string Entity Type Identifiers. If
+present this claim MUST contain all Entity Type Identifiers of the subject's
+Entity the responder knows about.</li>
+<li><t><strong>ui_infos</strong>: (OPTIONAL) JSON Object containing information intended to be displayed to the user for each entity
+type as described in <eref target="#ui-infos">UI Infos</eref>.<br />
+If the request contains the <tt>entity_type</tt> parameter, the UI Infos Object MUST
+only contain Entity Type Identifiers that are among the ones requested, with the exception
+of the <tt>federation_entity</tt> Entity Type Identifier, which MAY also appear if not explicitly requested.</t>
+</li>
+<li><t><strong>trust_marks</strong>: (OPTIONAL) Array of objects, each representing a Trust Mark,
+as defined in Section 3 of <xref target="OpenID.Federation"></xref>.</t>
+</li>
+</ul>
+<t>Additional claims MAY be defined and used in conjunction with the claims above.</t>
+
+<section anchor="ui-infos"><name>UI Infos</name>
+<t>UI Infos is a JSON Object containing UI-related information about a single
+Entity, but differentiated by its Entity Types.</t>
+<t>Each member name of the JSON object is an Entity Type Identifier and each
+value is an Entity Type UI Info Object as defined in <eref target="#entity-type-ui-info">Entity Type UI Info</eref>.</t>
+
+<section anchor="entity-type-ui-info"><name>Entity Type UI Info</name>
+<t>Entity Type UI Info is a JSON Object containing UI-related information about a
+single Entity Type of an Entity.</t>
+<t>All Claims specified in section 5.2.2 &quot;Informational Metadata Extensions&quot; of <xref target="OpenID.Federation"></xref> MAY be used.</t>
+<t>Additional Claims MAY be defined and used in conjunction with the Claims above.</t>
+</section>
+</section>
+</section>
+
+<section anchor="example-response"><name>Example Response</name>
+
+<sourcecode type="json">{
+  &quot;entities&quot;: [
+    {
+      &quot;entity_id&quot;: &quot;https://green.example.com&quot;,
+      &quot;entity_types&quot;: [
+        &quot;federation_entity&quot;
+      ],
+      &quot;ui_infos&quot;: {
+        &quot;federation_entity&quot;: {
+          &quot;display_name&quot;: &quot;The green organization&quot;,
+          &quot;logo_uri&quot;: &quot;https://green.example.com/logo.png&quot;
+        }
+      }
+    },
+    {
+      &quot;entity_id&quot;: &quot;https://red.example.com&quot;,
+      &quot;entity_types&quot;: [
+        &quot;openid_relying_party&quot;,
+        &quot;federation_entity&quot;
+      ],
+      &quot;ui_infos&quot;: {
+        &quot;federation_entity&quot;: {
+          &quot;display_name&quot;: &quot;Red Organization&quot;,
+          &quot;logo_uri&quot;: &quot;https://red.example.com/logo.png&quot;
+        },
+        &quot;openid_relying_party&quot;: {
+          &quot;display_name&quot;: &quot;Red RP&quot;,
+          &quot;logo_uri&quot;: &quot;https://red.example.com/logo.png&quot;
+        }
+      }
+    },
+    {
+      &quot;entity_id&quot;: &quot;https://op.example.com&quot;,
+      &quot;entity_types&quot;: [
+        &quot;openid_provider&quot;
+      ]
+    }
+  ]
+}
+</sourcecode>
+</section>
+</section>
+
+<section anchor="error-response-format"><name>Error Response Format</name>
+<t>If the request was malformed or an error occurred during the processing of the request, the response body MUST be a JSON object with the content type <tt>application/json</tt>. In compliance with <xref target="RFC6749"></xref> and <xref target="OpenID.Federation"></xref>, the following standardized error format MUST be used:</t>
+
+<ul spacing="compact">
+<li><t><strong>error</strong>: (REQUIRED) Error codes in the IANA &quot;OAuth Extensions Error Registry&quot; <xref target="IANA.OAuth.Parameters"></xref> MAY be used. In particular, these existing error codes are used by this specification:</t>
+
+<ul spacing="compact">
+<li><strong>unsupported_parameter</strong>: The server does not support a requested parameter. The HTTP response status code SHOULD be 400 (Bad Request).</li>
+<li><strong>invalid_request</strong>: The request is incomplete or does not comply with current specifications. The HTTP response status code SHOULD be 400 (Bad Request).<br />
+<br />
+
+In addition the following error codes defined by this specification MAY be used:</li>
+<li><strong>page_not_found</strong>: The pagination pointer provided in the <tt>from</tt> parameter is not or no longer known to the responder. The HTTP response status code SHOULD be 404 (Not Found).</li>
+</ul></li>
+<li><strong>error_description</strong>: (REQUIRED) Human-readable text providing additional information used to assist the developer in understanding the error that occurred.</li>
+</ul>
+<t>The following is a non-normative example of an error response:</t>
+
+<sourcecode type="http">400 Bad Request
+Content-Type: application/json
+
+{
+  &quot;error&quot;: &quot;unsupported_parameter&quot;,
+  &quot;error_description&quot;: &quot;The 'limit' parameter is not supported by this endpoint.&quot;
+}
+</sourcecode>
+</section>
+</section>
+</section>
+
+<section anchor="claims-languages-and-scripts"><name>Claims Languages and Scripts</name>
+<t>Human-readable claim values and claim values that reference human-readable values MAY be represented in multiple languages and scripts. This specification enables such representations in the same manner as defined in Section 14 of OpenID Federation <xref target="OpenID.Federation"></xref> and Section 5.2 of OpenID Connect Core 1.0 <xref target="OpenID.Core"></xref>.</t>
+<t>As described in OpenID Connect Core, to specify the languages and scripts, BCP47 <xref target="RFC5646"></xref> language tags are added to member names, delimited by a <tt>#</tt> character. For example, <tt>family_name#ja-Kana-JP</tt> expresses the Family Name in Katakana in Japanese, which is commonly used to index and represent the phonetics of the Kanji representation of the same name represented as <tt>family_name#ja-Hani-JP</tt>.</t>
+<t>The following is an example of an Entity Type UI Info Object with claims
+represented in multiple languages:</t>
+
+<sourcecode type="json">{
+  &quot;description&quot;: &quot;Karlsruhe Institute of Technology - The Research University in the Helmholtz Association&quot;,
+  &quot;description#de&quot;: &quot;Karlsruher Institut für Technologie - Die Forschungsuniversität in der Helmholtz-Gemeinschaft&quot;,
+  &quot;description#en&quot;: &quot;Karlsruhe Institute of Technology - The Research University in the Helmholtz Association&quot;,
+  &quot;display_name&quot;: &quot;Karlsruhe Institute of Technology (KIT)&quot;,
+  &quot;display_name#de&quot;: &quot;Karlsruher Institut für Technologie (KIT)&quot;,
+  &quot;display_name#en&quot;: &quot;Karlsruhe Institute of Technology (KIT)&quot;
+}
+</sourcecode>
+</section>
+
+<section anchor="implementation-considerations"><name>Implementation Considerations</name>
+
+<section anchor="collecting-entities"><name>Collecting Entities</name>
+<t>It is up to the implementation to decide how entities are collected.
+A general and straightforward approach is described in section 17.2.2 of <xref target="OpenID.Federation"></xref>.
+Implementations MAY use other approaches to collect entities. Those MAY also be based
+on additional information available to the responder. An example could be when the
+entity collection response should only include entities with a certain Trust
+Mark which is issued by the same Entity that provides the Entity Collection
+Endpoint.</t>
+</section>
+
+<section anchor="mapping-entity-configuration-claims-to-ui-info-response-claims"><name>Mapping Entity Configuration Claims to UI Info Response Claims</name>
+<t>It is up to the implementation to decide how the claims of UI Info Objects in the response are
+populated. Implementations SHOULD consider the information published by entities
+in their Entity Configuration and MAY consider additional information.</t>
+<t>The following mapping between Claims in the <tt>ui_infos</tt> response Claim and Metadata Claims in the
+Entity Configuration SHOULD be considered:</t>
+
+<ul spacing="compact">
+<li><t><tt>display_name</tt>: The <tt>display_name</tt> Claim is a common Metadata Claim useable with all Entity Types. If set it SHOULD be copied to the response. If the <tt>display_name</tt> Claim is not set other Claims MAY be considered, such as:</t>
+
+<ul spacing="compact">
+<li>For the <tt>openid_relying_party</tt> Entity Type: <tt>client_name</tt></li>
+<li>For the <tt>oauth_client</tt> Entity Type: <tt>client_name</tt></li>
+<li>For the <tt>oauth_resource</tt> Entity Type: <tt>resource_name</tt></li>
+</ul></li>
+<li><tt>description</tt>: The <tt>description</tt> Claim is a common Metadata Claim useable with all Entity Types. It SHOULD be copied to the response.</li>
+<li><tt>keywords</tt>: The <tt>keywords</tt> Claim is a common Metadata Claim useable with all Entity Types. It SHOULD be copied to the response.</li>
+<li><tt>logo_uri</tt>: The <tt>logo_uri</tt> Claim is a common Metadata Claim useable with all Entity Types. It SHOULD be copied to the response.</li>
+<li><tt>policy_uri</tt>: The <tt>policy_uri</tt> Claim is a common Metadata Claim useable with all Entity Types. It SHOULD be copied to the response.</li>
+<li><tt>information_uri</tt>: The <tt>information_uri</tt> Claim is a common Metadata Claim useable with all Entity Types. It SHOULD be copied to the response.</li>
+</ul>
+</section>
+
+<section anchor="entity-collection-endpoint-scope"><name>Entity Collection Endpoint Scope</name>
+<t>The responder is free to restrict the scope of its Entity Collection Endpoint,
+such as, but not limited to:</t>
+
+<ul spacing="compact">
+<li>Only supporting a limited set of Trust Anchors.</li>
+<li><t>Filter out Entities from the response at their own discretion. Such additional filters MAY be:</t>
+
+<ul spacing="compact">
+<li>Only Entities that have a certain Trust Mark.</li>
+<li>Only Entities that have a valid Trust Chain to the Trust Anchor.</li>
+<li>Only Entities that are resolvable at the Resolve Endpoint of the Entity
+providing the Entity Collection Endpoint.</li>
+</ul></li>
+</ul>
+</section>
+</section>
+
+<section anchor="security-considerations"><name>Security Considerations</name>
+<t>In addition to the considerations below, the security considerations of
+OpenID Federation 1.0 <xref target="OpenID.Federation"></xref> apply to this specification.</t>
+
+<section anchor="unsigned-response"><name>Unsigned Response</name>
+<t>The response from the Entity Collection Endpoint is not signed and the obtained
+information MUST be considered as informational.
+To verify an Entity, proper trust validation according to OpenID Federation 1.0 <xref target="OpenID.Federation"></xref>
+still MUST be done.</t>
+<t>It is also noted that Trust Marks returned in the response MAY not be verified
+and clients MUST consider them as not yet verified.</t>
+</section>
+</section>
+
+</middle>
+
+<back>
+<references><name>Normative References</name>
+<reference anchor="IANA.OAuth.Parameters" target="https://www.iana.org/assignments/oauth-parameters">
+  <front>
+    <title>OAuth Parameters</title>
+    <author fullname="IANA"></author>
+    <date year="2026" month="March" day="25"></date>
+  </front>
+</reference>
+<reference anchor="OpenID.Core" target="http://openid.net/specs/openid-connect-core-1_0.html">
+  <front>
+    <title>OpenID Connect Core 1.0 incorporating errata set 2</title>
+    <author fullname="Nat Sakimura" initials="N." surname="Sakimura">
+      <organization>NRI</organization>
+    </author>
+    <author fullname="John Bradley" initials="J." surname="Bradley">
+      <organization>Ping Identity</organization>
+    </author>
+    <author fullname="Michael B. Jones" initials="M." surname="Jones">
+      <organization>Microsoft</organization>
+    </author>
+    <author fullname="Breno de Medeiros" initials="B." surname="de Medeiros">
+      <organization>Google</organization>
+    </author>
+    <author fullname="Chuck Mortimore" initials="C." surname="Mortimore">
+      <organization>Salesforce</organization>
+    </author>
+    <date year="2023" month="December" day="15"></date>
+  </front>
+</reference>
+<reference anchor="OpenID.Federation" target="https://openid.net/specs/openid-federation-1_0.html">
+  <front>
+    <title>OpenID Federation 1.0</title>
+    <author fullname="R. Hedberg, Ed.">
+      <organization>independent</organization>
+    </author>
+    <author fullname="Michael B. Jones">
+      <organization>Self-Issued Consulting</organization>
+    </author>
+    <author fullname="A. Solberg">
+      <organization>Sikt</organization>
+    </author>
+    <author fullname="John Bradley">
+      <organization>Yubico</organization>
+    </author>
+    <author fullname="Giuseppe De Marco">
+      <organization>independent</organization>
+    </author>
+    <author fullname="Vladimir Dzhuvinov">
+      <organization>Connect2id</organization>
+    </author>
+    <date year="2026" month="February" day="17"></date>
+  </front>
+</reference>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.5646.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.6749.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.7519.xml"/>
+<xi:include href="https://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.8174.xml"/>
+</references>
+
+<section anchor="notices"><name>Notices</name>
+<t>Copyright (c) 2026 The OpenID Foundation.</t>
+<t>The OpenID Foundation (OIDF) grants to any Contributor, developer,
+implementer, or other interested party a non-exclusive, royalty free,
+worldwide copyright license to reproduce, prepare derivative works from,
+distribute, perform and display, this Implementers Draft, Final
+Specification, or Final Specification Incorporating Errata Corrections
+solely for the purposes of (i) developing specifications,
+and (ii) implementing Implementers Drafts, Final Specifications,
+and Final Specification Incorporating Errata Corrections based
+on such documents, provided that attribution be made to the OIDF as the
+source of the material, but that such attribution does not indicate an
+endorsement by the OIDF.</t>
+<t>The technology described in this specification was made available
+from contributions from various sources, including members of the OpenID
+Foundation and others. Although the OpenID Foundation has taken steps to
+help ensure that the technology is available for distribution, it takes
+no position regarding the validity or scope of any intellectual property
+or other rights that might be claimed to pertain to the implementation
+or use of the technology described in this specification or the extent
+to which any license under such rights might or might not be available;
+neither does it represent that it has made any independent effort to
+identify any such rights. The OpenID Foundation and the contributors to
+this specification make no (and hereby expressly disclaim any)
+warranties (express, implied, or otherwise), including implied
+warranties of merchantability, non-infringement, fitness for a
+particular purpose, or title, related to this specification, and the
+entire risk as to implementing this specification is assumed by the
+implementer. The OpenID Intellectual Property Rights policy
+(found at openid.net) requires
+contributors to offer a patent promise not to assert certain patent
+claims against other contributors and against implementers.
+OpenID invites any interested party to bring to its attention any
+copyrights, patents, patent applications, or other proprietary rights
+that may cover technology that may be required to practice this
+specification.</t>
+</section>
+
+<section anchor="acknowledgements"><name>Acknowledgements</name>
+<t>We would like to thank the following individuals for their contributions to this specification:
+Niels van Dijk,
+Michael Fraser,
+Marko Ivančić,
+Łukasz Jaromin,
+Michael B. Jones,
+Giuseppe De Marco,
+Stefan Santesson,
+Phil Smart,
+Zacharias Törnblom,
+and the Geant Trust &amp; Identity Incubator of Geant5-2.</t>
+</section>
+
+<section anchor="document-history"><name>Document History</name>
+<t>[[ To be removed from the final specification ]]</t>
+<t>-00</t>
+
+<ul spacing="compact">
+<li>Initial version, fixing OpenID Federation issue #56.</li>
+</ul>
+</section>
+
+</back>
+
+</rfc>
