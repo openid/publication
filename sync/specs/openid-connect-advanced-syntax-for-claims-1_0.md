@@ -1,5 +1,5 @@
 %%%
-title = "OpenID Connect Advanced Syntax for Claims (ASC) 1.0 - draft 01"
+title = "OpenID Connect Advanced Syntax for Claims (ASC) 1.0 - draft 02"
 abbrev = "openid-connect-asc-1_0"
 ipr = "none"
 workgroup = "eKYC-IDA"
@@ -8,7 +8,7 @@ keyword = ["openid", "identity assurance", "ekyc", "asc", "data minimization"]
 [seriesInfo]
 name = "Internet-Draft"
 
-value = "openid-connect-advanced-syntax-for-claims-1_0-01"
+value = "openid-connect-advanced-syntax-for-claims-1_0-02"
 
 status = "standard"
 
@@ -392,8 +392,6 @@ For example, the Transformed Claim for age verification from above could be defi
 
 Note: There can be multiple Transformed Claims defined on the same base Claim.
 
-TODO: Define charset for transformed claim names, shall not start with ':'.
-
 ### Requesting Transformed Claims
 
 To request a Transformed Claim, the RP uses the name of the Transformed Claim where it would normally use the base Claim. A colon (`:`) is prepended to avoid confusion with potentially existing normal Claims.
@@ -513,8 +511,6 @@ Example:
 
 Claims defined in [@!OpenID] and [@!IDA] have one of the data types 'string', 'boolean', 'number', 'JSON object' or 'array'. For the purpose of this specification, these data types are used as well as the new data type 'date', which applies to Claims representing dates, and 'datetime', which applies to Claims representing date and time. Therefore, `birthdate` is both of type `string` and `date`, and `updated_at` is both of type `number` and `datetime`.
 
-Todo: Define input formats for date and datetime.
-
 ## Transformation Functions
 
 In the following, a base set of transformation functions is defined. OPs supporting Transformed Claims shall support at least one transformation function.
@@ -620,17 +616,12 @@ can be at any location within `Input` unless further constrained by `RegEx`. Ret
 
 Important: OPs implementing this function shall take precautions against 'catastrophic backtracking', i.e., regular expressions that are designed to exhaust the computing power of the OP. To this end, a reasonably brief time limit on the execution time for the regular expression matching operation shall be imposed, e.g., a few milliseconds. If the execution takes longer, the resulting Claim shall be unavailable.
 
-TODO: Define Regex dialect to use. PCRE, PCRE2?
-
-
 ### Extending the Transformation Functions
 
 Extensions of this specification may define further Transformation Functions.
 New Transformation Functions defined outside official standards shall use the
 prefix `x-` to avoid naming collisions with standardized Transformation
 Functions.
-
-TODO: Registry? Prefixing considered harmful?
 
 All Transformation Functions shall follow the following conventions:
 
@@ -958,7 +949,13 @@ required to practice this specification.
 
    [[ To be removed from the final specification ]]
 
+   -02
+
+   * Various editorial changes
+   * rename 'match' (previously missed from -01 history)
+
    -01
+
    *  Updated Syntax to resolve race condition that led to non-deterministic results
    *  various editorial updates
 
