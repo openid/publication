@@ -1,5 +1,5 @@
 %%%
-title = "OpenID Connect Key Binding 1.0 - draft 01"
+title = "OpenID Connect Key Binding 1.0 - draft 02"
 abbrev = "openid-connect-key-binding"
 ipr = "none"
 workgroup = "OpenID Connect"
@@ -64,7 +64,7 @@ This specification defines how to bind a public key to an OpenID Connect ID Toke
 
 # Introduction
 
-OpenID Connect (OIDC) enables a Relying Party (RP) to obtain End-User authentication and identity claims from an OpenID Provider (OP) in the form of an ID Token. An RP initiates the protocol by making an authentication request to the OP. The OP authenticates the End-User and returns an ID Token, signed by the OP, containing claims about the End-User.
+OpenID Connect [@!OpenID.Core] enables a Relying Party (RP) to obtain End-User authentication and identity claims from an OpenID Provider (OP) in the form of an ID Token. An RP initiates the protocol by making an authentication request to the OP. The OP authenticates the End-User and returns an ID Token, signed by the OP, containing claims about the End-User.
 
 An RP is often composed of multiple components, such as an RP authenticating component that obtains the ID Token from the OP and an RP consuming component that checks the ID Token presented to it by the authenticating component. To prove it has authenticated an End-User, the authenticating component may present the ID Token to the consuming component as a bearer token. However, bearer tokens are vulnerable to theft and replay attacks: an attacker who obtains the ID Token can impersonate the authenticated End-User.
 
@@ -470,11 +470,11 @@ In a peer-to-peer application, such as video conferencing or messaging, one inst
 
 Consider Alice authenticating to Bob over WebRTC. With a bearer ID Token, an attacker who relays Alice's ID Token to Bob could impersonate Alice. With a key-bound ID Token, Alice signs a value that ties her authenticated identity to the connection, such as the DTLS certificate fingerprint of her media channel, using the key in the `cnf` claim. Bob verifies that signature against the `cnf` claim and is assured both that the OP authenticated Alice and that she controls the channel he is connected to.
 
-The step that is not obvious to an implementer is binding the OIDC identity to the application's own identity or channel: the value signed under the `cnf` key must be something the consuming instance can independently associate with the session, such as a WebRTC certificate fingerprint, a messaging device key, or a per-message signature. How that value is chosen and verified is application-specific and out of scope of this specification.
+The step that is not obvious to an implementer is binding the OpenID Connect identity to the application's own identity or channel: the value signed under the `cnf` key must be something the consuming instance can independently associate with the session, such as a WebRTC certificate fingerprint, a messaging device key, or a per-message signature. How that value is chosen and verified is application-specific and out of scope of this specification.
 
 # Acknowledgements
 
-The authors would like to thank early feedback provided by Filip Skokan, Frederik Krogsdal Jacobsen, George Fletcher, Jacob Ideskog, Jonas Primbs, Karl McGuinness, and Kosuke Koiwai.
+The authors would like to thank early feedback provided by Filip Skokan, Frederik Krogsdal Jacobsen, George Fletcher, Jacob Ideskog, Jonas Primbs, Karl McGuinness, Kosuke Koiwai, and Michael Jones.
 
 # Notices
 
@@ -519,6 +519,10 @@ specification.
 # Document History
 
    [[ To be removed from the final specification ]]
+
+   -02
+
+   * Use official name "OpenID Connect" rather than the unofficial acronym "OIDC".
 
    -01
 
