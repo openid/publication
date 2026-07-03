@@ -1,9 +1,10 @@
 %%%
-title = "OpenID Federation Subordinate Events Endpoint 1.0 - draft 00"
+title = "OpenID Federation Subordinate Events Endpoint 1.0 - draft 01"
 abbrev = "openid-federation-subordinate-events"
 ipr = "none"
 workgroup = "individual"
 keyword = ["security", "openid", "federation"]
+consensus = true
 
 [seriesInfo]
 name = "Internet-Draft"
@@ -111,7 +112,7 @@ Host: immediate-superior.example.org
 
 ## Subordinate Historical Events Response
 
-### Response Format
+### Response Format {#response}
 
 A successful response MUST use the HTTP status code 200 and the content type `application/entity-events-statement+jwt`. The response includes relevant events from the federation's perspective of the Entity. If it is a negative response, it will be a JSON object and the content type MUST be `application/json` and use the errors defined in [@!OpenID.Federation].
 
@@ -132,6 +133,7 @@ The claims in the Subordinate events statement response are:
 - **iat**: (REQUIRED) Time when the event is related to, using the time format defined for the `iat` claim.
 - **event**: (REQUIRED) String that identifies the event, such as `registration`, `jwks_update`, `metadata_policy_update`, `metadata_update`, or `revocation`.
 - **event_description**: (OPTIONAL) String that may offer additional information about the event.
+- **information_uri**: (OPTIONAL) URL for documentation of additional information about this event viewable by the End-User. Use of HTTPs URLs is RECOMMENDED.
 
 #### Example Response
 
@@ -143,7 +145,8 @@ The claims in the Subordinate events statement response are:
   "federation_registration_events": [
     {
       "iat": 1590000000,
-      "event": "registration"
+      "event": "registration",
+      "information_uri" : "https://immediate-superior.example.org/policy/Metadata_Registration_Practice_Statement"
     },
     {
       "iat": 1590000000,
@@ -152,7 +155,8 @@ The claims in the Subordinate events statement response are:
     {
       "iat": 1600000000,
       "event": "revocation",
-      "event_description": "compromised node"
+      "event_description": "compromised node",
+      "information_uri" : "https://www.cve.org/CVERecord?id=CVE-2018-1000611"
     },
     {
       "iat": 1610000000,
@@ -175,10 +179,42 @@ The following event types are defined in this specification:
 
 Additional event types MAY be defined by trust frameworks or federation operators to meet specific requirements. Such custom event types SHOULD be documented in the respective trust framework or federation operator's documentation.
 
-# Security Considerations
+# Security Considerations {#security}
 
 The security considerations of OpenID Federation 1.0 [OpenID.Federation]
 apply to this specification.
+
+# IANA Considerations
+
+## Media Type Registration
+
+This specification registers the following media type [@RFC2046]
+in the IANA "Media Types" registry [@IANA.MediaTypes]
+in the manner described in [@RFC6838].
+
+### application/entity-events-statement+jwt
+
+* Type name: application
+* Subtype name: entity-events-statement+jwt
+* Required parameters: n/a
+* Optional parameters: n/a
+* Encoding considerations: binary; A Subordinate Historical Events Response is a JWT; JWT values are encoded as a series of base64url-encoded values (some of which may be the empty string) separated by period ('.') characters.
+* Security considerations: See (#security) of this specification
+* Interoperability considerations: n/a
+* Published specification: (#response) of this specification
+* Applications that use this media type: Applications that use this specification
+* Fragment identifier considerations: n/a
+* Additional information:
+  * Magic number(s): n/a
+  * File extension(s): n/a
+  * Macintosh file type code(s): n/a
+* Person \& email address to contact for further information: Michael B. Jones, michael_b_jones@hotmail.com
+* Intended usage: COMMON
+* Restrictions on usage: none
+* Author: Michael B. Jones, michael_b_jones@hotmail.com
+* Change controller: OpenID Foundation Artifact Binding Working Group - openid-specs-ab@lists.openid.net
+* Provisional registration? No
+
 
 {backmatter}
 
@@ -226,8 +262,18 @@ apply to this specification.
         <author fullname="Vladimir Dzhuvinov">
             <organization>Connect2id</organization>
         </author>
-        <date day="4" month="December" year="2025"/>
+        <date day="17" month="February" year="2026"/>
     </front>
+</reference>
+
+<reference anchor="IANA.MediaTypes" target="https://www.iana.org/assignments/media-types">
+  <front>
+    <title>Media Types</title>
+    <author>
+      <organization>IANA</organization>
+    </author>
+    <date/>
+  </front>
 </reference>
 
 # Notices
@@ -275,12 +321,18 @@ specification.
 We would like to thank the following individuals for their contributions to this specification:
 Vladimir Dzhuvinov,
 Roland Hedberg,
+Andres Olave,
 and
-Andres Olave.
+Niels van Dijk.
 
 # Document History
 
 [[ To be removed from the final specification ]]
+
+-01
+
+* Defined information_uri event object parameter.
+* Registered application/entity-events-statement+jwt media type.
 
 -00
 
