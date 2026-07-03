@@ -1,13 +1,14 @@
 %%%
-title = "OpenID Federation Extended Subordinate Listing 1.0 - draft 02"
-abbrev = "openid-federation-extended-listing"
+title = "OpenID Federation Extended Subordinate Listing 1.0 - draft 03"
+abbrev = "Federation Extended Subordinate Listing"
 ipr = "none"
-workgroup = "OpenID Connect A/B"
-keyword = ["security", "openid"]
+workgroup = "OpenID Connect Working Group"
+keyword = ["security", "openid", "federation"]
+consensus = true
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "openid-federation-extended-listing"
+value = "openid-federation-extended-listing-1_0"
 status = "standard"
 
 [[author]]
@@ -47,7 +48,7 @@ uri = "https://self-issued.info/"
 
 .# Abstract
 
-This specification acts as an extension to the [@!OpenID.Federation]. It defines a mechanism to interact with a given
+This specification is an extension to [@!OpenID.Federation]. It defines a mechanism to interact with a
 Federation with a potentially large number of registered Entities, as well as mechanisms to retrieve multiple
 Subordinate Statements along with associated details in a single request.
 
@@ -60,7 +61,7 @@ in [@!OpenID.Federation].
 
 ## Response Size
 
-The `federation_list_endpoint` as defined in [@!OpenID.Federation] has limitations when an Entity has a large number of
+The `federation_list_endpoint`, as defined in [@!OpenID.Federation], has limitations when an Entity has a large number of
 configured Subordinate Entities. In this scenario, practical limitations can be encountered both for consumers
 attempting to process such large response sets and more technical limitations with infrastructure limits when returning
 exceptionally large datasets. This document defines a form of pagination to address this.
@@ -105,7 +106,7 @@ By segmenting the data into pages, the endpoint facilitates the efficient transm
 adds to the client's ability to navigate through the information.
 
 The selected method of pagination offers a mix of consistency and performance characteristics appropriate for the
-intended use of the endpoint. Primarily, the size of the dataset does not impact performance. Additionally any changes
+intended use of the endpoint. Primarily, the size of the dataset does not impact performance. Additionally, any changes
 made to previously retrieved pages do not affect the overall result consistency, while any changes in pages yet to be
 fetched will be reflected in the overall result list.
 
@@ -115,9 +116,6 @@ As pagination enables consumers of this endpoint to
 retrieve a subset of the full dataset, the issuing Entity MUST ensure consistent ordering is implemented across all
 returned responses. No recommendation is made on which key the ordering is based upon and is left up to the choice of
 implementing Entities.
-
-The endpoint is accessible via the `federation_extended_list_endpoint` URL, which is published in the issuing Entity's
-`federation_metadata`.
 
 ### Response Limits
 
@@ -136,17 +134,26 @@ HTTP methods used, and the way parameters are passed.
 The endpoint accepts all parameters defined in the `federation_list_endpoint` in addition to the parameters defined in
 the table below.
 
-| **Parameter**    | **Availability** | **Type**          | **Value**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-|------------------|------------------|-------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| from_entity_id   | OPTIONAL         | Entity Identifier | If this parameter is present, the resulting list MUST be the subset of the overall ordered response starting from the index of the Entity referenced with this parameter inclusive. The list's size MUST NOT exceed the server's chosen upper limit.<br><br>If the Entity Identifier that equals value of this parameter does not exist, the HTTP status code 400 MUST be used with the content type `application/json` with the error code `entity_id_not_found`. Implementations MUST understand this parameter. TBD: Recommend client behavior on error.                                 |
-| limit            | OPTIONAL         | Positive Integer  | Requested maximum number of results to be included in the response.<br><br> If this parameter is present, the number of results in the returned list SHOULD NOT be greater than the value of this parameter. Implementations MUST understand this parameter.                                                                                                                                                                                                                                                                                                                                |
-| updated_after    | OPTIONAL         | NumericDate       | Epoch time constraining the response to include only Immediate Subordinates that are the subject of Subordinate Statements with updates at or after this time. <br><br>When this parameter is present, it is RECOMMENDED that the `registered` and `updated` parameters be included in the response. If the responder does not support this feature, it MUST use the HTTP status code 400 and set the content type to `application/json`, with the error value set to `unsupported_parameter`.                                                                                                          ||
-| updated_before   | OPTIONAL         | NumericDate       | Epoch time constraining the response to include only Immediate Subordinates that are the subject of Subordinate Statements with updates at or before this time.<br><br>When this parameter is present, it is RECOMMENDED that the `registered` and `updated` parameters be included in the response. If the responder does not support this feature, it MUST use the HTTP status code 400 and set the content type to `application/json`, with the error value set with `unsupported_parameter`.                                                                                                          ||
-| audit_timestamps | OPTIONAL         | Boolean           | Request parameter to control presence of the `registered` and `updated` audit timestamps attributes for all returned Immediate Subordinates.<br><br>If this parameter is present and set to `true` the response MUST include the above mentioned audit timestamp attributes for each Immediate Subordinate Entity included in the response. If the responder does not support this feature, it MUST use the HTTP status code 400 and set the content type to `application/json`, with the error code `unsupported_parameter`.                                                                   |
-| claims           | OPTIONAL         | Array             | List of any additional claims beyond those defined in this table to be included in the response for each returned Immediate Subordinate Entity.<br><br>If this parameter is present and it is NOT an empty array, each returned Immediate Subordinate Entity MUST include the requested claims for a Subordinate Statement, if available.<br><br>Supported options for this parameter SHOULD be all top level `Entity Statement` claims defined in [@!OpenID.Federation] and MAY include any additionally defined claims. TBD: Support of requests for discrete Entity metadata attributes. ||
+| **Parameter**    | **Availability** | **Type**         | **Value**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+|------------------|------------------|------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| from             | OPTIONAL         | String           | An opaque pointer representing an index as returned in the `next` parameter in a previous `federation_extended_list_endpoint` response. If this parameter is present, the resulting list MUST be the subset of the overall ordered response starting from the entry represented by this opaque index inclusive. The list's size MUST NOT exceed the server's chosen upper limit.<br><br>If the provided value is unknown to the server, the HTTP status code 404 MUST be used with the content type `application/json` with the error code `page_not_found`. Implementations MUST understand this parameter. |
+| limit            | OPTIONAL         | Positive Integer | Requested maximum number of results to be included in the response.<br><br> If this parameter is present, the number of results in the returned list SHOULD NOT be greater than the value of this parameter. Implementations MUST understand this parameter.                                                                                                                                                                                                                                                                                                                                                 |
+| updated_after    | OPTIONAL         | NumericDate      | Epoch time constraining the response to include only Immediate Subordinates that are the subject of Subordinate Statements with updates at or after this time. <br><br>When this parameter is present, it is RECOMMENDED that the `registered` and `updated` parameters be included in the response. If the responder does not support this feature, it MUST use the HTTP status code 400 and set the content type to `application/json`, with the error value set to `unsupported_parameter`.                                                                                                               ||
+| updated_before   | OPTIONAL         | NumericDate      | Epoch time constraining the response to include only Immediate Subordinates that are the subject of Subordinate Statements with updates at or before this time.<br><br>When this parameter is present, it is RECOMMENDED that the `registered` and `updated` parameters be included in the response. If the responder does not support this feature, it MUST use the HTTP status code 400 and set the content type to `application/json`, with the error value set with `unsupported_parameter`.                                                                                                             ||
+| audit_timestamps | OPTIONAL         | Boolean          | Request parameter to control presence of the `registered` and `updated` audit timestamps attributes for all returned Immediate Subordinates.<br><br>If this parameter is present and set to `true` the response MUST include the above mentioned audit timestamp attributes for each Immediate Subordinate Entity included in the response. If the responder does not support this feature, it MUST use the HTTP status code 400 and set the content type to `application/json`, with the error code `unsupported_parameter`.                                                                                |
+| claims           | OPTIONAL         | Array            | List of any additional claims beyond those defined in this table to be included in the response for each returned Immediate Subordinate Entity.<br><br>If this parameter is present and it is NOT an empty array, each returned Immediate Subordinate Entity MUST include the requested claims for a Subordinate Statement, if available.<br><br>Supported options for this parameter SHOULD be all top level `Entity Statement` claims defined in [@!OpenID.Federation] and MAY include any additionally defined claims. TBD: Support of requests for discrete Entity metadata attributes.                  ||
 
 *Table 1: Additional request parameters accepted by the Federation Extended Subordinate Listing endpoint in addition to
 the those specified by the `federation_list_endpoint`*
+
+In addition to the new parameters above, this specification extends the following parameter as defined in the `federation_list_endpoint`:
+
+| **Parameter**    | **Extension** |
+|------------------|---------------|
+| trust_mark_type  | When multiple `trust_mark_type` parameters are present, for example `trust_mark_type=https://example.net/mark1&trust_mark_type=https://example.net/mark2`, the result MUST be filtered to include all Immediate Subordinates for which at least one of the specified Trust Mark type identifiers has been issued and is still valid. All other behavior of this parameter remains as defined in [@!OpenID.Federation]. |
+
+*Table 2: Extensions to existing request parameters defined in the `federation_list_endpoint`*
+
 
 Below are non-normative examples of an HTTP GET request to the Federation Extended Subordinate Listing endpoint:
 
@@ -155,14 +162,14 @@ GET /list_extended HTTP/1.1
 Host: trust-anchor.star-federation.example.net
 ```
 
-*Figure 1: Initial request without parameters to list Immediate Subordinates. Typically an initial request.*
+*Figure 1: Initial request without parameters to list Immediate Subordinates. Typically, an initial request.*
 
 ```
-GET /list_extended?from_entity_id=https://rp0.example.net/oidc/rp HTTP/1.1
+GET /list_extended?from=k2RgSYvGEM4CWz2O HTTP/1.1
 Host: trust-anchor.star-federation.example.net
 ```
 
-*Figure 2: Request with `from_entity_id` parameter to list Immediate Subordinate contained in a subsequent page.*
+*Figure 2: Request with `from` parameter to list Immediate Subordinate contained in a subsequent page.*
 
 ```
 GET /list_extended?updated_after=946681201&entity_type=openid_relying_party HTTP/1.1
@@ -183,12 +190,12 @@ Host: trust-anchor.star-federation.example.net
 A successful response MUST use an HTTP status code 200 with the content type `application/json`. The response body is a
 JSON object containing the claims specified in the table below.
 
-| **Claim**                      | **Availability** | **Type**          | **Value**                                                                                                                                                                                                                             |
-|--------------------------------|------------------|-------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| immediate_subordinate_entities | REQUIRED         | Array             | Array of JSON objects, each describing an Immediate Subordinate Entity using the structure defined in the table below                                                                                                                 |
-| next_entity_id                 | OPTIONAL         | Entity Identifier | Entity Identifier for the next element in the result list where the next page begins. This attribute is mandatory when additional results are available beyond those included in the returned `immediate_subordinate_entities` array. |
+| **Claim**                      | **Availability** | **Type** | **Value**                                                                                                                                                                                                                                                                                       |
+|--------------------------------|------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| immediate_subordinate_entities | REQUIRED         | Array    | Array of JSON objects, each describing an Immediate Subordinate Entity using the structure defined in the table below                                                                                                                                                                           |
+| next                           | OPTIONAL         | String   | An opaque identifier representing the index of the next element in the result list. This attribute is mandatory when additional results are available beyond those included in the returned `immediate_subordinate_entities` array. The format of the index is left to the implementors choice. |
 
-*Table 2: Top-level attributes included in the Subordinate Entity JSON object returned in the response body*
+*Table 3: Top-level attributes included in the Subordinate Entity JSON object returned in the response body*
 
 Deployments MAY define and use additional claims.
 
@@ -198,13 +205,13 @@ additionally choose to define additional claims that can be returned here.
 
 | **Claim**                                                     | **Availability** | **Type**          | **Value**                                                                                                                                                                                                                                                                                                                                                                                                            |
 |---------------------------------------------------------------|------------------|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                                                            | REQUIRED         | Entity Identifier | Entity Identifier for the subject entity of the current record                                                                                                                                                                                                                                                                                                                                                      |
+| id                                                            | REQUIRED         | Entity Identifier | Entity Identifier for the subject entity of the current record                                                                                                                                                                                                                                                                                                                                                       |
 | subordinate_statement                                         | OPTIONAL         | String            | Subordinate Statement for the Immediate Subordinate Entity as issued by the Entity that exposes the Federation Extended Subordinate Listing endpoint.<br><br>This `subordinate_statement` attribute MUST be returned if the `claims` parameter is present and contains `subordinate_statement`. It MUST NOT be returned if the `claims` parameter is present but the array does not contain `subordinate_statement`. |
 | registered                                                    | OPTIONAL         | Number            | Time when the Entity was registered with the issuing party using NumericDate format.                                                                                                                                                                                                                                                                                                                                 |
 | updated                                                       | OPTIONAL         | Number            | Time when the Entity was updated using the time format defined for the `iat` claim in [@!RFC7519]. This parameter MAY indicate that the Federation Entity Keys or metadata policies or constraints about this Entity was updated.                                                                                                                                                                                    |
 | trust_marks, metadata, and/or other selected statement claims | OPTIONAL         | N/A               | Selected Immediate Subordinate claims as requested with the `claims` request attribute.                                                                                                                                                                                                                                                                                                                              |
 
-*Table 3: Structure of the Immediate Entity JSON object in the `immediate_subordinate_entities` array*
+*Table 4: Structure of the Immediate Entity JSON object in the `immediate_subordinate_entities` array*
 
 The following are non-normative examples of a JSON response from the Federation Extended Subordinate Listing endpoint:
 
@@ -278,12 +285,46 @@ Trust Marks*
 
 # Federation Entity Property
 
-In order for Entities to advertise the Federation Extended Subordinate Listing, a new property has been defined adding
+For Entities to advertise the Federation Extended Subordinate Listing, a new property is defined adding
 to the existing set of Federation Entity Metadata as defined in [@!OpenID.Federation].
 
 | **Metadata**                      | **Availability** | **Description**                                                                                                                                                                                                                                |
 |-----------------------------------|------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | federation_extended_list_endpoint | OPTIONAL         | The Federation Extended Subordinate Listing endpoint as described above. All constraints and restrictions on the listing of this endpoint are identical to that defined for the `federation_list_endpoint` as defined in OpenID Federation 1.0 |
+
+## Endpoint Location
+
+The location of the Federation Extended Subordinate Listing endpoint is published in the `federation_entity` metadata, using the `federation_extended_list_endpoint` parameter.
+
+The following is a non-normative example of an Entity Configuration payload, for a Trust Anchor that includes the `federation_extended_list_endpoint`:
+
+```json
+{
+  "iss": "https://ta.example.org",
+  "sub": "https://ta.example.org",
+  "iat": 1590000000,
+  "exp": 1590086400,
+  "jwks": {
+    "keys": [
+      {
+        "kty": "RSA",
+        "kid": "key1",
+        "use": "sig",
+        "n": "n4EPtAOCc9AlkeQHPzHStgAbgs7bTZLwUBZdR8_KuKPEHLd4rHVTeT",
+        "e": "AQAB"
+      }
+    ]
+  },
+  "metadata": {
+    "federation_entity": {
+      "federation_fetch_endpoint": "https://ta.example.org/fetch",
+      "federation_list_endpoint": "https://ta.example.org/list",
+      "federation_extended_list_endpoint": "https://ta.example.org/list_extended",
+      "federation_resolve_endpoint": "https://ta.example.org/resolve"
+    }
+  }
+}
+```
 
 # Examples
 
@@ -311,16 +352,16 @@ Content-Type: application/json
       "subordinate_statement": "eyK2aKUkOgKlbnRpdHktc4RhdGVtZW50K2p3dCIsImFsZyI6IlJTMjU4Iiwia2lkIjoiQlh2ZnJ..."
     }
   ],
-  "next_entity_id": "https://100.example.net"
+  "next": "jGCoYZpnXFtaVKgD"
 }
 ```
 
-*Figure 8: A Trust Anchor returns the results list consisting of a large number of Immediate Subordinate Entities, along
-with the subsequent Entity Identifier used to retrieve the next page. This request specified no `limit` however the
-Issuing Entity chose to limit the response size according to it's defined upper limit.*
+*Figure 8: A Trust Anchor returns the result list consisting of a large number of Immediate Subordinate Entities, along
+with an opaque identifier used to retrieve the next page. This request specified no `limit`, however the
+Issuing Entity chose to limit the response size according to its defined upper limit.*
 
 ```
-GET /list_extended?from_entity_id=https://100.example.net HTTP/1.1
+GET /list_extended?from=jGCoYZpnXFtaVKgD HTTP/1.1
 
 200 OK
 Content-Type: application/json
@@ -373,11 +414,12 @@ Content-Type: application/json
       "updated": 1704217789
     }
   ],
-  "next_entity_id": "https://736.example.net"
+  "next": "https://736.example.net"
 }
 ```
 
-*Figure 10: Get list of Immediate Subordinates updated after certain moment in time. The response contains more than one
+*Figure 10: Get a list of Immediate Subordinates updated after a given moment in time. The response contains more than
+one
 page.*
 
 # Security Considerations
@@ -408,13 +450,13 @@ apply to this specification.
         <author fullname="Vladimir Dzhuvinov">
             <organization>Connect2id</organization>
         </author>
-        <date day="24" month="October" year="2024"/>
+        <date day="17" month="February" year="2026"/>
     </front>
 </reference>
 
 # Notices
 
-Copyright (c) 2025 The OpenID Foundation.
+Copyright (c) 2026 The OpenID Foundation.
 
 The OpenID Foundation (OIDF) grants to any Contributor, developer,
 implementer, or other interested party a non-exclusive, royalty free,
@@ -463,6 +505,12 @@ Roland Hedberg.
 # Document History
 
 [[ To be removed from the final specification ]]
+
+-03
+
+* Adjusted pagination mechanism to use an opaque token.
+* Support multiple trust mark types in extended subordinate listing request.
+* Added metadata example.
 
 -02
 
