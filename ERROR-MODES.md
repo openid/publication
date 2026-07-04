@@ -115,10 +115,10 @@ The document contains IETF Trust boilerplate text (e.g., "IETF Trust", "BCP 78",
 
 __ACTION TO FIX__: Replace the IETF IPR boilerplate with the OIDF Notices text. If using xml2rfc, set `ipr = "none"` in the markdown metadata.
 
-## <span style="color:red">FAIL: Problem with References in {file}</span>
-The References section is checked to ensure that all links referenced are reachable over the internet. Both HEAD and GET requests are attempted.
+## <span style="color:red">FAIL: Problem with References in {file}. These referenced URLs are not accessible: ...</span>
+The References section is checked to ensure that all links referenced are reachable over the internet. Both HEAD and GET requests are attempted. If a site blocks automated requests (HTTP 403 or 429, e.g. iso.org), the URL is instead verified via the Internet Archive Wayback Machine: it passes if a snapshot exists and fails if the archive has no snapshot of it.
 
-__ACTION TO FIX__: Double check the references to ensure that they are all reachable. The check output will show which specific URLs failed and with what HTTP status code.
+__ACTION TO FIX__: Double check the listed references to ensure that they are all reachable. The full log will show the HTTP status code for each failing URL.
 
 ## <span style="color:red">FAIL: Problem with structure in {file}. Missing sections: ...</span>
 The following sections are required:
@@ -140,6 +140,11 @@ Documents should be published soon after the last revision. This tool reports a 
 
 __ACTION TO FIX__: Rebuild the document with a recent publication date (within the last 10 days).
 
+
+## <span style="color:orange">WARNING: Could not verify these referenced URLs in {file}</span>
+The listed sites block automated requests (HTTP 403/429) and the Internet Archive could not be reached to confirm a snapshot exists, so the URLs could not be verified either way. This warning does not block publication.
+
+__ACTION TO FIX__: Verify the listed links manually in a browser. If they work, no action is needed.
 
 ## <span style="color:orange">WARNING: Non-canonical OpenID reference URLs</span>
 References to OpenID specifications should use `https://openid.net/specs/` URLs, not editor's draft URLs on `openid.github.io` or `openid.bitbucket.io`.
