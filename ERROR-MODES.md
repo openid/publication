@@ -46,7 +46,8 @@ __ACTION TO FIX__: The document should contain one of the following:
 Check that both the `<title>` tag and the `<h1 id="title">` have the correct content and that the two are the same.
 
 ## <span style="color:red">FAIL: {file} is a draft but a Final spec already exists on openid.net</span>
-A final specification has already been published for this spec. New drafts after a final must include errata language in the title.
+## OR - <span style="color:red">FAIL: {file} is an Implementers Draft but a Final spec already exists on openid.net</span>
+A final specification has already been published for this spec. New drafts (including Implementers Drafts) after a final must include errata language in the title.
 
 __ACTION TO FIX__: Update the title to include both the draft number and errata set number, e.g., "OpenID Example 1.0 - Draft 18 incorporating errata set 1".
 
@@ -79,6 +80,16 @@ __ACTION TO FIX__: Delete the Document History section, or change the title if t
 When the document is in an ERRATA or DRAFT_ERRATA state there must be a FINAL spec previously published with the same base name on openid.net.
 
 __ACTION TO FIX__: Either change the document state to FINAL by adjusting the title if there is no pre-existing FINAL spec, or correct the filename to match the previously published final spec.
+
+## <span style="color:red">FAIL: {file} is an approved errata but the document header does not contain 'Status: Final'</span>
+Approved errata are published as Final Specifications Incorporating Errata Corrections, so like `-final` specs the document header must include a Final status indicator.
+
+__ACTION TO FIX__: Add `<dd class="status">Final</dd>` or `<dd class="intended-status">Final</dd>` to the document header metadata, or `<td class="header">Final</td>` for older-style specs.
+
+## <span style="color:red">FAIL: {file} is errata set N but the previous errata set was not found</span>
+Errata set numbers must be sequential: errata set N can only be published when errata set N-1 already exists on openid.net (errata set 1 requires only the predecessor `-final` spec).
+
+__ACTION TO FIX__: Correct the errata set number in the filename and title, or publish the missing preceding errata set first.
 
 ## <span style="color:red">FAIL: Title tag does not match H1 heading in {file}</span>
 The content of the `<title>` tag must match the `<h1>` heading.
@@ -155,6 +166,11 @@ __ACTION TO FIX__: Update the references to point to the published versions at `
 The previous draft number was not found in the published spec list. Draft numbers should increment sequentially (-00, -01, -02, etc.).
 
 __ACTION TO FIX__: This is a warning only. If a draft was intentionally skipped, this can be ignored.
+
+## <span style="color:orange">WARNING: Previous Implementers Draft not found in published specs. Implementers Draft numbers should be sequential.</span>
+The previous Implementers Draft number was not found in the published spec list. Implementers Draft numbers should increment sequentially (-ID1, -ID2, etc.). This is a warning rather than a failure because for many older specs the early Implementers Drafts are not published under `-IDN` filenames.
+
+__ACTION TO FIX__: This is a warning only. Check the Implementers Draft number is correct; if it is, this can be ignored.
 
 ## Any other errors or errors you are struggling to resolve:
 Contact the Technical Director, Operations Director or Secretary of the OIDF.
