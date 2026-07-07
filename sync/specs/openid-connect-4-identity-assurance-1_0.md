@@ -1,5 +1,5 @@
 %%%
-title = "OpenID Connect for Identity Assurance 1.0"
+title = "OpenID Connect for Identity Assurance 1.0 incorporating errata set 1"
 abbrev = "openid-connect-4-identity-assurance-1_0"
 ipr = "none"
 workgroup = "eKYC-IDA"
@@ -8,7 +8,7 @@ keyword = ["security", "openid", "identity assurance", "ekyc"]
 [seriesInfo]
 name = "Internet-Draft"
 
-value = "openid-connect-4-identity-assurance-1_0-16"
+value = "openid-connect-4-identity-assurance-1_0-17"
 
 status = "standard"
 
@@ -62,10 +62,6 @@ organization="KDDI Corporation"
 
 %%%
 
-.# Abstract
-
-This document defines an extension of OpenID Connect protocol for providing relying parties with claims about end-users that have a certain level of verification and/or additional metadata about the claim or the process of verification for access control, entitlement decisions or input to further verification processes.
-
 .# Foreword
 
 The OpenID Foundation (OIDF) promotes, protects, and nurtures the OpenID community and technologies. As a non-profit international standardizing body, it is comprised by over 160 participating entities (workgroup participant). The work of preparing implementer drafts and final international standards is carried out through OIDF workgroups in accordance with the OpenID Process. Participants interested in a subject for which a workgroup has been established have the right to be represented in that workgroup. International organizations, governmental and non-governmental, in liaison with OIDF, also take part in the work. OIDF collaborates closely with other standardizing bodies in the related fields.
@@ -83,24 +79,6 @@ The `acr` claim, as defined in section 2 of the OpenID Connect specification [@!
 For example, the assurance an OP typically will be able to give for an e-mail address will be “self-asserted” or "verified". The family name of an end-user, in contrast, might have been verified in accordance with the respective anti-money laundering law by showing an ID card to a trained employee of the OP operator.
 
 Identity assurance requires a way to convey assurance data along with and coupled to the respective claims about the end-user. This document defines a suitable representation and mechanisms the RP will utilize to request verified claims about an end-user along with assurance data and for the OP to represent these verified claims and accompanying assurance data.
-
-.# Warning
-
-This document is not an OIDF International Standard. It is distributed for
-review and comment. It is subject to change without notice and may not be
-referred to as an International Standard.
-
-Recipients of this draft are invited to submit, with their comments,
-notification of any relevant patent rights of which they are aware and to
-provide supporting documentation.
-
-.# Notational conventions
-
-The keywords "shall", "shall not", "should", "should not", "may", and "can" in
-this document are to be interpreted as described in ISO Directive Part 2
-[@!ISODIR2]. These keywords are not used as dictionary terms such that any
-occurrence of them shall be interpreted as keywords and are not to be
-interpreted with their natural language meanings.
 
 {mainmatter}
 
@@ -242,7 +220,7 @@ Therefore, the RP shall set fields one step deeper into the structure if it want
 
 <{{examples/request/verification_deeper.json}}
 
-The example also requests the OP to add the respective `method` and the `document` elements (including data about the document type), for every evidence array member, to the resulting `verified_claims` claim.
+The example also requests the OP to add the respective `check_method` and the `document_details` elements (including data about the document type), for every evidence array member, to the resulting `verified_claims` claim.
 
 A single entry in the `evidence` array represents a filter over elements of a certain evidence type. The RP therefore shall specify this type by including the `type` field including a suitable `value` sub-element value. The `values` sub-element shall not be used for the `evidence/type` field.
 
@@ -250,9 +228,9 @@ If multiple entries are present in `evidence`, these filters are linked by a log
 
 `check_details` is an array of the processes that have been applied to the `evidence`. An RP can filter `check_details` by requesting a particular value for one or more of its sub-elements. If multiple entries for the same sub-element are present this acts as a logical OR between them.
 
-`assurance_details` is an array representing how the `evidence` and `check_details` fulfill the requirements of the `trust_framework`. RP should only request this where they need to know this information. Where `assurance_details` has been requested by an RP the OP shall return the `assurance_details` element along with all sub-elements that it has. If an RP wants to filter what types of `evidence` and `check_methods` they shall use those methods to do so, e.g. requesting an `assurance_type` should have no filtering effect.
+`assurance_details` is an array representing how the `evidence` and `check_details` fulfill the requirements of the `trust_framework`. RP should only request this where they need to know this information. Where `assurance_details` has been requested by an RP the OP shall return the `assurance_details` element along with all sub-elements that it has. If an RP wants to filter what types of `evidence` and `check_details` they shall specify those to do so.
 
-The RP can also request certain data within the `document` element to be present. This again follows the syntax rules used above:
+The RP can also request certain data within the `document_details` element to be present. This again follows the syntax rules used above:
 
 <{{examples/request/verification_document.json}}
 
@@ -260,7 +238,7 @@ The RP can also request certain data within the `document` element to be present
 
 ### Value/values
 
-The RP can limit the possible values of the elements `trust_framework`, `evidence/method`, `evidence/check_details`, and `evidence/document/type` by utilizing the `value` or `values` fields and the element `evidence/type` by utilizing the `value` field.
+The RP can limit the possible values of the elements `trust_framework`, `evidence/check_details`, and `evidence/document_details/type` by utilizing the `value` or `values` fields and the element `evidence/type` by utilizing the `value` field.
 
 Note: Examples on the usage of a restriction on `evidence/type` were given in the previous section.
 
@@ -268,7 +246,7 @@ The following example shows how an RP requests claims either complying with trus
 
 <{{examples/request/verification_claims_different_trust_frameworks.json}}
 
-The following example shows that the RP wants to obtain an attestation based on the German anti-money laundering law (trust framework `de_aml`) and limited to end-users who were identified in a bank branch in person (physical in person proofing - method `pipp`) using either an `idcard` or a `passport`.
+The following example shows that the RP wants to obtain an attestation based on the German anti-money laundering law (trust framework `de_aml`) and limited to end-users who were identified in person (physical in person proofing - `"check_method": "pipp"`) using either an `idcard` or a `passport`.
 
 <{{examples/request/verification_aml.json}}
 
@@ -288,7 +266,7 @@ The OP should try to fulfill this requirement. If the verification data of the e
 
 ## Requesting claims sets with different verification requirements
 
-It is also possible to request different trust frameworks, assurance levels, and methods for different claim sets. This requires the RP to send an array of `verified_claims` objects instead of passing a single object.
+It is also possible to request different trust frameworks, assurance levels, and other elements of the structure for different claim sets. This requires the RP to send an array of `verified_claims` objects instead of passing a single object.
 
 The following example illustrates this functionality.
 
@@ -473,9 +451,7 @@ The OP advertises its capabilities with respect to verified claims in its openid
 
 `documents_supported`: Required when `evidence_supported` contains "document". JSON array containing all identity document types utilized by the OP for identity verification. This array shall have at least one member.
 
-`documents_methods_supported`: Optional. JSON array containing the verification methods the OP supports for evidences of type "document" (see [@!predefined_values_page]). When present this array shall have at least one member.
-
-`documents_check_methods_supported`: Optional. JSON array containing the check methods the OP supports for evidences of type "document" (see [@!predefined_values_page]). When present this array shall have at least one member.
+`documents_check_methods_supported`: Optional. JSON array containing the "check methods" the OP supports for evidences of type "document" (see [@!predefined_values_page]). When present this array shall have at least one member.
 
 `electronic_records_supported`: Required when `evidence_supported` contains "electronic\_record". JSON array containing all electronic record types the OP supports (see [@!predefined_values_page]). When present this array shall have at least one member.
 
@@ -557,7 +533,7 @@ To achieve the full security and interoperability benefits, it is important the 
 
 # Predefined values {#predefined_values}
 
-This document focuses on the technical mechanisms to convey verified claims and thus does not define any identifiers for trust frameworks, documents, methods, check methods. This is left to adopters of the technical specification, e.g., implementers, identity schemes, or jurisdictions.
+This document focuses on the technical mechanisms to convey verified claims and thus does not define any identifiers for elements such as trust frameworks, documents, check methods. This is left to adopters of the technical specification, e.g., implementers, identity schemes, or jurisdictions.
 
 Each party defining such identifiers shall ensure the collision resistance of these identifiers. This is achieved by including a domain name under the control of this party into the identifier name, e.g., `https://mycompany.com/identifiers/cool_check_method`.
 
@@ -576,23 +552,23 @@ The eKYC and Identity Assurance Working Group maintains a wiki page [@!predefine
 
 <reference anchor="OpenID" target="https://openid.net/specs/openid-connect-core-1_0.html">
   <front>
-    <title>OpenID Connect Core 1.0 incorporating errata set 2</title>
+    <title>OpenID connect core 1.0 incorporating errata set 2</title>
     <author initials="N." surname="Sakimura" fullname="Nat Sakimura">
-      <organization>NRI</organization>
+      <organization>NAT.Consulting (was at NRI)</organization>
     </author>
     <author initials="J." surname="Bradley" fullname="John Bradley">
-      <organization>Ping Identity</organization>
+      <organization>Yubico (was at Ping Identity)</organization>
     </author>
     <author initials="M." surname="Jones" fullname="Mike Jones">
-      <organization>Microsoft</organization>
+      <organization>Self-Issued Consulting (was at Microsoft)</organization>
     </author>
     <author initials="B." surname="de Medeiros" fullname="Breno de Medeiros">
       <organization>Google</organization>
     </author>
     <author initials="C." surname="Mortimore" fullname="Chuck Mortimore">
-      <organization>Salesforce</organization>
+      <organization>Disney (was at Salesforce)</organization>
     </author>
-   <date day="8" month="Nov" year="2014"/>
+   <date day="15" month="Dec" year="2023"/>
   </front>
 </reference>
 
@@ -600,18 +576,18 @@ The eKYC and Identity Assurance Working Group maintains a wiki page [@!predefine
   <front>
     <title>OpenID Connect Discovery 1.0 incorporating errata set 2</title>
     <author initials="N." surname="Sakimura" fullname="Nat Sakimura">
-      <organization>NRI</organization>
+      <organization>NAT.Consulting (was at NRI)</organization>
     </author>
     <author initials="J." surname="Bradley" fullname="John Bradley">
-      <organization>Ping Identity</organization>
+      <organization>Yubico (was at Ping Identity)</organization>
     </author>
     <author initials="M." surname="Jones" fullname="Mike Jones">
-      <organization>Microsoft</organization>
+      <organization>Self-Issued Consulting (was at Microsoft)</organization>
     </author>
     <author initials="E." surname="Jay" fullname="Edmund Jay">
       <organization>Illumila</organization>
     </author>
-   <date day="8" month="Nov" year="2014"/>
+   <date day="15" month="Dec" year="2023"/>
   </front>
 </reference>
 
@@ -631,9 +607,9 @@ The eKYC and Identity Assurance Working Group maintains a wiki page [@!predefine
   </front>
 </reference>
 
-<reference anchor="FAPI-2-SP" target="https://openid.bitbucket.io/fapi/fapi-2_0-security-profile.html">
+<reference anchor="FAPI-2-SP" target="https://openid.net/specs/fapi-security-profile-2_0-final.html">
   <front>
-    <title>FAPI 2.0 Security Profile - draft</title>
+    <title>FAPI 2.0 Security Profile</title>
     <author initials="D." surname="Fett" fullname="Daniel Fett">
       <organization>Authlete</organization>
     </author>
@@ -643,7 +619,7 @@ The eKYC and Identity Assurance Working Group maintains a wiki page [@!predefine
     <author initials="J." surname="Heenan" fullname="Joseph Heenan">
       <organization>Authlete</organization>
     </author>
-   <date day="3" month="Apr" year="2024"/>
+   <date day="22" month="Feb" year="2025"/>
   </front>
 </reference>
 
@@ -668,13 +644,13 @@ The eKYC and Identity Assurance Working Group maintains a wiki page [@!predefine
     <author initials="K." surname="Koiwai" fullname="Kosuke Koiwai">
       <organization>KDDI Corporation</organization>
     </author>
-   <date day="16" month="Jun" year="2023"/>
+   <date day="1" month="Oct" year="2024"/>
   </front>
 </reference>
 
 <reference anchor="IDA-verified-claims" target="https://openid.net/specs/openid-ida-verified-claims-1_0.html">
   <front>
-    <title>OpenID Identity Assurance Schema Definition</title>
+    <title>OpenID Identity Assurance Schema Definition 1.0</title>
     <author initials="T." surname="Lodderstedt" fullname="Torsten Lodderstedt">
       <organization>sprind.org</organization>
     </author>
@@ -693,7 +669,7 @@ The eKYC and Identity Assurance Working Group maintains a wiki page [@!predefine
     <author initials="K." surname="Koiwai" fullname="Kosuke Koiwai">
       <organization>KDDI Corporation</organization>
     </author>
-   <date day="9" month="Aug" year="2023"/>
+   <date day="1" month="Oct" year="2024"/>
   </front>
 </reference>
 
@@ -707,7 +683,7 @@ The eKYC and Identity Assurance Working Group maintains a wiki page [@!predefine
   </front>
 </reference>
 
-<reference anchor="verified_claims.json" target="https://openid.net/wg/ekyc-ida/references/">
+<reference anchor="verified_claims.json" target="https://openid.net/schemas/">
   <front>
     <title>JSON Schema for assertions using verified_claims</title>
     <author>
@@ -717,7 +693,7 @@ The eKYC and Identity Assurance Working Group maintains a wiki page [@!predefine
   </front>
 </reference>
 
-<reference anchor="verified_claims_request.json" target="https://openid.net/wg/ekyc-ida/references/">
+<reference anchor="verified_claims_request.json" target="https://openid.net/schemas/">
   <front>
     <title>JSON Schema for requesting verified_claims</title>
     <author>
@@ -757,7 +733,7 @@ which is used to indicate that the content is a JWT describing aggregated claims
   * Required parameters: n/a
   * Optional parameters: n/a
   * Encoding considerations: binary; An external claims JWT is a JWT; JWT values are encoded as a series of base64url-encoded values (some of which may be the empty string) separated by period ('.') characters.
-  * Security considerations: See https://openid.net/specs/openid-connect-4-identity-assurance-1_0.html#name-representing-verified-claim
+  * Security considerations: See https://openid.net/specs/openid-connect-4-identity-assurance-1_0.html#name-security-considerations
   * Interoperability considerations: n/a
   * Published specification: (#verified_claims_delivery) of [[ this specification ]]
   * Applications that use this media type: When using [[ this specification ]], this media type is used in the `typ` header of assertions provided as aggregated or distributed claims (see section 5.6.2 of the OpenID Connect specification [@!OpenID]).
@@ -772,6 +748,49 @@ which is used to indicate that the content is a JWT describing aggregated claims
   * Change controller: IETF
   * Provisional registration? No
 
+# Annex A (Informative) Acknowledgement
+
+The following people at yes.com and partner companies contributed to the concept described in the initial contribution to this document:
+
+* Karsten Buch
+* Lukas Stiebig
+* Sven Manz
+* Waldemar Zimpfer
+* Willi Wiedergold
+* Fabian Hoffman
+* Daniel Keijsers
+* Ralf Wagner
+* Sebastian Ebling
+* Peter Eisenhofer
+
+We would like to thank the following people for their valuable feedback and contributions that helped to evolve this document:
+
+* Julian White
+* Bjorn Hjelm
+* Stephane Mouy
+* Joseph Heenan
+* Vladimir Dzhuvinov
+* Azusa Kikuchi
+* Naohiro Fujie
+* Takahiko Kawasaki
+* Sebastian Ebling
+* Marcos Sanz
+* Tom Jones
+* Mike Pegman
+* Michael B. Jones
+* Jeff Lombardo
+* Taylor Ongaro
+* Peter Bainbridge-Clayton
+* Adrian Field
+* George Fletcher
+* Tim Cappalli
+* Michael Palage
+* Sascha Preibisch
+* Giuseppe De Marco
+* Nick Mothershaw
+* Hodari McClain
+* Dima Postnikov
+* Nat Sakimura
 
 # Example requests
 This section shows examples of requests for `verified_claims`.
@@ -800,7 +819,7 @@ Support for these null value requests is mandatory for identity providers, so im
 
 This section shows examples of responses containing `verified_claims`.
 
-The first and second subsections show JSON snippets of the general identity assurance case, where the RP is provided with verification evidence for different methods along with the actual claims about the end-user.
+The first and second subsections show JSON snippets of the general identity assurance case, where the RP is provided with verification evidence for different check methods along with the actual claims about the end-user.
 
 The third subsection illustrates the possible contents of this object in case of a notified eID system under eIDAS, where the OP does not need to provide evidence of the identity verification process to the RP.
 
@@ -899,8 +918,8 @@ We would like to thank Julian White, Bjorn Hjelm, Stephane Mouy, Alberto Pulido,
 
 # Notices
 
-Copyright (c) 2024 The OpenID Foundation.
+Copyright (c) 2026 The OpenID Foundation.
 
-The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer, or other interested party a non-exclusive, royalty free, worldwide copyright license to reproduce, prepare derivative works from, distribute, perform and display, this Implementers Draft or Final Specification solely for the purposes of (i) developing specifications, and (ii) implementing Implementers Drafts and Final Specifications based on such documents, provided that attribution be made to the OIDF as the source of the material, but that such attribution does not indicate an endorsement by the OIDF.
+The OpenID Foundation (OIDF) grants to any Contributor, developer, implementer, or other interested party a non-exclusive, royalty free, worldwide copyright license to reproduce, prepare derivative works from, distribute, perform and display, this Implementers Draft, Final Specification, or Final Specification Incorporating Errata Corrections solely for the purposes of (i) developing specifications, and (ii) implementing Implementers Drafts, Final Specifications, and Final Specification Incorporating Errata Corrections based on such documents, provided that attribution be made to the OIDF as the source of the material, but that such attribution does not indicate an endorsement by the OIDF.
 
-The technology described in this document was made available from contributions from various sources, including members of the OpenID Foundation and others. Although the OpenID Foundation has taken steps to help ensure that the technology is available for distribution, it takes no position regarding the validity or scope of any intellectual property or other rights that might be claimed to pertain to the implementation or use of the technology described in this document or the extent to which any license under such rights might or might not be available; neither does it represent that it has made any independent effort to identify any such rights. The OpenID Foundation and the contributors to this document make no (and hereby expressly disclaim any) warranties (express, implied, or otherwise), including implied warranties of merchantability, non-infringement, fitness for a particular purpose, or title, related to this document to offer a patent promise not to assert certain patent claims against other contributors and against implementers. The OpenID Foundation invites any interested party to bring to its attention any copyrights, patents, patent applications, or other proprietary rights that may cover technology that may be required to practice this document.
+The technology described in this specification was made available from contributions from various sources, including members of the OpenID Foundation and others. Although the OpenID Foundation has taken steps to help ensure that the technology is available for distribution, it takes no position regarding the validity or scope of any intellectual property or other rights that might be claimed to pertain to the implementation or use of the technology described in this specification or the extent to which any license under such rights might or might not be available; neither does it represent that it has made any independent effort to identify any such rights. The OpenID Foundation and the contributors to this specification make no (and hereby expressly disclaim any) warranties (express, implied, or otherwise), including implied warranties of merchantability, non-infringement, fitness for a particular purpose, or title, related to this specification, and the entire risk as to implementing this specification is assumed by the implementer. The OpenID Intellectual Property Rights policy (found at openid.net) requires contributors to offer a patent promise not to assert certain patent claims against other contributors and against implementers. OpenID invites any interested party to bring to its attention any copyrights, patents, patent applications, or other proprietary rights that may cover technology that may be required to practice this specification.
