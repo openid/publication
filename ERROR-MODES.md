@@ -151,6 +151,11 @@ Documents should be published soon after the last revision. This tool reports a 
 
 __ACTION TO FIX__: Rebuild the document with a recent publication date (within the last 10 days).
 
+## <span style="color:red">FAIL: {file} has workgroup '{workgroup}', which is not a known workgroup name for the '{wg-dir}' directory</span>
+The workgroup metadata in the document (`workgroup = "..."` in mmark frontmatter, `wg:` or `workgroup:` in kramdown-rfc frontmatter) must name the working group the spec was submitted under. Values like `individual` or `Final` are not working group names but have been published by mistake in the past. The value is compared (case-insensitively) against the names used by previously published specs of the same working group; the error output lists the accepted values.
+
+__ACTION TO FIX__: Set the workgroup in the spec source to your working group's name (one of the accepted values shown in the check output) and regenerate the HTML. If your working group has genuinely been renamed and needs a new value accepted, contact the OIDF secretary to update `WG_WORKGROUP_NAMES` in the publication-checks repository.
+
 
 ## <span style="color:orange">WARNING: Could not verify these referenced URLs in {file}</span>
 The listed sites block automated requests (HTTP 403/429 or a 202 WAF challenge) and the Internet Archive could not be reached to confirm a snapshot exists, so the URLs could not be verified either way. This warning does not block publication.
@@ -166,6 +171,11 @@ __ACTION TO FIX__: Update the references to point to the published versions at `
 The previous draft number was not found in the published spec list. Draft numbers should increment sequentially (-00, -01, -02, etc.).
 
 __ACTION TO FIX__: This is a warning only. If a draft was intentionally skipped, this can be ignored.
+
+## <span style="color:orange">WARNING: No workgroup found in {file}</span>
+The document HTML contains no workgroup metadata. Specs generated with mmark or kramdown-rfc normally include it automatically from the frontmatter. This warning does not block publication.
+
+__ACTION TO FIX__: Set the workgroup metadata in the spec source (`workgroup = "..."` for mmark, `wg:` or `workgroup:` for kramdown-rfc) to your working group's name and regenerate the HTML.
 
 ## <span style="color:orange">WARNING: Previous Implementers Draft not found in published specs. Implementers Draft numbers should be sequential.</span>
 The previous Implementers Draft number was not found in the published spec list. Implementers Draft numbers should increment sequentially (-ID1, -ID2, etc.). This is a warning rather than a failure because for many older specs the early Implementers Drafts are not published under `-IDN` filenames.
