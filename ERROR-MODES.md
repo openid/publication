@@ -115,6 +115,11 @@ The document contains IETF Trust boilerplate text (e.g., "IETF Trust", "BCP 78",
 
 __ACTION TO FIX__: Replace the IETF IPR boilerplate with the OIDF Notices text. If using xml2rfc, set `ipr = "none"` in the markdown metadata.
 
+## <span style="color:red">FAIL: {file} contains 'OIDC'</span>
+For branding reasons, OIDF specifications must use the official name "OpenID Connect" rather than the unofficial abbreviation "OIDC". The check matches whole-word, case-sensitive "OIDC" anywhere in the rendered HTML, including citation labels like [OIDC] and anchor names. The check output lists the HTML line numbers where it appears. This blocks Final and Errata publications; drafts get a warning instead.
+
+__ACTION TO FIX__: Search the spec source for "OIDC" and replace it with "OpenID Connect" (rename citation anchors, e.g. [OIDC] → [OpenID.Core]), then regenerate the HTML.
+
 ## <span style="color:red">FAIL: Problem with References in {file}. These referenced URLs are not accessible: ...</span>
 The References section is checked to ensure that all links referenced are reachable over the internet. Both HEAD and GET requests are attempted. If a site blocks automated requests (HTTP 403 or 429, e.g. iso.org, or a 202 WAF challenge, e.g. eur-lex.europa.eu), the URL is instead verified via the Internet Archive Wayback Machine: it passes if a snapshot exists and fails if the archive has no snapshot of it.
 
@@ -150,6 +155,11 @@ __ACTION TO FIX__: Verify the listed links manually in a browser. If they work, 
 References to OpenID specifications should use `https://openid.net/specs/` URLs, not editor's draft URLs on `openid.github.io` or `openid.bitbucket.io`.
 
 __ACTION TO FIX__: Update the references to point to the published versions at `https://openid.net/specs/`.
+
+## <span style="color:orange">WARNING: {file} contains 'OIDC'</span>
+For branding reasons, OIDF specifications must use the official name "OpenID Connect" rather than the unofficial abbreviation "OIDC". The check matches whole-word, case-sensitive "OIDC" anywhere in the rendered HTML, including citation labels like [OIDC] and anchor names. This is a warning for drafts but becomes a failure for Final and Errata publications.
+
+__ACTION TO FIX__: Search the spec source for "OIDC" and replace it with "OpenID Connect" (rename citation anchors, e.g. [OIDC] → [OpenID.Core]), then regenerate the HTML.
 
 ## <span style="color:orange">WARNING: Previous draft not found in published specs. Draft numbers should be sequential.</span>
 The previous draft number was not found in the published spec list. Draft numbers should increment sequentially (-00, -01, -02, etc.).
