@@ -58,7 +58,7 @@ This document specifies an ephemeral subject identifier type for [OpenID Connect
 There are several reasons for defining it:  
 
 * It is already used in some ecosystems. Standardizing it would therefore reduce existing variations.
-* It is a condition needed to mathematically prove that OIDC/SIOP fulfills the Unlinkability Level (UL) 3A+ defined in ISO/IEC 27551, Information security, cybersecurity and privacy protection — Requirements for attribute-based unlinkable entity authentication.
+* It is a condition needed to mathematically prove that OpenID Connect with Self-Issued OpenID Provider fulfills the Unlinkability Level (UL) 3A+ defined in ISO/IEC 27551, Information security, cybersecurity and privacy protection — Requirements for attribute-based unlinkable entity authentication.
 
 Examples of attribute-based unlinkable entity authentication include Overage verification, Underage verification, Registered domicile verification, etc. 
 
