@@ -226,6 +226,14 @@ We would like to thank the following people for their valuable feedback and cont
 </reference>
 
 
+<reference anchor="ISO.27551" target="https://www.iso.org/standard/72018.html">
+  <front>
+    <title>Information security, cybersecurity and privacy protection — Requirements for attribute-based unlinkable entity authentication</title>
+
+    <date month="September" year="2021" />
+  </front>
+</reference>
+
 # Notices
 
 Copyright (c) 2026 The OpenID Foundation.
