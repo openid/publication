@@ -53,7 +53,7 @@ The OpenID Foundation (OIDF) promotes, protects and nurtures the OpenID communit
 {mainmatter}
 
 # Introduction
-This document specifies an ephemeral subject identifier type for [OpenID Connect Core 1.0][OIDC]. The ephemeral subject identifier identifies the End-User for a short time and remains constant for the duration of the authentication session. In subsequent visits by the End-User to a Relying Party application that requires authentication, the authorization server will return a subject identifier with a different value. The authorization server provides an ephemeral subject identifier to the Relying Party in the ID Token and UserInfo endpoint response as specified by [OpenID Connect Core 1.0][OIDC]. 
+This document specifies an ephemeral subject identifier type for [OpenID Connect Core 1.0][OpenID.Core]. The ephemeral subject identifier identifies the End-User for a short time and remains constant for the duration of the authentication session. In subsequent visits by the End-User to a Relying Party application that requires authentication, the authorization server will return a subject identifier with a different value. The authorization server provides an ephemeral subject identifier to the Relying Party in the ID Token and UserInfo endpoint response as specified by [OpenID Connect Core 1.0][OpenID.Core]. 
 
 There are several reasons for defining it:  
 
@@ -75,11 +75,11 @@ In the .txt version of this document, values are quoted to indicate that they ar
 
 # Terms and definitions
 
-For the purpose of this document, the terms defined in [RFC6749], and [OpenID Connect Core 1.0][OIDC] apply.
+For the purpose of this document, the terms defined in [RFC6749], and [OpenID Connect Core 1.0][OpenID.Core] apply.
 
 
 # Ephemeral Identifier
-This document adds a new subject identifier type as follows, in addition to what is defined in Section 8 of [OpenID Connect Core 1.0][OIDC]:
+This document adds a new subject identifier type as follows, in addition to what is defined in Section 8 of [OpenID Connect Core 1.0][OpenID.Core]:
 
 ephemeral
 : type of an identifier when the sub provided by ID Token is different for every authentication request
@@ -133,8 +133,8 @@ The following referenced documents are indispensable for the application of this
 [RFC6749] - Hardt, D., Ed., "The OAuth 2.0 Authorization Framework", RFC 6749, DOI 10.17487/RFC6749, October 2012, <https://www.rfc-editor.org/info/rfc6749>.
 [RFC6749]: https://tools.ietf.org/html/rfc6749
 
-[OIDC] - Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and C. Mortimore, "OpenID Connect Core 1.0 incorporating errata set 2", 15 December 2023, <https://openid.net/specs/openid-connect-core-1_0.html>.
-[OIDC]: https://openid.net/specs/openid-connect-core-1_0.html
+[OpenID.Core] - Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and C. Mortimore, "OpenID Connect Core 1.0 incorporating errata set 2", 15 December 2023, <https://openid.net/specs/openid-connect-core-1_0.html>.
+[OpenID.Core]: https://openid.net/specs/openid-connect-core-1_0.html
 
 [OpenID Discovery] - Sakimura, N., Bradley, J., Jones, M.B., and E. Jay, "OpenID Connect Discovery 1.0", 15 December 2023, <https://openid.net/specs/openid-connect-discovery-1_0.html>.
 [OpenID Discovery]: https://openid.net/specs/openid-connect-discovery-1_0.html
