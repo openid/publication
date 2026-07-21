@@ -515,8 +515,13 @@ rights that may cover technology that may be required to practice this
 specification.
 
 # Document History
-{:numbered="false"}
+
 [[ To be removed from the final specification ]]
+
+-00
+
+* Add opaque to the required subject formats (#137)
+* Initial draft
 
 -01
 
@@ -537,8 +542,3 @@ specification.
 * Specify one event per "events" claim of SET (#179)
 * Include OAuth specifics (#134)
 * Cleaned up markdown (#91)
-
--00
-
-* Add opaque to the required subject formats (#137)
-* Initial draft
