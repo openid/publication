@@ -17,7 +17,10 @@ jobs:
       pull-requests: write
     steps:
       - name: Check branch naming
-        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'propose/')
+        if: >
+          github.event_name == 'pull_request' &&
+          !startsWith(github.head_ref, 'propose/') &&
+          github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v8
         with:
           script: |
@@ -139,8 +142,15 @@ jobs:
           echo "" >> "$SUMMARY"
           echo "See the [full log](PLACEHOLDER_JOB_URL) for more detailed diagnostics." >> "$SUMMARY"
 
+          # Also show the summary on the workflow run page; fork PRs get no
+          # comment (read-only token), so this is the only place they see it
+          cat "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Comment on PR
-        if: always() && steps.checks.outcome != '' && steps.checks.outcome != 'skipped' && github.event_name == 'pull_request'
+        if: >
+          always() && steps.checks.outcome != '' && steps.checks.outcome != 'skipped' &&
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v8
         with:
           script: |

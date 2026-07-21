@@ -1,0 +1,57 @@
+name: Fork PR Guard
+# Explains the publication process on PRs opened from forks, which the
+# publication automation cannot support (fork PRs get a read-only token,
+# so checks/preview cannot post results, and the approval flow breaks).
+#
+# SECURITY: this workflow runs on pull_request_target and therefore has a
+# write token. It must NEVER check out or execute anything from the PR —
+# it may only read event metadata and post a comment.
+on:
+  pull_request_target:
+    types: [opened, reopened]
+    branches:
+      - main
+
+jobs:
+  comment:
+    name: Comment on PRs opened from forks
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post explanation comment
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const marker = '<!-- fork-pr-guard -->';
+            const body = `${marker}
+            👋 Thanks for your submission!
+
+            ⚠️ **This PR was opened from a fork**, which this repository's publication automation cannot support: the publication checks and spec preview cannot post their results on fork PRs, and the approval workflow will not run correctly.
+
+            To publish a specification, the changes need to be pushed to a branch in \`openid/publication\` itself:
+
+            1. Someone with write access (a working group editor or the OIDF secretary) pushes these files to a branch named \`propose/{wg-name}/...\` in this repository (for example \`propose/sharedsignals/my-spec\`).
+            2. They open a PR from that branch, and the normal checks, preview, and approval flow will run.
+
+            If you don't have write access, please ask your working group's editors or the OIDF secretary to do this for you.
+
+            See the [publication process documentation](https://openid.net/wg/resources/publishing-specifications/) for details. This PR can stay open for reference, but the publication workflows won't run correctly on it.`;
+
+            // Skip if we already commented (e.g. PR was reopened)
+            for await (const response of github.paginate.iterator(
+              github.rest.issues.listComments,
+              { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, per_page: 100 }
+            )) {
+              if (response.data.some(c => c.body.includes(marker))) {
+                return;
+              }
+            }
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body,
+            });

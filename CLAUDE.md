@@ -16,6 +16,7 @@ Hosts OpenID Foundation specifications for publication to https://openid.net/spe
 - `oidf-publish-prep.yml` - Triggered on PR approval. Runs `publish.py` to preview what files will be published, checks approval permissions, and posts a comment with file list and published URLs. Blocks non-secretary approval of Final/Errata/Implementers specs.
 - `oidf-publish.yml` - Triggered on push to main when WG directories or sync/specs change. Runs `publish.py` to generate correctly-named files in `sync/specs/`, deploys to the web server via SSH, purges CDN cache. Comments on the merged PR with success/failure status and published URLs. Opens a GitHub issue on failure.
 - `sync.yml` - Manual trigger to sync web server with repo.
+- `fork-pr-guard.yml` - Triggered via `pull_request_target` on PRs opened/reopened from forks. Posts a comment explaining that fork PRs are unsupported and pointing to the in-repo `propose/` branch process. Runs with a write token; must never check out or execute PR code.
 
 ## Publication Flow
 
