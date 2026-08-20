@@ -1,5 +1,5 @@
 %%%
-title = "OpenID Connect Key Binding 1.0 - draft 02"
+title = "OpenID Connect Key Binding 1.0 - draft 03"
 abbrev = "openid-connect-key-binding"
 ipr = "none"
 workgroup = "OpenID Connect"
@@ -66,14 +66,16 @@ This specification defines how to bind a public key to an OpenID Connect ID Toke
 
 OpenID Connect [@!OpenID.Core] enables a Relying Party (RP) to obtain End-User authentication and identity claims from an OpenID Provider (OP) in the form of an ID Token. An RP initiates the protocol by making an authentication request to the OP. The OP authenticates the End-User and returns an ID Token, signed by the OP, containing claims about the End-User.
 
-An RP is often composed of multiple components, such as an RP authenticating component that obtains the ID Token from the OP and an RP consuming component that checks the ID Token presented to it by the authenticating component. To prove it has authenticated an End-User, the authenticating component may present the ID Token to the consuming component as a bearer token. However, bearer tokens are vulnerable to theft and replay attacks: an attacker who obtains the ID Token can impersonate the authenticated End-User.
+An RP is often composed of multiple components, such as an RP Authenticating Component that obtains the ID Token from the OP and an RP Consuming Component that checks the ID Token presented to it by the RP Authenticating Component. To prove it has authenticated an End-User, the RP Authenticating Component may present the ID Token to the RP Consuming Component as a bearer token. However, bearer tokens are vulnerable to theft and replay attacks: an attacker who obtains the ID Token can impersonate the authenticated End-User.
 
-By binding a cryptographic key to the ID Token, the RP authenticating component can prove to RP consuming components not only that an End-User has been authenticated, but that the RP authenticating component itself was the original recipient of that authentication. This provides stronger security guarantees, preventing token theft and replay attacks, by transforming the ID Token from a bearer token into a proof-of-possession token.
+An RP may register more than one `client_id` with an OP, commonly one per application, such as an Android app, an iOS app, and a web app, so that an RP Consuming Component can identify which application obtained the ID Token. All such registrations belong to the same RP, and an RP Consuming Component accepts ID Tokens issued to any of the `client_id` values it is configured to accept.
+
+By binding a cryptographic key to the ID Token, the RP Authenticating Component can prove to RP Consuming Components not only that an End-User has been authenticated, but that the RP Authenticating Component itself was the original recipient of that authentication. This provides stronger security guarantees, preventing token theft and replay attacks, by transforming the ID Token from a bearer token into a proof-of-possession token.
 
 Use cases for this include:
 
-- a mobile app that exchanges an ID Token, along with a proof of possession, at a first-party authorization service for an access token;
-- a Relying Party composed of multiple components, where an authenticating component proves to a consuming component that it is the party the OP authenticated; and
+- a mobile app that exchanges an ID Token, along with a proof of possession, for an access token at an authorization service operated by the same party as the app, where the OP may be a third party;
+- a Relying Party composed of multiple components, where an RP Authenticating Component proves to an RP Consuming Component that it is the party the OP authenticated; and
 - a peer-to-peer application, such as video conferencing or messaging, where one instance proves to another which End-User is operating it.
 
 The Use Cases appendix describes how key binding is applied in each of these scenarios.
@@ -104,6 +106,12 @@ This specification uses the following terms:
 
 - **End-User**: The End-User as defined in [@!OpenID.Core].
 
+- **RP Authenticating Component**: The component of an RP that makes the Authentication Request to the OP and receives the ID Token.
+
+- **RP Consuming Component**: A component of an RP to which an RP Authenticating Component presents an ID Token.
+
+- **RP Trust Boundary**: The components and applications operated by, or under the control of, a single RP. An RP MAY register more than one `client_id` with an OP, commonly one per application, so that an RP Consuming Component can identify which application obtained the ID Token. All such registrations belong to the same RP and are within the same RP Trust Boundary.
+
 The parameters **dpop_jkt** and **DPoP** as defined in [@!RFC9449]
 
 ## OpenID Connect Metadata
@@ -116,7 +124,7 @@ The OP's OpenID Connect Metadata Document [@!OpenID.Discovery] SHOULD include:
 ## Protocol Profile Overview
 
 This specification works by adding parameters and headers to the Authentication Request and Token Request and then validating these fields such that the ID Token returned in the Token Response contains a `cnf` claim for a public key.
-The RP signals to the OP it is requesting a key-bound ID Token by including the scope `bound_key` in the Authentication Request.
+The RP signals to the OP that it is requesting a key-bound ID Token by including the scope `bound_key` in the Authentication Request.
 
 This specification extends OpenID Connect with the addition of a parameter, `dpop_jkt`, to the Authentication Request, and the addition of a `DPoP` header to the Token Request and Refresh Request.
 If the OP chooses to issue a key-bound ID Token it validates the `dpop_jkt` parameter and `DPoP` header and returns an ID Token in the Token Response which includes a `cnf` claim for the public key.
@@ -174,11 +182,13 @@ The Device Authorization Flow follows the pattern of the Authorization Code Flow
 +----------+                                +------+
 ```
 
+This specification defines key binding for the Authorization Code Flow and the Device Authorization Flow only. The Implicit Flow [@!OpenID.Core] MUST NOT be used to obtain a key-bound ID Token. The Implicit Flow returns the ID Token from the Authorization Endpoint without a Token Request, so the RP Authenticating Component has no opportunity to demonstrate possession of the key identified by `dpop_jkt`, and the OP cannot bind the ID Token to a key it has no proof the requester controls. The Hybrid Flow [@!OpenID.Core] MUST NOT be used to obtain a key-bound ID Token. While the Authorization Code returned by the Hybrid Flow permits an ID Token to be obtained from the Token Endpoint, an ID Token returned from the Authorization Endpoint in the same response cannot be key-bound, and this specification does not define how an RP Authenticating Component distinguishes the two. Support for other flows is out of scope of this specification.
+
 # Authorization Code Flow
 
 ## Authentication Request
 
-If the RP authenticating component is running on a device that supports a web browser, it makes an authorization request per [@!OpenID.Core] 3.1. In addition to the `scope` parameter containing `openid`, and the `response_type` having the value `code`, the `scope` parameter MUST also include `bound_key`, and the request MUST include the `dpop_jkt` parameter having the value of the JWK Thumbprint [@!RFC7638] of the proof-of-possession public key using the SHA-256 hash function, as defined in [@!RFC9449] section 10.
+If the RP Authenticating Component is running on a device that supports a web browser, it makes an authorization request per [@!OpenID.Core] 3.1. In addition to the `scope` parameter containing `openid`, and the `response_type` having the value `code`, the `scope` parameter MUST also include `bound_key`, and the request MUST include the `dpop_jkt` parameter having the value of the JWK Thumbprint [@!RFC7638] of the proof-of-possession public key using the SHA-256 hash function, as defined in [@!RFC9449] section 10.
 
 Following is a non-normative example of an authentication request using the authorization code flow:
 
@@ -213,7 +223,7 @@ Location: https://client.example.org/cb?
 
 ## Token Request
 
-To obtain the ID Token, the RP authenticating component:
+To obtain the ID Token, the RP Authenticating Component:
 
 1. generates `c_s256` by computing SHA256 hash of the authorization `code` encoded as `BASE64URL(SHA256(ASCII(code)))`
 2. generates a `DPoP` header, including the `c_s256` claim in the `DPoP` header JWT. This binds the authorization `code` to the token request. The `typ` of the `DPoP` header JWT MUST be `dpop+jwt`.
@@ -255,7 +265,7 @@ The OP MUST:
 
 ## Authentication Request
 
-If the RP authenticating component is running on a device that does not support a web browser, it makes an authorization request per [@!RFC8628] 3.1. In the request, the `scope` parameter MUST contain both `openid` and `bound_key`. The request MUST include the `dpop_jkt` parameter having the value of the JWK Thumbprint [@!RFC7638] of the proof-of-possession public key using the SHA-256 hash function, as defined in [@!RFC9449] section 10.
+If the RP Authenticating Component is running on a device that does not support a web browser, it makes an authorization request per [@!RFC8628] 3.1. In the request, the `scope` parameter MUST contain both `openid` and `bound_key`. The request MUST include the `dpop_jkt` parameter having the value of the JWK Thumbprint [@!RFC7638] of the proof-of-possession public key using the SHA-256 hash function, as defined in [@!RFC9449] section 10.
 
 Following is a non-normative example of an authentication request using the device authorization flow:
 
@@ -273,7 +283,7 @@ If the OP does not support the `bound_key` scope, it SHOULD ignore it per [@!Ope
 
 ## Authentication Response
 
-As per [@!RFC8628], the OP in response to the Authentication Request, generates and returns to the RP authenticating component the required parameters `device_code`, `user_code`, `verification_uri` and `expires_in` and may return the optional parameters `verification_uri_complete` and `interval`.
+As per [@!RFC8628], the OP in response to the Authentication Request, generates and returns to the RP Authenticating Component the required parameters `device_code`, `user_code`, `verification_uri` and `expires_in` and may return the optional parameters `verification_uri_complete` and `interval`.
 
 Following is a non-normative example of an authentication response using the device authorization flow:
 
@@ -289,12 +299,12 @@ Following is a non-normative example of an authentication response using the dev
 
 ## Token Request
 
-As per [@!RFC8628] the RP authenticating component makes token requests to OP at regular intervals.
+As per [@!RFC8628] the RP Authenticating Component makes token requests to OP at regular intervals.
 Prior to the OP authenticating and obtaining consent from the End-User, the OP returns an error.
 Once the OP has authenticated and obtained consent from the End-User, the OP responds by returning the ID Token.
 
 In addition to the parameters required by [@!RFC8628] the token request to the OP must contain a DPoP header.
-The RP authenticating component computes this DPoP header as follows:
+The RP Authenticating Component computes this DPoP header as follows:
 
 1. generates `c_s256` by computing SHA-256 hash of the authorization `device_code` encoded as `BASE64URL(SHA256(ASCII(device_code)))`
 2. generates a `DPoP` header, including the `c_s256` claim in the `DPoP` header JWT. This binds the authorization `device_code` to the token request. The `typ` of the `DPoP` header JWT MUST be `dpop+jwt`.
@@ -365,7 +375,7 @@ If a Refresh Token is returned, it MUST be bound to the public key of the DPoP p
 If a Refresh Token was returned in the Token Response, the RP may use the Refresh Token to make Refresh Requests to the OP's Token Endpoint and receive a refreshed ID Token ([@!OpenID.Core] 12).
 This Refresh Token MUST be bound to the same public key as the ID Token and the OP MUST validate a DPoP proof ([@!RFC9449] 5) for this public key on each refresh request.
 
-To refresh the ID Token, the RP authenticating component:
+To refresh the ID Token, the RP Authenticating Component:
 
 1. generates a `DPoP` header. The `typ` of the `DPoP` header JWT MUST be `dpop+jwt`.
 2. makes a POST request to the OP's Token Endpoint with the `DPoP` header and the Refresh Token as a parameter.
@@ -390,7 +400,7 @@ grant_type=refresh_token&refresh_token=8xLOxBtZp8
 
 The OP MUST validate the Refresh Token and MUST validate the `DPoP` header presented.
 The OP MUST reject the `DPoP` header if it is not signed with the public key that was bound to the presented Refresh Token in the initial Token Request.
-Unlike the Token Request, no `c_s256` claim is required in the `DPoP`header for the Refresh Request.
+Unlike the Token Request, no `c_s256` claim is required in the `DPoP` header for the Refresh Request.
 
 If an ID Token is returned as a result of a Refresh Request, an additional requirement applies:
 
@@ -398,13 +408,23 @@ If an ID Token is returned as a result of a Refresh Request, an additional requi
 
 If a new Refresh Token is returned as a result of a Refresh Request, the newly issued Refresh Token MUST continue to be bound to the same public key as the original Refresh Token.
 
+# RP Trust Boundary
+
+An RP MUST NOT present a key-bound ID Token to a party outside its RP Trust Boundary.
+
+An RP Consuming Component MUST verify that the `aud` claim of a key-bound ID Token is one of the `client_id` values it is configured to accept. The `aud` claim identifies the application that obtained the ID Token, not the component consuming it.
+
 # ID Token Proof of Possession
 
-The mechanism for how an RP authenticating component proves to an RP consuming component that it possesses the private keys associated with the `cnf` claim in the ID Token is out of scope of this document.
+The mechanism for how an RP Authenticating Component proves to an RP Consuming Component that it possesses the private keys associated with the `cnf` claim in the ID Token is out of scope of this document.
 
 # Privacy Considerations
 
-An RP authenticating component SHOULD only share an ID Token with a consuming component when such sharing is consistent with the original purpose for which the identity data was collected and the scope of consent obtained from the End-User.
+An RP Authenticating Component SHOULD only share an ID Token with an RP Consuming Component when such sharing is consistent with the original purpose for which the identity data was collected and the scope of consent obtained from the End-User.
+
+An RP Authenticating Component MUST NOT share an ID Token with an RP Consuming Component when the ID Token contains claims that the RP Consuming Component should not have access to.
+
+An ID Token contains claims the OP released to the RP for the purpose the End-User consented to. This is why an RP MUST NOT present a key-bound ID Token outside its RP Trust Boundary: doing so discloses those claims to a party the OP did not release them to, and that the End-User can neither discover nor revoke. Where identity claims are needed beyond the RP Trust Boundary, the receiving party should obtain its own ID Token for the End-User.
 
 # Security Considerations
 
@@ -416,11 +436,15 @@ To protect against such attacks, the `DPoP` header JWT sent in the Token Request
 
 ## Require Proof of Possession
 
-An RP consuming component MUST NOT trust an ID Token with a `cnf` claim without a corresponding proof of possession from the RP authenticating component.
+An RP Consuming Component MUST NOT trust an ID Token with a `cnf` claim without a corresponding proof of possession from the RP Authenticating Component.
 
 ## ID Token Reverification
 
-In addition to verifying the signature created by the RP authenticating component to prove possession of the private key associated with the `cnf` claim in the ID Token, an RP consuming component MUST independently verify the signature and validity of the ID Token, that the `aud` claim in the payload is the correct value, and that the `typ` claim in the protected header is `dpop+id_token`.
+In addition to verifying the signature created by the RP Authenticating Component to prove possession of the private key associated with the `cnf` claim in the ID Token, an RP Consuming Component MUST independently verify the signature and validity of the ID Token, that the `aud` claim in the payload is one of the `client_id` values it is configured to accept as described in the RP Trust Boundary section, and that the `typ` claim in the protected header is `dpop+id_token`.
+
+## Accepted Audience Values
+
+An RP Consuming Component MUST accept only the `client_id` values of the applications it is intended to serve. Accepting any `client_id` registered at the OP allows an application of another RP to present an ID Token as the RP's own. Accepting any `client_id` of the RP allows a less trusted application to act with the authorization of a more trusted one.
 
 ## Use as Access Token
 
@@ -428,7 +452,7 @@ The ID Token MUST NOT be used as an access token to access resources. The RP MAY
 
 ## Unique Key Pair
 
-To prevent token confusion attacks, the RP authenticating component SHOULD bind a unique key pair to its ID Tokens, and not use it for other purposes.
+To prevent token confusion attacks, the RP Authenticating Component SHOULD bind a unique key pair to its ID Tokens, and not use it for other purposes.
 
 ## Using cnf as a User Claim
 
@@ -446,27 +470,29 @@ Subtype name: dpop+id_token
 
 # Use Cases
 
-This appendix is non-normative. It describes how the mechanisms defined in this specification are applied in representative scenarios. The mechanism by which an RP authenticating component proves possession of the private key to an RP consuming component is out of scope of this specification (see the ID Token Proof of Possession section); each use case below notes how that proof is typically realized.
+This appendix is non-normative. It describes how the mechanisms defined in this specification are applied in representative scenarios. The mechanism by which an RP Authenticating Component proves possession of the private key to an RP Consuming Component is out of scope of this specification (see the ID Token Proof of Possession section); each use case below notes how that proof is typically realized.
 
 ## Exchanging an ID Token for an Access Token
 
-A first-party application, such as a mobile app, obtains a key-bound ID Token and exchanges it, together with a proof of possession, at a first-party authorization service for an access token.
+An application, such as a mobile app, obtains a key-bound ID Token and exchanges it, together with a proof of possession, for an access token at an authorization service. The application and the authorization service are within the same RP Trust Boundary; the OP that issued the ID Token may be a third party. Because the exchange is within the RP Trust Boundary, the End-User is not delegating access to a third party and no authorization step is required.
 
 Because the ID Token carries a `cnf` claim, the authorization service can confirm that the party requesting the access token is the same party the OP authenticated, rather than a bearer that obtained the ID Token in transit. Without key binding, an intercepted ID Token could be replayed to obtain an access token.
+
+The ID Token conveys which End-User the OP authenticated and which application obtained it, not what that application is authorized to do. The authorization service determines the scopes of the access token from its own policy for that End-User and application, not from the ID Token or the Authentication Request.
 
 The proof of possession is a DPoP proof computed over the exchange request. The authorization service verifies it against the `cnf` claim of the ID Token before issuing the access token.
 
 ## Distributed Relying Party Components
 
-A Relying Party is often composed of multiple components, for example a frontend that authenticates the End-User and one or more backends that act on the End-User's behalf. The authenticating component obtains the ID Token and presents it to a consuming component to prove which End-User the OP authenticated.
+A Relying Party is often composed of multiple components, for example a frontend that authenticates the End-User and one or more backends that act on the End-User's behalf. The RP Authenticating Component obtains the ID Token and presents it to an RP Consuming Component to prove which End-User the OP authenticated.
 
-When the ID Token is key-bound, the consuming component requires a proof of possession alongside the ID Token. An attacker who captures the ID Token in transit between components cannot use it, because the attacker cannot produce the proof of possession.
+When the ID Token is key-bound, the RP Consuming Component requires a proof of possession alongside the ID Token. An attacker who captures the ID Token in transit between components cannot use it, because the attacker cannot produce the proof of possession.
 
-The authenticating component proves possession on each request to a consuming component, for example with a DPoP proof over that request, and the consuming component verifies the proof against the `cnf` claim before trusting the ID Token.
+The RP Authenticating Component proves possession on each request to an RP Consuming Component, for example with a DPoP proof over that request, and the RP Consuming Component verifies the proof against the `cnf` claim before trusting the ID Token.
 
 ## Peer-to-Peer Authentication
 
-In a peer-to-peer application, such as video conferencing or messaging, one instance proves to another which End-User is operating it. The instances are typically operated by different End-Users and communicate without a shared backend.
+In a peer-to-peer application, such as video conferencing or messaging, one instance proves to another which End-User is operating it. The instances are typically operated by different End-Users and communicate without a shared backend. This specification addresses the case where the instances are instances of the same application and therefore within the same RP Trust Boundary; peer-to-peer authentication between applications of different RPs is out of scope.
 
 Consider Alice authenticating to Bob over WebRTC. With a bearer ID Token, an attacker who relays Alice's ID Token to Bob could impersonate Alice. With a key-bound ID Token, Alice signs a value that ties her authenticated identity to the connection, such as the DTLS certificate fingerprint of her media channel, using the key in the `cnf` claim. Bob verifies that signature against the `cnf` claim and is assured both that the OP authenticated Alice and that she controls the channel he is connected to.
 
@@ -474,7 +500,7 @@ The step that is not obvious to an implementer is binding the OpenID Connect ide
 
 # Acknowledgements
 
-The authors would like to thank early feedback provided by Filip Skokan, Frederik Krogsdal Jacobsen, George Fletcher, Jacob Ideskog, Jonas Primbs, Karl McGuinness, Kosuke Koiwai, and Michael Jones.
+The authors would like to thank early feedback provided by Andrii Deinega, Filip Skokan, Frederik Krogsdal Jacobsen, George Fletcher, Jacob Ideskog, Jonas Primbs, Karl McGuinness, Kosuke Koiwai, Michael Jones, and Rohan Harikumar.
 
 # Notices
 
@@ -519,6 +545,22 @@ specification.
 # Document History
 
    [[ To be removed from the final specification ]]
+
+   -03
+
+   * Clarified that an RP may register multiple `client_id` values, commonly one per application, that are all the same RP and within the same RP Trust Boundary.
+
+   * Added the RP Trust Boundary definition and section, and clarified how an RP Consuming Component verifies the `aud` claim.
+
+   * Clarified that the authorization service in the token exchange use case is within the same RP Trust Boundary as the application, and determines access token scopes from its own policy.
+
+   * Scoped the peer-to-peer use case to instances of the same application.
+
+   * Added to Privacy Considerations that an RP Authenticating Component MUST NOT share an ID Token containing claims an RP Consuming Component should not have access to, and the reason a key-bound ID Token must not be presented outside the RP Trust Boundary.
+
+   * Stated that the Implicit and Hybrid Flows MUST NOT be used to obtain a key-bound ID Token, and that other flows are out of scope.
+
+   * Capitalized RP Authenticating Component and RP Consuming Component throughout as defined terms.
 
    -02
 
