@@ -1,0 +1,560 @@
+
+
+
+
+OpenID Connect Working Group                                   F. Skokan
+                                                                    Okta
+                                                            18 June 2026
+
+
+ OpenID Connect Token Hash Algorithm Implementer's Guide 1.0 - draft 00
+                openid-connect-token-hash-algorithms-1_0
+
+Abstract
+
+   This OpenID Connect Token Hash Algorithm Implementer's Guide 1.0
+   identifies the hash algorithms to use when calculating OpenID Connect
+   ID Token hash claims, such as at_hash and c_hash, Financial-grade API
+   s_hash, and profile-defined token hash claims, for JWS algorithms
+   whose hash function is not completely determined by the algorithm
+   identifier in JSON Web Algorithms (JWA) [JWA].
+
+   This guide records implementation guidance for existing and
+   registered JWS algorithm identifiers.  It is intended to remain open
+   for maintenance and is not intended to advance to Final Specification
+   status.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   1
+     1.1.  Requirements Notation and Conventions . . . . . . . . . .   2
+     1.2.  Terminology . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Hash Claim Calculation  . . . . . . . . . . . . . . . . . . .   2
+   3.  Examples  . . . . . . . . . . . . . . . . . . . . . . . . . .   4
+   4.  Security Considerations . . . . . . . . . . . . . . . . . . .   7
+   5.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .   7
+   6.  Normative References  . . . . . . . . . . . . . . . . . . . .   7
+   Appendix A.  Notices  . . . . . . . . . . . . . . . . . . . . . .   9
+   Appendix B.  Document History . . . . . . . . . . . . . . . . . .  10
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  10
+
+1.  Introduction
+
+   OpenID Connect Core 1.0 [OpenID.Core] defines ID Token hash claims
+   such as at_hash and c_hash as the base64url encoding of the left-most
+   half of the hash of the ASCII representation of the value being bound
+   to the ID Token.  Core says that the hash algorithm is the hash
+   algorithm specified in JWA [JWA] for the alg Header Parameter of the
+   ID Token's JOSE Header.
+
+   Other OpenID specifications use the same construction.
+   Financial-grade API Security Profile 1.0 - Part 2: Advanced
+   [OpenID.FAPI.Advanced] defines s_hash for the state value.  OpenID
+
+
+
+Skokan                       Standards Track                    [Page 1]
+
+                OpenID Connect Token Hash Algorithms 1.0       June 2026
+
+
+   Connect CIBA Core 1.0 [OpenID.CIBA] uses at_hash in Push mode and
+   applies the same method to Refresh Token hash values using the
+   urn:openid:params:jwt:claim:rt_hash claim.
+
+   That rule is clear for algorithms such as RS256, ES384, and HS512,
+   because their registered algorithm identifiers specify the hash
+   algorithm directly.  It is ambiguous for polymorphic algorithms such
+   as EdDSA, because the hash algorithm depends on the EdDSA parameter
+   set of the key used to validate the ID Token.  Fully-specified
+   algorithm identifiers, such as Ed25519 and Ed448, remove this
+   ambiguity.
+
+   This guide clarifies the hash algorithm selection for current JWS
+   algorithms used with OpenID Connect ID Tokens.  It does not define
+   new JWS algorithms, new ID Token claims, or new ID Token validation
+   procedures.
+
+1.1.  Requirements Notation and Conventions
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in RFC
+   2119 [RFC2119].
+
+   In the .txt version of this specification, values are quoted to
+   indicate that they are to be taken literally.  When using these
+   values in protocol messages, the quotes MUST NOT be used as part of
+   the value.  In the HTML version of this specification, values to be
+   taken literally are indicated by the use of this fixed-width font.
+
+1.2.  Terminology
+
+   This specification uses the terms defined by OpenID Connect Core 1.0
+   [OpenID.Core], JSON Web Token (JWT) [JWT], and JSON Web Signature
+   (JWS) [JWS].
+
+2.  Hash Claim Calculation
+
+   To calculate an ID Token hash claim, such as at_hash, c_hash, s_hash,
+   urn:openid:params:jwt:claim:rt_hash, or any other OpenID Connect
+   claim that uses the same construction, implementations MUST:
+
+   1.  Select the digest function and, when applicable, its output
+       length using Table 1.
+
+   2.  Apply the digest function to the octets of the ASCII
+       representation of the value being bound to the ID Token.
+
+
+
+
+Skokan                       Standards Track                    [Page 2]
+
+                OpenID Connect Token Hash Algorithms 1.0       June 2026
+
+
+   3.  Take the left-most half of the resulting digest output.
+
+   4.  Base64url-encode that left-most half without padding.
+
+   For extendable-output functions, the "resulting digest output" is the
+   fixed-length output identified in Table 1.  For instance, SHAKE256
+   with 114 bytes of output produces a 114-byte digest output, whose
+   left-most half is 57 bytes.
+
+   When EdDSA is used, implementations MUST determine the EdDSA
+   parameter set from the key used to validate the ID Token signature,
+   such as the JWK crv value, and then use the corresponding entry in
+   Table 1.  The EdDSA algorithm identifier is deprecated by [RFC9864],
+   and new deployments SHOULD use the fully-specified Ed25519 and Ed448
+   algorithm identifiers instead.
+
+   The algorithm identifiers in Table 1 are defined by [JWA], [RFC8037],
+   [RFC8812], [RFC9864], [RFC9964], and [I-D.ietf-cose-sphincs-plus].
+   The EdDSA parameter sets are defined by [RFC8032].  The ML-DSA
+   algorithms use the signing procedure defined by [FIPS204].  The SLH-
+   DSA algorithms use parameter sets defined by [FIPS205].  The listed
+   SLH-DSA rows are included to track current JOSE algorithm identifier
+   registrations; this guide records a recommended resolution but leaves
+   final selection of their hash claim digest functions and output
+   lengths to the Working Group.
+
+   The SLH-DSA recommendation intentionally uses the public hash or
+   extendable-output function family named by the JWS algorithm, rather
+   than the SLH-DSA H_msg construction.  [FIPS205] defines H_msg for
+   SHA2 Category 1 parameter sets using MGF1-SHA-256 over values that
+   include signature randomness and public-key material.  Those inputs
+   are not part of the OpenID Connect hash claim construction.
+
+   +====================+===========+==================+==============+
+   | alg value          | Key       | Claim digest     | XOF output   |
+   |                    | condition | function         | bytes        |
+   +====================+===========+==================+==============+
+   | PS256, RS256,      |           | SHA-256          |              |
+   | ES256, ES256K,     |           |                  |              |
+   | HS256              |           |                  |              |
+   +--------------------+-----------+------------------+--------------+
+   | PS384, RS384,      |           | SHA-384          |              |
+   | ES384, HS384       |           |                  |              |
+   +--------------------+-----------+------------------+--------------+
+   | PS512, RS512,      |           | SHA-512          |              |
+   | ES512, HS512       |           |                  |              |
+   +--------------------+-----------+------------------+--------------+
+   | EdDSA              | Ed25519   | SHA-512          |              |
+
+
+
+Skokan                       Standards Track                    [Page 3]
+
+                OpenID Connect Token Hash Algorithms 1.0       June 2026
+
+
+   |                    | parameter |                  |              |
+   |                    | set, such |                  |              |
+   |                    | as JWK    |                  |              |
+   |                    | crv value |                  |              |
+   |                    | Ed25519   |                  |              |
+   +--------------------+-----------+------------------+--------------+
+   | Ed25519            |           | SHA-512          |              |
+   +--------------------+-----------+------------------+--------------+
+   | EdDSA              | Ed448     | SHAKE256         | 114          |
+   |                    | parameter |                  |              |
+   |                    | set, such |                  |              |
+   |                    | as JWK    |                  |              |
+   |                    | crv value |                  |              |
+   |                    | Ed448     |                  |              |
+   +--------------------+-----------+------------------+--------------+
+   | Ed448              |           | SHAKE256         | 114          |
+   +--------------------+-----------+------------------+--------------+
+   | ML-DSA-44, ML-DSA- |           | SHAKE256         | 64           |
+   | 65, ML-DSA-87      |           |                  |              |
+   +--------------------+-----------+------------------+--------------+
+   | SLH-DSA-SHA2-128s  |           | To be determined |              |
+   |                    |           | by the OpenID    |              |
+   |                    |           | Connect Working  |              |
+   |                    |           | Group;           |              |
+   |                    |           | RECOMMENDED:     |              |
+   |                    |           | SHA-256          |              |
+   +--------------------+-----------+------------------+--------------+
+   | SLH-DSA-SHAKE-128s |           | To be determined | To be        |
+   |                    |           | by the OpenID    | determined;  |
+   |                    |           | Connect Working  | RECOMMENDED: |
+   |                    |           | Group;           | 64           |
+   |                    |           | RECOMMENDED:     |              |
+   |                    |           | SHAKE256         |              |
+   +--------------------+-----------+------------------+--------------+
+   | none               |           | No hash          |              |
+   |                    |           | algorithm is     |              |
+   |                    |           | defined          |              |
+   +--------------------+-----------+------------------+--------------+
+
+            Table 1: Hash Algorithms for ID Token Hash Claims
+
+3.  Examples
+
+   Given the access_token value
+   YmJiZTAwYmYtMzgyOC00NzhkLTkyOTItNjJjNDM3MGYzOWIy9sFhvH8K_x8UIHj1osisS57f5DduL,
+   Table 2 contains the resulting at_hash values for the hash algorithms
+   listed in Table 1.
+
+
+
+
+Skokan                       Standards Track                    [Page 4]
+
+                OpenID Connect Token Hash Algorithms 1.0       June 2026
+
+
+   Every value in the alg value column is a literal JOSE alg identifier.
+   Conditions that are not alg identifiers, such as an EdDSA key
+   parameter set, are shown in the separate Key condition column.  For
+   algorithms whose claim digest function is still to be determined but
+   has a recommendation, the examples use the recommended value.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Skokan                       Standards Track                    [Page 5]
+
+                OpenID Connect Token Hash Algorithms 1.0       June 2026
+
+
+   +=========+=========+============+============================================================================+
+   |alg value|Key      |Claim digest|at_hash                                                                     |
+   |         |condition|function    |                                                                            |
+   +=========+=========+============+============================================================================+
+   |PS256,   |         |SHA-256     |xsZZrUssMXjL3FBlzoSh2g                                                      |
+   |RS256,   |         |            |                                                                            |
+   |ES256,   |         |            |                                                                            |
+   |ES256K,  |         |            |                                                                            |
+   |HS256    |         |            |                                                                            |
+   +---------+---------+------------+----------------------------------------------------------------------------+
+   |PS384,   |         |SHA-384     |adt46pcdiB-l6eTNifgoVM-5AIJAxq84                                            |
+   |RS384,   |         |            |                                                                            |
+   |ES384,   |         |            |                                                                            |
+   |HS384    |         |            |                                                                            |
+   +---------+---------+------------+----------------------------------------------------------------------------+
+   |PS512,   |         |SHA-512     |p2LHG4H-8pYDc0hyVOo3iIHvZJUqe9tbj3jESOuXbkY                                 |
+   |RS512,   |         |            |                                                                            |
+   |ES512,   |         |            |                                                                            |
+   |HS512    |         |            |                                                                            |
+   +---------+---------+------------+----------------------------------------------------------------------------+
+   |EdDSA    |JWK crv  |SHA-512     |p2LHG4H-8pYDc0hyVOo3iIHvZJUqe9tbj3jESOuXbkY                                 |
+   |         |value    |            |                                                                            |
+   |         |Ed25519  |            |                                                                            |
+   +---------+---------+------------+----------------------------------------------------------------------------+
+   |Ed25519  |         |SHA-512     |p2LHG4H-8pYDc0hyVOo3iIHvZJUqe9tbj3jESOuXbkY                                 |
+   +---------+---------+------------+----------------------------------------------------------------------------+
+   |EdDSA    |JWK crv  |SHAKE256,   |sB_U72jyb0WgtX8TsVoqJnm6CD295W9gfSDRxkilB3LAL7REi9JYutRW_s1yE4lD8cOfMZf83gi4|
+   |         |value    |114 bytes   |                                                                            |
+   |         |Ed448    |            |                                                                            |
+   +---------+---------+------------+----------------------------------------------------------------------------+
+   |Ed448    |         |SHAKE256,   |sB_U72jyb0WgtX8TsVoqJnm6CD295W9gfSDRxkilB3LAL7REi9JYutRW_s1yE4lD8cOfMZf83gi4|
+   |         |         |114 bytes   |                                                                            |
+   +---------+---------+------------+----------------------------------------------------------------------------+
+   |ML-DSA-  |         |SHAKE256, 64|sB_U72jyb0WgtX8TsVoqJnm6CD295W9gfSDRxkilB3I                                 |
+   |44, ML-  |         |bytes       |                                                                            |
+   |DSA-65,  |         |            |                                                                            |
+   |ML-DSA-87|         |            |                                                                            |
+   +---------+---------+------------+----------------------------------------------------------------------------+
+   |SLH-DSA- |         |RECOMMENDED:|xsZZrUssMXjL3FBlzoSh2g                                                      |
+   |SHA2-128s|         |SHA-256     |                                                                            |
+   +---------+---------+------------+----------------------------------------------------------------------------+
+   |SLH-DSA- |         |RECOMMENDED:|sB_U72jyb0WgtX8TsVoqJnm6CD295W9gfSDRxkilB3I                                 |
+   |SHAKE-   |         |SHAKE256, 64|                                                                            |
+   |128s     |         |bytes       |                                                                            |
+   +---------+---------+------------+----------------------------------------------------------------------------+
+
+                      Table 2: Example at_hash Values
+
+
+
+
+Skokan                       Standards Track                    [Page 6]
+
+                OpenID Connect Token Hash Algorithms 1.0       June 2026
+
+
+   The same procedure applies to other ID Token hash claims by replacing
+   the input value with the ASCII representation of the value being
+   bound to the ID Token.
+
+4.  Security Considerations
+
+   This guide does not change the security properties of the ID Token
+   hash claims defined by OpenID Connect Core.  It clarifies which hash
+   or extendable-output function to use so that OpenID Providers and
+   Relying Parties produce the same values.
+
+   For extendable-output functions, implementations MUST use the output
+   length specified in Table 1 before taking the left-most half of the
+   output.  Using a different output length will produce different hash
+   claim values.
+
+   For JWS algorithms whose row in Table 1 marks the claim digest
+   function as to be determined, the listed recommendation is
+   provisional implementation guidance rather than a final Working Group
+   decision.  Implementations using a different rule will produce
+   different hash claim values.
+
+   For EdDSA, implementations MUST NOT infer the hash algorithm from the
+   alg Header Parameter alone.  They need the EdDSA parameter set of the
+   key used to validate the ID Token signature.
+
+5.  Acknowledgements
+
+   The OpenID Connect Working Group discussed the EdDSA hash claim
+   ambiguity in GitHub issue openid/connect#1124 and earlier Bitbucket
+   issue 1125.  The contributors to that discussion include Michael B.
+   Jones, Vladimir Dzhuvinov, Nat Sakimura, Tim Moehlmann, Tangui, and
+   Filip Skokan.
+
+6.  Normative References
+
+   [FIPS204]  National Institute of Standards and Technology, "Module-
+              Lattice-Based Digital Signature Standard", FIPS 204,
+              DOI 10.6028/NIST.FIPS.204, August 2024,
+              <https://doi.org/10.6028/NIST.FIPS.204>.
+
+   [FIPS205]  National Institute of Standards and Technology, "Stateless
+              Hash-Based Digital Signature Standard", FIPS 205,
+              DOI 10.6028/NIST.FIPS.205, August 2024,
+              <https://doi.org/10.6028/NIST.FIPS.205>.
+
+
+
+
+
+
+Skokan                       Standards Track                    [Page 7]
+
+                OpenID Connect Token Hash Algorithms 1.0       June 2026
+
+
+   [I-D.ietf-cose-sphincs-plus]
+              Prorock, M., Steele, O., and H. Tschofenig, "SLH-DSA for
+              JOSE and COSE", Work in Progress, Internet-Draft, draft-
+              ietf-cose-sphincs-plus-latest, 15 May 2026, <https://cose-
+              wg.github.io/draft-ietf-cose-sphincs-plus/draft-ietf-cose-
+              sphincs-plus.html>.
+
+   [JWA]      Jones, M., "JSON Web Algorithms (JWA)", RFC 7518,
+              DOI 10.17487/RFC7518, May 2015,
+              <https://www.rfc-editor.org/info/rfc7518>.
+
+   [JWS]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web
+              Signature (JWS)", RFC 7515, DOI 10.17487/RFC7515, May
+              2015, <https://www.rfc-editor.org/info/rfc7515>.
+
+   [JWT]      Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token
+              (JWT)", RFC 7519, DOI 10.17487/RFC7519, May 2015,
+              <https://www.rfc-editor.org/info/rfc7519>.
+
+   [OpenID.CIBA]
+              Fernandez Rodriguez, G., Walter, F., Nennker, A., Tonge,
+              D., and B. Campbell, "OpenID Connect Client-Initiated
+              Backchannel Authentication Flow - Core 1.0", 1 September
+              2021, <https://openid.net/specs/openid-client-initiated-
+              backchannel-authentication-core-1_0.html>.
+
+   [OpenID.Core]
+              Sakimura, N., Bradley, J., Jones, M.B., de Medeiros, B.,
+              and C. Mortimore, "OpenID Connect Core 1.0", 15 December
+              2023,
+              <https://openid.net/specs/openid-connect-core-1_0.html>.
+
+   [OpenID.FAPI.Advanced]
+              Sakimura, N., Bradley, J., and E. Jay, "Financial-grade
+              API Security Profile 1.0 - Part 2: Advanced", 12 March
+              2021, <https://openid.net/specs/openid-financial-api-part-
+              2-1_0.html>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC8032]  Josefsson, S. and I. Liusvaara, "Edwards-Curve Digital
+              Signature Algorithm (EdDSA)", RFC 8032,
+              DOI 10.17487/RFC8032, January 2017,
+              <https://www.rfc-editor.org/info/rfc8032>.
+
+
+
+
+Skokan                       Standards Track                    [Page 8]
+
+                OpenID Connect Token Hash Algorithms 1.0       June 2026
+
+
+   [RFC8037]  Liusvaara, I., "CFRG Elliptic Curve Diffie-Hellman (ECDH)
+              and Signatures in JSON Object Signing and Encryption
+              (JOSE)", RFC 8037, DOI 10.17487/RFC8037, January 2017,
+              <https://www.rfc-editor.org/info/rfc8037>.
+
+   [RFC8812]  Jones, M., "CBOR Object Signing and Encryption (COSE) and
+              JSON Object Signing and Encryption (JOSE) Registrations
+              for Web Authentication (WebAuthn) Algorithms", RFC 8812,
+              DOI 10.17487/RFC8812, August 2020,
+              <https://www.rfc-editor.org/info/rfc8812>.
+
+   [RFC9864]  Jones, M. and O. Steele, "Fully-Specified Algorithms for
+              JSON Object Signing and Encryption (JOSE) and CBOR Object
+              Signing and Encryption (COSE)", RFC 9864,
+              DOI 10.17487/RFC9864, October 2025,
+              <https://www.rfc-editor.org/info/rfc9864>.
+
+   [RFC9964]  Prorock, M. and O. Steele, "ML-DSA for JSON Object Signing
+              and Encryption (JOSE) and CBOR Object Signing and
+              Encryption (COSE)", RFC 9964, DOI 10.17487/RFC9964, May
+              2026, <https://www.rfc-editor.org/info/rfc9964>.
+
+Appendix A.  Notices
+
+   Copyright (c) 2026 The OpenID Foundation.
+
+   The OpenID Foundation (OIDF) grants to any Contributor, developer,
+   implementer, or other interested party a non-exclusive, royalty free,
+   worldwide copyright license to reproduce, prepare derivative works
+   from, distribute, perform and display, this Implementers Draft or
+   Final Specification solely for the purposes of (i) developing
+   specifications, and (ii) implementing Implementers Drafts and Final
+   Specifications based on such documents, provided that attribution be
+   made to the OIDF as the source of the material, but that such
+   attribution does not indicate an endorsement by the OIDF.
+
+   The technology described in this specification was made available
+   from contributions from various sources, including members of the
+   OpenID Foundation and others.  Although the OpenID Foundation has
+   taken steps to help ensure that the technology is available for
+   distribution, it takes no position regarding the validity or scope of
+   any intellectual property or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this specification or the extent to which any license under such
+   rights might or might not be available; neither does it represent
+   that it has made any independent effort to identify any such rights.
+   The OpenID Foundation and the contributors to this specification make
+   no (and hereby expressly disclaim any) warranties (express, implied,
+
+
+
+Skokan                       Standards Track                    [Page 9]
+
+                OpenID Connect Token Hash Algorithms 1.0       June 2026
+
+
+   or otherwise), including implied warranties of merchantability, non-
+   infringement, fitness for a particular purpose, or title, related to
+   this specification, and the entire risk as to implementing this
+   specification is assumed by the implementer.  The OpenID Intellectual
+   Property Rights policy requires contributors to offer a patent
+   promise not to assert certain patent claims against other
+   contributors and against implementers.  The OpenID Foundation invites
+   any interested party to bring to its attention any copyrights,
+   patents, patent applications, or other proprietary rights that may
+   cover technology that may be required to practice this specification.
+
+Appendix B.  Document History
+
+   [[ To be removed from the final document ]]
+
+   -00
+
+   *  Initial Implementer's Guide defining the hash algorithms to use
+      for OpenID Connect ID Token hash claims with EdDSA, fully-
+      specified EdDSA, and ML-DSA JWS algorithms, and tracking SLH-DSA
+      JWS algorithm identifiers pending Working Group consensus on hash
+      claim digest functions, with recommended SLH-DSA digest functions
+      for discussion.
+
+   *  Included Financial-grade API s_hash and OpenID Connect CIBA
+      profile hash claims in the stated scope.
+
+   *  Split table columns so literal alg identifiers, key conditions,
+      digest functions, and output lengths are clearly distinguishable.
+
+Author's Address
+
+   Filip Skokan
+   Okta
+   Email: panva.ip@gmail.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Skokan                       Standards Track                   [Page 10]
