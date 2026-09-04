@@ -46,7 +46,8 @@ __ACTION TO FIX__: The document should contain one of the following:
 Check that both the `<title>` tag and the `<h1 id="title">` have the correct content and that the two are the same.
 
 ## <span style="color:red">FAIL: {file} is a draft but a Final spec already exists on openid.net</span>
-A final specification has already been published for this spec. New drafts after a final must include errata language in the title.
+## OR - <span style="color:red">FAIL: {file} is an Implementers Draft but a Final spec already exists on openid.net</span>
+A final specification has already been published for this spec. New drafts (including Implementers Drafts) after a final must include errata language in the title.
 
 __ACTION TO FIX__: Update the title to include both the draft number and errata set number, e.g., "OpenID Example 1.0 - Draft 18 incorporating errata set 1".
 
@@ -79,6 +80,16 @@ __ACTION TO FIX__: Delete the Document History section, or change the title if t
 When the document is in an ERRATA or DRAFT_ERRATA state there must be a FINAL spec previously published with the same base name on openid.net.
 
 __ACTION TO FIX__: Either change the document state to FINAL by adjusting the title if there is no pre-existing FINAL spec, or correct the filename to match the previously published final spec.
+
+## <span style="color:red">FAIL: {file} is an approved errata but the document header does not contain 'Status: Final'</span>
+Approved errata are published as Final Specifications Incorporating Errata Corrections, so like `-final` specs the document header must include a Final status indicator.
+
+__ACTION TO FIX__: Add `<dd class="status">Final</dd>` or `<dd class="intended-status">Final</dd>` to the document header metadata, or `<td class="header">Final</td>` for older-style specs.
+
+## <span style="color:red">FAIL: {file} is errata set N but the previous errata set was not found</span>
+Errata set numbers must be sequential: errata set N can only be published when errata set N-1 already exists on openid.net (errata set 1 requires only the predecessor `-final` spec).
+
+__ACTION TO FIX__: Correct the errata set number in the filename and title, or publish the missing preceding errata set first.
 
 ## <span style="color:red">FAIL: Title tag does not match H1 heading in {file}</span>
 The content of the `<title>` tag must match the `<h1>` heading.
@@ -115,10 +126,15 @@ The document contains IETF Trust boilerplate text (e.g., "IETF Trust", "BCP 78",
 
 __ACTION TO FIX__: Replace the IETF IPR boilerplate with the OIDF Notices text. If using xml2rfc, set `ipr = "none"` in the markdown metadata.
 
-## <span style="color:red">FAIL: Problem with References in {file}</span>
-The References section is checked to ensure that all links referenced are reachable over the internet. Both HEAD and GET requests are attempted.
+## <span style="color:red">FAIL: {file} contains 'OIDC'</span>
+For branding reasons, OIDF specifications must use the official name "OpenID Connect" rather than the unofficial abbreviation "OIDC". The check matches whole-word, case-sensitive "OIDC" anywhere in the rendered HTML, including citation labels like [OIDC] and anchor names. The check output lists the HTML line numbers where it appears. This blocks Final and Errata publications; drafts get a warning instead.
 
-__ACTION TO FIX__: Double check the references to ensure that they are all reachable. The check output will show which specific URLs failed and with what HTTP status code.
+__ACTION TO FIX__: Search the spec source for "OIDC" and replace it with "OpenID Connect" (rename citation anchors, e.g. [OIDC] → [OpenID.Core]), then regenerate the HTML.
+
+## <span style="color:red">FAIL: Problem with References in {file}. These referenced URLs are not accessible: ...</span>
+The References section is checked to ensure that all links referenced are reachable over the internet. Both HEAD and GET requests are attempted. If a site blocks automated requests (HTTP 403 or 429, e.g. iso.org, or a 202 WAF challenge, e.g. eur-lex.europa.eu), the URL is instead verified via the Internet Archive Wayback Machine: it passes if a snapshot exists and fails if the archive has no snapshot of it.
+
+__ACTION TO FIX__: Double check the listed references to ensure that they are all reachable. The full log will show the HTTP status code for each failing URL.
 
 ## <span style="color:red">FAIL: Problem with structure in {file}. Missing sections: ...</span>
 The following sections are required:
@@ -140,16 +156,41 @@ Documents should be published soon after the last revision. This tool reports a 
 
 __ACTION TO FIX__: Rebuild the document with a recent publication date (within the last 10 days).
 
+## <span style="color:red">FAIL: {file} has workgroup '{workgroup}', which is not a known workgroup name for the '{wg-dir}' directory</span>
+The workgroup metadata in the document (`workgroup = "..."` in mmark frontmatter, `wg:` or `workgroup:` in kramdown-rfc frontmatter) must name the working group the spec was submitted under. Values like `individual` or `Final` are not working group names but have been published by mistake in the past. The value is compared (case-insensitively) against the names used by previously published specs of the same working group; the error output lists the accepted values.
+
+__ACTION TO FIX__: Set the workgroup in the spec source to your working group's name (one of the accepted values shown in the check output) and regenerate the HTML. If your working group has genuinely been renamed and needs a new value accepted, contact the OIDF secretary to update `WG_WORKGROUP_NAMES` in the publication-checks repository.
+
+
+## <span style="color:orange">WARNING: Could not verify these referenced URLs in {file}</span>
+The listed sites block automated requests (HTTP 403/429 or a 202 WAF challenge) and the Internet Archive could not be reached to confirm a snapshot exists, so the URLs could not be verified either way. This warning does not block publication.
+
+__ACTION TO FIX__: Verify the listed links manually in a browser. If they work, no action is needed.
 
 ## <span style="color:orange">WARNING: Non-canonical OpenID reference URLs</span>
 References to OpenID specifications should use `https://openid.net/specs/` URLs, not editor's draft URLs on `openid.github.io` or `openid.bitbucket.io`.
 
 __ACTION TO FIX__: Update the references to point to the published versions at `https://openid.net/specs/`.
 
+## <span style="color:orange">WARNING: {file} contains 'OIDC'</span>
+For branding reasons, OIDF specifications must use the official name "OpenID Connect" rather than the unofficial abbreviation "OIDC". The check matches whole-word, case-sensitive "OIDC" anywhere in the rendered HTML, including citation labels like [OIDC] and anchor names. This is a warning for drafts but becomes a failure for Final and Errata publications.
+
+__ACTION TO FIX__: Search the spec source for "OIDC" and replace it with "OpenID Connect" (rename citation anchors, e.g. [OIDC] → [OpenID.Core]), then regenerate the HTML.
+
 ## <span style="color:orange">WARNING: Previous draft not found in published specs. Draft numbers should be sequential.</span>
 The previous draft number was not found in the published spec list. Draft numbers should increment sequentially (-00, -01, -02, etc.).
 
 __ACTION TO FIX__: This is a warning only. If a draft was intentionally skipped, this can be ignored.
+
+## <span style="color:orange">WARNING: No workgroup found in {file}</span>
+The document HTML contains no workgroup metadata. Specs generated with mmark or kramdown-rfc normally include it automatically from the frontmatter. This warning does not block publication.
+
+__ACTION TO FIX__: Set the workgroup metadata in the spec source (`workgroup = "..."` for mmark, `wg:` or `workgroup:` for kramdown-rfc) to your working group's name and regenerate the HTML.
+
+## <span style="color:orange">WARNING: Previous Implementers Draft not found in published specs. Implementers Draft numbers should be sequential.</span>
+The previous Implementers Draft number was not found in the published spec list. Implementers Draft numbers should increment sequentially (-ID1, -ID2, etc.). This is a warning rather than a failure because for many older specs the early Implementers Drafts are not published under `-IDN` filenames.
+
+__ACTION TO FIX__: This is a warning only. Check the Implementers Draft number is correct; if it is, this can be ignored.
 
 ## Any other errors or errors you are struggling to resolve:
 Contact the Technical Director, Operations Director or Secretary of the OIDF.

@@ -1,6 +1,6 @@
 # OpenID Foundation proposed publications automation repository
 
-Files proposed by Working Group draft editors should be added into the corresponding sub-directory via a branch that follows the pattern `propose/**`.
+Files proposed by Working Group draft editors should be added into the corresponding sub-directory via a branch **in this repository** that follows the pattern `propose/**`. Pull requests from forks are not supported — the publication automation (checks, previews, and the approval flow) cannot run on them.
 
 Working Group co-chairs or editors will have access rights granted that allow them to commit only to sub-directories that are pertinent to their Working Group(s).
 
@@ -8,7 +8,7 @@ The proposed document sets should be as described in https://openid.net/wg/resou
 
 ## How to publish a specification
 
-1. Create a branch following the `propose/{wg-name}` pattern
+1. Create a branch in this repository (not a fork) following the `propose/{wg-name}` pattern — if you don't have write access, ask your working group's editors or the OIDF secretary to push the files for you
 2. Add your HTML, source (.md or .xml), and .zip files to the appropriate WG sub-directory
 3. Create a Pull Request from your branch to `main`
 4. The automated checks will run and post a comment on the PR showing any issues
