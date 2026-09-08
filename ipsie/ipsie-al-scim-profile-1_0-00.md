@@ -305,7 +305,7 @@ By conforming to this profile at the appropriate level, implementations will ach
 
 # Notices
 
-Copyright (c) 2026 The OpenID Foundation.
+Copyright (c) 2025 The OpenID Foundation.
 
 The OpenID Foundation (OIDF) grants to any Contributor, developer,
 implementer, or other interested party a non-exclusive, royalty free,
@@ -342,3 +342,18 @@ OpenID invites any interested party to bring to its attention any
 copyrights, patents, patent applications, or other proprietary rights
 that may cover technology that may be required to practice this
 specification.
+
+
+# Document History
+
+[[ To be removed from the final specification ]]
+
+-00
+
+Initial draft
+
+# Acknowledgments
+
+
+TODO acknowledge.
+
