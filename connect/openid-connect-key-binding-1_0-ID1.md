@@ -564,7 +564,7 @@ specification.
 
    -02
 
-   * Use official name "OpenID Connect" rather than the unofficial acronym "OIDC".
+   * Use the official name "OpenID Connect" throughout.
 
    -01
 
