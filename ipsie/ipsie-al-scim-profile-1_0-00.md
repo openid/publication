@@ -1,7 +1,7 @@
 %%%
 title = "IPSIE AL SCIM 2.0 Profile Draft 00"
 abbrev = "SCIM IPSIE"
-ipr = "trust200902"
+ipr = "none"
 area = "Applications and Real-Time"
 workgroup = "IPSIE Working Group"
 keyword = ["scim", "ipsie", "provisioning", "identity", "oauth"]
@@ -305,7 +305,7 @@ By conforming to this profile at the appropriate level, implementations will ach
 
 # Notices
 
-Copyright (c) 2025 The OpenID Foundation.
+Copyright (c) 2026 The OpenID Foundation.
 
 The OpenID Foundation (OIDF) grants to any Contributor, developer,
 implementer, or other interested party a non-exclusive, royalty free,
@@ -356,4 +356,3 @@ Initial draft
 
 
 TODO acknowledge.
-
