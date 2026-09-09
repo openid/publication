@@ -32,7 +32,7 @@ The previous draft of this specification was published with a .zip file, but the
 __ACTION TO FIX__: Include a .zip file with the same content as the previous version's .zip, updated for the current draft.
 
 ## <span style="color:red">FAIL: Problem with document titles so state is UNKNOWN</span>
-## OR - <span style="color:red">FAIL: Unexpected document state: {state}</span>
+## OR - <span style="color:red">FAIL: Cannot tell whether {file} is a draft, Implementer's Draft, Final or errata</span>
 
 This tool analyses the HTML document headers to determine what type of submission it is: "draft", "final", "errata", "implementers draft", or "draft errata".
 
@@ -104,6 +104,8 @@ __ACTION TO FIX__: Add `<dd class="intended-status">Final</dd>` or `<dd class="s
 ## <span style="color:red">FAIL: Content state or version number does not match filename in {file}</span>
 The document state or version number detected from the content does not match what the filename indicates.
 
+The message quotes what the filename says and what the title says, for example "The filename says Draft 01 but the title 'Spec 1.0 - Draft 02' says Draft 02".
+
 __ACTION TO FIX__: Ensure the filename and title/content are consistent. For example, a file named `spec-1_0-05.html` should have "Draft 05" in the title.
 
 ## <span style="color:red">FAIL: Problem with authors in {file}</span>
@@ -111,20 +113,40 @@ The Authors section needs to exist and contain at least one author name and the 
 
 __ACTION TO FIX__: Check that the authors section exists and has rendered correctly in the HTML.
 
-## <span style="color:red">FAIL: Problem with Notices section in {file}</span>
-The Notices section needs to exist and contain the current year and specific text defined in the OIDF IPR Policy (Section VII).
+## <span style="color:red">FAIL: Problem with Notices section in {file}: no 'Notices' heading was found</span>
+The document must have an appendix headed "Notices" containing the OIDF copyright and license text defined in the OIDF IPR Policy (Section VII). The heading is recognised in these forms: `<h2 id="name-notices">Notices</h2>` (xml2rfc), `<h3>Appendix C.&nbsp; Notices</h3>`, or a link `<a href="#name-notices" class="section-name selfRef">Notices</a>`.
 
-__ACTION TO FIX__: Ensure that the Notices section exists and contains the required OIDF license text. See https://openid.net/wp-content/uploads/2024/10/OIDF-Policy_IPR-Policy_Final_2024-10-19.pdf Section VII.
+__ACTION TO FIX__: Add a Notices appendix (in markdown, a top-level `# Notices` heading) containing the required OIDF license text. See https://openid.net/wp-content/uploads/2024/10/OIDF-Policy_IPR-Policy_Final_2024-10-19.pdf Section VII, or copy the Notices from a recently published spec of your working group.
+
+## <span style="color:red">FAIL: Problem with Notices section in {file}: the OIDF license text is incomplete</span>
+A Notices heading was found but one or more required phrases from the OIDF IPR Policy (Section VII) are missing. The message lists the phrases that could not be found. Only text inside `<p>` paragraphs is compared, after collapsing whitespace and straightening curly quotes, so the wording must match exactly.
+
+__ACTION TO FIX__: Replace the Notices text with the exact wording from the IPR Policy or from a recently published spec, and regenerate the HTML.
+
+## <span style="color:red">FAIL: Copyright year in the Notices of {file} is {YYYY} but the publication date is {date}</span>
+The copyright line in the Notices ("Copyright (c) YYYY The OpenID Foundation") must carry the same year as the document's publication date.
+
+__ACTION TO FIX__: Update the copyright year in the Notices to the year of publication and regenerate the HTML.
+
+## <span style="color:red">FAIL: Could not find 'Copyright (c) YYYY The OpenID Foundation' in the Notices of {file}</span>
+The Notices must begin with the OIDF copyright line in exactly that form.
+
+__ACTION TO FIX__: Add "Copyright (c) YYYY The OpenID Foundation." as the first paragraph of the Notices, with YYYY the year of publication.
+
+## <span style="color:red">FAIL: Internal links in {file} point to its own editor's draft</span>
+Every table-of-contents entry and cross reference in the HTML links to an absolute URL on `openid.github.io` (or `openid.bitbucket.io`) instead of a `#fragment` within the document. A published spec with such links sends readers to the editor's draft whenever they click a section link. This usually happens when the HTML was generated with a base URL, or copied from a build that adds one.
+
+__ACTION TO FIX__: Regenerate the HTML so internal links are plain `href="#section-name"` fragments. The message names the base URL and how many links were affected.
 
 ## <span style="color:red">FAIL: {file} contains 'This document is not an OIDF International Standard'</span>
 Final and Errata publications must not contain the draft disclaimer text.
 
 __ACTION TO FIX__: Remove the "This document is not an OIDF International Standard" text from the document. This is only appropriate for draft publications.
 
-## <span style="color:red">FAIL: OIDF specs must not include IETF IPR notices</span>
-The document contains IETF Trust boilerplate text (e.g., "IETF Trust", "BCP 78", "BCP 79"). OIDF specifications must use the OIDF IPR notices instead.
+## <span style="color:red">FAIL: {file} contains IETF Internet-Draft boilerplate</span>
+The document contains the IETF Internet-Draft "Status of This Memo" and/or IETF copyright notice (detected from phrases such as "IETF Trust", "BCP 78", "BCP 79"). OIDF specifications must carry the OIDF Notices instead, at every stage from first draft to Final.
 
-__ACTION TO FIX__: Replace the IETF IPR boilerplate with the OIDF Notices text. If using xml2rfc, set `ipr = "none"` in the markdown metadata.
+__ACTION TO FIX__: In the markdown front matter set `ipr = "none"` (mmark) or `ipr: none` (kramdown-rfc), and remove the `[seriesInfo]` / `Internet-Draft` block that marks the document as an IETF submission, then regenerate the HTML. Compare the front matter of a recently published spec from your working group.
 
 ## <span style="color:red">FAIL: {file} contains 'OIDC'</span>
 For branding reasons, OIDF specifications must use the official name "OpenID Connect" rather than the unofficial abbreviation "OIDC". The check matches whole-word, case-sensitive "OIDC" anywhere in the rendered HTML, including citation labels like [OIDC] and anchor names. The check output lists the HTML line numbers where it appears. This blocks Final and Errata publications; drafts get a warning instead.
@@ -147,9 +169,9 @@ The following sections are required:
 
 Informative References are optional.
 
-The error message will list which specific sections are missing.
+Sections are recognised from their headings. The error message lists which sections are missing and, on the lines below it, describes the heading it looked for in words followed by the exact regular expression used.
 
-__ACTION TO FIX__: Add the missing sections listed in the error message.
+__ACTION TO FIX__: Add the missing sections listed in the error message, or fix the heading text so it matches the description given.
 
 ## <span style="color:red">FAIL: Publication date is more than 10 days ago in {file}</span>
 Documents should be published soon after the last revision. This tool reports a FAIL if the detected date is more than 10 days before the checks are executed.
@@ -167,10 +189,15 @@ The listed sites block automated requests (HTTP 403/429 or a 202 WAF challenge) 
 
 __ACTION TO FIX__: Verify the listed links manually in a browser. If they work, no action is needed.
 
-## <span style="color:orange">WARNING: Non-canonical OpenID reference URLs</span>
-References to OpenID specifications should use `https://openid.net/specs/` URLs, not editor's draft URLs on `openid.github.io` or `openid.bitbucket.io`.
+## <span style="color:orange">WARNING: {file} references editor's draft URLs instead of https://openid.net/specs/</span>
+References to OpenID specifications should use `https://openid.net/specs/` URLs, not editor's draft URLs on `openid.github.io` or `openid.bitbucket.io`. The message lists each editor's-draft URL once (ignoring `#fragment` anchors) with the number of links to it. Links to the document's own editor's draft are reported separately as a failure (see "Internal links ... point to its own editor's draft").
 
 __ACTION TO FIX__: Update the references to point to the published versions at `https://openid.net/specs/`.
+
+## <span style="color:orange">WARNING: No .zip file for {spec}</span>
+Only reported when there is no `.md` source to inspect (for example an XML-only submission). If the source is split across several files, a `.zip` containing all of them must be submitted; if the source is a single file, no action is needed.
+
+__ACTION TO FIX__: Add a `.zip` of all source files if the source has more than one file; otherwise ignore this warning.
 
 ## <span style="color:orange">WARNING: {file} contains 'OIDC'</span>
 For branding reasons, OIDF specifications must use the official name "OpenID Connect" rather than the unofficial abbreviation "OIDC". The check matches whole-word, case-sensitive "OIDC" anywhere in the rendered HTML, including citation labels like [OIDC] and anchor names. This is a warning for drafts but becomes a failure for Final and Errata publications.
