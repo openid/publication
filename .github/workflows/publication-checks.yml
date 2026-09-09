@@ -72,14 +72,18 @@ jobs:
           sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/checks-output.txt" > "$RUNNER_TEMP/checks-clean.txt"
 
           SUMMARY="$RUNNER_TEMP/checks-summary.md"
-          echo "## 📋 Publication Check Results" > "$SUMMARY"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          echo "## 📋 Publication Check Results${HEAD_SHA:+ for ${HEAD_SHA:0:7}}" > "$SUMMARY"
           echo "" >> "$SUMMARY"
 
           PR_NUM="${{ github.event.pull_request.number }}"
           PREVIEW_BASE="https://openid.github.io/publication/PREVIEW-DO-NOT-USE/pr-${PR_NUM}"
 
           PASS_COUNT=$(grep -c "^PASS:" "$RUNNER_TEMP/checks-clean.txt" || true)
-          FAIL_COUNT=$(grep "^FAIL:" "$RUNNER_TEMP/checks-clean.txt" | grep -cv "did not pass all checks" || true)
+          # process.py ends each file with "FAIL: <file> did not pass all checks";
+          # that is a summary of the items above it, not an item itself.
+          FILE_SUMMARY_LINE="did not pass all checks"
+          FAIL_COUNT=$(grep "^FAIL:" "$RUNNER_TEMP/checks-clean.txt" | grep -cv "$FILE_SUMMARY_LINE" || true)
           WARN_COUNT=$(grep -c "^WARNING:" "$RUNNER_TEMP/checks-clean.txt" || true)
 
           if [ "${{ steps.checks.outcome }}" = "success" ]; then
@@ -95,25 +99,51 @@ jobs:
           echo "| ⚠️ Warnings | $WARN_COUNT |" >> "$SUMMARY"
           echo "" >> "$SUMMARY"
 
-          # linkify: replace wg/spec.html paths with [spec.html](preview_url) links
+          # linkify: replace wg/spec.html paths with [spec.html](preview_url) links.
+          # The path must stand on its own (start of line, space or bracket
+          # before it) so that the tail of a full URL is not mistaken for one.
           linkify() {
             local line="$1"
-            if [[ "$line" =~ ([a-z-]+/[a-z0-9_-]+\.html) ]]; then
-              local fpath="${BASH_REMATCH[1]}"
+            local path_re='(^|[[:space:](])([a-z-]+/[a-z0-9_-]+\.html)'
+            if [[ "$line" =~ $path_re ]]; then
+              local fpath="${BASH_REMATCH[2]}"
               local fname
-              fname=$(basename "$fpath")
+              fname="${fpath##*/}"
               local url="${PREVIEW_BASE}/${fname}"
               line="${line//$fpath/[$fpath]($url)}"
             fi
             echo "$line"
           }
 
+          # emit_items PREFIX: one bullet per line starting with PREFIX (the
+          # prefix itself is dropped - the section heading already says it),
+          # with any indented diagnostic lines that immediately follow it
+          # nested underneath. process.py indents those with two spaces.
+          # Diagnostics are found-vs-expected values (markup, regexes, dates)
+          # so they are always shown as code, which also stops GitHub from
+          # swallowing HTML tags. The per-file summary line is not an item.
+          emit_items() {
+            local prefix="$1"
+            local in_item=0
+            local line detail
+            while IFS= read -r line; do
+              if [[ "$line" == "$prefix "* ]]; then
+                echo "- $(linkify "${line#"$prefix" }")" >> "$SUMMARY"
+                in_item=1
+              elif [[ $in_item -eq 1 && "$line" == "  "* ]]; then
+                detail="${line#"${line%%[![:space:]]*}"}"   # trim leading whitespace
+                detail="${detail#- }"
+                echo "  - \`${detail//\`/\'}\`" >> "$SUMMARY"
+              else
+                in_item=0
+              fi
+            done < <(grep -v "$FILE_SUMMARY_LINE" "$RUNNER_TEMP/checks-clean.txt")
+          }
+
           if [ "$FAIL_COUNT" -gt 0 ] 2>/dev/null; then
             echo "### ❌ Failures" >> "$SUMMARY"
             echo "" >> "$SUMMARY"
-            grep "^FAIL:" "$RUNNER_TEMP/checks-clean.txt" | grep -v "did not pass all checks" | while read -r line; do
-              echo "- $(linkify "$line")" >> "$SUMMARY"
-            done
+            emit_items "FAIL:"
             echo "" >> "$SUMMARY"
             echo "See [ERROR-MODES.md](https://github.com/openid/publication/blob/main/ERROR-MODES.md) for guidance on fixing each failure." >> "$SUMMARY"
           fi
@@ -122,14 +152,13 @@ jobs:
             echo "" >> "$SUMMARY"
             echo "### ⚠️ Warnings" >> "$SUMMARY"
             echo "" >> "$SUMMARY"
-            grep "^WARNING:" "$RUNNER_TEMP/checks-clean.txt" | while read -r line; do
-              echo "- $(linkify "$line")" >> "$SUMMARY"
-            done
+            emit_items "WARNING:"
           fi
 
           # Add preview links for all checked HTML files
           HTML_FILES=$(grep "^Processing file:" "$RUNNER_TEMP/checks-clean.txt" | sed 's/Processing file: //' || true)
           if [ -n "$HTML_FILES" ]; then
+            echo "" >> "$SUMMARY"
             echo "### Preview" >> "$SUMMARY"
             echo "" >> "$SUMMARY"
             while read -r fpath; do
