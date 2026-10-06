@@ -5,7 +5,7 @@ Hosts OpenID Foundation specifications for publication to https://openid.net/spe
 ## Structure
 
 - `sync/specs/` - Published specification files (deployed to web server)
-- `{wg-name}/` - Working group subdirectories (authzen, connect, ekyc-ida, fapi, igov, ipsie, sharedsignals, digital-credentials-protocols)
+- `{wg-name}/` - Working group subdirectories (authzen, connect, dchp, ekyc-ida, fapi, igov, ipsie, sharedsignals, digital-credentials-protocols)
 - `.github/workflows/` - CI/CD workflows
 - `.github/CODEOWNERS` - Restricts commits by working group
 
