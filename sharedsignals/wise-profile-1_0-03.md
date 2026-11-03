@@ -1,7 +1,7 @@
 ---
 title: "OpenID WISE Profile Specification 1.0 - draft 03"
 abbrev: wise-profile
-docname: ssf-wise-profile-1_0
+docname: openid-wise-profile-1_0
 
 ipr: none
 cat: std
@@ -1662,12 +1662,10 @@ Description:
 --- back
 
 # Acknowledgments
-{:numbered="false"}
 
 The authors would like to thank the members of the OpenID Foundation Shared Signals Working Group and the IETF WIMSE Working Group for their contributions to this specification.
 
 # Reviewers and Contributors
-{:numbered="false"}
 
 The authors want to recognize the contributions and reviews of the following individuals (in alphabetical order):
 
@@ -1712,7 +1710,6 @@ rights that may cover technology that may be required to practice this
 specification.
 
 # Document History
-{:numbered="false"}
 
 -03
 
