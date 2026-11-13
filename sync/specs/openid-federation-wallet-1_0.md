@@ -1,5 +1,5 @@
 %%%
-title = "OpenID Federation for Wallet Architectures 1.0 - draft 05"
+title = "OpenID Federation for Wallet Architectures 1.0 - draft 06"
 abbrev = "OpenID Federation for Wallet Architectures"
 ipr = "none"
 workgroup = "OpenID Connect Working Group"
@@ -62,7 +62,10 @@ This specification defines how to use OpenID Federation 1.0 [@!OpenID.Federation
 security and interoperability of wallet ecosystems, facilitating trust establishment
 among the parties and enabling secure metadata exchange and policy
 application across large scale deployments.
-It outlines the general architecture of a federated trust
+OpenID Federation is a building block for applying Trust Frameworks.
+It can help ensure that all participants in a system understand and adhere to the
+same principles and practices, making interactions predictable and secure.
+This specification outlines the general architecture of a federated trust
 infrastructure for wallet ecosystems, identifying participant roles and describing
 the use of those roles.
 
@@ -85,6 +88,9 @@ It defines entity types for entities participating in those ecosystems.
 It describes trust evaluation mechanisms for those entities.
 It uses applicable metadata parameters defined by other specifications
 for wallet entities.
+It covers only the technical and procedural aspects of a Trust Framework.
+To allow for a scalable approach, as many aspects of a Trust Framework as
+possible should be presented in a machine-discoverable and machine-readable way.
 
 Collaboration Note: When a metadata parameter is needed for an Entity Type
 defined by this specification that does not currently exist and
@@ -99,12 +105,16 @@ This specification uses the terms
 "End-User" and "Entity" as defined by OpenID Connect [@!OpenID.Core],
 "JSON Web Token (JWT)" defined by JSON Web Token (JWT) [@!RFC7519],
 "Client" as defined by [@!RFC6749],
-"Verifiable Presentation" and "Wallet Attestation" defined in [@!OpenID4VP],
-"Holder" and "Credential Issuer" defined in [@!OpenID4VCI],
+"Verifiable Presentation" and "Verifier Attestation JWT" defined in [@!OpenID4VP],
+"Holder", "Credential Issuer", "Digital Credential", "Credential Issuer Identifier",
+"Wallet Attestation", and "Key Attestation" defined in [@!OpenID4VCI],
 and "Trust Mark", "Federation Entity", "Trust Anchor",
 "Intermediate", and "Subordinate Statement" defined in [@!OpenID.Federation].
 
 This specification also defines the following terms:
+
+**Digital Credential**:
+: A Credential as defined in [@!OpenID4VCI]. This specification uses Digital Credential for that term to distinguish it from other uses of "credential", such as in [@!OpenID.Core] and [@!RFC6749].
 
 **Organizational Entity**:
 : A Federation Entity represented by a legal entity, specifically referring to public or private organizations (excluding natural persons) recognized through a unique identifier. For the purposes of this specification, an Organizational Entity is also referred to as an Organization.
@@ -122,31 +132,22 @@ This specification also defines the following terms:
 : The Wallet Solution is a product offered by a Wallet Provider to enable End-Users to securely manage and use their Digital Credentials. It is delivered by the Wallet Provider in the form of mobile app or cloud service or another form of software application. It may also utilize services and web services for the exchange of data between its Wallet Provider and the Wallet Instances.
 
 **Authentic Source**:
-: A protected Resource Server, not necessarily an OAuth 2.0 Resource Server, utilized by the Credential Issuer to retrieve the data necessary for issuing a Credential related to a subject.
+: A protected Resource Server, not necessarily an OAuth 2.0 Resource Server, utilized by the Credential Issuer to retrieve the data necessary for issuing a Digital Credential related to a subject.
 
 **Credential Verifier**:
 : Entity that requests and verifies Digital Credentials presented by a Holder. 
 
 **Credential Verifier Instance**:
-: A software application that allows an individual to request to an Holder and receive from that Holder a Digital Credential, sometimes in a proximity flow, and then verify the received Digital Credential.
+: A software application that allows an individual to request to a Holder and receive from that Holder a Digital Credential, sometimes in a proximity flow, and then verify the received Digital Credential. A Credential Verifier Instance is not a Federation Entity since it has no queryable Entity Identifier. It can be attested by a Credential Verifier Provider.
 
-## Trust Models and Trust Frameworks
+**Credential Verifier Provider**:
+: An Organizational Entity that develops, publishes, or manages Credential Verifier Instance software and that issues Verifier Attestation JWTs about those instances.
 
-The terms "trust model" and "trust framework" are often used in the context of security, identity management, and federation systems.
+**Trust Model**:
+: The relationships and mechanisms through which trust is established and maintained between Entities, including how they interact, the basis on which they can trust each other, and the roles they play.
 
-The Trust Model defines the relationships and mechanisms through which trust is established and maintained between entities in a system. It outlines how entities interact, the basis on which they can trust each other, and the roles they play within the system. Trust Models can be simple or complex, depending on the number of parties involved and the nature of their interactions. Common examples include:
-
-- **Direct Trust**: Trust is established directly between two parties without intermediaries.
-- **Trusted Third Party**: Trust is facilitated by a trusted third party.
-- **Web of Trust**: Each participant makes individual decisions about whom to trust, using Direct Trust or potentially multiple Third-Parties.
-
-**Trusted Third-Party** is the focus of this specification, although the **Web of Trust** model is not excluded if multiple trusted third parties (Trust Anchors) are supported by the participants.
-
-A Trust Framework is a comprehensive structure that includes policies, standards, and guidelines that govern the implementation of a Trust Model. It provides detailed rules for how trust should be managed, including the legal, technical, and procedural aspects. To allow for a scalable approach, as many aspects of the framework as possible should be presented in a machine discoverable and machine-readable way.
-
-In the scope of this specification, only the technical and procedural aspects are considered and fully covered.
-
-OpenID Federation [@!OpenID.Federation] is a building block for assembling and using trust frameworks. It can help ensure that all participants in a system understand and adhere to the same principles and practices, making interactions predictable and secure.
+**Trust Framework**:
+: A structure of policies, standards, and guidelines that governs the implementation of a Trust Model, including legal, technical, and procedural rules.
 
 # The Four-Party Model
 
@@ -155,13 +156,15 @@ the Holder, the Credential Issuer, the Credential Verifier,
 and an Entity trusted by the other Entities called the Trust Anchor.
 This is an extension of the three-party Issuer-Holder-Verifier Model described in
 [@!OpenID4VCI] and [@!OpenID4VP] that adds a fourth party: the Trust Anchor.
+Trust among those Entities is established through the Trust Anchor acting as a
+trusted third party. Participants MAY configure multiple Trust Anchors.
 
 
 The four Entities interact with each other as described below:
 
 1. **Holder**: The Holder requests, stores, presents, and manages Digital Credentials and other forms of digital attestations. It discovers trustworthy Credential Issuers through the Trust Anchor and its Intermediates. Additionally, the Holder evaluates trust with Credential Verifiers recognized by the Trust Anchor and its Intermediates and checks for the non-revocation of the other Entities in use.
 2. **Credential Issuer**: This Entity issues Digital Credentials to the Holder, after having evaluated the trust in the Wallet Solution and the security of the Holder.
-3. **Credential Verifier**: This is any Entity that requires proof of the End-User's identity, through the presentation of Credentials, to provide services or carry out transactions. Credential Verifiers rely on the validity of the Digital Credentials presented via the End-User's Wallet. They MUST have the means to verify these Credentials against the Credential Issuer's cryptographic public keys or other verification methods to ensure they are authentic and have not been tampered with. The Credential Verifier uses the Trust Anchor and its Intermediates to establish the trust with the Credential Issuers, obtains their metadata and cryptographic material, and check the validity of the presented Digital Credentials. It also establishes trust with the Holder and the Wallet Solution used by it.
+3. **Credential Verifier**: This is any Entity that requires proof of the End-User's identity, attributes, or both, through the presentation of Digital Credentials, to provide services or carry out transactions. Credential Verifiers rely on the validity of the Digital Credentials presented via the End-User's Wallet. They MUST have the means to verify these Digital Credentials against the Credential Issuer's cryptographic public keys or other verification methods to ensure they are authentic and have not been tampered with. The Credential Verifier uses the Trust Anchor and its Intermediates to establish the trust with the Credential Issuers, obtains their metadata and cryptographic material, and check the validity of the presented Digital Credentials. It also establishes trust with the Holder and the Wallet Solution used by it.
 4. **Trust Anchor**: This Entity and its Intermediates, issue Subordinate Statements and any required information about the status of the Federation and its participants (Organizational Entities), to demonstrate their non-revocations, distribute the policies and prevents the repudiation of the past transaction about any trust evaluation, if signed. Historical proofs allow for the evaluation of an Organizational Entity's status within a federation and their past signatures, which can be verified using a historical Trust Chain.
 
 
@@ -177,7 +180,7 @@ The four Entities interact with each other as described below:
 |                          Trust Anchor                        |
 +--------------------------------------------------------------+
 ~~~
-**Figure 1**: The relationships and interactions within a Wallet ecosystem using the Four-Party Model, where each entity uses the Trust Anchor to establish the trust with other entities.
+**Figure 1**: The Four-Party Model. Horizontal arrows represent protocol interactions: issuance of Digital Credentials between the Credential Issuer and the Holder, and presentation between the Holder and the Credential Verifier. Vertical arrows mean that the party uses the Trust Anchor to evaluate trust in other parties. They are not client/server relations and they are not the flow of credential data. A vertical arrow does not mean that the party is a Federation Entity under the Trust Anchor. The Holder is not a Federation Entity; it uses the Trust Anchor to evaluate Credential Issuers and Credential Verifiers.
 
 In the Wallet Ecosystem, the primary interaction resolves around asset management. Unlike an Identity Provider in OpenID Connect or SAML2, which authenticates the End-User's identity for third parties, the Credential Issuer in the Wallet ecosystem focuses on managing the issuance of Digital Credentials to the Holder.
 
@@ -205,15 +208,21 @@ Consequently, the End-User obtains and holds the Digital Credentials without dis
 |                          Trust Anchor                             |
 +-------------------------------------------------------------------+
 ~~~
-**Figure 2**: Representation acknowledging the roles of Authentic Sources and Wallet Providers in the ecosystem while maintaining the core structure of the Four-Party Model.
+**Figure 2**: Authentic Sources and Wallet Providers in the Four-Party Model. Horizontal arrows have the same meaning as in Figure 1 (issuance and presentation). The additional downward arrows from Authentic Source to Credential Issuer and from Wallet Provider to Holder represent data used for issuance and Wallet Attestation, respectively. Vertical arrows to the Trust Anchor have the same meaning as in Figure 1: the party uses the Trust Anchor to evaluate trust in other parties. The Wallet Provider is a Federation Entity evaluated under the Trust Anchor, for example by Credential Issuers; that evaluation is not drawn as an arrow from the Wallet Provider.
 
-The Figure above illustrates at the center the Holder, who interacts directly with both the Credential Issuer and the Credential Verifier. The Credential Issuer provides Digital Credentials to the Holder, while the Credential Verifier relies on these Credentials to verify the Holder's claims. Above the Holder is the Wallet Provider, which facilitates the registration and the attestation of the security and integrity of the Holder. All entities, including the Credential Issuer, Credential Verifier, Wallet Provider and therefore Holders, and are underpinned by a Trust Anchor, ensuring that all interactions and transactions are anchored in a trusted third party.
+The Figure above illustrates at the center the Holder, who interacts directly with both the Credential Issuer and the Credential Verifier. The Credential Issuer provides Digital Credentials to the Holder, while the Credential Verifier relies on these Digital Credentials to verify the Holder's claims. Above the Holder is the Wallet Provider, which facilitates the registration and the attestation of the security and integrity of the Holder. The Credential Issuer, the Credential Verifier, and the Wallet Provider are Federation Entities evaluated under the Trust Anchor. The Holder is not a Federation Entity. Other parties evaluate the Holder through the Wallet Provider and its Wallet Attestation, and the Holder uses the Trust Anchor to evaluate the other parties.
 
-# Wallet Instance Types
+# Wallet Instances
 
-There are many ways to technically implement Wallet Instances to manage Digital Credentials. There are typically two types of Wallet End-Users: one is a natural person and another is an Organizational Entity. These two types of End-Users may have different usage and functional requirements.
+This section describes deployment forms of Wallet Instances and how trust is established with the Holder.
 
-Below a non-exhaustive list of the different Wallet Instance types.
+The Wallet Instance types below are informative and non-exhaustive. This specification does not define type-specific federation processing. Credential Issuers, Credential Verifiers, and other Entities evaluate trust with the Holder using the Wallet Provider and Wallet Attestation, regardless of Wallet Instance type.
+
+Wallet Instances may be used by a natural person or by an Organizational Entity. These two cases may have different usage and functional requirements; those differences do not change the federation mechanisms defined in this specification.
+
+## Wallet Instance Types
+
+There are many ways to technically implement Wallet Instances to manage Digital Credentials.
 
 **Mobile Wallet Native Application**
 : Also known as Mobile Wallet only, is an application that runs natively on a Personal Device under the sole control of an End-User and provided through a platform vendor specific app-store, on behalf of the Wallet Solution. In some cases the End-User as natural person uses the Mobile Wallet representing a legal person.
@@ -221,14 +230,14 @@ Below a non-exhaustive list of the different Wallet Instance types.
 **Web Wallet Native Application**
 : Also known as Cloud Wallet or Web Wallet only, is a Wallet that uses native web technologies for its components, such as UI components. Cloud Wallets are typically suited for Organizational Entities that requires automated Digital Credential operations (request, issuance, store, presentation, revocations) in unsupervised flows, therefore without any human control. Web Wallets are divided into two additional subtypes:
     - **Custodial Web Wallet**: Cloud Wallets that have dependency on a cloud infrastructure, not necessarily hosted by the Wallet Provider, are typically classified as Custodial Web Wallets; in this case, the cryptographic keys used and the Digital Credentials are stored in the cloud infrastructure.
-    - **Non-Custodial Web Wallet**: A Web Wallet where the cryptographic keys are stored and managed on a media in possession by the End-User and the Digital Credentials can only be used by the End-User, e.g. using a FIDO enabled security hardware token, no matter whether the Credentials are stored locally in a Personal Device or in cloud storage.
+    - **Non-Custodial Web Wallet**: A Web Wallet where the cryptographic keys are stored and managed on a media in possession by the End-User and the Digital Credentials can only be used by the End-User, e.g. using a FIDO enabled security hardware token, no matter whether the Digital Credentials are stored locally in a Personal Device or in cloud storage.
 
 **Progressive Web Application Wallet** (PWAW)
 : PWAW is a web application that looks like a native app. It can be installed on a Personal Device and not necessarily using the operative system specific app-store. The advantage with a PWAW is that it gives the End-User the same experience as a Mobile Native Wallet Application while also offering the benefits of a web application. PWAW can be Custodial or Non-Custodial.
 
 ## Establishing Trust with the Holder
 
-Since the Holder may not be an Organizational Entity and cannot be registered as an Organization through registration services, it is not represented within a Trust Chain and does not qualify as a Federation Entity. This context sets the stage for understanding the unique position of the Holder in relation to the Trust Chain and Federation Entities.
+Since the Holder may not be an Organizational Entity and cannot be registered as an Organization through registration services, it is not represented within a Trust Chain and does not qualify as a Federation Entity. This applies regardless of Wallet Instance type. This context sets the stage for understanding the unique position of the Holder in relation to the Trust Chain and Federation Entities.
 
 ~~~ ascii-art
 +----------------------------+
@@ -266,6 +275,7 @@ This section defines the Entity Types used by Organizational Entities in their E
 | Trust Anchor          | `federation_entity`                                        | [@!OpenID.Federation]                       |
 | Intermediate          | `federation_entity`                                        | [@!OpenID.Federation]                       |
 | Wallet Provider       | `federation_entity`, `openid_wallet_provider`              | this specification                                  |
+| Credential Verifier Provider | `federation_entity`, `openid_credential_verifier_provider` | this specification |
 | Authorization Server  | `federation_entity`, `oauth_authorization_server`          | [@!OpenID4VCI], [@!RFC8414]                    |
 | Credential Issuer     | `federation_entity`, `openid_credential_issuer`, `oauth_authorization_server` | [@!OpenID4VCI], this specification |
 | Credential Verifier   | `federation_entity`, `openid_credential_verifier`          | [@!OpenID.Federation], [@!OpenID4VP], this specification |
@@ -282,6 +292,16 @@ The OpenID Federation Entity Type Identifier for the Wallet Provider is `openid_
 For information on metadata parameters specific to OpenID Wallets,
 refer to Section *10. Wallet Metadata (Authorization Server Metadata)* of
 the OpenID for Verifiable Presentations [@!OpenID4VP] specification.
+
+## OpenID Credential Verifier Provider Entity Type
+
+The OpenID Federation Entity Type Identifier for the Credential Verifier Provider is `openid_credential_verifier_provider`.
+
+A Credential Verifier Provider is the federation-resolvable counterpart of a Wallet Provider for Credential Verifier Instances. It is listed in a Trust Chain. Credential Verifier Instances are not.
+
+The cryptographic keys used to sign Verifier Attestation JWTs MUST be published in the `jwks` parameter of the `openid_credential_verifier_provider` metadata of the Credential Verifier Provider.
+
+An Organizational Entity MAY include both `openid_credential_verifier` and `openid_credential_verifier_provider` metadata in the same Entity Configuration when it attests its own Credential Verifier Instances. A Credential Verifier Provider MAY attest Credential Verifier Instances of a distinct Credential Verifier only when that Credential Verifier's final `credential_verifier_providers` metadata contains the Credential Verifier Provider's Entity Identifier.
 
 ## OpenID Credential Issuer Entity Type
 
@@ -435,13 +455,30 @@ metadata:
   `dcql_query` in an Authorization Request to be equal to, or a constrained
   refinement of, one of the query objects in this array.
 
+`credential_verifier_providers`:
+: OPTIONAL. A non-empty array of Federation Entity Identifiers. Each value
+  identifies a Credential Verifier Provider that this Credential Verifier
+  authorizes to issue Verifier Attestation JWTs for its Credential Verifier
+  Instances. After Trust Chain evaluation, the Wallet uses the final value
+  to decide whether `iss` may attest instances of `sub`, as described in
+  Establishing Trust with a Credential Verifier Instance.
+  This parameter is not required when the same Entity is both the
+  Credential Verifier and the Credential Verifier Provider.
+  Superior entities MAY set or constrain this parameter through `metadata`
+  and `metadata_policy`.
+  A valid Trust Chain for `iss` and a valid Trust Chain for `sub` do not
+  by themselves authorize that Credential Verifier Provider to attest
+  instances of that Credential Verifier. This parameter is that
+  authorization. A Credential Verifier Provider can then attest only the
+  Credential Verifiers that list it, and can at worst narrow their
+  entitlements.
+
 #### Rationale for Extending the Set of `openid_credential_verifier` Metadata Parameters
 
 The rationale for extending the set of `openid_credential_verifier` metadata
-parameters is to align OpenID4VP Verifiers with the Trusted Third-Party trust
-model employed by this specification. Cryptographic material, protocol endpoints 
-and default or constrained DCQL queries are published in federation-managed metadata,
-constrained DCQL queries in federation-managed metadata. This practice aims to:
+parameters is to align OpenID4VP Verifiers with the Trust Anchor-based Trust
+Model employed by this specification.
+This practice aims to:
 
 - enforce common technical and policy requirements on all participating
   Credential Verifiers,
@@ -449,11 +486,45 @@ constrained DCQL queries in federation-managed metadata. This practice aims to:
   presentation flows, and
 - limit the kinds of Digital Credentials and claims that a Credential
   Verifier is allowed to request from Wallets.
+- record which Credential Verifier Providers may attest a Credential
+  Verifier's instances. A valid Trust Chain for the provider does not
+  by itself allow it to name that Credential Verifier in `sub`.
 
 When these parameters are expressed and enforced through Subordinate
 Statements, as defined in [@!OpenID.Federation], critical configuration and
 authorization decisions move from ad‑hoc, per‑instance configuration into a
 federated, policy-driven framework anchored in the Trust Anchor and the Superior Entities.
+
+### OpenID Federation Client IDs Used with OpenID for Verifiable Presentations
+
+Note that Section 5.9.3 of [@!OpenID4VP] defines that the Client ID values
+specified by Section 12.1 of [@!OpenID.Federation], which are Entity Identifiers,
+MUST be prefixed by `openid_federation:` when used with [@!OpenID4VP].
+Therefore, such Client IDs MUST be prefixed when used with
+[@!OpenID4VP] protocols and APIs
+and the prefix MUST be removed from any Client IDs received from
+[@!OpenID4VP] protocols and APIs
+when applying the processing rules in OpenID Federation 1.0 and this specification.
+For example, the prefix MUST be included in
+the `client_id` values in the Authorization Requests defined in
+Section 5 of [@!OpenID4VP],
+the `client_id` values in the key-bound attestations defined in
+Section 5.11.1 of [@!OpenID4VP], and
+wherever the Client ID value is used in the Presentation Responses defined in
+Appendix B of [@!OpenID4VP].
+Together, these rules enable compliance with
+Section 14.8 of [@!OpenID4VP] (Always Use the Full Client Identifier).
+
+Implementations processing Client IDs MUST NOT treat the Entity Identifier
+obtained by removing the `openid_federation:` prefix
+as equivalent to a Client ID of the same value that was received
+with a different Client Identifier Prefix, with no prefix (except when it is clear
+that the client is a properly authenticated OpenID Federation Client ID being
+used in a context where an un-prefixed ClientID is permitted),
+or under another specification,
+such as an OAuth Client ID Metadata Document [@CIMD] Client ID.
+The full prefixed value remains the Client ID of the Credential Verifier,
+as required by Section 14.8 of [@!OpenID4VP].
 
 # Federation Policies
 
@@ -478,9 +549,51 @@ These modifications allow a federation authority, such as a Trust Anchor, to app
   "exp": 1616239322,
   "metadata": {
     "federation_entity": {
-      "organization_name": "Example Credential Verifier",
+      "organization_name": "Example Credential Verifier"
     },
-    "openid_credential_verifier": { ... as defined in the OpenID4VP specs ... }
+    "openid_credential_verifier": {
+      "jwks": {
+        "keys": [
+          {
+            "kty": "EC",
+            "crv": "P-256",
+            "use": "sig",
+            "kid": "verifier-key-1",
+            "x": "MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4",
+            "y": "4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM"
+          }
+        ]
+      },
+      "request_uris": [
+        "https://credential-verifier.example.it/request"
+      ],
+      "response_uris": [
+        "https://credential-verifier.example.it/response"
+      ],
+      "redirect_uris": [
+        "https://credential-verifier.example.it/cb"
+      ],
+      "dcql_queries": [
+        {
+          "credentials": [
+            {
+              "id": "pid",
+              "format": "dc+sd-jwt",
+              "meta": {
+                "vct_values": [
+                  "https://credentials.example.com/pid"
+                ]
+              },
+              "claims": [
+                {"path": ["given_name"]},
+                {"path": ["family_name"]},
+                {"path": ["birth_date"]}
+              ]
+            }
+          ]
+        }
+      ]
+    }
   },
   "jwks": {
     "keys": [
@@ -495,7 +608,7 @@ These modifications allow a federation authority, such as a Trust Anchor, to app
   }
 }
 ```
-**Example 1**: Example demonstrating how a Federation Authority can issue a Subordinate Statement about a Credential Verifier, specifying certain metadata parameters such as the endpoints to use and the allowed Digital Credentials to be requested.
+**Example 1**: Non-normative example of a Subordinate Statement issued by a Federation Authority about a Credential Verifier. The `openid_credential_verifier` metadata sets the protocol keys, the registered `request_uri` / `response_uri` / `redirect_uri` endpoints, and the DCQL query the Verifier is allowed to use when requesting Digital Credentials.
 
 ### OpenID Credential Verifier Presentation Metadata in Subordinate Statements
 
@@ -517,11 +630,14 @@ Superior entities (for example Trust Anchors or Intermediates):
 - MAY add or constrain the `openid_credential_verifier.dcql_queries` value to
   define the list of DCQL queries that the Credential Verifier is permitted
   to use.
+- MAY set or constrain the `openid_credential_verifier.credential_verifier_providers`
+  value to the Credential Verifier Providers authorized to attest instances of that
+  Credential Verifier.
 
 When `metadata` is used, the resulting `openid_credential_verifier` metadata
 in the Leaf Entity Configuration after Trust Chain evaluation represents the
-effective set of keys, endpoints, and DCQL queries that the Wallet MUST use
-for trust and policy checks.
+effective set of keys, endpoints, DCQL queries, and authorized Verifier
+Providers that the Wallet MUST use for trust and policy checks.
 
 When `metadata_policy` is used, the same constraints are propagated along the
 Trust Chain according to [@!OpenID.Federation], Sections 3, 5, and 6.1.
@@ -552,9 +668,6 @@ In particular:
   applied to any `dcql_queries` present in the Credential Verifier metadata,
   if available, or otherwise to the `dcql_query` contained in
   `client_metadata` in the Authorization Request.
-  Profiles MAY additionally convey `dcql_queries`-related policies using
-  Trust Marks bound to the Credential Verifier; see the section on
-  Trust Marks and policy expression for further guidance.
 
 This mechanism allows superior entities to centrally define and enforce
 policy on Credential Verifiers’ OpenID4VP behaviour (including cryptographic
@@ -573,13 +686,20 @@ Differently from `metadata`, `metadata_policy` ensures that specific settings ca
 
 ## Using Trust Marks
 
-Trust Marks are issued by authorized entities (Trust Mark Issuers) within the federation, typically after an entity has demonstrated compliance with certain standards, this might happen through auditing or certification processes.
+Trust Marks are used as defined in [@!OpenID.Federation]. This specification
+does not change Trust Mark issuance, signature verification, or status checks.
 
-Trust Marks are typically implemented as signed assertions that can be verified by other entities.
+This profile uses Trust Marks for qualitative and authorization properties of
+wallet Entities that are not expressed, or not fully expressed, in `metadata`
+and `metadata_policy`. Typical uses in wallet ecosystems include:
 
-This verification process involves checking the digital signature against the public key of the Trust Mark Issuer to ensure the Trust Mark has not been forged, and its check to the Trust Mark Status endpoint to check it against any revocation.
-
-Trust Marks SHOULD be defined within the trust framework. Trust Marks are asserted about a subject through a registration service or compliance evaluation mechanism and therefore included in subject's Entity Configurations. This allows other entities to quickly assess the compliance status of a subject by examining the Entity Configuration of a subject.
+- Credential Issuer entitlement to issue a given Digital Credential type;
+- Credential Verifier authorization to request particular credentials or to
+  interact with particular populations (for example, under-age End-Users);
+- Wallet Provider assurance that a Wallet Solution meets a security or
+  compliance profile required by the Trust Framework;
+- Credential Verifier attributes that a Wallet verifies and presents to the
+  End-User (for example, an assurance that the verifier is an ethical data user).
 
 
 ```json=
@@ -592,19 +712,72 @@ Trust Marks SHOULD be defined within the trust framework. Trust Marks are assert
   "tos_uri": "https://vavuso.example.com/tos"
 }
 ```
-**Example 2**: Trust Mark to be included in a Leaf Entity Configuration, which payload states Leaf's compliance in interacting with under-age End-User.
+**Example 2**: Non-normative Trust Mark included in a Credential Verifier's Entity Configuration, asserting authorization to interact with under-age End-Users.
 
 # Federation Trust Discovery Use Cases
 
 The process of trust establishment in federated environments is illustrated in this section through specific use cases involving Wallet Instances, Credential Issuers (CIs), and Credential Verifiers (CVs).
 
+These use cases are independent: a Trust Framework MAY require support for any subset of them. Normative requirements in a use case apply only when that use case is used for OpenID Federation trust establishment.
+
 ## Establishing Trust with a Credential Verifier Instance
 
-A Credential Verifier Instance is typically installed on a mobile device, personal computer, or embedded system. It enables an individual to perform Digital Credential verification tasks locally, often in proximity to the Holder, and without necessarily requiring a broadband connection. This instance engages in peer-to-peer exchanges with Holders, facilitating Credential verifications directly on the device. This approach represents a shift from traditional server-based verification to a more user-centric model within the Wallet ecosystem.
+A Credential Verifier Instance is typically installed on a POS terminal, mobile reader, Personal Device, or embedded system. It performs Digital Credential verification locally, often in a proximity flow, and without necessarily requiring a broadband connection. Like a Wallet Instance, it is manufactured or installed software: it has per-instance keys, cannot serve an Entity Configuration at an `https` Entity Identifier, and is not a Federation Entity.
 
-To establish trust between a Holder's Wallet Instance and a Credential Verifier Instance, a mechanism using a verifiable attestation, such as the Wallet Instance Attestations, SHOULD be employed. This process ensures that the Credential Verifier Instance is legitimate and trustworthy.
+Credential Verifiers remain Federation Entities (`openid_credential_verifier`). A Credential Verifier Provider attests the Credential Verifier Instances that act for such a Credential Verifier. This use case applies when a presentation is made to a Credential Verifier Instance rather than to that Credential Verifier acting as a resolvable server. It does not replace Wallet Establishing Trust in the Credential Verifier, which applies when the Verifier is itself a Federation Entity (for example, using the OpenID4VP `openid_federation` Client Identifier Prefix).
 
-The mechanisms used to present the Wallet Instance Attestation to a Credential Verifier are out of scope for this specification, as they are related to Credential presentation flows. For implementation details on these presentation mechanisms, please refer to the OpenID for Verifiable Presentations (OpenID4VP) specification.  
+This specification uses the Verifier Attestation JWT defined in [@!OpenID4VP] and does not define a new attestation format. It profiles what [@!OpenID4VP] leaves unspecified: how the Wallet establishes trust in the attestation's `iss`.
+
+This use case applies to presentations made with [@!OpenID4VP], including OpenID4VP over the Digital Credentials API, using the `verifier_attestation` Client Identifier Prefix. mdoc reader authentication in ISO/IEC 18013-5 device retrieval uses X.509 certificates and is not covered by this section.
+
+### Verifier Attestation
+
+The Credential Verifier Provider issues a Verifier Attestation JWT to the Credential Verifier Instance as defined in [@!OpenID4VP]. When used in a Wallet federation:
+
+- `typ` MUST be `verifier-attestation+jwt`;
+- `iss` MUST be the Credential Verifier Provider's Federation Entity Identifier;
+- `sub` MUST be the Credential Verifier's Federation Entity Identifier and MUST equal the original Client Identifier in the OpenID4VP `verifier_attestation` Client Identifier Prefix;
+- `cnf` MUST contain the Credential Verifier Instance's public key, as defined in [@!OpenID4VP];
+- `exp` MUST be present. Short-lived attestations limit the window after a compromise. Attestations that are not short-lived SHOULD include `status`;
+- `status` MAY be present, as defined in [@!I-D.ietf-oauth-status-list], so that one Credential Verifier Instance can be revoked without revoking the Credential Verifier Provider or the Credential Verifier and without waiting for `exp`. When `status` is present, the Wallet MUST check it when a Status List can be retrieved, including a Status List cached from an earlier retrieval. If that status indicates that the attestation is invalid, the Wallet MUST refuse the request. A Trust Framework MAY limit how long a cached Status List remains acceptable.
+
+The Authorization Request MUST be signed with the private key corresponding to `cnf`, as required by [@!OpenID4VP].
+
+~~~ ascii-art
++-------------------------------------+
+| Trust Chain                         |
+| +-------------------------------+   |
+| | Trust Anchor                  |   |
+| | (Entity Configuration)        |   |
+| +-------------------------------+   |
+|                          |          |
+|                          v          |
+| +-------------------------------+   |
+| | Credential Verifier Provider  |   |    +-------------------------------+
+| | (Entity Configuration)        |------->|   Verifier Attestation JWT    |
+| +-------------------------------+   |    | (Not part of the Trust Chain) |
++-------------------------------------+    +-------------------------------+
+~~~
+**Figure 4**: Federation Trust Chain and Verifier Attestation JWT are separate. The Credential Verifier Provider is attested in the Trust Chain; the Credential Verifier Instance is attested by that Credential Verifier Provider.
+
+### Wallet Processing
+
+When this use case is used, the Wallet MUST:
+
+1. Validate the header and the claims of the Verifier Attestation JWT as specified in [@!OpenID4VP], including `typ`, `exp`, `sub`, `iss`, `cnf`, and `status` when present. The signature is verified in step 2.
+2. Establish trust in `iss` as a Credential Verifier Provider of type `openid_credential_verifier_provider` by constructing a Trust Chain to a configured Trust Anchor, or by validating a `trust_chain` JOSE header on the attestation as described in the Implementation Considerations for Offline Flows section. The Wallet MUST verify the attestation signature using the keys in the `jwks` parameter of the `openid_credential_verifier_provider` metadata obtained from that Trust Chain.
+3. Establish trust in `sub` as a Credential Verifier of type `openid_credential_verifier` by constructing a Trust Chain to a configured Trust Anchor, or by validating an offline Trust Chain about that Entity. With `client_id` using the `verifier_attestation` prefix, `sub` is the original Client Identifier and the Entity the Wallet resolves. The Wallet MUST obtain that Entity's metadata and entitlements from that Trust Chain. Trust in the Credential Verifier Provider (`iss`) and trust in the Credential Verifier (`sub`) are separate Trust Chains. The authorization that links them is step 4.
+4. Verify that the Credential Verifier Provider identified by `iss` is authorized to issue Verifier Attestation JWTs for the Credential Verifier identified by `sub`. Authorization holds when `iss` equals `sub` and that Entity's metadata includes both `openid_credential_verifier` and `openid_credential_verifier_provider`, or when the final `openid_credential_verifier` metadata of `sub` contains `iss` in `credential_verifier_providers`. Otherwise, the Wallet MUST refuse the request. A Credential Verifier Provider that is not authorized for that `sub` cannot cause the Wallet to accept the attestation by naming `sub`.
+5. Verify that the Authorization Request is signed with the key in `cnf`.
+6. Check the request against the constraints in the attestation and against the final `openid_credential_verifier` metadata of `sub`, as described below, and refuse the request if they are not satisfied.
+
+A Verifier Attestation JWT asserts instance integrity and key binding. It MAY also carry provider-asserted constraints that narrow what the Credential Verifier identified by `sub` can request through that instance (for example `redirect_uris` as defined in [@!OpenID4VP], or `dcql_queries` as defined in this specification). Those constraints MUST NOT grant privileges beyond the metadata, `metadata_policy`, and Trust Marks of `sub`. When a parameter is present both in the attestation and in the final metadata of `sub`, the Wallet MUST check the request against both: the `redirect_uri` MUST be listed in both, and the `dcql_query` MUST be allowed by at least one element of `dcql_queries` in both, according to the rules of the applicable profile. Otherwise, the Wallet MUST refuse the request.
+
+When federated metadata for `sub` is available, the Wallet MUST use it for cryptographic keys, endpoints, and authorized DCQL queries, and MUST ignore conflicting values in `client_metadata`. This overrides the OpenID4VP rule that, for the `verifier_attestation` Client Identifier Prefix, Verifier metadata other than the public key is taken from `client_metadata`.
+
+When used in a Wallet federation, Verifier Attestation JWTs SHOULD include the `trust_chain` JOSE header parameter defined in Section 4.3 of [@!OpenID.Federation], containing a Trust Chain about `iss`, so that the Wallet can validate the Credential Verifier Provider without real-time Federation Entity Discovery. The signed Request Object MAY include the `trust_chain` JOSE header parameter containing a Trust Chain about `sub`. This Trust Chain is used to obtain the metadata of `sub` while the signature of the Request Object is verified with the key in `cnf`.
+
+If the Wallet cannot establish trust in the Credential Verifier Provider or in the Credential Verifier, or cannot confirm that `iss` is authorized for `sub`, it MUST refuse the request.
 
 ## Wallet Checking the Non-Revocation of its Wallet Provider
 
@@ -666,7 +839,7 @@ In the process represented in the sequence diagram below, the Wallet Instance us
         |Wallet|                        |Trust Anchor| |Intermediate| |Credential Issuer|
         +------+                        +------------+ +------------+ +-----------------+
 ~~~
-**Figure 4**: Federation Credential Issuer listing, the Wallet Instance browse the entire federation collecting all the Credential Issuers.  
+**Figure 5**: Federation Credential Issuer listing, the Wallet Instance browse the entire federation collecting all the Credential Issuers.  
 
 
 The diagram above shows how a Wallet navigates the federation, collecting and validating the Trust Chain for each Credential Issuer (CI), and creating a discovery page including each Credential Issuer using the information, such as the Credential Types and logo obtained through their Trust Chain.
@@ -736,26 +909,54 @@ The diagram below illustrates how a Wallet establishes trust with a Credential I
         |Wallet|                                 |Credential Issuer| |Intermediate/Trust Anchor|          
         +------+                                 +-----------------+ +-------------------------+     
 ~~~
-**Figure 5**: Federation Entity Discovery, the Wallet Instance evaluates the trust with a Credential Issuer.
+**Figure 6**: Federation Entity Discovery, the Wallet Instance evaluates the trust with a Credential Issuer.
 
 
 ## Credential Issuers Establishing Trust in the Wallet Provider
 
-The evaluation of trust by the Credential Issuer towards the Wallet Provider is conducted exactly as other federation entities. This process can be achieved through Federation Entity Discovery, where the Trust Chain is constructed starting from the Entity Configuration of the Wallet Provider. The Credential Issuer retrieves the Entity Configuration of the Wallet Provider and follows the `authority_hints` to build the Trust Chain in the usual manner. 
+The evaluation of trust by the Credential Issuer towards the Wallet Provider is conducted exactly as for other Federation Entities. This process can be achieved through Federation Entity Discovery, where the Trust Chain is constructed starting from the Entity Configuration of the Wallet Provider. The Credential Issuer retrieves the Entity Configuration of the Wallet Provider and follows the `authority_hints` to build the Trust Chain in the usual manner.
 
-Alternatively, trust can be established via a signed data object issued by Wallet Provider, which includes the `trust_chain` parameter, as defined in Section 4.3 of [@!OpenID.Federation]. This parameter contains a pre-constructed and verifiable Trust Chain, which MUST be validated using one of the the public keys of the Trust Anchor. This method allows for a streamlined trust evaluation process, as the Trust Chain is provided directly by the Wallet Provider and can be quickly validated.
+Alternatively, trust can be established via a signed data object issued by the Wallet Provider that includes the `trust_chain` JOSE header parameter, as defined in Section 4.3 of [@!OpenID.Federation]. This parameter contains a pre-constructed and verifiable Trust Chain, which MUST be validated using one of the public keys of the Trust Anchor. This method allows for a streamlined trust evaluation process, as the Trust Chain is provided directly by the Wallet Provider and can be quickly validated.
+
+When a Wallet Attestation or Key Attestation includes a `trust_chain` header parameter, the Credential Issuer MUST validate that Trust Chain as specified in [@!OpenID.Federation] and in the Implementation Considerations for Offline Flows section of this specification. The Wallet Provider Entity Type used in that Trust Chain is `openid_wallet_provider` (see Table 1).
 
 ## Credential Issuers Establishing Trust in the Wallet
 
-During the issuance phase, the Wallet Instance authenticates with the Credential Issuer using a Client authentication mechanism that includes a proof issued by its Wallet Provider. 
+During Credential issuance, establishing trust in the Wallet comprises two related but distinct evaluations, as described in Section 13.3 of [@!OpenID4VCI] (*Trust between Wallet and Issuer*):
 
-This proof is a signed data object that confirms the match of a Wallet Instance to a Wallet Solution, as attested by the Wallet Provider. This proof contains all the information the Credential Issuer requires regarding the security and compliance of the Wallet Instance and the cryptographic proof of possession of this attestation provided by the Wallet Instance presenting it.
+1. Trust in the Wallet Solution / Wallet Instance authenticity, using the Wallet Attestation as client authentication; and
+2. When required, trust in the cryptographic key material and its protection properties, using the Key Attestation in the Credential Request.
 
-To establish trust with the Wallet Instance, the Credential Issuer MUST first establish trust with the Wallet Provider that is the issuer of the verifiable attestation, as described in the previous section.
+### Wallet Attestation
 
-The verifiable attestation issued by the Wallet Provider to the Wallet Instance MUST be cryptographically validated using the cryptographic material provided by the federation Trust Chain. The Credential Issuer evaluates the adequacy of these verifiable attestations using mechanisms and rules that might depend upon different regulations and frameworks that are out of the scope of this specification.
+During the issuance phase, the Wallet Instance authenticates with the Credential Issuer's Authorization Server using Wallet Attestation as defined in Appendix E of [@!OpenID4VCI], following OAuth 2.0 Attestation-Based Client Authentication [@!I-D.ietf-oauth-attestation-based-client-auth]. The Wallet Attestation is a Client Attestation JWT issued by the Wallet Provider. The Wallet Instance MUST also present a Client Attestation Proof of Possession (PoP) JWT proving control of the confirmation key in the `cnf` claim of that attestation, as specified in [@!I-D.ietf-oauth-attestation-based-client-auth].
+
+As described in Appendix E of [@!OpenID4VCI], the Wallet Attestation MAY be presented at the Pushed Authorization Request endpoint and/or the Token endpoint.
+
+To establish trust with the Wallet Instance, the Credential Issuer MUST first establish trust with the Wallet Provider that issued the Wallet Attestation, as described in the previous section. The Credential Issuer MUST cryptographically validate the Wallet Attestation using the cryptographic material obtained from that federation Trust Chain (for example, Federation Entity Keys or keys in the Wallet Provider's Entity Configuration). The Credential Issuer MUST also validate the Client Attestation PoP JWT against the key in the `cnf` claim of the Wallet Attestation, as specified in [@!I-D.ietf-oauth-attestation-based-client-auth].
+
+When used in a Wallet federation, Wallet Attestation JWTs SHOULD include the `trust_chain` JOSE header parameter defined in Section 4.3 of [@!OpenID.Federation], so that the Credential Issuer can validate the Wallet Provider without performing real-time Federation Entity Discovery. See also the Implementation Considerations for Offline Flows section.
+
+The Credential Issuer evaluates the adequacy of Wallet Attestation claims (for example, against Trust Marks, metadata policies, or ecosystem-specific assurance requirements) using mechanisms and rules that might depend upon different regulations and frameworks and that are out of the scope of this specification. Privacy considerations for the Wallet Attestation `sub` claim in [@!OpenID4VCI] Section 15.4.4 apply.
+
+A Wallet Instance is not a Federation Entity, so revoking the Wallet Provider does not by itself revoke one instance. A Wallet Attestation MAY include the `status` claim defined in [@!I-D.ietf-oauth-status-list]. Wallet Attestations that are not short-lived SHOULD include `status`, so that one Wallet Instance can be revoked without revoking the Wallet Provider and without waiting for `exp`. When `status` is present, the recipient MUST check it when a Status List can be retrieved, including a Status List cached from an earlier retrieval, and MUST reject the attestation when that status indicates that it is invalid. A Trust Framework MAY limit how long a cached Status List remains acceptable. A Wallet Provider MAY issue more than one long-lived Wallet Attestation to the same Wallet Instance, so the instance can present different attestations and limit correlation across verifiers. Issuing those attestations in bulk is a Wallet Provider concern and is out of scope of this specification.
+
+### Key Attestation
+
+Separately from Wallet Attestation used for client authentication, a Credential Issuer MAY require assurance about the properties of the cryptographic keys to which issued Credentials will be bound. In that case, the Wallet MUST supply a Key Attestation as defined in Appendix D of [@!OpenID4VCI].
+
+Key Attestations are conveyed in the Credential Request as specified in Section 8.2 and Appendix F of [@!OpenID4VCI]:
+
+- using the `jwt` proof type with a `key_attestation` JOSE header parameter; and/or
+- using the `attestation` proof type.
+
+The Credential Issuer advertises Key Attestation requirements using the `proof_types_supported` and `key_attestations_required` parameters in Credential Issuer metadata, as defined in Section 12.2.4 of [@!OpenID4VCI]. A Key Attestation MAY convey the public key and trust mechanism of its signer using `x5c`, `kid`, or `trust_chain`, as specified in Appendix D.1 of [@!OpenID4VCI]. When `trust_chain` is used, the Credential Issuer MUST validate it as described for Wallet Providers above.
+
+As with Wallet Attestations, whether particular `key_storage`, `user_authentication`, or other Key Attestation claims are adequate for a given Credential is determined by the applicable trust framework and is out of the scope of this specification.
 
 ## Wallet Establishing Trust in the Credential Verifier
+
+This use case applies when the Credential Verifier is a Federation Entity presenting as itself, for example using the OpenID4VP `openid_federation` Client Identifier Prefix. When the presentation is made to a Credential Verifier Instance, the Wallet instead follows Establishing Trust with a Credential Verifier Instance.
 
 The Federation Entity Discovery starts with the Wallet Instance fetching the Credential Verifier's Entity Configuration to identify authority hints, pointing to Federation Entities that can issue Subordinate Statements about the Credential Verifier. The Wallet Instance then follows these hints and collects the Subordinate Statements and validating each one. The process continues until the Wallet Instance reaches the Trust Anchor. Finally, the Wallet Instance compiles the validated Trust Chain. If the Trust Chain is valid, the Wallet Instance processes the Credential Verifier final metadata.
 
@@ -824,7 +1025,96 @@ Note: While this section exemplifies the journey of discovery from the perspecti
         |Wallet|                               |Credential Issuer| |Intermediate/Trust Anchor|          
         +------+                               +-----------------+ +-------------------------+     
 ~~~
-**Figure 6**: Federation Entity Discovery, the Wallet Instance evaluates the trust with a Credential Verifier.
+**Figure 7**: Federation Entity Discovery, the Wallet Instance evaluates the trust with a Credential Verifier.
+
+## Credential Verifiers Establishing Trust in Credential Issuers
+
+When a Credential Verifier uses OpenID Federation to establish trust in the Credential Issuer of a presented Digital Credential, the Credential Verifier MUST validate that:
+
+1. the cryptographic key used to sign the Digital Credential is (or was, at the time of issuance) bound to that Credential Issuer - specifically, that key is listed in the `jwks` property of the Credential Issuer's `openid_credential_issuer` metadata;
+2. the Credential Issuer is the Entity it claims to be - specifically, the identifier of the issuer obtained from the Digital Credential equals the Credential Issuer's Federation Entity Identifier, and a valid Trust Chain can be constructed from that Entity to a Trust Anchor configured by the Credential Verifier, establishing that the Credential Issuer is a (direct or indirect) subordinate of a Federation Entity that the Credential Verifier trusts; and
+3. where required by the Trust Framework, the Credential Issuer is entitled to issue that Credential (for example, via Trust Marks or metadata policy evaluated over the Trust Chain).
+
+This use case applies only when OpenID Federation is the trust mechanism used for that verification. An `https` issuer identifier carried in a Digital Credential does not by itself imply that the Credential Issuer participates in an OpenID Federation, other key-resolution mechanisms (for example, those defined by SD-JWT VC) MAY apply outside this use case.
+
+### Obtaining the Credential Issuer Entity Identifier
+
+OpenID Federation Entity Identifiers MUST be `https` URLs, as defined in [@!OpenID.Federation].
+
+When this use case applies, the Credential Issuer's Federation Entity Identifier is the OpenID4VCI Credential Issuer Identifier (`credential_issuer` metadata). That Entity Identifier MUST equal the `iss`/`sub` pair of the Credential Issuer's Entity Configuration, as profiled in the OpenID Credential Issuer Metadata Parameters section of this specification.
+
+When the Digital Credential identifies the Credential Issuer with an `https` URL that is that Credential Issuer Identifier (for example, the `iss` claim in an SD-JWT VC or JWT-secured Credential), that URL MUST be used as the Federation Entity Identifier.
+
+Some credential formats also carry an organizational issuer identifier that MAY differ from the Credential Issuer Identifier (for example, a W3C Verifiable Credential whose `issuer` / `issuer.id` names an institution, while `iss` or the OpenID4VCI `credential_issuer` names the technical issuance service). In that case, the Federation Entity Identifier MUST be the Credential Issuer Identifier, not the distinct organizational identifier. Establishing federation trust in the organizational issuer as a separate Entity is out of scope for this use case.
+
+Issuer identifiers in a Digital Credential that are not `https` URLs (for example, DIDs), and format-specific bindings such as ISO mDOC X.509 certificate chains, are out of scope for this version of the specification. Extensions MAY define how to use DIDs as Leaf Entity Identifiers. This specification defines how Federation Wallets use OpenID Federation 1.0 together with the OpenID4VC specifications.
+
+### Federation Entity Discovery and Credential Validation
+
+The Credential Verifier MUST establish trust in the Credential Issuer using Federation Entity Discovery as defined in [@!OpenID.Federation], equivalent to the process illustrated for Wallets in Figure 6:
+
+1. Fetch the Credential Issuer's Entity Configuration using the Entity Identifier obtained above.
+2. Follow `authority_hints`, collect Subordinate Statements, and construct a Trust Chain to a Trust Anchor configured by the Credential Verifier.
+3. Validate the Trust Chain cryptographically and for temporal validity.
+4. Apply metadata policies and obtain the Credential Issuer's final metadata, including cryptographic keys used to verify issued Credentials (for example, keys in `openid_credential_issuer` `jwks`).
+5. Verify the presented Digital Credential using that validated key material, and evaluate any Trust Marks or policies required by the Trust Framework for issuance entitlement.
+
+Alternatively, when the presented Digital Credential includes the `trust_chain` JOSE header parameter defined in Section 4.3 of [@!OpenID.Federation], the Credential Verifier MAY validate that Trust Chain offline as described in the Implementation Considerations for Offline Flows section, without performing real-time Federation Entity Discovery. The Credential Verifier MUST still validate the Trust Chain using a configured Trust Anchor's public keys and MUST verify the Digital Credential using key material consistent with the validated chain.
+
+~~~ ascii-art
+        +-------------------+                      +-----------------+ +-------------------------+
+        |Credential Verifier|                      |Credential Issuer| |Intermediate/Trust Anchor|
+        +--------+----------+                      +--------+--------+ +--------+----------------+
+                 |       Fetch Entity Configuration         |                     |
+                 |----------------------------------------->|                     |
+                 |                                          |                     |
+                 |----+                                     |                     |
+                 |    | Extract Authority Hints             |                     |
+                 |    | from Entity Configuration           |                     |
+                 |<---+                                     |                     |
+                 |                                          |                     |
++-------+--------+------------------------------------------+---------------------+----------+
+| LOOP  |for each Authority Hint                            |                     |          |
++-------+        |                                          |                     |          |
+|                |                   Fetch Entity Configuration                   |          |
+|                |--------------------------------------------------------------->|          |
+|                |                                          |                     |          |
+|                |                    Fetch Subordinate Statement                 |          |
+|                |--------------------------------------------------------------->|          |
+|                |                                          |                     |          |
+|                |----+                                     |                     |          |
+|                |    | Validate the previous statement     |                     |          |
+|                |<---+ using the Federation Entity Keys    |                     |          |
+|                |      provided in the Subordinate Statement|                    |          |
+|                |                                          |                     |          |
++----------------+------------------------------------------+---------------------+----------+
+                 |                                          |                     |
+                 |----+                                     |                     |
+                 |    | Validate Trust Chain                |                     |
+                 |<---+                                     |                     |
+                 |                                          |                     |
++------+---------+---------------------------------------+  |                     |
+| ALT  |If Trust Chain is Valid and Unexpired            |  |                     |
++------+         |                                       |  |                     |
+|                |----+                                  |  |                     |
+|                |    | Derive final metadata and keys   |  |                     |
+|                |<---+                                  |  |                     |
+|                |                                       |  |                     |
+|                |----+                                  |  |                     |
+|                |    | Verify Digital Credential        |  |                     |
+|                |    | and evaluate issuance policies   |  |                     |
+|                |<---+                                  |  |                     |
++----------------+---------------------------------------+  |                     |
+|                |                                       |  |                     |
+|                |----+                                  |  |                     |
+|                |    | Abort Process with Error         |  |                     |
+|                |<---+                                  |  |                     |
++----------------+---------------------------------------+  |                     |
+        +--------+----------+                      +--------+--------+ +--------+----------------+
+        |Credential Verifier|                      |Credential Issuer| |Intermediate/Trust Anchor|
+        +-------------------+                      +-----------------+ +-------------------------+
+~~~
+**Figure 8**: Federation Entity Discovery, the Credential Verifier evaluates trust with a Credential Issuer.
 
 # Implementation Considerations for Offline Flows
 
@@ -832,9 +1122,11 @@ The static Trust Chain parameter within the JWT headers, as defined in Section 4
 
 The Entity that issues a signed data object, including the `trust_chain` parameter, might be:
 
-- Wallet Providers in signed Wallet Attestations. The Wallet Instance obtains one or more Wallet Attestations from its Wallet Provider, each of them including a Trust Chain related to each Trust Anchor the Wallet Provider trusts;
+- Wallet Providers in signed Wallet Attestations (Appendix E of [@!OpenID4VCI]). The Wallet Instance obtains one or more Wallet Attestations from its Wallet Provider; each Wallet Attestation SHOULD include a `trust_chain` JOSE header parameter related to a Trust Anchor the Wallet Provider trusts, as defined in Section 4.3 of [@!OpenID.Federation];
+- Wallet Providers or key storage components in signed Key Attestations (Appendix D of [@!OpenID4VCI]). A Key Attestation MAY include a `trust_chain` JOSE header parameter as specified in Appendix D.1 and Appendix F.1 of [@!OpenID4VCI];
+- Credential Verifier Providers in signed Verifier Attestation JWTs ([@!OpenID4VP]). The Credential Verifier Instance obtains a Verifier Attestation JWT from its Credential Verifier Provider; that JWT SHOULD include a `trust_chain` JOSE header parameter related to a Trust Anchor the Credential Verifier Provider trusts;
 - Credential Verifiers in signed request objects. The Wallet Instance obtains a presentation request that includes a Trust Chain using a Trust Anchor that the Credential Verifier has in common with the Wallet Provider, according to the information obtained in the `wallet_metadata` parameter provided by the Wallet using the Request URI POST;
-- A Credential Issuer in a signed Digital Credential. The Wallet Instance obtains a Digital Credential from its Credential Issuer, which includes the Trust Chain using a Trust Anchor that the Credential Verifier has in common with the Wallet Provider, according to the Wallet Attestation used during the Issuance.
+- Credential Issuers in signed Digital Credentials. A Credential Verifier (or Wallet Instance) obtaining such a Credential MAY use the included Trust Chain to establish trust in the Credential Issuer without real-time Federation Entity Discovery, as described in Credential Verifiers Establishing Trust in Credential Issuers.
 
 The Entity that receives the data object including the JWT `trust_chain`, such as the Wallet Instance obtaining a signed request object, verifies the Trust Chain using the Trust Anchor's public keys and applies any metadata policies, without needing to have a working network connection for reaching the Federation API.
 
@@ -845,6 +1137,10 @@ Using short-lived Trust Chains ensures compatibility with required revocation ad
 The security considerations in
 [@!OpenID.Federation], [@!OpenID4VP], and [@!OpenID4VCI]
 apply to this specification.
+
+Without per-instance attestation, a Credential Verifier either routes every request through its backend for signature, which does not work offline, or deploys the same organizational key on every terminal, so that one compromise affects the whole organization. Verifier Attestation JWTs bind a distinct key to each instance instead. A Verifier Attestation JWT MUST NOT expand the Credential Verifier's entitlements. The Wallet accepts an attestation only when `sub` authorizes `iss`, either because they are the same Entity or because `iss` is listed in the final `credential_verifier_providers` metadata of `sub`. A compromised Credential Verifier Provider can at worst narrow the entitlements of the Credential Verifiers that authorized it. It cannot name an arbitrary `sub`. Authorization authority remains with the federation.
+
+Section 3.1 of [@!OpenID.Federation] states that Federation Entity Keys SHOULD NOT be used in other protocols. Credential Verifier Providers SHOULD use keys distinct from their Federation Entity Keys to sign Verifier Attestation JWTs, and publish those keys only in the `jwks` parameter of `openid_credential_verifier_provider` metadata.
 
 # IANA Considerations
 
@@ -1005,11 +1301,62 @@ Niels van Dijk.
         </front>
 </reference>
 
+<reference anchor="I-D.ietf-oauth-attestation-based-client-auth" target="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-attestation-based-client-auth-12">
+<front>
+<title>OAuth 2.0 Attestation-Based Client Authentication</title>
+<author initials="T." surname="Looker" fullname="Tobias Looker">
+<organization>MATTR</organization>
+</author>
+<author initials="P." surname="Bastian" fullname="Paul Bastian">
+<organization>Bundesdruckerei</organization>
+</author>
+<author initials="C." surname="Bormann" fullname="Christian Bormann">
+<organization>SPRIND</organization>
+</author>
+<date month="October" day="12" year="2026"/>
+<abstract>
+<t> This specification defines an extension to the OAuth 2.0 protocol (RFC 6749) that enables a client instance to include a key-bound attestation when interacting with an Authorization Server or Resource Server. This mechanism allows a client instance to prove its authenticity, as verified by a client attester, without revealing its target audience to that attester. It may also serve as a mechanism for client authentication as per OAuth 2.0. </t>
+</abstract>
+</front>
+<seriesInfo name="Internet-Draft" value="draft-ietf-oauth-attestation-based-client-auth-12"/>
+</reference>
+
+<reference anchor="I-D.ietf-oauth-status-list" target="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-status-list">
+  <front>
+    <title>Token Status List</title>
+    <author initials="T." surname="Looker" fullname="Tobias Looker">
+      <organization>MATTR</organization>
+    </author>
+    <author initials="P." surname="Bastian" fullname="Paul Bastian">
+      <organization>Bundesdruckerei</organization>
+    </author>
+    <author initials="C." surname="Bormann" fullname="Christian Bormann">
+      <organization>SPRIND</organization>
+    </author>
+    <date day="21" month="June" year="2026"/>
+  </front>
+</reference>
+
 <reference anchor="IANA.OAuth.Parameters" target="https://www.iana.org/assignments/oauth-parameters/">
   <front>
     <title>OAuth Parameters</title>
     <author><organization>IANA</organization></author>
   </front>
+</reference>
+
+<reference anchor="CIMD" target="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-client-id-metadata-document-02">
+<front>
+<title>OAuth Client ID Metadata Document</title>
+<author initials="A." surname="Parecki" fullname="Aaron Parecki">
+<organization>Okta</organization>
+</author>
+<author initials="E." surname="Smith" fullname="Emelia Smith"> </author>
+<date month="July" day="6" year="2026"/>
+<abstract>
+<t> This specification defines a mechanism through which an OAuth client can identify itself to authorization servers, without prior dynamic client registration or other existing registration. This is through the usage of a URL as a client_id in an OAuth flow, where the URL refers to a document containing the necessary client metadata, enabling the authorization server to fetch the metadata about the client as needed. </t>
+</abstract>
+</front>
+<seriesInfo name="Internet-Draft" value="draft-ietf-oauth-client-id-metadata-document-02"/>
 </reference>
 
 # Notices
@@ -1024,8 +1371,85 @@ The technology described in this specification was made available from contribut
 
    [[ To be removed from the final specification ]]
 
+   -06
+
+   * Defined Credential Verifier Provider (`openid_credential_verifier_provider`) and profiled
+     OpenID4VP Verifier Attestation JWTs so Credential Verifier Instances
+     (POS terminals, mobile readers) are attested like Wallet Instances
+     (federation-wallet issue #60). `iss` is the Provider Entity Identifier
+     resolved through the Trust Chain; `sub` is the Credential
+     Verifier; `cnf` is the instance key. Attestation MAY
+     narrow the Credential Verifier's entitlements and MUST NOT expand them.
+   * Attestation signing keys come only from `openid_credential_verifier_provider`
+     `jwks`. Limited this use
+     case to OpenID4VP, including the Digital Credentials API;
+     ISO/IEC 18013-5 reader authentication is out of scope. A Verifier
+     Attestation JWT MAY carry a Token Status List `status` claim so one
+     Credential Verifier Instance can be revoked; the same claim applies
+     to Wallet Attestations. `sub` authorizes `iss` by equality or by
+     listing it in `credential_verifier_providers`. The Wallet checks a request
+     against both the attestation constraints and the final verifier
+     metadata.
+   * Added note on prefixing Client ID values used with OpenID4VP.
+   * Filled Example 1 `openid_credential_verifier` metadata with protocol
+     keys, registered endpoints, and an authorized DCQL query
+     (federation-wallet issue #65).
+   * Clarified that Wallet Instance types are informative and that
+     federation processing does not vary by type (federation-wallet
+     issue #64). Trust with the Holder is established through the
+     Wallet Provider and Wallet Attestation for all instance types.
+   * Removed unused Terminology subsection on Direct Trust, Web of Trust,
+     and Trusted Third-Party (federation-wallet issue #62). Defined Trust
+     Model and Trust Framework as terms used in the specification, restated
+     that trust is established through Trust Anchors (participants MAY
+     configure more than one) in the Four-Party Model, and aligned the
+     Credential Verifier metadata rationale with that language.
+   * Profiled Trust Marks for wallet ecosystems instead of restating
+     OpenID Federation (federation-wallet issue #66): issuance
+     entitlement, verifier authorization, Wallet Provider assurance,
+     and verifier attributes presented to the End-User.
+   * Clarified Four-Party Model figure captions so horizontal arrows are
+     protocol interactions and vertical arrows are trust evaluation
+     (federation-wallet issue #63). The section and diagrams are retained.
+     Added Digital Credential, Credential, and Credential Issuer Identifier
+     to Terminology. Restored Wallet Attestation and Key
+     Attestation citations from OpenID4VCI after a merge had moved Wallet
+     Attestation back to OpenID4VP.
+   * Added Federation Trust Discovery use case "Credential Verifiers
+     Establishing Trust in Credential Issuers" to resolve
+     federation-wallet issue #48: map https issuer identifiers carried in
+     presented Credentials to Federation Entity Identifiers, perform
+     Federation Entity Discovery (or validate an offline `trust_chain`),
+     and verify Credentials with keys from the validated Trust Chain.
+     Specified that key binding is verified against
+     `openid_credential_issuer` `jwks`, and that issuer identity is
+     established by matching the identifier of the issuer obtained from
+     the Digital Credential to the Federation Entity Identifier and
+     validating a Trust Chain to a configured Trust Anchor. Clarified
+     that W3C VC `issuer` / `issuer.id` is not used as the Federation
+     Entity Identifier when it differs from the OpenID4VCI Credential
+     Issuer Identifier. DIDs and ISO mDOC X.509
+     bindings remain out of scope for this version; extensions MAY
+     define DID Leaf Entities. Clarified that Trust Discovery use cases
+     are independently adoptable by Trust Frameworks.
+
    -05
 
+   * Clarified Credential Issuers Establishing Trust in the Wallet
+     Provider and Credential Issuers Establishing Trust in the Wallet
+     to resolve federation-wallet issue #29, with normative references
+     to OpenID4VCI Wallet Attestation (Appendix E), Key Attestation
+     (Appendix D), proof types (Appendix F), Credential Request
+     (Section 8.2), Credential Issuer metadata (Section 12.2.4), and
+     Trust between Wallet and Issuer (Section 13.3), plus OAuth 2.0
+     Attestation-Based Client Authentication.
+   * Distinguished Wallet Attestation (client authentication at PAR /
+     Token endpoints) from Key Attestation (Credential Request proofs).
+   * Profiled use of the OpenID Federation `trust_chain` JOSE header on
+     Wallet Attestations and Key Attestations for offline trust
+     evaluation.
+   * Corrected Terminology so Wallet Attestation and Key Attestation are
+     cited from OpenID4VCI rather than OpenID4VP.
    * Added subsection "OpenID Credential Issuer Metadata Parameters" under OpenID Credential Issuer Entity Type, profiling `openid_credential_issuer` metadata when used in Wallet federations.
    * Documented `credential_issuer`, `authorization_servers`, and the OpenID4VCI parameters (credential_endpoint, nonce_endpoint, display, credential_configurations_supported, etc.) as carried in Federation metadata/metadata_policy.
    * Added `jwks`: scope for signature of responses, tokens, and issued credentials; requirement that public keys used to verify signed Credential Issuer metadata (e.g. at .well-known/openid-credential-issuer per OpenID4VCI 12.2.3) be provided in `openid_credential_issuer` jwks when trust frameworks require it.
