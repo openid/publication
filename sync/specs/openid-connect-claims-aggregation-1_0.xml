@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
-<rfc version="3" ipr="none" docName="openid-connect-claims-aggregation-1_0" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true" consensus="true">
+<rfc version="3" ipr="none" docName="openid-connect-claims-aggregation-1_0" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true">
 
 <front>
-<title abbrev="oidc-ca">OpenID Connect Claims Aggregation 1.0 - Draft 03</title><seriesInfo value="openid-connect-claims-aggregation-1_0" status="standard" name="OpenID-Draft"></seriesInfo>
+<title abbrev="oidc-ca">OpenID Connect Claims Aggregation 1.0 - Draft 04</title><seriesInfo value="openid-connect-claims-aggregation-1_0" status="standard" name="OpenID-Draft"></seriesInfo>
 <author initials="N." surname="Sakimura" fullname="Nat Sakimura"><organization>NAT.Consulting</organization><address><postal><street></street>
 </postal><email>nat@nat.consulting</email>
 </address></author><author initials="E." surname="Jay" fullname="Edmund Jay"><organization>Illumila</organization><address><postal><street></street>
@@ -16,17 +16,20 @@
 <keyword>privacy</keyword>
 
 <abstract>
-<t>OpenID Providers within OpenID Connect assume many roles, one of these is providing End-User claims to relying parties at the consent of the End-User such as their name or date of birth. OpenID Connect defines multiple models under which claims are provided and relied upon by a relying parties, including simple, aggregated and distributed claims. This document focuses on elaborating upon the aggregated model outlined in section 5.6.2 of OpenID Connect core by defining the full life-cycle of aggregated claims and the new roles of the entities involved in an aggregated claims model.</t>
-<t>This document specifies the methods for</t>
+<t>An OpenID Provider (OP) can disclose claims about an End-User, such as a name
+or date of birth, to a Relying Party (RP) with the End-User's consent. This
+document profiles the Aggregated Claims model defined in Section 5.6.2 of
+OpenID Connect Core 1.0 <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref>. In this model, the OP returns claims asserted
+by one or more Claims Providers (CPs).</t>
+<t>This document specifies the following interactions.</t>
 
 <ul spacing="compact">
-<li>an OP acting as a client of Claims Provider (CP) to perform discovery for a Claims Provider Metadata;</li>
-<li>the OP to perform client registration to the Claims Provider;</li>
-<li>the OP to obtain claims from the Claims Provider;</li>
-<li>an RP to ask for verified claims to the OP;<br />
-</li>
-<li>the OP to return obtained claims from CP to the RP; and</li>
-<li>the RP to verify the claims.</li>
+<li>The OP discovers CP metadata.</li>
+<li>The OP establishes itself as a client of the CP.</li>
+<li>The OP obtains claims from the CP.</li>
+<li>The RP requests claims from the OP.</li>
+<li>The OP returns claims from the CP to the RP as Aggregated Claims.</li>
+<li>The RP verifies the returned claims.</li>
 </ul>
 </abstract>
 
@@ -36,73 +39,67 @@
 </note>
 
 <note><name>Foreword</name>
-<t>The OpenID Foundation (OIDF) promotes, protects and nurtures the OpenID community and technologies. As a non-profit international standardizing body, it is comprised by over 160 participating entities (workgroup participants). The work of preparing implementer drafts and final international standards is carried out through OIDF workgroups in accordance with the OpenID Process. Participants interested in a subject for which a workgroup has been established has the right to be represented in that workgroup. International organizations, governmental and non-governmental, in liaison with OIDF, also take part in the work. OIDF collaborates closely with other standardizing bodies in the related fields.</t>
+<t>The OpenID Foundation (OIDF) promotes, protects and nurtures the OpenID community and technologies. As a non-profit international standardizing body, it comprises over 160 participating entities (workgroup participants). The work of preparing implementer drafts and final international standards is carried out through OIDF workgroups in accordance with the OpenID Process. Participants interested in a subject for which a workgroup has been established have the right to be represented in that workgroup. International organizations, governmental and non-governmental, in liaison with OIDF, also take part in the work. OIDF collaborates closely with other standardizing bodies in the related fields.</t>
 </note>
 
 <note><name>Introduction</name>
 <t>OpenID Connect is a selective claims disclosure mechanism. When a set of claims included in its response is about
 an entity authentication event, it works as an entity authentication federation mechanism, but it can deliver
 other claims selected by the subject as well.</t>
-<t>In the OpenID Connect specification, it is assumed that there are many sources of claims.
-Each claim is associated with its authoritative source so there naturally will be many authoritative sources.
-Claim sources can be corroborative, i.e., not authoritative, as well.
-In total, there will be many Claim Set sources in OpenID Connect Framework.
-These Claim sources are called Claims Providers in OpenID Connect.
-Claims Provider (CP) is just an OpenID Provider (OP) but it does not provide the claims about the current authentication event
-and its associated subject identifier authoritatively. Note that Claims Provider can act as an OpenID Provider in other transactions.
-Whether it is called OP or CP is depending on their role in a particular transaction.</t>
-<t>There are four main actors in the OpenID Connect aggregated claims model.</t>
+<t>An OpenID Connect response can include claims from several sources. These sources can be authoritative
+or corroborative. The roles in the Aggregated Claims model are described in <xref target="actors"></xref>.</t>
+<t>An OP can return claims from CPs to an RP by value or by reference. With
+Aggregated Claims, the OP obtains the claims from the CPs and returns them
+by value. With Distributed Claims, the OP returns references and access
+information so that the RP can obtain the claim values.</t>
+<t>OpenID Connect Core defines the representation of Aggregated Claims returned by an OpenID
+Provider to a Relying Party, but does not prescribe the OP-to-CP protocol for obtaining the JWT
+used in that representation. In particular, it does not require the JWT to be a UserInfo
+response. This specification provides implementation guidance for that interaction and defines
+an OAuth-protected Claims Endpoint, together with discovery, authorization, account binding,
+storage, disclosure, and verification requirements. Its scope is Aggregated Claims; the endpoint
+used by an RP to retrieve Distributed Claims in Section 5.6.2 of <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref> is distinct from the
+OP-to-CP collection interface defined here.</t>
+<t>The Claims Endpoint separates OP-facing account-binding information from the CP-signed Claim
+Set disclosed to the RP. This permits a Claim Set without a <tt>sub</tt> claim: the OP verifies the CP
+account association when collecting it and preserves that association when storing and
+disclosing it. As described in <xref target="trust-model"></xref>, the RP relies on the OP for Subject
+binding. Omitting <tt>sub</tt> does not prevent correlation through reuse of the same JWT or
+through identifying attributes. The Subject can authorize reuse of
+stored Claim Sets or request new issuance. Privacy Considerations describes the
+tradeoffs for privacy and availability.</t>
+<t>During Setup, the Subject authorizes the OP to collect claims from a specific CP.
+The Subject can authorize collection before choosing an RP.</t>
+<t>The Subject separately authorizes the OP to disclose claims to each RP.
+<xref target="subject-granting"></xref> describes how the OP obtains and reuses RP-specific authorization.
+When prior CP authorizations still cover collection, the OP can avoid new CP consent
+screens during an RP request.</t>
+<t>The OP obtains an access token and, if needed and granted, a refresh token. The CP's Claims
+Endpoint returns signed Claim Sets separately from OP-facing account-binding information.
+Profiles and trust frameworks may require the use of refresh tokens.</t>
+<t>The specification has four phases.</t>
 
 <ol spacing="compact">
-<li>Subject (User)</li>
-<li>OpenID Provider (OP) that provides claims about the subject authentication event and provides signed claim sets obtained from other Claims Providers</li>
-<li>Claims Providers (CP) that provides claims</li>
-<li>Relying Party (RP) that verifies and consumes the provided claim sets.</li>
+<li>Discovery Phase. The OP discovers CP metadata.</li>
+<li>Client Configuration Phase. The OP establishes itself as a client of the CP.</li>
+<li>Setup Phase. The Subject authorizes the OP to obtain claims from the CP. The OP
+obtains an access token and may obtain a refresh token.</li>
+<li>Delivery Phase (RP Phase). The RP sends an authentication and claims request to
+the OP. The OP obtains any needed Claim Sets from the CPs and returns Aggregated
+Claims. The RP verifies the response.</li>
 </ol>
-<t>An OP can provide an RP the claims by value or by reference.</t>
-<t>By value is the case where an OP collects claims and their values
-from CPs and aggregate them in one package to provide to the RP.
-This model is called Aggregated Claims Model.</t>
-<t>By reference is the case where the OP does not collect and provide the value
-but just provide the reference and its access information to the RP.
-This model is called Distributed Claims Model.</t>
-<t>Another feature that this document provides is the way to avoid multiple consent screen
-per RP authorization request. If OpenID Connect Core spec is used to build Aggregated Claims Model
-naively, it may result in many consent screens per RP request.
-For example, if four CPs and one OP is involved in the request, then, there may be five consent screens.
-This is too onerous. This document defines a mechanism to consolidate it into one consent screen.
-This is done through one &quot;OP User Setup Phase&quot; per CP that the OP obtains the consent
-from the subject to obtain claims from the CP for the purpose of creating aggregated
-claims response for future RP requests in which OP will collect a new consent from the subject.</t>
-<t>The mechanism used for this is to obtain an access token and a refresh token that corresponds
-to a suitably wide scope for the purpose.</t>
-<t>The claims are returned from the Clams Provider's UserInfo endpoint and are always signed.</t>
-<t>Note: Refresh tokens are optional in this specification, but profiles and trust frameworks may require the use of
-refresh tokens.</t>
-<t>There are four phases defined in this document.</t>
-
-<ol spacing="compact">
-<li>CP Discovery Phase: OP discovers CP metadata.</li>
-<li>OP Registration Phase: OP registers to CP as an RP.</li>
-<li>Setup Phase: OP obtains the access and refresh tokens from CP by the permission of the subject.</li>
-<li><t>RP Phase:</t>
-
-<ol spacing="compact">
-<li>RP makes authentication and claims request,</li>
-<li>OP fetches relevant claim sets from CPs,</li>
-<li>OP respond to the RP</li>
-<li>the RP verifies the response.</li>
-</ol></li>
-</ol>
-<t>Intended reader of this document is the developer and systems architect who builds attributes and claims base systems.</t>
+<t>This document is intended for developers and systems architects who build
+systems that use attributes and claims.</t>
 </note>
 
 <note><name>Notational Conventions</name>
 <t>The key words &quot;MUST&quot;, &quot;MUST NOT&quot;, &quot;REQUIRED&quot;, &quot;SHALL&quot;, &quot;SHALL NOT&quot;,
 &quot;SHOULD&quot;, &quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;NOT RECOMMENDED&quot;, &quot;MAY&quot;, and
 &quot;OPTIONAL&quot; in this document are to be interpreted as described in BCP
-14 [RFC2119] [RFC8174] when, and only when, they appear in all
+14 (<eref target="https://www.rfc-editor.org/rfc/rfc2119.html">RFC2119</eref> and <eref target="https://www.rfc-editor.org/rfc/rfc8174.html">RFC8174</eref>) when, and only when, they appear in all
 capitals, as shown here.</t>
+<t>List item numbers are local to each section. Cite an item by its section number and
+item number, separated by a hyphen. For example, 9.6-4 refers to item 4 in Section 9.6.</t>
 </note>
 
 </front>
@@ -110,265 +107,1869 @@ capitals, as shown here.</t>
 <middle>
 
 <section anchor="scope"><name>Scope</name>
-<t>This document specifies the methods for</t>
+<t>This document specifies the following interactions.</t>
 
 <ul spacing="compact">
-<li>an OP acting as a client of Claims Provider (CP) to perform discovery for a Claims Provider Metadata;</li>
-<li>the OP to perform client registration to the Claims Provider;</li>
-<li>the OP to obtain claims from the Claims Provider;</li>
-<li>the OP to return obtained claims from CP to the RP; and</li>
-<li>the RP to verify the claims.</li>
+<li>The OP discovers CP metadata.</li>
+<li>The OP establishes itself as a client of the CP.</li>
+<li>The OP obtains claims from the CP.</li>
+<li>The RP requests claims from the OP.</li>
+<li>The OP returns claims from the CP to the RP as Aggregated Claims.</li>
+<li>The RP verifies the returned claims.</li>
 </ul>
 </section>
 
 <section anchor="normative-references"><name>Normative references</name>
 <t>The following referenced documents are indispensable for the application of this document. For dated references, only the edition cited applied. For undated references, the latest edition of the referenced document (including any amendments) applies.</t>
-<t><eref target="https://tools.ietf.org/html/bcp14">BCP14</eref> - Key words for use in RFCs to Indicate Requirement Levels</t>
-<t><eref target="https://tools.ietf.org/html/rfc6749">RFC6749</eref> - The OAuth 2.0 Authorization Framework</t>
-<t><eref target="https://tools.ietf.org/html/rfc6750">RFC6750</eref> - The OAuth 2.0 Authorization Framework: Bearer Token Usage</t>
-<t><eref target="https://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref> - OpenID Connect Core 1.0 incorporating errata set 1</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc2119.html">RFC2119</eref> - Key words for use in RFCs to Indicate Requirement Levels</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc6749.html">RFC6749</eref> - The OAuth 2.0 Authorization Framework</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc6750.html">RFC6750</eref> - The OAuth 2.0 Authorization Framework: Bearer Token Usage</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc6838.html">RFC6838</eref> - Media Type Specifications and Registration Procedures</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc7009.html">RFC7009</eref> - OAuth 2.0 Token Revocation</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc7515.html">RFC7515</eref> - JSON Web Signature (JWS)</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc7518.html">RFC7518</eref> - JSON Web Algorithms (JWA)</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc7519.html">RFC7519</eref> - JSON Web Token (JWT)</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc7636.html">RFC7636</eref> - Proof Key for Code Exchange by OAuth Public Clients</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc8174.html">RFC8174</eref> - Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc8414.html">RFC8414</eref> - OAuth 2.0 Authorization Server Metadata</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc8705.html">RFC8705</eref> - OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc8725.html">RFC8725</eref> - JSON Web Token Best Current Practices</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc9207.html">RFC9207</eref> - OAuth 2.0 Authorization Server Issuer Identification</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc9449.html">RFC9449</eref> - OAuth 2.0 Demonstrating Proof of Possession (DPoP)</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc9700.html">RFC9700</eref> - Best Current Practice for OAuth 2.0 Security</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc10070.html">RFC10070</eref> - Updates to OAuth 2.0 JSON Web Token (JWT) Client Authentication and Assertion-Based Authorization Grants</t>
+<t><eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref> - OpenID Connect Core 1.0 incorporating errata set 2</t>
 <t><eref target="https://openid.net/specs/openid-connect-discovery-1_0.html">OpenID.Discovery</eref> - OpenID Connect Discovery 1.0</t>
-<t><eref target="http://openid.net/specs/openid-connect-registration-1_0.html">OpenID.Registration</eref> - OpenID Connect Registration 1.0</t>
-<t><eref target="http://tools.ietf.org/html/draft-ietf-oauth-json-web-token">JWT</eref> - JSON Web Token</t>
-<t><eref target="http://tools.ietf.org/html/draft-ietf-jose-json-web-signature">JWS</eref> - JSON Web Signature</t>
-<t><eref target="http://tools.ietf.org/html/draft-ietf-jose-json-web-encryption">JWE</eref> - JSON Web Encryption</t>
-<t><eref target="http://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms">JWA</eref> - JSON Web Algorithms</t>
+<t><eref target="https://openid.net/specs/openid-connect-registration-1_0.html">OpenID.Registration</eref> - OpenID Connect Dynamic Client Registration 1.0 incorporating errata set 2</t>
+<t><eref target="https://openid.net/specs/openid-federation-1_0.html">OpenID.Federation</eref> - OpenID Federation 1.0</t>
+<t><eref target="https://openid.net/specs/openid-connect-4-identity-assurance-1_0-errata1.html">OpenID4IDA</eref> - OpenID Connect for Identity Assurance 1.0 incorporating errata set 1</t>
 </section>
 
 <section anchor="terms-and-definitions"><name>Terms and definitions</name>
-<t>For the purpose of this document, the terms defined in <eref target="https://tools.ietf.org/html/rfc6749">RFC6749</eref>, <eref target="https://tools.ietf.org/html/rfc6750">RFC6750</eref>, [RFC7636], <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID Connect Core</eref> and the following apply.</t>
-<t><strong>Claim Set</strong> – a set of claims issued by a Claims Provider</t>
+<t>For the purpose of this document, the terms defined in <eref target="https://www.rfc-editor.org/rfc/rfc6749.html">RFC6749</eref>, <eref target="https://www.rfc-editor.org/rfc/rfc6750.html">RFC6750</eref>, <eref target="https://www.rfc-editor.org/rfc/rfc7636.html">RFC7636</eref>, <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref>, and the following apply.</t>
+<t><strong>Aggregated Claims</strong> – claims asserted by a CP and returned by an OP using the
+representation defined in Section 5.6.2 of <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref></t>
+<t><strong>Claim Set</strong> – a CP-signed JWT containing claims issued through the CP's Claims Endpoint</t>
 </section>
 
 <section anchor="symbols-and-abbreviated-terms"><name>Symbols and abbreviated terms</name>
 <t><strong>RP</strong> – Relying Party</t>
 <t><strong>OP</strong> – OpenID Provider</t>
 <t><strong>CP</strong> – Claims Provider</t>
-<t><strong>HTTP</strong> - Hyper Text Transfer Protocol</t>
+<t><strong>HTTP</strong> - Hypertext Transfer Protocol</t>
 <t><strong>TLS</strong> - Transport Layer Security</t>
+<t><strong>JWT</strong> – JSON Web Token</t>
+<t><strong>JWS</strong> – JSON Web Signature</t>
+<t><strong>JWA</strong> – JSON Web Algorithms</t>
 </section>
 
 <section anchor="actors"><name>Actors</name>
-<t>In this document, there are four main actors.</t>
 
-<ol spacing="compact">
-<li>Subject (User)</li>
-<li>CP</li>
-<li>OP</li>
-<li>RP that verifies and consumes the provided claim sets.</li>
-</ol>
-<t>They are topologically connected as in the following diagram.</t>
-<figure><name>Relationships among actors
+<section anchor="example-interaction"><name>Example Interaction</name>
+<t>The following example shows one CP and one RP. The OP discovers the CP
+and establishes client registration before this exchange. See
+<xref target="discovery-phase"></xref> and <xref target="client-configuration-phase"></xref>.</t>
+<figure><name>Example of Setup, Claim Set collection, and delivery
 </name>
-<sourcecode type="ascii-art">               +---------+
-    +----------| Subject |--------+
-    | grants   +---------+        |
-    v               |             |
-+------+            | instructs   | allows
-|  CP  |----+       |             |
-+------+    |       v             v
-   .        |    +------+     +------+
-   .        |----|  OP  |-----|  RP  | 
-   .        |    +------+     +------+
-+------+    |
-|  CP  |----+
-+------+  
+<sourcecode type="mermaid"><![CDATA[---
+config:
+  theme: neutral
+  sequence:
+    mirrorActors: false
+---
+sequenceDiagram
+    autonumber
+    actor S as Subject
+    participant CP as Claims Provider (CP)
+    participant OP as OpenID Provider (OP)
+    participant RP as Relying Party (RP)
 
-</sourcecode>
+    rect rgb(243, 245, 248)
+        Note over S,OP: Setup: authorize collection from the CP
+        OP->>CP: Authorization request via user agent<br/>(state, PKCE S256)
+        CP->>S: Show collection consent dialogue
+        S-->>CP: Authorize collection
+        CP-->>OP: Authorization response via user agent<br/>(code, state, iss)
+        OP->>CP: Token request<br/>(code, code_verifier, client authentication)
+        CP-->>OP: ID Token and access token<br/>(optional refresh token)
+        OP->>OP: Validate the ID Token and bind the CP account
+    end
+
+    rect rgb(243, 245, 248)
+        Note over CP,RP: Delivery: authorize and return claims to the RP
+        RP->>OP: OpenID Connect Authentication<br/>Request (claims)
+        opt OP needs new disclosure authorization
+            OP->>S: Present the RP, claims and sources
+            S-->>OP: Authorize disclosure to the RP
+        end
+        alt Suitable stored Claim Set
+            OP->>OP: Check the stored Claim Set and current authorization
+        else New collection needed (successful result shown)
+            OP->>CP: POST to Claims Endpoint<br/>(access token, nonce, claims, signing_alg)
+            CP-->>OP: Collection response<br/>(nonce, account_ref, claim_set)
+            OP->>OP: Validate the response and preserve the binding
+        end
+        OP-->>RP: ID Token or UserInfo response<br/>(signed Claim Set in _claim_sources)
+        RP->>RP: Validate the OP response and Claim Set
+    end
+]]></sourcecode>
 </figure>
+<t>Messages 1–7 illustrate <xref target="setup-phase"></xref>.</t>
+<t>Messages 8–10 illustrate <xref target="claims-request-by-rp-to-op"></xref> and <xref target="subject-granting"></xref>.</t>
+<t>Message 11 illustrates reuse of a stored Claim Set under <xref target="claims-collection"></xref>.
+Messages 12–14 illustrate <xref target="claims-endpoint-request"></xref> and <xref target="claims-endpoint-response"></xref>.</t>
+<t>Message 15 illustrates <xref target="claims-delivery"></xref>. Message 16 illustrates <xref target="claims-verification"></xref>.</t>
+</section>
 
 <section anchor="subject-user"><name>Subject (User)</name>
-<t>Subject is the entity that grants access to the claims at CPs and the OP.
-In this system, the Subject grants CP to provide OP the Claims for
-the purpose of providing those claims with other claims to potentially
-unspecified RPs under the Subject's direction.</t>
-<t>This request from the OP to the CP is sent by the Subject's instruction.
-The Subject also allows OP to potentially store the obtained claims.</t>
-<t>The Subject also allows RP to make a claims request to the OP,
-typically for the Subject to receive some services from the RP.</t>
+<t>The Subject authorizes a CP to give the OP access to claims.
+The Subject directs the OP to collect those claims and can authorize storage for later use.</t>
+<t>The OP can combine claims from several sources for disclosure under the Subject's direction.
+The Subject can authorize collection before choosing which RPs will receive the claims.
+The Subject can let an RP request claims from the OP to obtain a service.
+<xref target="subject-granting"></xref> describes how the Subject authorizes disclosure to an RP.</t>
 </section>
 
 <section anchor="rp"><name>RP</name>
-<t>RP is an actor that typically provides some service to the Subject.
-To perform the service, the RP obtains some claims about the Subject from OP.
-The basis for the processing of the Subject's claims by the RP can be
-performance of contract, consent, and other lawful basis.</t>
+<t>An RP typically provides a service to the Subject.
+It requests claims about the Subject from the OP to provide that service.
+The RP can rely on contract performance, consent, or another lawful basis to process the claims.</t>
 </section>
 
 <section anchor="cp"><name>CP</name>
-<t>CP, Claims Provider, is a role assumed by an OpenID Provider
-that supports signed UserInfo response and has the OP as a client.</t>
-<t>The provision for the Claims Provider are as follows:</t>
-
-<ol spacing="compact">
-<li>It MUST support signed UserInfo response.</li>
-<li>It SHOULD support the Discovery Metadata extension defined by this document.</li>
-<li>It SHOULD support the registration of the OPs with extensions defined in this document.</li>
-<li>It SHOULD support the registration of the OPs through Dynamic Registration.</li>
-</ol>
-
-<section anchor="userinfo-endpoint"><name>UserInfo Endpoint</name>
-<t>The UserInfo Endpoint is described in 5.3 of OpenID Connect 1.0 <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref> as an OAuth 2.0 Protected Resource that returns Claims about the authenticated Subject.</t>
-</section>
+<t>The Claims Provider (CP) is an OpenID Provider that accepts the aggregating OP as a client.
+The CP obtains the Subject's authorization for collection during Setup.
+It issues signed Claim Sets through its Claims Endpoint.
+The CP also supplies the account reference that the OP uses to associate each set with the Subject.</t>
 </section>
 
 <section anchor="op"><name>OP</name>
-<t>OP is an entity that acts as an OpenID Provider to the RP.
-Also, OP acts as a relying party to CPs.</t>
-<t>The provision for the OP is as follows:</t>
+<t>The aggregating OpenID Provider (OP) acts as an OpenID Connect client of the CP.
+It serves RPs as their OpenID Provider.
+At the Subject's direction, it collects Claim Sets and can store them for later use.
+It associates each Claim Set with the Subject's OP account.
+It returns the CP's signed Claim Sets as Aggregated Claims to RPs that the Subject authorizes.</t>
+</section>
+</section>
+
+<section anchor="trust-model"><name>Trust Model</name>
+<t>The RP relies on the OP to link each CP-signed Claim Set to the authenticated Subject.
+The RP validates the enclosing ID Token or UserInfo response under <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref>.
+The RP verifies the CP-signed Claim Set separately under <xref target="claims-verification"></xref>.
+The OP asserts that each included Claim Set concerns the Subject in the enclosing response's <tt>sub</tt> claim.</t>
 
 <ol spacing="compact">
-<li>It MUST support OpenID Connect Aggregated Claims as an OpenID Provider.</li>
-<li>It MUST act as an OpenID Connect relying party to CPs to fetch claims from CPs according to instructions given by the Subject.</li>
-<li>As an OpenID Provider, OP MUST implement mandatory to implement extensions that this document defines.</li>
-<li>It MAY store the signed claims obtained from CPs with appropriate safeguarding controls.</li>
-<li>To the authenticated Subject, it MUST provide a user interface to show what claims about the subject it stores.</li>
-<li>It MUST NOT provide claims to RPs without the Subject's permission.</li>
+<li>The OP MUST obtain the CP's <tt>iss</tt> and <tt>sub</tt> from the validated Setup ID Token.</li>
+<li>The OP MUST bind those identifiers to the authenticated OP account that initiated Setup.</li>
+<li>The OP MUST bind the corresponding CP grant to the same OP account.</li>
+<li>The OP MUST bind the grant's access and refresh tokens to the same OP account.</li>
+<li>The OP MUST preserve that binding when refreshing tokens.</li>
+<li>The OP MUST preserve that binding when downscoping tokens.</li>
+<li>The OP MUST use CP tokens only for their bound OP account.</li>
+<li>The OP MUST use Claim Sets it obtains with those tokens only for that account.</li>
 </ol>
-</section>
+<t>The OP checks the binding at collection as specified in <xref target="claims-endpoint-response"></xref>.
+The binding also applies to stored Claim Sets.</t>
+<t>The OP and CP establish trust for client registration through <eref target="https://openid.net/specs/openid-federation-1_0.html">OpenID.Federation</eref>.
+The CP grant authorizes collection. The Subject authorizes disclosure to each RP under <xref target="subject-granting"></xref>.</t>
+
+<ol spacing="compact" start="9">
+<li>The RP MUST apply its trust policy to decide whether to trust the OP's Subject binding.</li>
+<li>The RP MUST apply its trust policy to decide whether to trust each CP for the claims it uses.</li>
+<li>The RP MAY use <eref target="https://openid.net/specs/openid-federation-1_0.html">OpenID.Federation</eref> to establish trust in either party.</li>
+</ol>
+<t>A deployment can use Federation Trust Marks to indicate conformance with its trust framework.
+The CP-signed JWT contains no CP Subject Identifier.
+The RP relies on the enclosing response and the OP's protected binding to establish which Subject the claims concern.</t>
+
+<ol spacing="compact" start="12">
+<li>The OP MUST NOT establish an account binding solely from a JWT it imports from another source.</li>
+<li>The OP MUST restore the protected binding record when it restores a stored Claim Set.</li>
+<li>The OP MUST validate the protected binding record when it restores a stored Claim Set.</li>
+</ol>
+<t>An exported Claim Set retains its OP audience.
+Profiles can define additional Subject binding or presentation-time authentication requirements.</t>
 </section>
 
 <section anchor="discovery-phase"><name>Discovery Phase</name>
-<t>Before registering itself as an OpenID Connect Client to a CP, the OP needs to obtain
-configuration information from the CP,
-including its Authorization Endpoint, Token Endpoint, and UserInfo Endpoint locations.</t>
-<t>This information is obtained via Discovery, as described in OpenID Connect Discovery 1.0 <eref target="https://openid.net/specs/openid-connect-discovery-1_0.html">OpenID.Discovery</eref>, or may be obtained via other mechanisms.</t>
-<t>The following OpenID Connect Discovery 1.0 <eref target="https://openid.net/specs/openid-connect-discovery-1_0.html">OpenID.Discovery</eref> parameters are required in the Claims Provider Metadata:</t>
 
-<dl spacing="compact">
-<dt><tt>userinfo_endpoint</tt></dt>
-<dd><strong>Required</strong>. Claims Endpoint. URL at the Issuing-Authority that provides signed claims.</dd>
-<dt><tt>userinfo_signed_response_alg</tt></dt>
-<dd><strong>Optional</strong>. JSON array containing a list of the  JWS <eref target="http://tools.ietf.org/html/draft-ietf-jose-json-web-signature">JWS</eref> signing algorithms (alg values) JWA <eref target="http://tools.ietf.org/html/draft-ietf-jose-json-web-algorithms">JWA</eref> supported by the UserInfo Endpoint to encode the Claims in a  JWT <eref target="http://tools.ietf.org/html/draft-ietf-oauth-json-web-token">JWT</eref>. The value <em>none</em> MUST NOT be included.</dd>
-</dl>
-<t>The following optional OpenID Connect Discovery 1.0 <eref target="https://openid.net/specs/openid-connect-discovery-1_0.html">OpenID.Discovery</eref> parameters are now required in the OpenID Provider Metadata:</t>
+<section anchor="cp-discovery-and-metadata"><name>CP Discovery and Metadata</name>
+<t>The OP obtains the CP's endpoints before it sends the Setup authorization request.
+<eref target="https://openid.net/specs/openid-connect-discovery-1_0.html">OpenID.Discovery</eref> and <eref target="https://openid.net/specs/openid-federation-1_0.html">OpenID.Federation</eref> govern issuer validation for their metadata mechanisms.</t>
 
-<ul spacing="compact">
-<li><tt>claim_types_supported</tt>. The Claims Types supported by the Claims Provider. It MUST contain the value <em>aggregated</em>.</li>
-</ul>
+<ol spacing="compact">
+<li>The OP MUST use validated metadata for the selected CP Issuer Identifier in each Setup transaction.</li>
+<li>The OP MUST require an equivalent validated issuer binding from any other metadata source.</li>
+<li>The OP MUST obtain the Authorization, Token, and Claims Endpoints only from metadata bound to the validated issuer.</li>
+<li>The OP MUST keep each resolved endpoint bound to the selected CP issuer throughout Setup.</li>
+<li>The OP MAY reuse cached metadata for that issuer while the applicable validity conditions hold.</li>
+<li>The OP MUST obtain fresh, validated metadata before continuing Setup once those conditions no longer hold.</li>
+<li>The OP MUST successfully reevaluate CP trust before continuing Setup if the applicable trust rules require it.</li>
+</ol>
+<t>The metadata mechanism governs cache validity. <eref target="https://openid.net/specs/openid-federation-1_0.html">OpenID.Federation</eref> also governs Trust Chain validity.</t>
+<t>The following parameters apply to the CP's <tt>openid_provider</tt> metadata.</t>
+
+<ol spacing="compact" start="8">
+<li>The CP MUST publish the HTTPS Claims Endpoint URL in <tt>claims_endpoint</tt>.</li>
+<li>The CP MUST omit URL fragments from <tt>claims_endpoint</tt>.</li>
+<li>The CP MUST list its Claim Set signing algorithms in a non-empty JSON array named <tt>claims_signing_alg_values_supported</tt>.</li>
+<li>The CP MUST advertise only asymmetric JWS signing algorithms in that array.</li>
+<li>The CP MUST include <tt>RS256</tt> in that array.</li>
+<li>The CP MUST support each advertised algorithm when the OP selects it in a Claims Endpoint request.</li>
+<li>The CP MUST set <tt>authorization_response_iss_parameter_supported</tt> to <tt>true</tt>.</li>
+<li>The CP MUST include <tt>code</tt> in <tt>response_types_supported</tt>.</li>
+<li>The CP MUST include <tt>S256</tt> in <tt>code_challenge_methods_supported</tt>.</li>
+<li>The CP MUST include the same values for these parameters in any <eref target="https://openid.net/specs/openid-connect-discovery-1_0.html">OpenID.Discovery</eref> configuration document it publishes.</li>
+</ol>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc9207.html">RFC9207</eref> defines the authorization response issuer capability.
+<xref target="setup-phase"></xref> specifies Authorization Code Flow and PKCE for Setup.
+The CP advertises Claim Set signing algorithms separately from UserInfo algorithms.</t>
+
+<ol spacing="compact" start="18">
+<li>The OP MUST keep the Claims Endpoint bound to the validated CP issuer.</li>
+<li>The OP MUST keep the advertised Claim Set signing algorithms bound to that issuer.</li>
+<li>The OP MUST abort collection if its local policy permits none of the CP's advertised Claim Set signing algorithms.</li>
+</ol>
+
+<section anchor="claims-endpoint"><name>Claims Endpoint</name>
+
+<ol spacing="compact">
+<li>The CP MUST expose a Claims Endpoint.</li>
+</ol>
+<t>The Claims Endpoint is an OAuth 2.0 protected resource where the OP obtains CP-signed Claim Sets.
+The Claims Endpoint differs from the UserInfo and Distributed Claims endpoints in <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref>.
+See <xref target="claims-endpoint-request"></xref> and <xref target="claims-endpoint-response"></xref> for the wire protocol.</t>
+</section>
 </section>
 
-<section anchor="registration-phase"><name>Registration Phase</name>
-<t>Before starting to make requests to a CP, the OP MUST register itself to the CP.
-The registration SHOULD be performed
-via Dynamic Registration, as described in OpenID Connect Dynamic Client Registration 1.0 <eref target="http://openid.net/specs/openid-connect-registration-1_0.html">OpenID.Registration</eref>.</t>
-<t>The OP MUST register the following client parameters :</t>
+<section anchor="claim-set-profile"><name>Claim Set Profile</name>
+<t>This profile applies to Claim Sets from the Claims Endpoint.
+It uses the JWT <tt>typ</tt> in <xref target="signed-claim-set-format"></xref>.
+The profile defines no new metadata or Authentication Request parameter for negotiating the type.
+<xref target="claims-verification"></xref> specifies the validation rules.
+<eref target="https://www.rfc-editor.org/rfc/rfc7518.html">RFC7518</eref> defines the signing algorithm <tt>RS256</tt>.</t>
 
-<ul spacing="compact">
-<li><tt>userinfo_signed_response_alg</tt>. Signing algorithm supported by the Claims Provider.</li>
-</ul>
-<t>In addition, the OP MUST NOT register <tt>userinfo_encrypted_response_alg</tt> value.</t>
+<ol spacing="compact">
+<li>Deployments MAY establish OP and RP profile support through configuration, registration arrangements, or a trust framework.</li>
+<li>The CP MUST support the format in <xref target="signed-claim-set-format"></xref>.</li>
+<li>The CP MUST implement <tt>RS256</tt> signing for Claim Sets.</li>
+<li>The OP MUST implement <tt>RS256</tt> signature verification for Claim Sets.</li>
+<li>The RP MUST implement <tt>RS256</tt> signature verification for Claim Sets.</li>
+<li>The OP MUST support selecting <tt>RS256</tt> in Claims Endpoint requests.</li>
+<li>Implementations MAY support other asymmetric algorithms subject to <xref target="signature-validation"></xref>.</li>
+</ol>
+<t>The following rules apply if Claim Set validation fails.</t>
+
+<ol spacing="compact" start="8">
+<li>The OP MUST NOT silently fall back to an ID Token, UserInfo JWT, or another profile.</li>
+<li>The RP MUST NOT silently fall back to an ID Token, UserInfo JWT, or another profile.</li>
+</ol>
+<t>Stored JWTs with <tt>sub</tt> require a separate profile and deployment arrangement.</t>
+</section>
+
+<section anchor="aggregating-op-metadata"><name>Aggregating OP Metadata</name>
+<t>The following parameters apply to the aggregating OP's <tt>openid_provider</tt> metadata.</t>
+
+<ol spacing="compact">
+<li>The OP MUST include <tt>aggregated</tt> in <tt>claim_types_supported</tt>.</li>
+<li>The OP MUST set <tt>claims_parameter_supported</tt> to <tt>true</tt>.</li>
+<li>The OP MUST include <tt>S256</tt> in <tt>code_challenge_methods_supported</tt>.</li>
+<li>The OP MUST advertise these capabilities in any <eref target="https://openid.net/specs/openid-connect-discovery-1_0.html">OpenID.Discovery</eref> configuration document it publishes.</li>
+<li>The OP MUST support Aggregated Claims as an OpenID Provider under <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref>.</li>
+</ol>
+<t><xref target="rp-authentication-and-the-request-verification"></xref> governs PKCE for RPs.
+A CP that only issues Claim Sets to OPs has no obligation to advertise <tt>aggregated</tt>.</t>
+</section>
+</section>
+
+<section anchor="client-configuration-phase"><name>Client Configuration Phase</name>
+
+<section anchor="automatic-registration"><name>Automatic Registration</name>
+<t>The OP acts as an OpenID Connect client of the CP.
+Automatic Registration includes Trust Chain validation and metadata resolution.</t>
+
+<ol spacing="compact">
+<li>The OP MUST use Automatic Registration with the CP as specified in <eref target="https://openid.net/specs/openid-federation-1_0.html">OpenID.Federation</eref>.</li>
+<li>The CP MUST use Automatic Registration for the OP as specified in <eref target="https://openid.net/specs/openid-federation-1_0.html">OpenID.Federation</eref>.</li>
+<li>The OP MUST publish <tt>openid_provider</tt> metadata in its Entity Configuration.</li>
+<li>The OP MUST publish <tt>openid_relying_party</tt> metadata in the same Entity Configuration.</li>
+<li>The OP MUST use its Entity Identifier as both its Issuer Identifier and its <tt>client_id</tt> at the CP.</li>
+</ol>
+<t>For example, an OP with the Issuer Identifier <tt>https://op.example</tt> uses <tt>https://op.example</tt> as its
+<tt>client_id</tt> at the CP and publishes its Entity Configuration at
+<tt>https://op.example/.well-known/openid-federation</tt>.</t>
+</section>
+
+<section anchor="client-metadata"><name>Client Metadata</name>
+
+<ol spacing="compact">
+<li>The OP MUST include <tt>policy_uri</tt> in its <tt>openid_relying_party</tt> metadata.</li>
+</ol>
+<t><eref target="https://openid.net/specs/openid-connect-registration-1_0.html">OpenID.Registration</eref> defines <tt>policy_uri</tt>. The CP uses it in <xref target="cp-consent-dialogue"></xref>.
+<xref target="claims-endpoint-request"></xref> governs Claim Set signing algorithm selection.
+UserInfo signing and encryption metadata apply to UserInfo responses.</t>
+</section>
+
+<section anchor="op-client-authentication"><name>OP Client Authentication</name>
+
+<ol spacing="compact">
+<li>The OP MUST act as a confidential client of the CP.</li>
+<li>The OP MUST support <tt>private_key_jwt</tt> client authentication.</li>
+<li>The CP MUST support <tt>private_key_jwt</tt> client authentication.</li>
+</ol>
+<t>The OP declares one <tt>token_endpoint_auth_method</tt> in its <tt>openid_relying_party</tt> metadata.
+The declaration applies to every CP that uses that Entity Configuration.
+<eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref> defines <tt>private_key_jwt</tt>.
+<eref target="https://openid.net/specs/openid-federation-1_0.html">OpenID.Federation</eref> governs client authentication during Automatic Registration, including PAR.</t>
+
+<ol spacing="compact" start="4">
+<li>The OP MUST declare <tt>private_key_jwt</tt> in the base profile.</li>
+<li>The OP MUST authenticate with its declared method at the CP's Token Endpoint.</li>
+<li>A profile or trust framework MAY require <tt>self_signed_tls_client_auth</tt> for all participating OPs and CPs.</li>
+<li>The OP MUST declare <tt>self_signed_tls_client_auth</tt> when its profile or trust framework requires it.</li>
+<li>The OP MUST NOT use <tt>none</tt> or shared-secret client authentication.</li>
+</ol>
+<t>mTLS support is optional in the base profile.</t>
+<t>The CP advertises these methods in <tt>token_endpoint_auth_methods_supported</tt> in its <tt>openid_provider</tt> metadata.
+The following requirements also apply to any <eref target="https://openid.net/specs/openid-connect-discovery-1_0.html">OpenID.Discovery</eref> configuration document the CP publishes.</t>
+
+<ol spacing="compact" start="9">
+<li>The CP MUST advertise <tt>private_key_jwt</tt>.</li>
+<li>The CP MUST advertise <tt>self_signed_tls_client_auth</tt> if it supports that method.</li>
+<li>At other authenticated CP endpoints, the OP MUST use a mutually supported method consistent with resolved metadata.</li>
+<li>The OP MUST send each authenticated request to the endpoint in the selected CP's validated metadata.</li>
+</ol>
+<t>The following requirements apply to <tt>private_key_jwt</tt> at each CP endpoint that uses it.
+Examples include the Token, PAR, and revocation endpoints.
+Sections 4 and 5 of <eref target="https://www.rfc-editor.org/rfc/rfc10070.html">RFC10070</eref> specify the audience restriction for JWT client
+authentication at the Token and PAR endpoints.</t>
+
+<ol spacing="compact" start="13">
+<li>The OP MUST set <tt>aud</tt> to the validated CP Issuer Identifier as a string or single-element array.</li>
+<li>The OP MUST obtain that identifier as specified in <xref target="discovery-phase"></xref>.</li>
+<li>The CP MUST reject an assertion if its <tt>aud</tt> fails these requirements.</li>
+<li>The CP MUST validate the assertion signature with the OP's resolved <tt>openid_relying_party</tt> keys.</li>
+<li>The OP SHOULD use short-lived assertions.</li>
+<li>The OP MUST follow any assertion lifetime limits from its profile or trust framework.</li>
+<li>The CP MUST reject assertion reuse.</li>
+<li>The CP MUST retain each accepted (<tt>client_id</tt>, <tt>jti</tt>) pair through <tt>exp</tt>, including any permitted clock skew.</li>
+</ol>
+<t>An assertion lifetime of a few minutes is one option.</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc8705.html">RFC8705</eref> governs certificate and client binding when the OP uses <tt>self_signed_tls_client_auth</tt>.</t>
+
+<ol spacing="compact" start="21">
+<li>The CP MUST match the presented certificate against the OP's resolved RP JWK Set at each such endpoint.</li>
+</ol>
+</section>
 </section>
 
 <section anchor="setup-phase"><name>Setup Phase</name>
-<t>In this phase, the OP obtains an access token (and optionally refresh token)
-that is bound to the current user so that the OP can obtain the claims about the current user
-from the CP subsequently without taking the user to the CP and show them the consent dialogue for every RP requests.</t>
+
+<section anchor="op-collection-authorization"><name>OP Collection Authorization</name>
 
 <ol spacing="compact">
-<li>This has to be done at least once for each CP that a user of an OP who wishes to use the facility this document explains.</li>
-<li>To obtain the grant, the OP MUST use an OpenID Connect Authentication Request.</li>
-<li>The Claims to be granted SHOULD be specified with the<tt>scope</tt> parameter and/or the <tt>userinfo</tt> member of the <tt>claims</tt> parameter.
-The CP MUST show a dialogue to the Subject explaining that the OP will be
-getting signed claims set from this CP as appropriate to provide claims to RPs as directed
-by the Subject.</li>
+<li>The OP MUST collect claims as the CP's OpenID Connect client at the Subject's direction.</li>
+<li>The OP MUST request the collection grant with <tt>response_type=code</tt> under <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref>.</li>
+<li>The OP SHOULD use scopes the CP supports to request claims and collection permissions.</li>
+<li>The OP SHOULD request only the claims and operations necessary for the Subject's authorized collection purposes.</li>
+<li>The OP MUST obtain a grant that authorizes Claims Endpoint access for the claims it will request.</li>
 </ol>
-<t>The dialogue MUST provide the link to the <tt>policy_url</tt> provided by the OP during its registration.</t>
-<t>The actual act of granting MUST involve active user interaction.</t>
-<t>The grant that is to be obtained in this phase SHOULD be sufficiently large so that it will reduce the
-number of times that OP needs to take the Subject to the CP to obtain additional grants.</t>
+<t>The CP or its applicable profile or trust framework maps claim permissions to scopes.
+<tt>claims.userinfo</tt> and <tt>claims.id_token</tt> retain their <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref> meanings.
+A UserInfo-only token does not authorize Claims Endpoint access.
+<xref target="trust-model"></xref> governs the binding of the grant and tokens to the OP account.</t>
+
+<ol spacing="compact" start="6">
+<li>When requesting a refresh token for offline collection, the OP MUST include <tt>offline_access</tt> in <tt>scope</tt>.</li>
+<li>The OP MUST follow the <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref> consent rules when requesting offline collection.</li>
+<li>The CP MUST follow the <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref> consent rules when authorizing offline collection.</li>
+</ol>
+</section>
+
+<section anchor="cp-consent-dialogue"><name>CP Consent Dialogue</name>
+
+<ol spacing="compact">
+<li>The CP MUST show the Subject a consent dialogue.</li>
+<li>The CP MUST explain that the OP collects signed Claim Sets for RPs at the Subject's direction.</li>
+<li>The CP MUST link to the OP's <tt>policy_uri</tt> from its client metadata.</li>
+<li>The CP MUST require active interaction from the Subject before granting access.</li>
+<li>The CP MUST explain that the OP can use or disclose collected Claim Sets until expiration, despite grant revocation.</li>
+<li>The CP MUST explain how the Subject controls further disclosure, including how to stop it at the OP.</li>
+</ol>
+<t><xref target="authorization-withdrawal-and-grant-revocation"></xref> describes those controls.</t>
+
+<section anchor="cp-grant-management"><name>CP Grant Management</name>
+
+<ol spacing="compact">
+<li>The CP SHOULD let the authenticated Subject review standing grants to OPs through a user interface.</li>
+<li>The CP SHOULD let the authenticated Subject revoke standing grants through that interface.</li>
+<li>The CP SHOULD show the claims and operations each grant permits in that interface.</li>
+</ol>
+</section>
+</section>
+
+<section anchor="cp-token-issuance-and-use"><name>CP Token Issuance and Use</name>
+
+<ol spacing="compact">
+<li>The CP SHOULD issue short-lived access tokens.</li>
+<li>The CP SHOULD set access token lifetimes according to claim sensitivity and exposure.</li>
+<li>The CP SHOULD restrict each access token to its Claims Endpoint.</li>
+<li>The CP SHOULD restrict each access token to the claims and operations that the Subject authorizes.</li>
+</ol>
+<t>These restrictions apply regardless of the token format. The CP checks resource and access
+permissions as specified in <xref target="claims-endpoint-request"></xref>.</t>
+
+<ol spacing="compact" start="5">
+<li>The CP SHOULD issue sender-constrained access tokens.</li>
+<li>The OP SHOULD use sender-constrained access tokens.</li>
+</ol>
+<t>The OP and CP can use certificate binding <eref target="https://www.rfc-editor.org/rfc/rfc8705.html">RFC8705</eref> or DPoP <eref target="https://www.rfc-editor.org/rfc/rfc9449.html">RFC9449</eref>.
+The Claims Endpoint applies the relevant proof requirements in <xref target="claims-endpoint-request"></xref>.
+mTLS client authentication alone does not imply certificate-bound access tokens.</t>
+
+<ol spacing="compact" start="7">
+<li>The CP MUST follow <eref target="https://www.rfc-editor.org/rfc/rfc9700.html">RFC9700</eref> when it decides whether to issue refresh tokens.</li>
+<li>The CP MUST apply the refresh token scope and resource binding requirements in <eref target="https://www.rfc-editor.org/rfc/rfc9700.html">RFC9700</eref>.</li>
+<li>The OP MUST preserve the account binding when it replaces a refresh token.</li>
+<li>The CP SHOULD support token revocation as specified in <eref target="https://www.rfc-editor.org/rfc/rfc7009.html">RFC7009</eref>.</li>
+</ol>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc6749.html">RFC6749</eref> governs refresh token authentication and replacement.
+The CP can rotate refresh tokens to detect replay.
+Token expiration, rotation, and revocation govern further collection.
+<xref target="authorization-withdrawal-and-grant-revocation"></xref> describes their effect on stored Claim Sets.</t>
+</section>
+
+<section anchor="authorization-request-and-transaction-binding"><name>Authorization Request and Transaction Binding</name>
+
+<ol spacing="compact">
+<li>The OP MUST authenticate the Subject before starting Setup.</li>
+<li>The OP MUST create an authorization transaction for Setup.</li>
+<li>The OP MUST bind the transaction to the authenticated OP account.</li>
+<li>The OP MUST bind the transaction to the initiating user-agent session.</li>
+<li>The OP MUST record the selected CP's resolved metadata in the transaction.</li>
+<li>The OP MUST record its client registration at that CP in the transaction.</li>
+<li>The OP MUST record the request's <tt>redirect_uri</tt> in the transaction.</li>
+<li>The OP MUST bind any selected CP connection configuration to the transaction.</li>
+<li>The OP MUST bind any selected tenant to the transaction.</li>
+</ol>
+<t><xref target="authorization-response-issuer-validation"></xref> specifies how the OP binds the selected CP issuer.
+The CP identifies Claims Aggregation clients by their <tt>client_id</tt> under <xref target="client-configuration-phase"></xref>.</t>
+
+<ol spacing="compact" start="10">
+<li>The OP MUST use <eref target="https://www.rfc-editor.org/rfc/rfc7636.html">RFC7636</eref> PKCE with an explicit <tt>S256</tt> method for every Setup request.</li>
+<li>The OP MUST check the validated CP metadata for <tt>S256</tt> support before sending the request.</li>
+<li>The OP MUST abort Setup if that metadata does not advertise <tt>S256</tt> support.</li>
+<li>The OP MUST bind the PKCE verifier to the transaction.</li>
+<li>The CP MUST reject authorization requests from Claims Aggregation clients without an <tt>S256</tt> challenge.</li>
+<li>The CP MUST apply the authorization server requirements for PKCE in <eref target="https://www.rfc-editor.org/rfc/rfc9700.html">RFC9700</eref>.</li>
+<li>The OP MUST send an unpredictable, transaction-specific <tt>state</tt> value.</li>
+<li>The OP MUST securely bind <tt>state</tt> to the transaction and initiating user-agent session.</li>
+<li>The OP MUST limit the lifetime of each transaction.</li>
+<li>The OP MUST accept each transaction at most once.</li>
+<li>The OP MUST reject expired transactions.</li>
+<li>The OP MUST bind any <tt>nonce</tt> it sends to the transaction.</li>
+</ol>
+<t><eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref> governs validation of the ID Token's <tt>nonce</tt>.</t>
+</section>
+
+<section anchor="authorization-response-session-validation"><name>Authorization Response Session Validation</name>
+<t>The OP applies the response checks after either recovery procedure and before it sends the code.</t>
+
+<ol spacing="compact">
+<li>The OP MUST match the returned <tt>state</tt> to the pending transaction before sending the authorization code.</li>
+<li>The OP MUST verify the completion session's binding to the initiating OP account before sending the code.</li>
+<li>The OP MUST abort Setup if <tt>state</tt> is missing or either check fails.</li>
+<li>The OP MUST abort Setup for expired or previously used transactions.</li>
+<li>The OP MUST NOT establish the OP account from a URL-carried <tt>state</tt> or session identifier alone.</li>
+<li>The OP MUST NOT establish the user-agent session from a URL-carried <tt>state</tt> or session identifier alone.</li>
+<li>The OP MUST use one procedure below if the initiating session is unavailable at the redirection endpoint.</li>
+</ol>
+<t><strong>One-time handle.</strong> The following requirements apply when the OP uses a handle.</t>
+
+<ol spacing="compact" start="8">
+<li>The OP MUST store the authorization response with its pending transaction.</li>
+<li>The OP MUST generate an unpredictable, short-lived handle for the stored response and transaction.</li>
+<li>The OP MUST return the user agent to the initiating origin or application with that handle.</li>
+<li>The OP MUST require the original session cookie or an equivalent session credential from the initiating application.</li>
+<li>The OP MUST verify that credential's binding to the initiating OP account and transaction.</li>
+<li>The OP MUST consume the handle at most once.</li>
+<li>The OP MUST NOT complete Setup based on the handle alone.</li>
+<li>The OP MUST set the handle to expire no later than the pending transaction.</li>
+<li>The OP MUST limit the handle's lifetime to the CP code's remaining lifetime if known.</li>
+<li>If the CP rejects the code as expired, the OP MUST invalidate the handle.</li>
+<li>If the CP rejects the code as expired, the OP MUST require a new Setup transaction.</li>
+</ol>
+<t><strong>Reauthentication.</strong> The following requirements apply when the OP uses reauthentication.</t>
+
+<ol spacing="compact" start="19">
+<li>The OP MUST reauthenticate the Subject before sending the authorization code.</li>
+<li>The OP MUST match the reauthenticated account to the initiating account before sending the authorization code.</li>
+</ol>
+<t>The following requirement applies to both procedures.</t>
+
+<ol spacing="compact" start="21">
+<li>The OP MUST limit further redirection to destinations it controls and attackers cannot override.</li>
+</ol>
+</section>
+
+<section anchor="authorization-response-issuer-validation"><name>Authorization Response Issuer Validation</name>
+
+<ol spacing="compact">
+<li>The CP MUST include the <eref target="https://www.rfc-editor.org/rfc/rfc9207.html">RFC9207</eref> <tt>iss</tt> parameter in every Setup authorization response.</li>
+<li>The OP MUST bind the expected issuer from validated CP metadata to the Setup transaction and user-agent session.</li>
+<li>The OP MUST validate the response <tt>iss</tt> against the bound issuer per <eref target="https://www.rfc-editor.org/rfc/rfc9207.html">RFC9207</eref> before code exchange.</li>
+<li>The OP MUST reject any Setup authorization response that omits <tt>iss</tt>.</li>
+</ol>
+</section>
+
+<section anchor="token-request-and-account-binding"><name>Token Request and Account Binding</name>
+<t>The following provisions apply to the code exchange.</t>
+
+<ol spacing="compact">
+<li>The OP MUST use the client registration bound to the validated transaction.</li>
+<li>The OP MUST use the <tt>redirect_uri</tt> bound to the validated transaction.</li>
+<li>The OP MUST use the PKCE verifier bound to the validated transaction.</li>
+<li>The OP MUST NOT use the response to switch the CP, connection configuration, tenant, or Token Endpoint.</li>
+</ol>
+<t>The OP validates the CP's ID Token under <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref> before establishing the binding in <xref target="trust-model"></xref>.</t>
+
+<ol spacing="compact" start="5">
+<li>The OP MUST establish the account binding before storing the resulting tokens or Claim Sets.</li>
+<li>The OP MUST establish the account binding before using the resulting tokens or Claim Sets.</li>
+</ol>
+<t>The following provisions apply to an existing OP account binding for the same CP issuer.</t>
+
+<ol spacing="compact" start="7">
+<li>The OP MUST compare the new CP <tt>sub</tt> with the stored value.</li>
+<li>The OP MUST treat a changed CP <tt>sub</tt> as account relinking.</li>
+<li>For relinking, the OP MUST obtain explicit confirmation from the authenticated Subject before replacing the binding.</li>
+</ol>
+<t>The CP identity here is the validated (<tt>iss</tt>, <tt>sub</tt>) pair.
+The OP checks the applicable account namespace. For tenant-scoped accounts, that namespace is the tenant.</t>
+
+<ol spacing="compact" start="10">
+<li>Before creating a binding, the OP SHOULD check whether another OP account already links to the validated CP identity.</li>
+</ol>
+<t>If the OP finds such a binding, the following provisions apply.</t>
+
+<ol spacing="compact" start="11">
+<li>The OP MUST reject the new binding or require additional verification under its account-linking policy.</li>
+<li>The OP MUST NOT automatically transfer the existing binding.</li>
+<li>The OP MUST NOT automatically remove the existing binding.</li>
+</ol>
+<t>When the OP chooses verification, the following restriction applies.</t>
+
+<ol spacing="compact" start="14">
+<li>The OP MUST complete that verification before making CP tokens or Claim Sets available to the new OP account.</li>
+</ol>
+<t>Deployments can permit a CP account to link to multiple OP accounts.</t>
+
+<ol spacing="compact" start="15">
+<li>Such deployments MUST define the conditions for multiple bindings in their account-linking policy.</li>
+</ol>
+</section>
 </section>
 
 <section anchor="delivery-phase-rp-phase"><name>Delivery Phase (RP Phase)</name>
-<t>In Delivery Phase, the claims are delivered to RP.
-To do so, it typically goes through the following steps:</t>
+
+<section anchor="delivery-overview"><name>Delivery Overview</name>
+<t>The Delivery Phase typically includes the following steps.</t>
 
 <ol spacing="compact">
-<li>(Claims Request) An RP makes an OpenID Connect Authentication Request with extension parameters defined in this document to the OP.</li>
-<li>(Request Verification) The OP verifies if the request is valid.</li>
-<li>(Subject Granting) The OP shows dialogue to the Authenticated Subject if it grants the access to the claims and obtains grant from the Subject.</li>
-<li>(Claims Collection) The OP accesses relevant Claims Provider's UserInfo Endpoints with Access Tokens to collect signed claims</li>
-<li>(Claims Verification) The RP verifies the received response.</li>
+<li>(Claims Request) The RP sends an OpenID Connect Authentication Request to the OP.</li>
+<li>(Request Verification) The OP validates the request.</li>
+<li>(Subject Granting) The OP establishes the Subject's authorization for disclosure
+to the RP as described in <xref target="subject-granting"></xref>.</li>
+<li>(Claims Collection) The OP obtains suitable Claim Sets as described in
+<xref target="claims-collection"></xref>.</li>
+<li>(Claims Delivery) The OP returns the authorized Aggregated Claims to the RP as
+described in <xref target="claims-delivery"></xref>.</li>
+<li>(Claims Verification) The RP verifies the response.</li>
 </ol>
-<t>Claims Collection MAY be done out of sync. That is, the signed claim sets can be obtained before the RP requests.</t>
+</section>
 
 <section anchor="claims-request-by-rp-to-op"><name>Claims Request by RP to OP</name>
-<t>For an RP to request claims according to this document, the RP</t>
 
 <ol spacing="compact">
-<li>MUST use the OpenID Connect Authentication Request with extension parameters defined in this document to the OP.</li>
+<li>The RP MUST request claims in an Authentication Request under <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref>.</li>
+<li>To request individual claims, the RP MUST use <tt>userinfo</tt>, <tt>id_token</tt>, or both in <tt>claims</tt>.</li>
+<li>The OP MUST support the <tt>claims</tt> parameter.</li>
+<li>The RP MUST include <tt>policy_uri</tt> in its client metadata.</li>
+<li>The OP MUST return claims from the selected CPs as Aggregated Claims.</li>
 </ol>
+<t>The OP selects CPs associated with the Subject's account.
+<eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref> defines <tt>claims</tt> and <tt>scope</tt>. Selecting a specific CP requires an extension.
+<eref target="https://openid.net/specs/openid-connect-registration-1_0.html">OpenID.Registration</eref> defines <tt>policy_uri</tt>. The OP uses it in <xref target="subject-granting"></xref>.
+<xref target="claims-verification"></xref> specifies how the RP evaluates the CP and the age of its Claim Set.</t>
 </section>
 
 <section anchor="rp-authentication-and-the-request-verification"><name>RP authentication and the request verification</name>
-<t>Upon receipt of the request, the OP</t>
 
 <ol spacing="compact">
-<li>MUST verify that the request is not tampered and is from a valid registered RP if the request is signed; and</li>
-<li>MUST at least verify that the client_id is valid and make sure
-that the authorization code that it is going to return will be bound to this client_id if the request is not signed.</li>
+<li>The OP MUST apply the redirect URI matching rules in <eref target="https://www.rfc-editor.org/rfc/rfc9700.html">RFC9700</eref>.</li>
+<li>The OP MUST apply the authorization server requirements for PKCE in <eref target="https://www.rfc-editor.org/rfc/rfc9700.html">RFC9700</eref>.</li>
+<li>The RP MUST apply the protections against CSRF and authorization code injection in <eref target="https://www.rfc-editor.org/rfc/rfc9700.html">RFC9700</eref>.</li>
 </ol>
-<t>NOTE: RP MUST be authenticated at one point or another before completion of the transaction.</t>
+<t>This profile adds the following PKCE requirements.</t>
+
+<ol spacing="compact" start="4">
+<li>The RP MUST use <tt>S256</tt> whenever it uses PKCE.</li>
+<li>The RP MUST securely bind its transaction-specific PKCE verifier to the initiating client and user agent.</li>
+<li>The OP MUST reject a public RP's request for an authorization code without an <tt>S256</tt> challenge.</li>
+<li>The OP MUST reject requests with <tt>code_challenge</tt> unless <tt>code_challenge_method</tt> is explicitly <tt>S256</tt>.</li>
+</ol>
 </section>
 
 <section anchor="subject-granting"><name>Subject Granting</name>
-<t>After verifying the request, the OP</t>
+<t><eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref> governs authentication and <tt>prompt</tt>. The OP validates the request before seeking consent.</t>
 
 <ol spacing="compact">
-<li>MUST authenticate the Subject if it has not yet been;</li>
-<li>MUST show the Subject what is being requested from the RP;</li>
-<li>MUST show the Subject the link to the RP provided policy_url; and</li>
-<li>MUST obtain grant from the Subject through explicit action.</li>
+<li>The OP MUST obtain the Subject's RP-specific authorization before requesting CP authorization on that RP's behalf.</li>
+<li>The OP MUST obtain the Subject's RP-specific authorization before disclosing any claims to that RP.</li>
+<li>The OP MUST show a dialogue when it seeks new consent.</li>
 </ol>
+<t>The dialogue uses the client metadata that the OP registered or resolved for the RP's <tt>client_id</tt>.</t>
+
+<ol spacing="compact" start="4">
+<li>The OP MUST identify the requesting RP by its <tt>client_id</tt> in the dialogue.</li>
+<li>The OP MUST show the RP's <tt>client_name</tt> if that metadata includes it.</li>
+<li>The OP MUST identify each claim's CP source using the validated CP Issuer Identifier.</li>
+<li>The OP MUST show all claims it will disclose, including any additional claims in an embedded JWT.</li>
+<li>The OP MUST tell the Subject that it will disclose the CP Issuer Identifier to the RP.</li>
+<li>The OP MUST tell the Subject that it will disclose identifying attributes from the JWT to the RP.</li>
+<li>The OP MUST link to the RP's <tt>policy_uri</tt> from that metadata.</li>
+<li>The OP MUST obtain the Subject's consent through explicit action.</li>
+<li>The OP SHOULD prefer RP identity information that the applicable trust framework verifies.</li>
+<li>The OP MUST NOT present unverified RP identity information as verified.</li>
+<li>The OP SHOULD select language-tagged display values according to the Subject's language preferences.</li>
+</ol>
+<t>A verified <tt>organization_name</tt> or a Trust Mark that attests to the RP's identity can supply display information.
+Signed metadata or a valid Trust Mark alone does not verify every displayed name.
+<eref target="https://openid.net/specs/openid-connect-registration-1_0.html">OpenID.Registration</eref> governs language tags and the use of untagged values.
+The OP omits <tt>account_ref</tt> from Aggregated Claims as specified in <xref target="claims-endpoint-response"></xref>.</t>
+
+<ol spacing="compact" start="15">
+<li>The OP MAY remember a consent decision for the authenticated Subject and requesting RP.</li>
+<li>The OP MAY use remembered consent instead of a dialogue only for the same authenticated Subject and RP <tt>client_id</tt>.</li>
+<li>The OP MUST limit remembered consent to the claims that the Subject authorizes.</li>
+<li>The OP MUST limit remembered consent to authorized CP sources, identified by their validated Issuer Identifiers.</li>
+<li>The OP MUST NOT use remembered consent after the Subject withdraws it.</li>
+<li>The OP MUST NOT use the CP grant as consent for RP disclosure.</li>
+<li>The OP MUST obtain fresh consent for <tt>prompt=consent</tt>.</li>
+<li>For <tt>prompt=none</tt>, the OP MUST return <tt>consent_required</tt> if it lacks valid consent for the disclosure.</li>
+</ol>
+<t><xref target="authorization-withdrawal-and-grant-revocation"></xref> governs withdrawal.
+<eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref> governs other authentication or interaction errors.</t>
 </section>
 
 <section anchor="claims-collection"><name>Claims Collection</name>
-<t>The OP collects the required claims from the relevant UserInfo Endpoint.
-This process can be performed before the RP's request.</t>
-<t>To minimize the information returned from the UserInfo Endpoint, the OP SHOULD downscope the access token to return only the claims requested by the RP's authorization request. This OP retrieves a downscoped access token by making a request to the CP's Token Endpoint as described in 12 of OpenID Connect 1.0 <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref>. The <tt>scope</tt> parameter value SHOULD only allow access to the claims requested by the RP at the CP.</t>
 
-<section anchor="userinfo-endpoint-request"><name>UserInfo Endpoint Request</name>
-<t>For claims collection, the OP</t>
+<section anchor="collection-and-reuse"><name>Collection and Reuse</name>
 
 <ol spacing="compact">
-<li>MUST send OAuth protected resource request to the UserInfo Endpoint using previously obtained Access Token as described in 5.3.1 of OpenID Connect 1.0 <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref>;</li>
+<li>The OP MAY precollect Claim Sets when both the CP grant and the Subject's authorization permit it.</li>
+<li>The OP MAY reuse a stored Claim Set only if it meets all validation, authorization, binding, and policy requirements.</li>
+<li>The OP SHOULD let the authenticated Subject request updated claims from a selected CP.</li>
+<li>The OP MAY start a new collection using existing Subject authorization and valid CP tokens.</li>
+<li>The OP MAY apply privacy policies and rate limits to these updates.</li>
+<li>The OP MUST preserve the original CP-signed JWT when storing or disclosing a Claim Set.</li>
+<li>The OP SHOULD use the narrowest available access token scope for the claims it needs to collect.</li>
 </ol>
-<t>This process will be repeated for as each Claims Providers as necessary.</t>
+<t>The relevant policies include the OP's collection and storage policies.
+Access token renewal alone leaves the stored Claim Set unchanged.</t>
+<t>The downscoping recommendation applies when the OP has a refresh token and a suitable narrower scope.
+<eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref> and <eref target="https://www.rfc-editor.org/rfc/rfc6749.html">RFC6749</eref> govern refresh and downscoping.</t>
+
+<ol spacing="compact" start="8">
+<li>The OP SHOULD request a downscoped access token when its current token grants more access than collection needs.</li>
+<li>The OP MUST reestablish trust in the CP before sending requests after the Trust Chain expires.</li>
+</ol>
+<t><eref target="https://openid.net/specs/openid-federation-1_0.html">OpenID.Federation</eref> governs Trust Chain reevaluation.
+The following requirement applies when the OP needs a new Claim Set but cannot obtain it through a valid access or refresh token.</t>
+
+<ol spacing="compact" start="10">
+<li>The OP MUST obtain the necessary authorization from the Subject at the CP or omit the affected claims.</li>
+</ol>
+<t>See <xref target="setup-phase"></xref> for obtaining that authorization.</t>
 </section>
+
+<section anchor="token-and-claim-set-storage"><name>Token and Claim Set Storage</name>
+<t>Protected material includes stored CP access tokens, refresh tokens, and signed Claim Sets.
+It also includes private keys for client authentication and proof of possession.</t>
+
+<ol spacing="compact">
+<li>The OP MUST prevent unauthorized disclosure of protected material.</li>
+<li>The OP MUST prevent unauthorized modification of protected material.</li>
+<li>The OP MUST prevent unauthorized use of protected material.</li>
+<li>The OP MUST enforce the account and CP bindings in <xref target="trust-model"></xref> when accessing stored material.</li>
+<li>The OP MUST apply these protections to persistent stores, backups, and operational access.</li>
+<li>The OP MUST prevent unauthorized access to protected material through logs or diagnostics.</li>
+<li>The OP SHOULD encrypt sensitive stored material at rest.</li>
+<li>The OP SHOULD protect encryption keys separately from their encrypted data.</li>
+<li>The OP SHOULD use key isolation to limit the impact of a compromised component.</li>
+<li>The OP SHOULD use access controls to limit the impact of a compromised component.</li>
+<li>The OP MAY store signed Claim Sets under these controls.</li>
+</ol>
+<t>Deployments choose the storage architecture, including whether the Subject controls the encryption keys.</t>
+</section>
+
+<section anchor="subject-control-of-stored-claim-sets"><name>Subject Control of Stored Claim Sets</name>
+
+<ol spacing="compact">
+<li>The OP MUST provide a Claim Set management user interface to the authenticated Subject.</li>
+<li>The OP MUST let the Subject inspect stored Claim Sets through that interface.</li>
+<li>The OP MUST show each stored Claim Set's CP source in that interface.</li>
+<li>The OP MUST let the Subject delete selected Claim Sets through that interface.</li>
+<li>The OP MUST let the Subject review collection and RP-specific disclosure authorizations through that interface.</li>
+<li>The OP MUST let the Subject withdraw collection and RP-specific disclosure authorizations through that interface.</li>
+<li>The OP MUST distinguish deletion, stopping collection, stopping disclosure, and CP grant revocation in the interface.</li>
+<li>The OP SHOULD direct the Subject to an available CP grant-management interface.</li>
+</ol>
+<t>For a deletion request, the following requirements apply.</t>
+
+<ol spacing="compact" start="9">
+<li>The OP MUST remove the selected Claim Sets from active stores.</li>
+<li>The OP MUST NOT disclose retained copies of those deleted Claim Sets.</li>
+<li>The OP MUST explain the scope of deletion, including any backup retention.</li>
+<li>The OP MUST explain when deletion takes effect.</li>
+<li>The OP MUST tell the Subject that deletion at the OP cannot erase copies it already disclosed to RPs.</li>
+<li>The OP MUST explain that deleting Claim Sets alone leaves collection authorization in effect.</li>
+</ol>
+<t>A later authorized collection can obtain those claims again.
+<xref target="authorization-withdrawal-and-grant-revocation"></xref> explains how the Subject can stop further collection and disclosure.</t>
+
+<ol spacing="compact" start="15">
+<li>The OP SHOULD NOT automatically recollect deleted claims from the same CP without a new explicit instruction from the Subject.</li>
+<li>The OP SHOULD offer one action to delete selected Claim Sets and withdraw their corresponding collection authorization.</li>
+</ol>
+<t>An RP request or remembered consent does not constitute that instruction.
+Backups remain subject to <xref target="token-and-claim-set-storage"></xref>.</t>
+
+<ol spacing="compact" start="17">
+<li>Before restoring backup data to active use, the OP MUST apply the Subject's recorded deletion decisions.</li>
+<li>Before restoring backup data to active use, the OP MUST apply the Subject's recorded withdrawal decisions.</li>
+</ol>
+<t>A disclosure history identifies the RP recipients, the disclosed Claim Sets, their CP sources, and the disclosure times.</t>
+
+<ol spacing="compact" start="19">
+<li>The OP SHOULD let the authenticated Subject review their disclosure history.</li>
+<li>The OP MUST protect all retained history, including legally retained records, under <xref target="token-and-claim-set-storage"></xref>.</li>
+<li>The OP SHOULD minimize the information it retains for disclosure history.</li>
+</ol>
+<t>For example, the OP can identify disclosed Claim Sets without retaining their complete signed JWTs.
+Applicable legal retention obligations qualify the history deletion and restoration requirements.</t>
+
+<ol start="22">
+<li>The OP MUST apply the Subject's deletion controls to disclosure history.</li>
+<li>The OP MUST apply the Subject's backup-restoration controls to disclosure history.</li>
+<li>The OP MUST exclude records it retains solely for legal obligations from ordinary viewing and disclosure.</li>
+<li><t>The OP MUST restrict access to those records to authorized purposes for meeting those obligations.</t>
+</li>
+<li><t>The OP MAY let the authenticated Subject export stored CP-signed Claim Sets unchanged.</t>
+</li>
+<li><t>The OP SHOULD explain the correlation and onward-transfer risks of exporting Claim Sets.</t>
+</li>
+</ol>
+<t>Exported Claim Sets remain transferable signed personal data. See <xref target="correlation-and-transferable-signed-data"></xref>.
+Their audience, account-binding, and verification requirements continue to apply.
+This profile sets no retention deadline for stored Claim Sets.
+The Subject can retain expired Claim Sets as records without treating them as valid.
+<xref target="claims-verification"></xref> governs acceptance and disclosure of Claim Sets.</t>
+</section>
+
+<section anchor="authorization-withdrawal-and-grant-revocation"><name>Authorization Withdrawal and Grant Revocation</name>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc6749.html">RFC6749</eref> and <eref target="https://www.rfc-editor.org/rfc/rfc6750.html">RFC6750</eref> govern grant and token validity for further collection.
+<eref target="https://www.rfc-editor.org/rfc/rfc7009.html">RFC7009</eref> governs token revocation when the CP supports it.
+Expiration or revocation of a CP token or grant does not itself invalidate an issued Claim Set.
+<xref target="trust-model"></xref> governs the account and CP binding of stored Claim Sets.</t>
+
+<ol spacing="compact">
+<li>If further collection is necessary, the OP MUST handle token errors through the applicable recovery or reauthorization procedure.</li>
+<li>The OP MAY disclose an otherwise valid stored Claim Set while the Subject's disclosure authorization remains in effect.</li>
+<li>The OP MUST stop collection within the scope of the Subject's withdrawal until the Subject authorizes it again.</li>
+<li>The OP MUST stop disclosure within the scope of the Subject's withdrawal until the Subject authorizes it again.</li>
+</ol>
+<t>A withdrawal limited to one RP applies to affected disclosures to that RP.
+The Subject can retain private copies after withdrawing disclosure authorization.
+The RP applies its own acceptance and freshness policies.
+Disclosing an otherwise acceptable stored Claim Set requires no new CP authorization or CP request.</t>
+<t>The errors <tt>invalid_token</tt> and <tt>invalid_grant</tt> can have several causes.
+Neither error alone establishes the scope of revocation or the validity of a stored Claim Set.
+A failed collection or refresh attempt alone does not require suspending disclosure of an otherwise acceptable stored Claim Set.</t>
+</section>
+
+<section anchor="claims-endpoint-request"><name>Claims Endpoint Request</name>
+<t>The Claims Endpoint follows the protected resource rules in <eref target="https://www.rfc-editor.org/rfc/rfc6749.html">RFC6749</eref>.
+<eref target="https://www.rfc-editor.org/rfc/rfc6750.html">RFC6750</eref> governs bearer token presentation and errors.
+<eref target="https://www.rfc-editor.org/rfc/rfc9449.html">RFC9449</eref> governs DPoP presentation and errors.
+<eref target="https://www.rfc-editor.org/rfc/rfc8705.html">RFC8705</eref> governs certificate binding.</t>
+
+<ol spacing="compact">
+<li>The OP MUST send an HTTPS POST to the CP's validated <tt>claims_endpoint</tt>.</li>
+<li>The OP MUST use <tt>application/json</tt> as the request media type.</li>
+<li>The OP MUST use an access token authorized for the Claims Endpoint.</li>
+<li>The OP MUST send a JSON object as the request body.</li>
+<li>The CP MUST reject unrecognized members at the top level of the request.</li>
+<li>The CP MUST reject duplicate names at the request's top level or within its <tt>claims</tt> object.</li>
+</ol>
+<t>The CP compares decoded member names using exact, case-sensitive equality.
+An extension can define new request members and how the OP learns that the CP supports them.
+The requested claim names inside <tt>claims</tt> follow the attribute omission rules below.</t>
+<t>The base request carries <tt>nonce</tt>, <tt>claims</tt>, and <tt>signing_alg</tt>.</t>
+
+<ol spacing="compact" start="7">
+<li>The OP MUST include a non-empty <tt>nonce</tt> string.</li>
+<li>The CP MUST reject a request without a non-empty <tt>nonce</tt> string.</li>
+<li>The OP MUST generate a fresh nonce for each collection operation using a cryptographically secure random number generator.</li>
+<li>The OP SHOULD use at least 128 bits of random input for the nonce.</li>
+<li>The OP MUST NOT reuse the RP's authentication nonce.</li>
+<li>The OP MUST NOT use the nonce as evidence of Subject identity.</li>
+<li>The OP MUST limit each collection operation's lifetime.</li>
+</ol>
+<t>The OP establishes the following bindings before sending the request.</t>
+
+<ol spacing="compact" start="14">
+<li>The OP MUST bind the nonce to the pending collection operation.</li>
+<li>The OP MUST bind the nonce to the OP account.</li>
+<li>The OP MUST bind the nonce to the CP issuer and Subject Identifier from Setup.</li>
+<li>The OP MUST bind the selected <tt>signing_alg</tt> to the pending operation.</li>
+</ol>
+<t>The following requirements apply to the request's claim and algorithm selection.</t>
+
+<ol spacing="compact" start="18">
+<li>The OP MUST include a non-empty JSON object named <tt>claims</tt>.</li>
+<li>The OP MUST use member names in <tt>claims</tt> to identify requested top-level claims.</li>
+<li>The OP MUST set each requested claim's value to <tt>null</tt> in the base profile.</li>
+<li>The OP MUST NOT request <tt>iss</tt>, <tt>sub</tt>, <tt>aud</tt>, <tt>iat</tt>, <tt>exp</tt>, <tt>nbf</tt>, or <tt>jti</tt> as attributes.</li>
+<li>The OP MUST include a single asymmetric JWS algorithm in <tt>signing_alg</tt>.</li>
+<li>The OP MUST select <tt>signing_alg</tt> from the CP's validated <tt>claims_signing_alg_values_supported</tt>.</li>
+<li>The OP MUST select a <tt>signing_alg</tt> that its policy permits.</li>
+<li>The CP MUST reject an unsupported <tt>signing_alg</tt>.</li>
+</ol>
+<t>Claim-specific query syntax requires an extension. The <tt>claims</tt> member does not expand
+the grant's permissions.</t>
+<t>For example (the access token and nonce are illustrative):</t>
+
+<sourcecode type="http"><![CDATA[POST /claims HTTP/1.1
+Host: cp.example
+Authorization: Bearer ACCESS_TOKEN
+Content-Type: application/json
+
+{
+  "nonce": "request-specific-random-value",
+  "claims": {"birthdate": null},
+  "signing_alg": "RS256"
+}
+]]></sourcecode>
+<t>The base request selects top-level claims, not nested fields within a compound claim.
+For example, <tt>&quot;claims&quot;: {&quot;verified_claims&quot;: null}</tt> requests that top-level claim; it does
+not convey a selection of particular attributes, evidence, or timestamps within it. A CP
+or trust framework can define narrow scopes or output sets for specific uses, but this
+specification does not define a general nested query syntax for the Claims Endpoint.
+The OP cannot remove nested fields from an already signed Claim Set while preserving the
+CP signature. All disclosed contents remain subject to <xref target="subject-granting"></xref> and
+<xref target="claims-delivery"></xref>; the OP obtains a suitable Claim Set or omits it when those requirements
+cannot be met.</t>
+
+<ol spacing="compact" start="26">
+<li>The CP MUST limit returned attributes to those that the OP requests and the grant and Subject authorize.</li>
+<li>The CP MAY omit requested attributes, including for privacy reasons.</li>
+<li>The CP MUST NOT treat omission of an attribute as an error.</li>
+<li>The CP MUST NOT imply a reason for omitting an attribute.</li>
+<li>The CP MUST NOT reject an otherwise valid request solely for an unknown requested attribute name.</li>
+</ol>
+<t>For example, omission can reflect attribute absence, missing verification, or a Subject's choice to withhold the attribute.
+<xref target="claims-endpoint-response"></xref> defines the empty result.</t>
+<t>Token and scope errors follow the applicable rules in <eref target="https://www.rfc-editor.org/rfc/rfc6750.html">RFC6750</eref> and <eref target="https://www.rfc-editor.org/rfc/rfc9449.html">RFC9449</eref>.</t>
+
+<ol spacing="compact" start="31">
+<li>The CP MUST give token and scope errors precedence over JSON request errors.</li>
+</ol>
+<t>The following requirements apply to malformed or unsupported requests, including invalid
+request structure and unsupported <tt>signing_alg</tt> values.
+An unrecognized top-level member or a duplicate name in either object makes the request malformed.</t>
+
+<ol spacing="compact" start="32">
+<li>The CP MUST return HTTP 400.</li>
+<li>The CP MUST use <tt>application/json</tt> as the error response media type.</li>
+<li>The CP MUST send a JSON object as the error response body.</li>
+<li>The CP MUST set <tt>error</tt> to <tt>invalid_request</tt> in that object.</li>
+<li>The CP MAY include a human-readable <tt>error_description</tt> string in that object.</li>
+</ol>
+<t>The following privacy requirement applies to all error responses.</t>
+
+<ol spacing="compact" start="37">
+<li>The CP MUST NOT disclose the account reference, claim values, or sensitive reasons for withholding attributes in errors.</li>
+</ol>
+<t>The OP repeats collection for each CP as necessary.</t>
+</section>
+
+<section anchor="claims-endpoint-response"><name>Claims Endpoint Response</name>
+<t>The following requirements apply to a successful response.</t>
+
+<ol spacing="compact">
+<li>The CP MUST return HTTP 200.</li>
+<li>The CP MUST use <tt>application/json</tt> as the response media type.</li>
+<li>The CP MUST send <tt>Cache-Control: no-store</tt>.</li>
+<li>The CP MUST use a JSON object as the response body.</li>
+<li>The CP MUST echo the associated request's <tt>nonce</tt> unchanged.</li>
+</ol>
+<t>The base response also carries <tt>account_ref</tt> and <tt>claim_set</tt> when it supplies attributes.</t>
+
+<ol spacing="compact" start="6">
+<li>The CP MUST include <tt>claim_set</tt> when it supplies requested attributes.</li>
+<li>The CP MUST encode <tt>claim_set</tt> as a non-empty string containing the JWT defined in <xref target="signed-claim-set-format"></xref>.</li>
+<li>The CP MUST include a non-empty <tt>account_ref</tt> string when it includes <tt>claim_set</tt>.</li>
+<li>The CP MUST derive <tt>account_ref</tt> from the account that the access token authorizes.</li>
+<li>The CP MUST set <tt>account_ref</tt> to the Setup ID Token's <tt>sub</tt> for that account and OP.</li>
+<li>The CP MUST NOT echo a caller-supplied account reference.</li>
+<li>The CP MUST ensure that all Claim Set attributes concern the account that <tt>account_ref</tt> identifies.</li>
+<li>The CP MUST omit <tt>claim_set</tt> when it supplies no requested attributes.</li>
+<li>The CP MUST omit <tt>account_ref</tt> when it omits <tt>claim_set</tt>.</li>
+<li>The CP MUST NOT represent an empty result with <tt>null</tt>, an empty string, or a protocol-only JWT.</li>
+</ol>
+<t>The following successful response carries the Claim Set decoded below.
+The account reference and nonce are illustrative, and the compact JWS is abbreviated.</t>
+
+<sourcecode type="json"><![CDATA[{
+  "account_ref": "cp-sub-7f39",
+  "nonce": "request-specific-random-value",
+  "claim_set": "<CP-signed-JWT>"
+}
+]]></sourcecode>
+<t>If no requested attributes are supplied, the CP returns HTTP 200 with the same content
+type and cache directive. In the base response, the only member is the operation nonce:</t>
+
+<sourcecode type="json"><![CDATA[{
+  "nonce": "request-specific-random-value"
+}
+]]></sourcecode>
+<t>This empty result reports only that this collection supplied no attributes.</t>
+<t>The decoded protected header and payload of that <tt>claim_set</tt> are:</t>
+
+<sourcecode type="json"><![CDATA[{"typ":"claims-aggregation+jwt","alg":"RS256"}
+]]></sourcecode>
+
+<sourcecode type="json"><![CDATA[{
+  "iss": "https://cp.example",
+  "aud": "https://op.example",
+  "iat": 1893455940,
+  "exp": 1893456240,
+  "birthdate": "1990-01-01"
+}
+]]></sourcecode>
+<t>The example uses the common mandatory-to-implement algorithm <tt>RS256</tt>.
+The <tt>valid</tt> test vector in <eref target="https://github.com/sakimura/claims-endpoint-prototype/tree/f5f6be8e5e7e3853711a02952f754a93ec4c3963">ClaimsAggregation.TestVectors</eref> provides the complete signed
+CP JWT and the signed OP presentation shown in <xref target="claims-delivery"></xref>, along with the
+test keys and instructions for verifying both at 2030-01-01T00:00:00Z.
+The response's cache directive prevents HTTP caching; it does not prohibit
+Subject-authorized storage under <xref target="claims-collection"></xref>.</t>
+<t>The OP applies the following checks to a purported successful response.</t>
+
+<ol spacing="compact" start="16">
+<li>The OP MUST reject a response with a status other than HTTP 200.</li>
+<li>The OP MUST reject a response without the required media type.</li>
+<li>The OP MUST reject a response whose body fails the specified JSON requirements.</li>
+<li>The OP MUST NOT treat a response containing <tt>error</tt> as a successful or empty result.</li>
+<li>The OP MUST reject duplicate top-level member names using the comparison in <xref target="claims-endpoint-request"></xref>.</li>
+<li>The OP MUST ignore unrecognized top-level response members other than <tt>error</tt>.</li>
+<li>The OP MUST NOT forward ignored members to the RP.</li>
+<li>The OP MUST match the decoded response nonce to the pending operation's nonce using exact, case-sensitive equality.</li>
+<li>The OP MUST reject responses for expired or completed operations.</li>
+<li>The OP MUST accept at most one response per operation.</li>
+<li>The OP MUST NOT rebind a completed operation to a new account or operation.</li>
+</ol>
+<t>Ignoring a member leaves the other validation requirements in effect.
+An extension establishes OP support before the CP relies on the OP to process an extension member.
+The CP does not need a global database of used nonces.</t>
+<t>The following requirements apply when the response lacks <tt>claim_set</tt>.</t>
+
+<ol spacing="compact" start="27">
+<li>The OP MUST reject the response if it contains <tt>account_ref</tt>.</li>
+<li>The OP MUST treat a valid response without <tt>account_ref</tt> or <tt>claim_set</tt> as an empty result.</li>
+<li>The OP MUST NOT establish an account binding from an empty result.</li>
+<li>The OP MUST NOT change an account binding based on an empty result.</li>
+<li>The OP MUST NOT store an empty result as a Claim Set.</li>
+<li>The OP MUST NOT disclose an empty result as a Claim Set.</li>
+<li>The OP MUST NOT infer attribute absence from an empty result.</li>
+<li>The OP MUST NOT infer grant revocation from an empty result.</li>
+<li>The OP MUST NOT infer Subject withdrawal from an empty result.</li>
+<li>The OP MUST NOT invalidate an otherwise acceptable stored Claim Set solely because collection returns an empty result.</li>
+<li>The OP MUST NOT suspend disclosure of an otherwise acceptable stored Claim Set solely because collection returns an empty result.</li>
+</ol>
+<t>Claim Set validation and storage checks apply only when the response contains a Claim Set.</t>
+<t>The OP applies the following checks when the response contains <tt>claim_set</tt>.</t>
+
+<ol spacing="compact" start="38">
+<li>The OP MUST match <tt>account_ref</tt> exactly to the validated Setup <tt>sub</tt> for the operation's OP account and CP issuer.</li>
+<li>The OP MUST NOT derive the expected <tt>sub</tt> from the response or access token.</li>
+<li>The OP MUST NOT replace the expected <tt>sub</tt> with a value from the response or access token.</li>
+</ol>
+<t>The OP validates <tt>claim_set</tt> as required by <xref target="verification-responsibilities"></xref>.</t>
+
+<ol spacing="compact" start="41">
+<li>The OP MUST match the JWT's <tt>iss</tt> to the operation's CP issuer.</li>
+<li>The OP MUST verify that the JWT contains at least one requested attribute.</li>
+<li>The OP MUST verify that it requested every returned attribute.</li>
+<li>The OP MUST verify that its authorization covers every returned attribute.</li>
+<li>The OP MUST process the authenticated response, account reference, and exact JWT as one validation unit.</li>
+<li>The OP MUST NOT recombine those inputs through an unprotected queue or cache.</li>
+</ol>
+<t><xref target="signature-validation"></xref> specifies the check against the selected <tt>signing_alg</tt>.
+<xref target="token-request-and-account-binding"></xref> specifies account relinking.</t>
+
+<ol spacing="compact" start="47">
+<li>If any response check fails, the OP MUST reject the entire response.</li>
+<li>The OP MUST NOT store a Claim Set from a rejected response.</li>
+<li>The OP MUST NOT disclose a Claim Set from a rejected response.</li>
+</ol>
+<t>Omitting a claim from <tt>_claim_names</tt> cannot hide it from an RP receiving the JWT.
+For these checks, attributes exclude <tt>iss</tt>, <tt>aud</tt>, <tt>iat</tt>, <tt>exp</tt>, <tt>nbf</tt>, and <tt>jti</tt>.
+<xref target="claims-verification"></xref> governs those protocol claims.</t>
+<t>The OP preserves the validated association in a protected acquisition record.</t>
+
+<ol spacing="compact" start="50">
+<li>The OP MUST retain a protected acquisition record for each successfully collected Claim Set.</li>
+<li>The OP MUST record the OP account in the acquisition record.</li>
+<li>The OP MUST record the CP issuer and Subject Identifier in the acquisition record.</li>
+<li>The OP MUST record the acquisition validation result in the acquisition record.</li>
+<li>The OP MUST record the acquisition validation time in the acquisition record.</li>
+<li>The OP MUST protect the integrity of the acquisition record.</li>
+<li>The OP MUST protect the record's association with the exact JWT.</li>
+</ol>
+<t>A hash stored alongside unprotected data does not by itself provide that protection. A
+deployment crossing an untrusted processing or storage boundary needs integrity protection
+across that boundary. For example, an authenticated storage service can enforce this
+association, or a MAC or signature can protect a record covering both the JWT and binding
+fields when the storage itself is not trusted. An additional CP-signed receipt can be
+defined by a profile where independent evidence of acquisition is needed. The deployment
+cases and limits of that additional evidence are discussed in
+<xref target="acquisition-response-integrity"></xref>.</t>
+<t>The OP applies the following checks before redisclosing a stored Claim Set.</t>
+
+<ol spacing="compact" start="57">
+<li>The OP MUST validate the protected acquisition record.</li>
+<li>The OP MUST verify that the current authorization permits disclosure.</li>
+<li>The OP MUST verify that the Subject has not deleted the Claim Set.</li>
+<li>The OP MUST verify that the Subject has not withdrawn authorization for this disclosure.</li>
+</ol>
+<t><xref target="verification-responsibilities"></xref> requires validation of the stored Claim Set before disclosure.
+A successful acquisition does not waive later key, trust, expiration, or freshness checks.
+Reusing a stored Claim Set does not require a new CP operation nonce or CP contact.</t>
+
+<ol spacing="compact" start="61">
+<li>The OP MUST omit the acquisition envelope from the Aggregated Claims response.</li>
+<li>The OP MUST omit <tt>account_ref</tt> from the Aggregated Claims response.</li>
+<li>The OP MUST omit the operation nonce from the Aggregated Claims response.</li>
+</ol>
+
+<section anchor="signed-claim-set-format"><name>Signed Claim Set Format</name>
+
+<ol spacing="compact">
+<li>The CP MUST issue each Claim Set as a compact, asymmetrically signed JWS containing a JSON object.</li>
+<li>The CP MUST set the protected header's <tt>typ</tt> to <tt>claims-aggregation+jwt</tt>.</li>
+</ol>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc7515.html">RFC7515</eref> permits omission of the media type's <tt>application/</tt> prefix in <tt>typ</tt>.
+This type identifies the inner Claim Set within the acquisition envelope or the OP's response.</t>
+
+<ol spacing="compact" start="3">
+<li>The CP MUST include <tt>iss</tt>, <tt>aud</tt>, <tt>iat</tt>, and <tt>exp</tt> in the payload.</li>
+<li>The CP MUST set <tt>iss</tt> to its validated Issuer Identifier.</li>
+<li>The CP MUST set <tt>aud</tt> to the OP's Entity Identifier as a string or single-element array.</li>
+<li>The CP MUST encode <tt>iat</tt> and <tt>exp</tt> as NumericDate values defined in <eref target="https://www.rfc-editor.org/rfc/rfc7519.html">RFC7519</eref>.</li>
+<li>The CP MUST set <tt>exp</tt> to a time later than <tt>iat</tt>.</li>
+</ol>
+<t>The OP uses its Entity Identifier as described in <xref target="client-configuration-phase"></xref>.
+These timestamps describe JWT issuance and expiration. Attribute verification can occur at a different time.</t>
+
+<ol spacing="compact" start="8">
+<li>The CP MUST omit <tt>sub</tt> from the Claim Set.</li>
+<li>The CP MUST omit <tt>account_ref</tt> from the Claim Set.</li>
+<li>The CP MUST omit equivalent CP account identifiers that it uses for account binding.</li>
+</ol>
+<t>The Subject can authorize disclosure of identifying attributes.
+<xref target="correlation-and-transferable-signed-data"></xref> describes their correlation risks.</t>
+
+<ol spacing="compact" start="11">
+<li>The CP MUST place claims for the RP in top-level JWT members.</li>
+<li>The CP MUST sign the JWT with the <tt>signing_alg</tt> it accepts in the Claims Endpoint request.</li>
+</ol>
+<t>The OP can reference those claims in <tt>_claim_names</tt> as specified in <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref>.
+The format uses no holder proof or per-presentation identifier.
+It does not require a <tt>jti</tt> claim.</t>
+<t>The name Claims Endpoint and the metadata names <tt>claims_endpoint</tt> and
+<tt>claims_signing_alg_values_supported</tt> restore terminology from an earlier draft.
+This profile separates the OP-facing account reference from the signed JWT that the RP receives.</t>
+<t>See <xref target="iana-considerations"></xref> for the CP metadata and Claim Set media type registration requests.</t>
+<t>[[ Editor's note: The registration templates are defined below; formal registration has
+not yet been completed. Before submission, references must identify a stable, publicly
+available specification version. Previous use of a name in a draft is not a registration. ]]</t>
+</section>
+</section>
+
+<section anchor="json-member-handling-examples"><name>JSON Member Handling Examples</name>
+<t>Some JSON parsers silently keep a single value for a repeated member name. Implementers
+can use a parser with duplicate-name detection or check decoded names as the parser emits
+them, before converting the object to a map. Checking the resulting map cannot detect
+duplicates that the parser already discarded. For the response, these envelope checks
+apply to the top-level JSON object. The <tt>claim_set</tt> string is validated separately under
+<xref target="claims-verification"></xref>.</t>
+<t>The following fragments illustrate member handling. Each fragment is added to an
+otherwise valid message unless indicated.</t>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>JSON fragment or body</th>
+<th>Expected handling</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Request with an unrecognized top-level member</td>
+<td><tt>&quot;example_option&quot;: true</tt></td>
+<td>Reject with <tt>invalid_request</tt>.</td>
+</tr>
+
+<tr>
+<td>Request with an unavailable attribute name</td>
+<td><tt>&quot;claims&quot;: {&quot;example_attribute&quot;: null}</tt> (replacing the original selection)</td>
+<td>Process normally and omit the unavailable attribute.</td>
+</tr>
+
+<tr>
+<td>Request with an unsupported query value</td>
+<td><tt>&quot;claims&quot;: {&quot;birthdate&quot;: {&quot;essential&quot;: true}}</tt> (replacing the original selection)</td>
+<td>Reject with <tt>invalid_request</tt>.</td>
+</tr>
+
+<tr>
+<td>HTTP 200 response with an extra member</td>
+<td><tt>&quot;example_hint&quot;: &quot;informational&quot;</tt></td>
+<td>Ignore the extra member and apply all applicable response checks.</td>
+</tr>
+
+<tr>
+<td>HTTP 200 response with a duplicate member</td>
+<td><tt>{&quot;nonce&quot;:&quot;first&quot;,&quot;nonce&quot;:&quot;second&quot;}</tt> (entire body)</td>
+<td>Reject the response.</td>
+</tr>
+
+<tr>
+<td>HTTP 200 response with an error member</td>
+<td><tt>{&quot;nonce&quot;:&quot;request-specific-random-value&quot;,&quot;error&quot;:&quot;invalid_request&quot;}</tt> (entire body)</td>
+<td>Reject the response as a successful result, including as an empty result.</td>
+</tr>
+</tbody>
+</table></section>
 </section>
 
 <section anchor="claims-delivery"><name>Claims Delivery</name>
-<t>Once the necessary claim sets were collected,
-the OP creates the Aggregated Claims response to be returned as described in 5.6.2 of OpenID Connect 1.0 <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref> .</t>
+<t><eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref> governs claim destinations, omission rules, and the Aggregated Claims representation.</t>
+
+<ol spacing="compact">
+<li>The OP MUST apply the applicable request constraints to each response.</li>
+<li>The OP MUST omit <tt>_claim_names</tt> entries for claims it cannot supply in an authorized, valid Claim Set.</li>
+<li>The OP MUST limit each embedded JWT to claims the Subject authorizes for disclosure to that RP.</li>
+<li>The OP MUST replace or omit any Claim Set with claims outside the RP's disclosure authorization.</li>
+<li>The OP MUST preserve mappings for other claims it returns, including Distributed Claims.</li>
+<li>The OP MUST preserve the sources that those mappings reference.</li>
+<li>The OP MUST omit each <tt>_claim_sources</tt> entry that no remaining <tt>_claim_names</tt> entry references.</li>
+<li>If <tt>_claim_names</tt> would be empty, the OP MUST omit both <tt>_claim_names</tt> and <tt>_claim_sources</tt>.</li>
+<li>The OP MUST NOT forward CP error details to explain an omission.</li>
+<li>The RP MUST enforce its application's required-claim policy before completing the requested operation.</li>
+</ol>
+<t>The RP receives all claims in the embedded JWT, including claims without a mapping in <tt>_claim_names</tt>.
+<xref target="authorization-withdrawal-and-grant-revocation"></xref> specifies when the OP can use previously collected Claim Sets.
+The <tt>essential</tt> flag alone does not make an omission an authentication error under <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref>.</t>
+<t>For example, the RP requests <tt>birthdate</tt> and <tt>address</tt> in the ID Token:</t>
+
+<sourcecode type="json"><![CDATA[{
+  "id_token": {
+    "birthdate": null,
+    "address": {"essential": true}
+  }
+}
+]]></sourcecode>
+<t>The CP supplies only <tt>birthdate</tt>. The OP returns the following presentation.
+Only <tt>birthdate</tt> has a <tt>_claim_names</tt> mapping, and the response contains only
+the source referenced by that mapping. If the RP requires <tt>address</tt> for its
+operation, it does not complete that operation.</t>
+<t>The decoded OP presentation below embeds the same CP-signed JWT received in
+<tt>claim_set</tt> in <xref target="claims-endpoint-response"></xref>, without changing its compact JWS
+serialization. The inner JWS is abbreviated here. When the OP returns the
+Aggregated Claims in an ID Token, the normal ID Token requirements still apply.</t>
+
+<sourcecode type="json"><![CDATA[{
+  "iss": "https://op.example",
+  "sub": "op-vector-subject",
+  "aud": "rp-client",
+  "iat": 1893455999,
+  "exp": 1893456060,
+  "_claim_names": {"birthdate": "cp1"},
+  "_claim_sources": {"cp1": {"JWT": "<CP-signed-JWT>"}}
+}
+]]></sourcecode>
+<t>The enclosing <tt>sub</tt> identifies the Subject at the OP. The CP's <tt>account_ref</tt> and acquisition
+nonce are not included in the embedded JWT or passed on as acquisition evidence to the RP.</t>
+
+<ol spacing="compact" start="11">
+<li>The OP SHOULD return Aggregated Claims in a Token Endpoint ID Token or a UserInfo response.</li>
+</ol>
+<t>This limits the front-channel exposure described in <xref target="rp-request-integrity-and-broker-side-consent"></xref>.</t>
 </section>
 
 <section anchor="claims-verification"><name>Claims Verification</name>
-<t>For Claims Verification,</t>
+
+<section anchor="verification-responsibilities"><name>Verification Responsibilities</name>
 
 <ol spacing="compact">
-<li>the RP MUST verify the signature of the Aggregate Claim according to  <eref target="http://tools.ietf.org/html/draft-ietf-jose-json-web-signature">JWS</eref> using the algorithm specified in the JWT  <em>alg</em>  Header Parameter the keys provided by the Issuer of the Aggregate Claim for the signature verification;</li>
-<li>the RP MUST extract the signed claims from JWT and other relevant members and verify according to their verification rule;</li>
-<li>the RP MUST verify that issuers of the signed claims in the aggregated claims are the ones it trusts;</li>
-<li>the RP MUST verify that the <em>aud</em> (audience) Claim is that of the OP's Issuer Identifier;</li>
-<li>The RP MUST reject the response if any of the verification above fails.</li>
+<li>The OP MUST obtain Claim Sets from the CP's Claims Endpoint.</li>
+<li>The OP MUST NOT substitute a Setup ID Token, a refreshed ID Token, or a UserInfo JWT.</li>
+<li>The OP MUST validate each CP-signed Claim Set when collecting it.</li>
+<li>The OP MUST validate each stored Claim Set before disclosing it.</li>
+<li>The RP MUST validate each embedded CP-signed JWT before accepting any claim from it.</li>
 </ol>
+</section>
+
+<section anchor="cp-metadata-and-verification-keys"><name>CP Metadata and Verification Keys</name>
+<t>The following sources supply CP metadata and its verification keys.</t>
+
+<ul spacing="compact">
+<li><eref target="https://openid.net/specs/openid-connect-discovery-1_0.html">OpenID.Discovery</eref> supplies validated provider metadata and application keys via <tt>jwks_uri</tt>.</li>
+<li><eref target="https://openid.net/specs/openid-federation-1_0.html">OpenID.Federation</eref> supplies application signing keys in resolved <tt>openid_provider</tt> metadata.</li>
+<li>Trusted deployment configuration or a trust framework can provision metadata and keys for a CP issuer.</li>
+</ul>
+
+<ol>
+<li>The verifier MUST obtain the CP's metadata and verification keys from one of these sources.</li>
+<li>The verifier MUST select a source according to its trust policy for the CP.</li>
+<li>The verifier MUST NOT substitute Federation Entity Keys for the CP's application signing keys.</li>
+<li>The verifier MUST match the JWT's <tt>iss</tt> exactly to the CP issuer in validated metadata or trusted configuration.</li>
+<li>The verifier MAY use unverified <tt>iss</tt> for key resolution only as its issuer acceptance and network policies permit.</li>
+<li>The verifier MUST associate the CP's metadata and keys with that issuer, including in caches.</li>
+<li>The verifier MUST apply the applicable validity requirements to metadata and keys.</li>
+<li>The verifier MUST apply the applicable trust reevaluation requirements to metadata and keys.</li>
+<li>The verifier MUST NOT rely on key discovery or signature verification alone to trust a CP for claims.</li>
+<li>The verifier MUST NOT rely on prior validation if the signing key becomes unavailable or untrusted.</li>
+<li><t>In that case, the OP MUST obtain a replacement Claim Set from the CP or omit the affected set.</t>
+</li>
+<li><t>The CP MUST apply the key-to-algorithm binding rules in <eref target="https://www.rfc-editor.org/rfc/rfc8725.html">RFC8725</eref> when signing Claim Sets.</t>
+</li>
+<li><t>The CP MUST publish each Claim Set signing key's algorithm in every advertised JWK's <tt>alg</tt>.</t>
+</li>
+<li><t>The CP SHOULD keep retired public keys available through its advertised key sources until their signed Claim Sets expire.</t>
+</li>
+<li><t>The CP SHOULD include its clock-skew allowance in that key retention period.</t>
+</li>
+<li><t>The CP MAY withdraw compromised keys earlier under its deployment's key revocation policy.</t>
+</li>
+</ol>
+</section>
+
+<section anchor="signature-validation"><name>Signature Validation</name>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc7515.html">RFC7515</eref> governs signature verification.</t>
+
+<ol spacing="compact">
+<li>The verifier MUST require an asymmetrically signed JWS.</li>
+<li>The verifier MUST determine its allowed algorithms before verifying the signature.</li>
+<li>The verifier MUST require <tt>alg</tt> in both local policy and the CP's validated <tt>claims_signing_alg_values_supported</tt>.</li>
+<li>At acquisition, the OP MUST match <tt>alg</tt> to the <tt>signing_alg</tt> bound to the collection operation.</li>
+<li>The verifier MUST use a public key bound to the validated CP issuer for signature verification.</li>
+<li>The verifier MUST honor key type, signing use, and algorithm restrictions when selecting a key.</li>
+<li>The verifier MUST resolve any <tt>kid</tt> only within the CP's trusted key set.</li>
+<li>The verifier MUST NOT trust a key source solely because the JWT header identifies it.</li>
+<li>The verifier MUST bind each key to one algorithm using JWK <tt>alg</tt> or trusted issuer-specific configuration.</li>
+<li>If the JWK includes <tt>alg</tt>, the verifier MUST match it to the JWT's <tt>alg</tt>.</li>
+<li>The verifier MUST reject the Claim Set if it cannot establish the key's algorithm binding.</li>
+</ol>
+</section>
+
+<section anchor="claim-validation"><name>Claim Validation</name>
+<t>The verifier checks claims after validating the signature.
+<eref target="https://www.rfc-editor.org/rfc/rfc7519.html">RFC7519</eref> governs time claim types, expiration, and not-before processing.</t>
+
+<ol spacing="compact">
+<li>The verifier MUST require <tt>claims-aggregation+jwt</tt> in the protected header's <tt>typ</tt>.</li>
+<li>The verifier MUST reject a Claim Set whose payload contains <tt>sub</tt>.</li>
+<li>The verifier MUST require <tt>iss</tt>, <tt>aud</tt>, <tt>iat</tt>, and <tt>exp</tt>.</li>
+<li>The verifier MUST require a non-empty string for <tt>iss</tt>.</li>
+<li>The OP MUST validate the acquisition or stored binding under <xref target="claims-endpoint-response"></xref>.</li>
+<li>The verifier MUST require exactly one <tt>aud</tt> value as a string or single-element array.</li>
+<li>The OP MUST match <tt>aud</tt> exactly to its <tt>client_id</tt> at the CP.</li>
+<li>The RP MUST match <tt>aud</tt> exactly to the OP issuer it validated through OpenID Connect.</li>
+<li>The verifier MUST compare issuer and audience identifiers without normalization.</li>
+<li>The verifier MUST require <tt>exp</tt> to be later than <tt>iat</tt>.</li>
+<li>The verifier MUST reject a JWT with an <tt>iat</tt> in the future.</li>
+<li>The verifier MAY allow a small clock skew when comparing times to its clock.</li>
+<li>The verifier MUST apply any clock-skew allowance consistently to <tt>iat</tt>, <tt>exp</tt>, and <tt>nbf</tt>.</li>
+</ol>
+<t>The following requirements apply when the RP receives Aggregated Claims through UserInfo.</t>
+
+<ol spacing="compact" start="14">
+<li>The RP MUST use the validated OP issuer from the transaction that issued the access token.</li>
+<li>The RP MUST NOT infer a new issuer from the CP JWT or an unsigned UserInfo response.</li>
+<li>The RP MUST preserve the OP issuer's association with that access token.</li>
+</ol>
+<t>The RP relies on the OP for Subject binding as described in <xref target="trust-model"></xref>.
+The RP follows the same clause when deciding whether to trust the CP.</t>
+
+<ol spacing="compact" start="17">
+<li>The RP MUST validate the Aggregated Claims structure according to <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref>.</li>
+<li>The RP MUST check that each mapped claim appears in its referenced JWT.</li>
+<li>The RP MUST apply the validation rules for each claim it uses.</li>
+<li>The OP MUST reject a Claim Set that fails any required check.</li>
+<li>The OP MUST NOT store an invalid Claim Set.</li>
+<li>The OP MUST NOT disclose an invalid Claim Set.</li>
+<li>The RP MUST NOT use claims from an invalid Claim Set.</li>
+<li>The RP MUST treat claims mapped to an invalid Claim Set as unavailable.</li>
+<li>The RP MAY reject the entire enclosing response.</li>
+<li>Profiles MAY require rejection of the entire enclosing response.</li>
+</ol>
+<t>The verification rules in <xref target="verification-responsibilities"></xref> apply to every Claim Set the RP uses.
+<xref target="claims-delivery"></xref> specifies when the RP can complete the requested operation.</t>
+</section>
+
+<section anchor="local-freshness-policy-and-user-directed-updates"><name>Local Freshness Policy and User-Directed Updates</name>
+<t>The RP's acceptance checks include Claim Set validation and its freshness policy.</t>
+
+<ol spacing="compact">
+<li>The RP MUST apply its application's freshness requirements before using claims.</li>
+<li>The RP MUST apply its acceptance checks to Claim Sets it uses after OP selection or a user-directed update.</li>
+<li>The RP MAY enforce a maximum JWT age based on the CP-signed <tt>iat</tt>.</li>
+<li>If a Claim Set is too old, the RP MUST treat its claims as unavailable for that use.</li>
+<li>The RP SHOULD explain to the Subject when updated information is necessary.</li>
+<li>The RP MAY direct the Subject to the OP's claim-management interface to request an update.</li>
+</ol>
+<t>The Subject can retry the OpenID Connect interaction after an update.
+Retrying authentication alone does not require the OP to recollect claims.</t>
+<t><eref target="https://openid.net/specs/openid-ida-verified-claims-1_0.html">IDA.Schema</eref> defines the <tt>verified_claims</tt> structure.
+Using it does not by itself implement the <eref target="https://openid.net/specs/openid-connect-4-identity-assurance-1_0-errata1.html">OpenID4IDA</eref> query protocol or external assertion format.</t>
+<t>Implementations that support <eref target="https://openid.net/specs/openid-connect-4-identity-assurance-1_0-errata1.html">OpenID4IDA</eref> can use its existing request and validation mechanisms.
+For example, <tt>max_age</tt> constrains <tt>verification.time</tt> or another requested date or timestamp.</t>
+
+<ol spacing="compact" start="7">
+<li>The RP MUST evaluate assurance timestamps separately from the JWT's <tt>iat</tt> when it uses <eref target="https://openid.net/specs/openid-connect-4-identity-assurance-1_0-errata1.html">OpenID4IDA</eref> freshness constraints.</li>
+<li>The OP MAY use supported constraints to select stored Claim Sets.</li>
+</ol>
+<t>A new JWT does not show when the CP last verified the claims.
+Meeting a verification-age requirement can require renewed verification at the CP.
+Mapping constraints into a Claims Endpoint request requires a separate extension or profile.
+The base <tt>claims</tt> object accepts only <tt>null</tt> values.
+The OP can support <eref target="https://openid.net/specs/openid-connect-4-identity-assurance-1_0-errata1.html">OpenID4IDA</eref> without forwarding constraints or using them to select stored Claim Sets under this specification.
+<eref target="https://openid.net/specs/openid-connect-4-identity-assurance-1_0-errata1.html">OpenID4IDA</eref> still governs its implementers' query, filtering, and omission behavior.</t>
+<t>The <eref target="https://openid.net/specs/openid-connect-4-identity-assurance-1_0-errata1.html">OpenID4IDA</eref> external assertion format uses <tt>typ=provided-claims+jwt</tt> and requires <tt>sub</tt>.
+That format prohibits <tt>aud</tt> and <tt>exp</tt>.</t>
+
+<ol spacing="compact" start="9">
+<li>The OP MUST NOT rewrite an existing signed assertion to convert it to this profile.</li>
+</ol>
+<t>Interoperability with that external assertion format requires a separate profile.</t>
+</section>
 </section>
 </section>
 
 <section anchor="security-considerations"><name>Security Considerations</name>
-<t>The security considerations of OpenID Connect 1.0 <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OIDC</eref> and OpenID Connect Dynamic Client Registration 1.0 <eref target="http://openid.net/specs/openid-connect-registration-1_0.html">OpenID.Registration</eref> apply.</t>
+
+<section anchor="general-security-considerations"><name>General Security Considerations</name>
+<t>The security considerations of <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref>, <eref target="https://openid.net/specs/openid-federation-1_0.html">OpenID.Federation</eref>, and <eref target="https://www.rfc-editor.org/rfc/rfc8725.html">RFC8725</eref> apply.</t>
+<t>Before verifying the signature, the verifier constrains algorithms and keys under
+<xref target="signature-validation"></xref> and <xref target="cp-metadata-and-verification-keys"></xref>. This prevents a JWT
+header from selecting an unauthorized algorithm or causing use of a CP public key as a MAC secret.</t>
+
+<ol spacing="compact">
+<li>The CP SHOULD consider claim sensitivity, change rate, storage duration, and verification key retention when choosing Claim Set lifetimes.</li>
+</ol>
+<t>Short lifetimes require more frequent collection, while long lifetimes extend the period
+during which previously issued attributes can be presented. Expiration limits the lifetime
+of the signed artifact. It does not guarantee that the underlying attributes remain current
+or that the CP's grant remains authorized. Key withdrawal can make a stored Claim Set
+unusable before its <tt>exp</tt>, as described in <xref target="cp-metadata-and-verification-keys"></xref>.</t>
+<t>The type and claim rules in <xref target="signed-claim-set-format"></xref> distinguish Claim Sets from
+ID Tokens and UserInfo JWTs. <eref target="https://www.rfc-editor.org/rfc/rfc8725.html">RFC8725</eref> describes cross-JWT confusion. A separate URL
+or the presence or absence of <tt>nonce</tt> or <tt>auth_time</tt> does not by itself distinguish these JWTs.</t>
+</section>
+
+<section anchor="setup-transaction-and-session-integrity"><name>Setup Transaction and Session Integrity</name>
+<t>The issuer-based countermeasure in <eref target="https://www.ietf.org/archive/id/draft-ietf-oauth-security-topics-update-03.html">OAuth.Security.Update</eref> protects connections to
+multiple CPs. <xref target="cp-discovery-and-metadata"></xref> binds metadata to the selected issuer.
+<xref target="authorization-response-issuer-validation"></xref> checks that issuer before code exchange.
+That check also addresses the mix-up risk in <eref target="https://www.rfc-editor.org/rfc/rfc9700.html">RFC9700</eref>.
+<xref target="token-request-and-account-binding"></xref> preserves the selected client and any connection or tenant context.</t>
+<t>PKCE binds the code to the OP's token request under <xref target="authorization-request-and-transaction-binding"></xref>.
+An attacker can still initiate Setup for the attacker's OP account and induce a victim to
+authorize access to the victim's CP account. PKCE alone does not detect this cross-user session fixation attack, described in
+Section 2.3 of <eref target="https://www.ietf.org/archive/id/draft-ietf-oauth-security-topics-update-03.html">OAuth.Security.Update</eref>, with countermeasures in Section 2.3.2. Before
+exchanging the code, the OP verifies the completion session's binding under
+<xref target="authorization-response-session-validation"></xref>. A valid <tt>state</tt> received through a URL is insufficient
+without this session validation. Comparing a previously stored CP subject identifier detects account
+changes. Checking for the same CP (<tt>iss</tt>, <tt>sub</tt>) on another OP account can also detect an
+attempted new binding when that CP identity is already known to the OP. Neither check
+establishes a relationship for a CP identity that has never been linked at the OP. The trust
+assumptions in <xref target="trust-model"></xref> continue to apply.</t>
+</section>
+
+<section anchor="rp-request-integrity-and-broker-side-consent"><name>RP Request Integrity and Broker-Side Consent</name>
+<t>The checks in <xref target="rp-authentication-and-the-request-verification"></xref> apply to signed and unsigned requests.</t>
+<t>The OP brokers requests between RPs and CPs using the broker-side consent approach
+in <eref target="https://www.ietf.org/archive/id/draft-ietf-oauth-security-topics-update-03.html">OAuth.Security.Update</eref>. The CP grant authorizes collection, and the Subject's
+authorization at the OP governs RP disclosure. <xref target="subject-granting"></xref> covers both
+RP-triggered collection and reuse. The Subject can withdraw authorization under
+<xref target="authorization-withdrawal-and-grant-revocation"></xref> even if the CP grant remains valid.
+Pre-collection can keep the recipient RP and its activity timing from the CP.</t>
+<t>An ID Token returned from the Authorization Endpoint can expose embedded CP-signed Claim
+Sets to browser scripts and front-channel response handling. Depending on the response
+mode and implementation, those artifacts can persist in URLs, including fragments, browser
+history, or application and diagnostic logs. Unlike an authorization code, the signed
+personal data can be copied and presented to other parties, subject to their acceptance
+checks. The back-channel delivery recommendation in <xref target="claims-delivery"></xref> reduces this
+exposure; it does not prevent an RP that receives a Claim Set from copying it. This is an
+additional reason to minimize front-channel exposure alongside the leakage risks discussed
+in Sections 4.2 and 4.3 of <eref target="https://www.rfc-editor.org/rfc/rfc9700.html">RFC9700</eref>.</t>
+</section>
+
+<section anchor="audience-binding"><name>Audience Binding</name>
+<t>The Claim Set audience identifies the OP that obtained it. The RP checks that audience
+under <xref target="claim-validation"></xref> and applies its CP trust policy.</t>
+
+<ol spacing="compact">
+<li>The CP MUST establish the client under <xref target="client-configuration-phase"></xref> before issuing a Claim Set.</li>
+<li>The CP MUST NOT let another client use that <tt>client_id</tt>, including through a separate registration.</li>
+</ol>
+</section>
+
+<section anchor="cross-user-claim-substitution"><name>Cross-User Claim Substitution</name>
+<t>A compromised or malicious OP can include a Claim Set for one Subject in a response for
+another Subject. The substituted Claim Set can have a valid CP signature and the expected OP
+audience. The RP's signature and audience checks therefore cannot detect this substitution.
+The trust model in <xref target="trust-model"></xref> relies on the OP to preserve the account binding through
+collection, storage, and disclosure. A Federation Trust Mark can attest to an OP's compliance
+with operational requirements. It does not prove the account binding for a particular response.</t>
+</section>
+
+<section anchor="acquisition-response-integrity"><name>Acquisition Response Integrity</name>
+
+<section anchor="operation-and-response-binding"><name>Operation and Response Binding</name>
+<t>The collection nonce correlates an authenticated CP response with a pending OP operation; it
+is not an access credential or an issuance-idempotency key. The CP may process a retried
+request more than once, but the OP accepts at most one response for its pending operation. A
+holder of a stolen bearer token can request additional Claim Sets with new nonces, so a CP
+nonce database would not prevent that use. TLS server authentication and the token
+protections in <xref target="cp-token-issuance-and-use"></xref> address that threat.</t>
+
+<ol spacing="compact">
+<li>The OP MUST validate the CP endpoint's TLS server identity.</li>
+</ol>
+<t>Deployments can impose issuance rate limits without making every CP maintain a shared
+nonce-replay database.</t>
+<t>The OP binds the selected signing algorithm to the operation before sending the request
+and checks the returned JWT against it. A request or response that traverses an untrusted
+internal processing boundary needs integrity protection across that boundary as described
+in <xref target="claims-endpoint-response"></xref>; token sender-constraining alone does not authenticate
+arbitrary JSON request or response bodies across such a boundary.</t>
+</section>
+
+<section anchor="trusted-collection-and-protected-handoffs"><name>Trusted Collection and Protected Handoffs</name>
+<t>The trusted collection boundary includes the components the deployment relies on to preserve two inputs:</t>
+
+<ul spacing="compact">
+<li>The authenticated CP response.</li>
+<li>The operation context that the OP selected independently.</li>
+</ul>
+<t>Those components preserve both inputs until a trusted component validates the response
+and protects the resulting binding record. The deployment identifies which components
+it trusts and which compromises it aims to withstand. Common ownership, an OP-managed
+label, and the number of TLS connections are insufficient on their own. Access controls,
+account and tenant separation, and authenticated handoffs help enforce the boundary.</t>
+<t>The base protections suffice when a trusted OP collector receives the response over
+authenticated TLS, checks it under <xref target="claims-endpoint-response"></xref>, and protects the
+complete association between the account and the JWT. The account check compares
+<tt>account_ref</tt> with the CP's <tt>sub</tt> from the validated Setup ID Token. The CP-signed JWT
+contains no CP Subject Identifier that could independently confirm the association.</t>
+<t>A TLS-terminating gateway can be part of the trusted collector if the deployment trusts
+it to preserve the response and operation context. A deployment that aims to withstand
+compromise of that gateway places it outside the trusted collection boundary.</t>
+<t>A trusted collector can validate the response and protect the complete binding record
+before handing it to a queue, cache, or object store outside the boundary. The trusted
+consumer then verifies that record. An extra CP signature is unnecessary for that
+handoff alone.</t>
+<t>An OP MAC, signature, or suitably bound authenticated encryption can protect the exact
+JWT together with its OP account, CP identifiers, and acquisition context.
+<xref target="claims-endpoint-response"></xref> requires protection of the association as well as the JWT.
+On backup restoration, the OP applies the current deletion and withdrawal decisions
+under <xref target="subject-control-of-stored-claim-sets"></xref>. An authentic older record can predate
+those decisions.</t>
+</section>
+
+<section anchor="additional-cp-origin-evidence"><name>Additional CP-Origin Evidence</name>
+<t>An additional CP signature can help when a TLS terminator outside the trusted collection
+boundary can alter the response before an honest OP component validates it.</t>
+<t>For example, a gateway could pair a valid Claim Set for CP account B with an acquisition
+envelope for account A. B's JWT can have the expected OP audience, requested attributes,
+and selected signing algorithm. The envelope can carry A's <tt>account_ref</tt> and pending
+operation nonce. The checks of the account reference and the JWT's issuer, audience,
+signature, and lifetime can all pass because the JWT has no CP Subject Identifier.
+If the gateway kept B's <tt>account_ref</tt>, the account comparison would fail.
+A MAC that the OP adds after substitution protects the pairing it received.
+It cannot establish that the CP supplied that pairing.</t>
+<t>The trusted validator needs to verify that the CP supplied the association between the
+account and the exact Claim Set. A CP-signed envelope or receipt can provide that
+evidence. An authenticated connection from the CP to the trusted
+validator can also protect it if the connection keeps the plaintext from the intermediary.
+The need for extra evidence depends on which components the deployment trusts.</t>
+<t>An independently authorized auditor can also need evidence that the CP associated an
+account with a particular JWT. The relevant evidence depends on the audit question and
+policy:</t>
+
+<ul spacing="compact">
+<li>An OP signature can provide the evidence if the audit policy accepts records that the OP creates.</li>
+<li>The existing Claim Set signature shows which attributes the CP signed.</li>
+<li>A CP-signed receipt can show which account the CP associated with the Claim Set.
+This is useful when the auditor needs evidence from the CP.</li>
+</ul>
+<t>This audit use requires a separately authorized purpose for access to stable CP account
+references and acquisition records. That access also requires minimization and retention
+controls. Normal RP disclosure follows <xref target="trust-model"></xref>.</t>
+</section>
+
+<section anchor="receipt-scope-and-reuse-limits"><name>Receipt Scope and Reuse Limits</name>
+<t>A separate receipt profile would need to bind the following values to the exact signed
+Claim Set or to a collision-resistant commitment to it:</t>
+
+<ul spacing="compact">
+<li>A distinct receipt purpose.</li>
+<li>The CP issuer.</li>
+<li>The recipient OP.</li>
+<li>The CP-derived account reference.</li>
+<li>The acquisition operation nonce.</li>
+</ul>
+<t>The OP uses one identifier here. Its Entity Identifier, Issuer Identifier, and CP-facing
+<tt>client_id</tt> are equal. A commitment would specify its algorithm and byte representation.
+Using the exact compact JWS avoids reserializing decoded claims. The proof protects the
+pairing only if it covers both the account reference and the JWT or its commitment.</t>
+<t>A receipt profile would also need to specify trusted key and algorithm selection,
+pending-operation checks, and what to do if a required proof is missing or stripped.
+It would define how to handle empty results. This specification defines no receipt
+format, parameter, or mandatory additional CP signature.</t>
+<t>A verified receipt authenticates a CP statement under the accepted signing key and policy.
+It cannot prove that the CP sent an HTTP response or that the OP received or validated it.
+It cannot establish the truth of the CP's account association or the Subject's consent to later RP disclosure.
+An issuance timestamp does not prove delivery or a new identity check.</t>
+<t>The OP still needs its protected account binding. A receipt cannot restore a lost
+association with an authenticated OP account. A malicious OP can still violate
+<xref target="trust-model"></xref>. A receipt also cannot prevent misuse of stolen tokens, suppression of
+responses, or rollback of authorization state.</t>
+<t>A signature provides integrity and evidence of origin. Anyone with the OP's public key
+can encrypt to it, so encryption to the OP alone cannot establish CP origin. A deployment
+that needs both confidentiality and CP-origin integrity across a boundary needs a design
+that protects the contents and authenticates the CP.</t>
+<t>The Subject's authorization governs disclosure, including when the OP stores encrypted
+data or holds a receipt. The Aggregated Claims response excludes acquisition receipts.
+Storage, audit access, and backup handling of receipts remain sensitive-data processing.</t>
+<t>If a receipt profile sets an initial acceptance deadline, a late receipt cannot
+establish a new acquisition binding.
+When the OP validates acquisition in time and preserves the binding in a protected
+record, expiry of that deadline alone does not require CP contact or suspension of an
+otherwise acceptable stored Claim Set.</t>
+<t>A receipt within its acceptance window does not extend the inner JWT's <tt>exp</tt>.
+Current key, signature, audience, trust, freshness, and Subject authorization checks still apply.
+These rules concern acquisition and storage. They add no presentation-time CP status
+check and leave the grant-revocation rules in
+<xref target="authorization-withdrawal-and-grant-revocation"></xref> in effect.</t>
+</section>
+</section>
+
+<section anchor="cp-credential-exposure-and-claim-set-replay"><name>CP Credential Exposure and Claim Set Replay</name>
+<t>Pre-collection permits an OP to hold a grant that covers future Subject-authorized uses
+beyond a single RP request. The least-privilege requirements in <xref target="setup-phase"></xref> and
+<xref target="claims-collection"></xref> limit requested access. Downscoping an access token does not by itself
+reduce the authority of the original refresh token. The protections in
+<xref target="cp-token-issuance-and-use"></xref> and <xref target="token-and-claim-set-storage"></xref> address the resulting
+concentration of credentials and personal data at the OP.</t>
+<t>The assertion audience restriction in <xref target="op-client-authentication"></xref> implements the preferred
+audience-injection countermeasure in Section 2.1.2.1 of <eref target="https://www.ietf.org/archive/id/draft-ietf-oauth-security-topics-update-03.html">OAuth.Security.Update</eref>. The OP's
+Entity Identifier is its <tt>client_id</tt> at every CP, so uniqueness of client identifiers
+across CPs is not an available countermeasure. Using different authentication keys for
+different CPs can provide additional isolation only when each CP's accepted key set is
+also restricted accordingly. Publishing several keys in a common RP key set does not by
+itself establish that isolation.</t>
+<t>The OP Entity manages the client authentication keys in this profile. An app on a
+device acts as the Entity's user interface or agent. The CP resolves one client identity
+and one RP metadata object for the OP's Entity Identifier. This profile does not define
+separate enrollment or authentication bindings for each device instance.</t>
+<t>Sharing one authentication private key across devices increases the risk of key extraction.
+Listing all device keys in the common RP JWK Set can make that set grow without bound.
+It can reveal how many devices the OP uses and how often devices are added or removed.
+The CP still resolves the same client identity for those keys.</t>
+<t>A confidential client can run on a device. Device-generated keys and registration for
+each instance can support secure client authentication. Combining these with the common
+Entity Identifier, OP issuer, and RP metadata requires a separate profile.</t>
+<t>Such a profile could use Explicit Registration or Dynamic Client Registration for each
+instance. It could also let the OP Entity attest to each instance's key while it keeps the
+Entity Identifier as <tt>client_id</tt>. The profile would need to define the binding between
+each instance, its credentials, <tt>client_id</tt>, and the OP issuer. It would also need rules
+for selecting the authentication method. Giving an instance a different <tt>client_id</tt> while
+keeping a common OP issuer would change the identity relationship in this base profile.
+These instance profiles are outside the scope of this specification.</t>
+<t>Client authentication and sender-constrained CP access tokens protect collection, not the
+subsequent presentation of a signed Claim Set. A Claim Set's audience identifies the OP,
+not an individual RP or presentation. An RP or another holder can copy that JWT and send
+it elsewhere. To accept the Claim Set, the recipient validates the enclosing response and the Claim Set under
+<xref target="claims-verification"></xref>. The recipient also relies on the account binding described in
+<xref target="trust-model"></xref>. Possession of the embedded JWT alone does not authenticate the Subject.
+A short Claim Set lifetime limits the exposure period.
+A holder can still copy or reuse the Claim Set before expiration.</t>
+<t>Under the trust model in <xref target="trust-model"></xref>, the RP relies on the OP's account binding and disclosure
+controls. These protections neither require per-presentation CP contact nor cause CP grant
+revocation to invalidate stored Claim Sets. Storage remains under the Subject's control
+within the limits described in <xref target="freshness-and-revocation-limits"></xref>.</t>
+</section>
+
+<section anchor="freshness-and-revocation-limits"><name>Freshness and Revocation Limits</name>
+<t>The CP's signed <tt>iat</tt> establishes the JWT's age for freshness checks.</t>
+
+<ol spacing="compact">
+<li>The verifier MUST NOT substitute an OP collection timestamp or enclosing ID Token <tt>iat</tt> for the CP-signed <tt>iat</tt>.</li>
+</ol>
+<t>A CP can issue a new JWT containing attributes verified earlier. Applications needing
+freshness of identity verification or evidence can use the corresponding signed data and
+validation rules in <eref target="https://openid.net/specs/openid-connect-4-identity-assurance-1_0-errata1.html">OpenID4IDA</eref>, as described in
+<xref target="local-freshness-policy-and-user-directed-updates"></xref>.</t>
+<t>The Subject controls a signed Claim Set held by the OP. CP grant or token revocation,
+including unilateral revocation, affects future collection. The Subject can continue to
+present previously issued Claim Sets until expiration, subject to this profile's validation and acceptance rules.
+<xref target="authorization-withdrawal-and-grant-revocation"></xref> describes the Subject's control over
+further disclosure at the OP.</t>
+<t>A CP can choose a short lifetime when the underlying attributes can change quickly.
+An application that needs prompt status updates, such as for a revoked driver's license,
+can use a separate authenticated status mechanism and an acceptance policy for the issued
+Claim Set. Offline verification checks the signed Claim Set. It cannot establish that the
+attributes still reflect the current state. A current status check supplements that verification
+and concerns the issued Claim Set rather than the collection grant.</t>
+</section>
 </section>
 
 <section anchor="privacy-considerations"><name>Privacy Considerations</name>
-<t>Unless ephemeral identifiers are used at CPs, colluding RPs CAN correlate the subject using the <tt>sub</tt> value in the JWT included in the aggregated claim.</t>
+
+<section anchor="op-visibility-and-reliance-on-subject-instructions"><name>OP Visibility and Reliance on Subject Instructions</name>
+<t>The OP processes the contents of Claim Sets from CPs and knows which RPs receive them. This
+combination can reveal attributes and relationships across services. In a deployment where
+a third party operates the OP and can access that processing or its records, the Subject
+places substantial trust in that operator. Encryption at rest protects stored data against
+some compromises; it does not by itself hide data from the OP while processing it. A
+distributed-claims deployment does not necessarily hide information from the OP either;
+visibility depends on which components actually obtain and process the data.</t>
+<t>At Setup, the Subject authorizes the CP to release claims to the OP for future use under
+the Subject's direction. The CP relies on the OP to enforce the later RP-specific
+authorization in <xref target="subject-granting"></xref>. A CP signature authenticates the issued data; it does
+not prove that the OP obtained authorization for a particular disclosure. Federation trust
+and policy information can inform a trust decision, but do not by themselves prove that
+the OP honored the Subject's instructions in an individual transaction.</t>
+<t>The least-privilege and disclosure requirements in <xref target="setup-phase"></xref>, <xref target="claims-collection"></xref>,
+and <xref target="claims-delivery"></xref> limit what the OP obtains and discloses. In particular, the RP
+receives all claims in an embedded signed JWT, including claims not listed in
+<tt>_claim_names</tt>. The OP cannot remove individual claims from that JWT while preserving the
+CP's signature. A deployment seeking stronger limits on OP visibility or finer-grained
+disclosure needs an appropriate architecture or extension, rather than relying on storage
+encryption alone.</t>
+</section>
+
+<section anchor="correlation-and-transferable-signed-data"><name>Correlation and Transferable Signed Data</name>
+<t>The OP uses the CP's stable Subject Identifier for account binding. The RP-facing
+Claim Set omits that identifier. Pairwise identifiers at the CP would otherwise
+be scoped to the OP's Sector Identifier rather than to each downstream RP, as specified
+in Section 8.1 of <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref>. Omitting the CP <tt>sub</tt> removes that direct downstream identifier;
+it does not guarantee unlinkability. Authorized identifying attributes can still correlate
+Subjects, and a CP can recognize information it issued when an RP shares it.
+The OP's pairwise identifiers in enclosing responses do not hide the inner JWT's contents.</t>
+<t>When the OP reuses a Claim Set, it sends the same CP-signed JWT.
+An RP can compare the JWTs it receives in different presentations.
+RPs that share the JWTs they receive can also compare them across services.
+A matching JWT, including its signature, lets these recipients correlate the presentations.
+Different enclosing OP responses leave a reused inner JWT intact.
+Correlation by JWT comparison can therefore occur even when other identifiers are ephemeral or pairwise.</t>
+<t>Recipients can also correlate newly issued JWTs through stable identifiers, identifying
+combinations of claims, or distinctive timestamps.</t>
+<t>An RP can also pass a CP-signed JWT to a third party that can independently verify the CP's
+signature and the signed contents. This makes disclosure of signed personal data more
+consequential than disclosure of an unauthenticated assertion. The signature is evidence of
+what the CP issued, not proof that the Subject presented it to a particular RP or that the
+attributes remain current. The base format does not cryptographically prevent onward
+transfer. The Subject's controls at the OP cannot recover copies already held by RPs.</t>
+<t>Selective disclosure can reduce the attributes revealed to a recipient, but does not by
+itself ensure unlinkability. For example, Section 10.1 of <eref target="https://www.rfc-editor.org/rfc/rfc9901.html">SD-JWT</eref> explains that recipients
+can correlate reuse of an issuer-signed credential and that colluding issuers and verifiers
+can recognize the same credential. SD-JWT is an example for future profiles, not a format
+introduced by this specification. Such profiles would need compatible subject-binding,
+audience, consent, and verification rules.</t>
+</section>
+
+<section anchor="pre-collection-batch-issuance-and-on-demand-issuance"><name>Pre-Collection, Batch Issuance, and On-Demand Issuance</name>
+<t>Pre-collection and reuse of stored Claim Sets can reduce the CP's visibility into when
+the Subject uses an RP. If an RP asks the Subject for fresher claims, the Subject can
+request an update. The OP can then request a new Claim Set from the CP.</t>
+<t>The CP can observe when Claims Endpoint requests arrive and how often they arrive.
+If those requests follow RP activity, the CP can use that pattern to infer when the Subject uses an RP.</t>
+<t>The following recommendations apply when the OP seeks the Subject's collection or disclosure authorization.</t>
+
+<ol spacing="compact">
+<li>The OP SHOULD explain that reusing a signed JWT can link presentations.</li>
+<li>The OP SHOULD explain that updates can reveal RP activity timing to the CP.</li>
+</ol>
+<t>The Subject can then choose whether to authorize reuse or request an update, subject to the
+RP's acceptance policy. <xref target="collection-and-reuse"></xref> describes privacy policies and rate limits
+for user-directed updates.</t>
+<t>Reuse avoids a Claims Endpoint call for each presentation. The CP can still observe activity
+through information shared by RPs or retrieval of metadata, verification keys, or status.
+Valid metadata and key caches tied to the issuer can reduce some such contact, subject to the requirements
+in <xref target="cp-metadata-and-verification-keys"></xref>.</t>
+<t>An alternative design can pre-issue a batch of distinct credentials for one-time use,
+combining advance collection with avoidance of a common reused artifact. This introduces
+inventory and replenishment requirements. Section 10.1 of <eref target="https://www.rfc-editor.org/rfc/rfc9901.html">SD-JWT</eref> describes batch issuance
+for presentation and verifier-verifier unlinkability, including the need to avoid other
+common identifiers and timing values. It does not solve issuer-verifier collusion.</t>
+<t>With this profile, the Subject can instead request a newly issued Claim Set for a use,
+without a CP <tt>sub</tt> in the presented JWT. This avoids maintaining a stock of unused
+credentials, but requires CP availability and continued willingness to issue, and exposes
+issuance timing to the CP. It does not require revealing the RP's identity to the CP.
+The correlation risks for newly issued Claim Sets are described in
+<xref target="correlation-and-transferable-signed-data"></xref>.</t>
+<t>The stable account-binding identifier remains in the OP-facing acquisition envelope. The
+OP validates it against the Setup ID Token, then discloses only the inner JWT. The new
+endpoint avoids changing UserInfo's requirement that its <tt>sub</tt> match the ID Token <tt>sub</tt>.
+Using a refreshed ID Token itself would not provide that separation: Section 12.2 of <eref target="https://openid.net/specs/openid-connect-core-1_0.html">OpenID.Core</eref>
+requires its issuer, subject, and audience to remain those of the original ID Token.</t>
+<t>This specification introduces no batch issuance protocol and does not require a newly
+issued JWT per presentation. Reuse of stored Claim Sets and user-directed updates remain
+Subject choices, subject to RP acceptance policy. These issuance and reuse tradeoffs are
+not unique to either an OP-mediated or issuer-holder-verifier architecture.</t>
+</section>
+
+<section anchor="subject-control-of-retention-and-disclosure"><name>Subject Control of Retention and Disclosure</name>
+<t>The controls in <xref target="subject-control-of-stored-claim-sets"></xref> let the Subject distinguish stored
+data from collection and disclosure permissions. They complement the CP's grant-management
+interface: revoking a CP grant does not retract issued Claim Sets, while withdrawal at the
+OP controls further OP disclosure. Neither operation retracts data already received by an
+RP. A Subject may retain a Claim Set as a personal record even after it expires; expiration
+restricts valid use rather than imposing deletion. The safeguards in
+<xref target="token-and-claim-set-storage"></xref> address the resulting storage risks without imposing a
+protocol retention deadline or a particular archival encryption design.</t>
+<t>Disclosure history can help the Subject identify RPs that already received their data,
+including when seeking deletion from those RPs. That history is itself sensitive personal
+data and remains subject to protection, minimization, and Subject deletion controls in
+<xref target="subject-control-of-stored-claim-sets"></xref>. Export can give the Subject an independent copy of
+an issued artifact, but does not remove the transferability or correlation risks described
+in <xref target="correlation-and-transferable-signed-data"></xref>.</t>
+</section>
+</section>
+
+<section anchor="iana-considerations"><name>IANA Considerations</name>
+
+<section anchor="registration-overview"><name>Registration Overview</name>
+<t>This specification requests registration of two OAuth Authorization Server Metadata
+parameters and one media type. The templates below do not indicate that registration has
+already been completed.</t>
+</section>
+
+<section anchor="oauth-authorization-server-metadata-registrations"><name>OAuth Authorization Server Metadata Registrations</name>
+
+<section anchor="registry-and-template"><name>Registry and Template</name>
+<t>The following entries are requested in the OAuth Authorization Server Metadata registry
+<eref target="https://www.iana.org/assignments/oauth-parameters/">IANA.OAuth.Parameters</eref>, using the template in Section 7.1.1 of <eref target="https://www.rfc-editor.org/rfc/rfc8414.html">RFC8414</eref>. These metadata
+parameters apply to the CP's resolved <tt>openid_provider</tt> metadata and its OpenID Connect
+Discovery document as specified in <xref target="discovery-phase"></xref>.</t>
+</section>
+
+<section anchor="claims-endpoint-1"><name>claims_endpoint</name>
+
+<ul spacing="compact">
+<li>Metadata Name: <tt>claims_endpoint</tt></li>
+<li>Metadata Description: HTTPS URL of the Claims Provider's Claims Endpoint.</li>
+<li>Change Controller: OpenID Foundation Artifact Binding Working Group -
+openid-specs-ab@lists.openid.net</li>
+<li>Specification Document(s): This specification, <xref target="discovery-phase"></xref> and
+<xref target="claims-endpoint-request"></xref>.</li>
+</ul>
+</section>
+
+<section anchor="claims-signing-alg-values-supported"><name>claims_signing_alg_values_supported</name>
+
+<ul spacing="compact">
+<li>Metadata Name: <tt>claims_signing_alg_values_supported</tt></li>
+<li>Metadata Description: JSON array of asymmetric JWS signing algorithms supported by the Claims
+Provider for signed Claim Sets.</li>
+<li>Change Controller: OpenID Foundation Artifact Binding Working Group -
+openid-specs-ab@lists.openid.net</li>
+<li>Specification Document(s): This specification, <xref target="discovery-phase"></xref> and
+<xref target="signed-claim-set-format"></xref>.</li>
+</ul>
+</section>
+</section>
+
+<section anchor="media-type-registration"><name>Media Type Registration</name>
+<t>The following registration is requested in the Media Types registry <eref target="https://www.iana.org/assignments/media-types/">IANA.MediaTypes</eref>,
+using the template in Section 5.6 of <eref target="https://www.rfc-editor.org/rfc/rfc6838.html">RFC6838</eref>.</t>
+
+<ul spacing="compact">
+<li>Type name: <tt>application</tt></li>
+<li>Subtype name: <tt>claims-aggregation+jwt</tt></li>
+<li>Required parameters: None.</li>
+<li>Optional parameters: None.</li>
+<li>Encoding considerations: binary; a compact JWS as defined in <eref target="https://www.rfc-editor.org/rfc/rfc7515.html">RFC7515</eref>.</li>
+<li>Security considerations: See <xref target="security-considerations"></xref> and <xref target="privacy-considerations"></xref>.</li>
+<li>Interoperability considerations: See <xref target="signed-claim-set-format"></xref>, <xref target="claim-set-profile"></xref>,
+and <xref target="claims-verification"></xref>.</li>
+<li>Published specification: This specification, <xref target="signed-claim-set-format"></xref> and
+<xref target="claims-verification"></xref>.</li>
+<li>Applications that use this media type: Implementations of this specification.</li>
+<li>Fragment identifier considerations: No fragment identifier syntax is defined for this media
+type. The existing <tt>+jwt</tt> fragment identifier rules apply.</li>
+<li><t>Additional information:</t>
+
+<ul spacing="compact">
+<li>Deprecated alias names for this type: None.</li>
+<li>Magic number(s): None.</li>
+<li>File extension(s): None.</li>
+<li>Macintosh file type code(s): None.</li>
+</ul></li>
+<li>Person &amp; email address to contact for further information: Nat Sakimura - nat@nat.consulting.</li>
+<li>Intended usage: COMMON.</li>
+<li>Restrictions on usage: None.</li>
+<li>Author: Nat Sakimura and Edmund Jay.</li>
+<li>Change controller: OpenID Foundation Artifact Binding Working Group -
+openid-specs-ab@lists.openid.net</li>
+<li>Provisional registration? No.</li>
+</ul>
+</section>
+
+<section anchor="other-protocol-elements"><name>Other Protocol Elements</name>
+<t>The <tt>account_ref</tt>, <tt>nonce</tt>, <tt>claims</tt>, <tt>signing_alg</tt>, and <tt>claim_set</tt> members are defined
+within this API's JSON request and response objects. They are not new top-level JWT claims
+or new Authorization or Token Endpoint parameters, and this specification requests no
+registrations for them in those registries. Existing names in other registries do not
+supply their API semantics. No new JOSE header parameter, signing algorithm, or structured
+syntax suffix is defined. The existing <tt>typ</tt> header, RS256 algorithm, <tt>+jwt</tt> suffix, JWT
+claims, and OAuth token/error mechanisms are reused. No new client capability metadata or
+OAuth error value is registered by this specification.</t>
+</section>
 </section>
 
 </middle>
 
 <back>
 
+<section anchor="bibliography"><name>Bibliography</name>
+<t><eref target="https://openid.net/specs/openid-ida-verified-claims-1_0.html">IDA.Schema</eref> - OpenID Identity Assurance Schema Definition 1.0 incorporating errata set 1</t>
+<t><eref target="https://www.iana.org/assignments/oauth-parameters/">IANA.OAuth.Parameters</eref> - IANA OAuth Parameters</t>
+<t><eref target="https://www.iana.org/assignments/media-types/">IANA.MediaTypes</eref> - IANA Media Types</t>
+<t><eref target="https://www.rfc-editor.org/rfc/rfc9901.html">SD-JWT</eref> - RFC 9901 - Selective Disclosure for JSON Web Tokens</t>
+<t><eref target="https://www.ietf.org/archive/id/draft-ietf-oauth-security-topics-update-03.html">OAuth.Security.Update</eref> - Updates to OAuth 2.0 Security Best Current Practice, draft-ietf-oauth-security-topics-update-03, Work in Progress</t>
+<t><eref target="https://github.com/sakimura/claims-endpoint-prototype/tree/f5f6be8e5e7e3853711a02952f754a93ec4c3963">ClaimsAggregation.TestVectors</eref> - Claims Endpoint prototype and reproducible RS256 test vectors</t>
+</section>
+
 <section anchor="notices"><name>Notices</name>
-<t>Copyright (c) 2025 The OpenID Foundation.</t>
+<t>Copyright (c) 2026 The OpenID Foundation.</t>
 <t>The OpenID Foundation (OIDF) grants to any Contributor, developer,
 implementer, or other interested party a non-exclusive, royalty free,
 worldwide copyright license to reproduce, prepare derivative works from,
@@ -406,12 +2007,40 @@ specification.</t>
 </section>
 
 <section anchor="acknowledgements"><name>Acknowledgements</name>
-<t>We would like to thank the following people for their valuable feedback and contributions that helped to evolve this specification.</t>
-<t>[[TBD]]</t>
+<t>The editors thank Michael B. Jones for his feedback and contributions.</t>
 </section>
 
 <section anchor="document-history"><name>Document History</name>
 <t>[[ To be removed from the final specification ]]</t>
+<t>-04</t>
+
+<ul spacing="compact">
+<li>Replaced signed UserInfo collection with a dedicated Claims Endpoint. Added CP
+endpoint and signing-algorithm metadata, strict JSON handling, operation nonces,
+and partial and empty results.</li>
+<li>Defined a signed Claim Set JWT without a CP Subject Identifier. Required RS256
+support and specified algorithm selection, verification key resolution, and OP
+and RP validation.</li>
+<li>Defined the OP's responsibility for Subject binding. Kept the CP account
+reference in the acquisition response and specified how the OP protects its
+association with the exact JWT through storage and redisclosure.</li>
+<li>Required OpenID Federation Automatic Registration and confidential OP client
+authentication with <tt>private_key_jwt</tt> in the base profile. Bound client assertion
+audiences to the CP issuer.</li>
+<li>Required Authorization Code Flow, PKCE S256, authorization response issuer
+validation, and transaction and session binding during Setup. Defined CP consent,
+token handling, and account relinking.</li>
+<li>Clarified how RPs request and receive Aggregated Claims. Defined RP-specific
+consent, claim omission, local freshness policy, and user-directed updates.
+Recommended back-channel delivery.</li>
+<li>Defined Subject controls for stored Claim Set deletion and authorization
+withdrawal. Clarified how those controls interact with CP grant revocation and
+backup restoration.</li>
+<li>Documented acquisition trust boundaries, optional CP-origin evidence,
+correlation and replay risks, and the limits of identity assurance query support.</li>
+<li>Added IANA registration templates for the two CP metadata parameters and the
+Claim Set media type.</li>
+</ul>
 <t>-03</t>
 
 <ul spacing="compact">
@@ -456,7 +2085,6 @@ specification.</t>
 <li>defined claims endpoint &amp; discovery metadata</li>
 <li>defined registration of claims endpoint response signature and encryption algs</li>
 <li>defined c_token in claims object to request claims from claims endpoint</li>
-<li></li>
 </ul>
 </section>
 
